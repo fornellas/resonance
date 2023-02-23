@@ -3,6 +3,8 @@ package state
 import (
 	"context"
 	"errors"
+
+	"github.com/fornellas/resonance/resource"
 )
 
 type Local struct {
@@ -10,9 +12,9 @@ type Local struct {
 	Path string
 }
 
-func (l Local) Load(ctx context.Context) (StateData, error) {
-	return StateData{}, errors.New("TODO Local.Load")
+func (l Local) Load(ctx context.Context) (resource.StateData, error) {
+	return resource.StateData{}, errors.New("TODO Local.Load")
 }
-func (l Local) Save(ctx context.Context, stateData StateData) error {
+func (l Local) Save(ctx context.Context, stateData resource.StateData) error {
 	return errors.New("TODO Local.Save")
 }

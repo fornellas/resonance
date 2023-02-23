@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/fornellas/resonance/host"
-	"github.com/fornellas/resonance/state"
 )
 
 // FileParams for File
@@ -40,7 +39,7 @@ func (c File) ReadState(
 	host host.Host,
 	name string,
 	instances []Instance,
-) (state.ResourceState, error) {
+) (ResourceState, error) {
 	// TODO use Host interface
 	// fileParams := parameters.(FileParams)
 

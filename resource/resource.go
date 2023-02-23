@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/fornellas/resonance/host"
-	"github.com/fornellas/resonance/state"
 )
 
 // Instance holds parameters for a resource instance.
@@ -19,12 +18,9 @@ type Instance struct {
 // Resource manages state.
 type Resource interface {
 	// Merge informs whether all resources from the same type are to be merged
-	// together.
-	// When true, all instances of the resource are joined as a single
-	// instances slice with length equal to the number of resources for that
-	// host.
-	// When false, each instance of the resource is passed individually with
-	// a instances slice of size 1.
+	// together when applying.
+	// When true, Apply is called only once, with all instances.
+	// When false, Apply is called one time for each instance.
 	Merge() bool
 
 	// Reads current resource state without any side effects.
@@ -32,7 +28,7 @@ type Resource interface {
 		ctx context.Context,
 		host host.Host,
 		instances []Instance,
-	) (state.ResourceState, error)
+	) (ResourceState, error)
 
 	// Apply confiugres the resource at host to given instances state.
 	// Must be idempotent.

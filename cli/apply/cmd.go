@@ -3,6 +3,7 @@ package apply
 import (
 	"context"
 	"errors"
+	"reflect"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -43,30 +44,40 @@ var Cmd = &cobra.Command{
 			logrus.Fatal(err)
 		}
 
-		var resourceBundles []resource.ResourceDefinitions
+		// resourceBundles := []resource.ResourceDefinitions{}
+		currentStateData := resource.StateData{}
 		for _, path := range args {
-			pathResourceDefinitions, err := resource.Load(ctx, path)
+			resourceDefinitions, err := resource.LoadResourceDefinitions(ctx, path)
 			if err != nil {
 				logrus.Fatal(err)
 			}
-			resourceBundles = append(resourceBundles, pathResourceDefinitions)
+			// resourceBundles = append(resourceBundles, resourceDefinitions)
+
+			pathStateData, err := resourceDefinitions.ReadState(ctx, hst)
+			if err != nil {
+				logrus.Fatal(err)
+			}
+			currentStateData.Merge(pathStateData)
 		}
-		// order resources
 
-		// read initial state of all resources
+		if reflect.DeepEqual(savedStateData, currentStateData) {
+			logrus.Info("Nothing to do")
+			return
+		}
 
-		// if saved / initial state differ
-		// 	read initial inventory
-		// 	apply resources that are different
-		// 	destroy resources that are not present anymore
-		// 	read final state of all resources
-		// 	save state of all resources
-		// 	read final inventory
-		// 	if initial / final inventory differ
-		// 		big fat warning
-		// 		if more than once
-		// 			fail
-		// 		start over
+		// merge resources
+		// Define execution order
+		// read initial inventory
+		// apply resources that are different
+		// destroy resources that are not present anymore
+		// read final state of all resources
+		// save state of all resources
+		// read final inventory
+		// if initial / final inventory differ
+		// 	big fat warning
+		// 	if more than once
+		// 		fail
+		// 	start over
 
 		logrus.Fatal("TODO apply.Run")
 	},
