@@ -3,6 +3,7 @@ package apply
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"reflect"
 
 	"github.com/sirupsen/logrus"
@@ -40,7 +41,7 @@ var Cmd = &cobra.Command{
 			Path: stateYaml,
 		}
 		savedStateData, err := localState.Load(ctx)
-		if err != nil {
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
 			logrus.Fatal(err)
 		}
 

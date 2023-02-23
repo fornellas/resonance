@@ -6,13 +6,15 @@ import (
 	"github.com/fornellas/resonance/host"
 )
 
+type ResourceParameters interface{}
+
 // Instance holds parameters for a resource instance.
 type Instance struct {
 	// Name is a globally unique identifier for the resource.
 	Name string `yaml:"name"`
 	// Parameters holds resource specific parameters.
 	// It must be marshallable by gopkg.in/yaml.v3.
-	Parameters interface{} `yaml:"parameters"`
+	Parameters ResourceParameters `yaml:"parameters"`
 }
 
 // Resource manages state.
