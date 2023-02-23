@@ -9,10 +9,6 @@ GOIMPORTS_VERSION ?= 0.3.0
 GOIMPORTS ?= goimports
 GOIMPORTS_LOCAL ?= github.com/fornellas/resonance/
 
-GOLANGCI_LINT_VERSION ?= 1.50.1
-GOLANGCI_LINT ?= golangci-lint
-GOLANGCI_LINT_ARGS ?= --timeout 2m
-
 STATICCHECK_VERSION ?= 2023.1
 STATICCHECK ?= staticcheck
 STATICCHECK_CACHE ?= $(HOME)/.cache/staticcheck
@@ -28,6 +24,7 @@ GOTEST_VERSION ?= v0.0.6
 RRB_VERSION ?= latest
 RRB_DEBOUNCE ?= 500ms
 RRB_PATTERN ?= '**/*.{go}'
+RRB_EXTRA_CMD ?= true
 
 ##
 ## Help
@@ -114,28 +111,6 @@ lint: goimports
 go-mod-tidy: go-generate goimports
 	$(GO) mod tidy
 lint: go-mod-tidy
-
-# golangci-lint
-
-.PHONY: install-deps-golangci-lint
-install-deps-golangci-lint: install-deps-bindir
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(BINDIR) v$(GOLANGCI_LINT_VERSION)
-install-deps: install-deps-golangci-lint
-
-.PHONY: uninstall-deps-golangci-lint
-uninstall-deps-golangci-lint:
-	rm -f $(BINDIR)/golangci-lint
-uninstall-deps: uninstall-deps-golangci-lint
-
-.PHONY: golangci-lint
-golangci-lint: go-mod-tidy go-generate
-	$(GOLANGCI_LINT) run $(GOLANGCI_LINT_ARGS) .
-lint: golangci-lint
-
-.PHONY: clean-golangci-lint
-clean-golangci-lint:
-	$(GOLANGCI_LINT) cache clean || { if test $$? -ne 127 ; then exit $?? ; fi ; }
-clean: clean-golangci-lint
 
 # staticcheck
 
@@ -251,7 +226,7 @@ uninstall-deps: uninstall-deps-rrb
 
 .PHONY: rrb-help
 rrb-help:
-	@echo 'rrb: rerun build automatically on file changes'
+	@echo 'rrb: rerun build automatically on file changes then runs RRB_EXTRA_CMD'
 help: rrb-help
 
 .PHONY: rrb-ci-no-install-deps
@@ -261,7 +236,7 @@ rrb-ci-no-install-deps:
 		--ignore-pattern '.cache/**/*' \
 		--pattern $(RRB_PATTERN) \
 		-- \
-		$(MAKE) $(MFLAGS) ci-no-install-deps
+		sh -c "$(MAKE) $(MFLAGS) ci-no-install-deps && $(RRB_EXTRA_CMD)"
 
 .PHONY: rrb
 rrb:
@@ -282,7 +257,7 @@ help: build-help
 
 .PHONY: build
 build: go-generate
-	$(GO) build ./...
+	$(GO) build .
 
 .PHONY: clean-build
 clean-build:
