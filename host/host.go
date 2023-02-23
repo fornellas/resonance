@@ -83,34 +83,47 @@ func (ws *WaitStatus) String() string {
 	return str
 }
 
-// Host interface
+// Host defines an interface for interacting with a host.
 type Host interface {
 	// // Chmod works similar to os.Chmod.
 	// Chmod(ctx context.Context, name string, mode os.FileMode) error
+
 	// // Chown works similar to os.Chown.
 	// Chown(ctx context.Context, name string, uid, gid int) error
+
 	// // GetGid works similar to os.GetGid.
 	// GetGid(ctx context.Context, groupname string) int
+
 	// // GetUid works similar to os.GetUid.
 	// GetUid(ctx context.Context, username string) int
+
 	// // Hostname works similar to os.Hostname.
 	// Hostname() (ctx context.Context, name string, err error)
+
 	// // Lchown works similar to os.Lchown.
 	// Lchown(ctx context.Context, name string, uid, gid int) error
+
 	// // Link works similar to os.Link.
 	// Link(ctx context.Context, oldname, newname string) error
+
 	// // Mkdir works similar to os.Mkdir.
 	// Mkdir(ctx context.Context, name string, perm os.FileMode) error
+
 	// // ReadFile works similar to os.ReadFile.
 	// ReadFile(ctx context.Context, name string) ([]byte, error)
+
 	// // Readlink works similar to os.Readlink.
 	// Readlink(ctx context.Context, name string) (string, error)
+
 	// // Remove works similar to os.Remove.
 	// Remove(ctx context.Context, name string) error
+
 	// Run starts the specified command and waits for it to complete.
 	Run(ctx context.Context, cmd Cmd) (WaitStatus, error)
+
 	// // Symlink works similar to os.Symlink.
 	// Symlink(ctx context.Context, oldname, newname string) error
+
 	// // WriteFile works similar to os.WriteFile.
 	// WriteFile(ctx context.Context, path string, perm os.FileMode)
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 )
 
+// Ssh interacts with a remote machine connecting to it via SSH protocol.
 type Ssh struct {
 	Host
 	Hostname string

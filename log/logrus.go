@@ -9,6 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// ColorFormatter is a formatter that uses different colors for each level.
 type ColorFormatter struct{}
 
 var logColorMap = map[logrus.Level]*color.Color{
@@ -61,6 +62,7 @@ func getLevel(logLevel string) (logrus.Level, error) {
 	return logrus.TraceLevel, fmt.Errorf("invalid level %v", logLevel)
 }
 
+// Setup configures logrus standard logger with ColorFormatter and given log level.
 func Setup(logLevel string) error {
 	logrus.SetFormatter(&ColorFormatter{})
 

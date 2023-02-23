@@ -5,6 +5,7 @@ import (
 	"errors"
 )
 
+// Local interacts with the local machine running the code.
 type Local struct {
 	Host
 }

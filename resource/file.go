@@ -9,19 +9,28 @@ import (
 	"github.com/fornellas/resonance/state"
 )
 
+// FileParams for File
 type FileParams struct {
+	// Contents of the file
 	Content []byte
-	Perm    os.FileMode
-	User    string
-	Uid     int
-	Group   string
-	Gid     int
+	// File permissions
+	Perm os.FileMode
+	// User name owner of the file
+	User string
+	// User ID owner of the file
+	Uid int
+	// Group name owner of the file
+	Group string
+	// Group ID owner of the file
+	Gid int
 }
 
+// FileState for File
 type FileState struct {
 	Md5 []byte
 }
 
+// File resource manages files.
 type File struct {
 	// Resource
 }
@@ -30,8 +39,9 @@ func (c File) ReadState(
 	ctx context.Context,
 	host host.Host,
 	name string,
-	parameters []Parameter,
+	instances []Instance,
 ) (state.ResourceState, error) {
+	// TODO use Host interface
 	// fileParams := parameters.(FileParams)
 
 	// f, err := os.Open(fileParams.Path)
@@ -55,8 +65,9 @@ func (c File) Apply(
 	ctx context.Context,
 	host host.Host,
 	name string,
-	parameters []Parameter,
+	instances []Instance,
 ) error {
+	// TODO use Host interface
 	// fileParams := parameters.(FileParams)
 
 	// if err := os.WriteFile(name, fileParams.Content, fileParams.Perm); err != nil {

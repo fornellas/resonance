@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/fornellas/resonance/host"
+	"github.com/fornellas/resonance/resource"
 	"github.com/fornellas/resonance/state"
 )
 
@@ -34,7 +35,6 @@ var Cmd = &cobra.Command{
 			logrus.Fatal(errors.New("must provide either --localhost or --hostname"))
 		}
 
-		// load saved state of all resourcesof all resources
 		localState := state.Local{
 			Path: stateYaml,
 		}
@@ -42,6 +42,16 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			logrus.Fatal(err)
 		}
+
+		var resourceBundles []resource.ResourceDefinitions
+		for _, path := range args {
+			pathResourceDefinitions, err := resource.Load(ctx, path)
+			if err != nil {
+				logrus.Fatal(err)
+			}
+			resourceBundles = append(resourceBundles, pathResourceDefinitions)
+		}
+		// order resources
 
 		// read initial state of all resources
 
