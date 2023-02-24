@@ -1,6 +1,9 @@
 package resource
 
-import "fmt"
+import (
+	"fmt"
+	"regexp"
+)
 
 // ResourceState holds information about a resource.
 // It must be marshallable by gopkg.in/yaml.v3.
@@ -9,8 +12,22 @@ type ResourceState interface{}
 
 type ResourceInstanceKey string
 
-func GetResourceInstanceKey(ResourceName ResourceName, InstanceName string) ResourceInstanceKey {
-	return ResourceInstanceKey(fmt.Sprintf("%s[%s]", ResourceName, InstanceName))
+var resourceInstanceKeyRegexp = regexp.MustCompile(`^(.+)\[(.+)\]$`)
+
+func (rik ResourceInstanceKey) GetNames() (ResourceName, InstanceName, error) {
+	var resourceName ResourceName
+	var instanceName InstanceName
+	matches := resourceInstanceKeyRegexp.FindStringSubmatch(string(rik))
+	if len(matches) != 3 {
+		return resourceName, instanceName, fmt.Errorf("%s does not match Type[Name] format", rik)
+	}
+	resourceName = ResourceName(matches[1])
+	instanceName = InstanceName(matches[2])
+	return resourceName, instanceName, nil
+}
+
+func GetResourceInstanceKey(resourceName ResourceName, instanceName InstanceName) ResourceInstanceKey {
+	return ResourceInstanceKey(fmt.Sprintf("%s[%s]", resourceName, instanceName))
 }
 
 type StateData map[ResourceInstanceKey]ResourceState

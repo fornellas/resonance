@@ -34,11 +34,14 @@ type File struct {
 	// Resource
 }
 
-func (c File) ReadState(
+func (f File) Merge() bool {
+	return false
+}
+
+func (f File) ReadState(
 	ctx context.Context,
 	host host.Host,
-	name string,
-	instances []Instance,
+	instance Instance,
 ) (ResourceState, error) {
 	// TODO use Host interface
 	// fileParams := parameters.(FileParams)
@@ -60,10 +63,9 @@ func (c File) ReadState(
 	return FileState{}, fmt.Errorf("TODO File.ReadState")
 }
 
-func (c File) Apply(
+func (f File) Apply(
 	ctx context.Context,
 	host host.Host,
-	name string,
 	instances []Instance,
 ) error {
 	// TODO use Host interface
@@ -74,4 +76,12 @@ func (c File) Apply(
 	// }
 	// return nil
 	return fmt.Errorf("TODO File.Apply")
+}
+
+func (f File) Destroy(
+	ctx context.Context,
+	host host.Host,
+	instances []Instance,
+) error {
+	return fmt.Errorf("TODO File.Destroy")
 }

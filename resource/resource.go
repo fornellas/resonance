@@ -8,10 +8,12 @@ import (
 
 type ResourceParameters interface{}
 
+type InstanceName string
+
 // Instance holds parameters for a resource instance.
 type Instance struct {
 	// Name is a globally unique identifier for the resource.
-	Name string `yaml:"name"`
+	Name InstanceName `yaml:"name"`
 	// Parameters holds resource specific parameters.
 	// It must be marshallable by gopkg.in/yaml.v3.
 	Parameters ResourceParameters `yaml:"parameters"`
@@ -29,7 +31,7 @@ type Resource interface {
 	ReadState(
 		ctx context.Context,
 		host host.Host,
-		instances []Instance,
+		instance Instance,
 	) (ResourceState, error)
 
 	// Apply confiugres the resource at host to given instances state.

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"reflect"
 
 	"gopkg.in/yaml.v3"
 
@@ -19,18 +18,12 @@ type ResourceName string
 
 // Resource returns an instance for the resource.
 func (rn ResourceName) Resource() (Resource, error) {
-	for i := 0; i < reflect.TypeOf("").NumMethod(); i++ {
-		typeObj := reflect.TypeOf("").Method(i).Type.Out(0)
-		if typeObj.String() == string(rn) {
-			newObj := reflect.New(typeObj).Elem().Interface()
-			resource, ok := newObj.(Resource)
-			if !ok {
-				panic("Unable to cast to Resource")
-			}
-			return resource, nil
-		}
+	switch string(rn) {
+	case "File":
+		return File{}, nil
+	default:
+		return nil, fmt.Errorf("unknown resource type '%s'", rn)
 	}
-	return nil, fmt.Errorf("invalid resource type %s", rn)
 }
 
 // ResourceDefinition groups Instance by ResourceName.
@@ -46,24 +39,28 @@ func (rd ResourceDefinitions) ReadState(ctx context.Context, host host.Host) (St
 	stateData := StateData{}
 
 	for _, resourceDefinition := range rd {
-		for resourceName, instances := range resourceDefinition {
-			resource, err := resourceName.Resource()
-			if err != nil {
-				return StateData{}, err
-			}
-			resourceState, err := resource.ReadState(ctx, host, instances)
-			if err != nil {
-				return StateData{}, err
-			}
-
-			for _, instance := range instances {
-				resourceInstanceKey := GetResourceInstanceKey(
-					resourceName,
-					instance.Name,
-				)
-				stateData[resourceInstanceKey] = resourceState
-			}
+		resourceName, instanceName, err := resourceDefinition.ResourceInstanceKey.GetNames()
+		if err != nil {
+			return StateData{}, err
 		}
+		resource, err := resourceName.Resource()
+		if err != nil {
+			return StateData{}, err
+		}
+		instance := Instance{
+			Name:       instanceName,
+			Parameters: resourceDefinition.Parameters,
+		}
+		resourceState, err := resource.ReadState(ctx, host, instance)
+		if err != nil {
+			return StateData{}, fmt.Errorf("%s: failed to read state: %w", instanceName, err)
+		}
+
+		resourceInstanceKey := GetResourceInstanceKey(
+			resourceName,
+			instance.Name,
+		)
+		stateData[resourceInstanceKey] = resourceState
 	}
 
 	return stateData, nil

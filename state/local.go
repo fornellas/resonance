@@ -20,7 +20,7 @@ type Local struct {
 func (l Local) Load(ctx context.Context) (resource.StateData, error) {
 	f, err := os.Open(l.Path)
 	if err != nil {
-		return resource.StateData{}, fmt.Errorf("failed to load state: %w", err)
+		return resource.StateData{}, fmt.Errorf("failed to load state from %s: %w", l.Path, err)
 	}
 	defer f.Close()
 

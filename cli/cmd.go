@@ -37,7 +37,7 @@ var Cmd = &cobra.Command{
 func init() {
 	cobra.OnInitialize(cobraInit)
 
-	Cmd.Flags().StringVarP(
+	Cmd.PersistentFlags().StringVarP(
 		&logLevel, "log-level", "l", "info",
 		"Logging level",
 	)
