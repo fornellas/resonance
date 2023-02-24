@@ -18,6 +18,31 @@ var localhost bool
 var hostname string
 var stateYaml string
 
+func getHost() host.Host {
+	if localhost {
+		return host.Local{}
+	} else if hostname != "" {
+		return host.Ssh{
+			Hostname: hostname,
+		}
+	} else {
+		logrus.Fatal(errors.New("must provide either --localhost or --hostname"))
+	}
+	return nil
+}
+
+func LoadResourceDefinitions(ctx context.Context, paths []string) resource.ResourceDefinitions {
+	resourceDefinitions := resource.ResourceDefinitions{}
+	for _, path := range paths {
+		pathResourceDefinitions, err := resource.LoadResourceDefinitions(ctx, path)
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		resourceDefinitions = append(resourceDefinitions, pathResourceDefinitions...)
+	}
+	return resourceDefinitions
+}
+
 var Cmd = &cobra.Command{
 	Use:   "apply [flags] yaml...",
 	Short: "Applies configuration to a host.",
@@ -26,42 +51,24 @@ var Cmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 
-		var hst host.Host
-		if localhost {
-			hst = host.Local{}
-		} else if hostname != "" {
-			hst = host.Ssh{
-				Hostname: hostname,
-			}
-		} else {
-			logrus.Fatal(errors.New("must provide either --localhost or --hostname"))
-		}
+		hst := getHost()
 
 		localState := state.Local{
 			Path: stateYaml,
 		}
-		savedStateData, err := localState.Load(ctx)
+		savedHostState, err := localState.Load(ctx)
 		if err != nil && !errors.Is(err, fs.ErrNotExist) {
 			logrus.Fatal(err)
 		}
 
-		// resourceBundles := []resource.ResourceDefinitions{}
-		currentHostState := resource.HostState{}
-		for _, path := range args {
-			resourceDefinitions, err := resource.LoadResourceDefinitions(ctx, path)
-			if err != nil {
-				logrus.Fatal(err)
-			}
-			// resourceBundles = append(resourceBundles, resourceDefinitions)
+		resourceDefinitions := LoadResourceDefinitions(ctx, args)
 
-			pathStateData, err := resourceDefinitions.ReadState(ctx, hst)
-			if err != nil {
-				logrus.Fatal(err)
-			}
-			currentHostState.Merge(pathStateData)
+		currentHostState, err := resourceDefinitions.ReadState(ctx, hst)
+		if err != nil {
+			logrus.Fatal(err)
 		}
 
-		if reflect.DeepEqual(savedStateData, currentHostState) {
+		if reflect.DeepEqual(savedHostState, currentHostState) {
 			logrus.Info("Nothing to do")
 			return
 		}
