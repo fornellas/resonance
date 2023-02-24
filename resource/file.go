@@ -34,7 +34,7 @@ type File struct {
 	// Resource
 }
 
-func (f File) Merge() bool {
+func (f File) AlwaysMergeApply() bool {
 	return false
 }
 
@@ -42,7 +42,7 @@ func (f File) ReadState(
 	ctx context.Context,
 	host host.Host,
 	instance Instance,
-) (ResourceState, error) {
+) (State, error) {
 	// TODO use Host interface
 	// fileParams := parameters.(FileParams)
 
