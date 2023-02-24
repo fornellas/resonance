@@ -7,26 +7,28 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 
 	"github.com/fornellas/resonance/host"
 )
 
-// InstanceName is a name that globally uniquely identifies a resource instance.
-type InstanceName string
+// Name is a name that globally uniquely identifies a resource instance of a given type.
+// Eg: for File type a Name would be the file absolute path such as /etc/issue.
+type Name string
 
-// Parameters for a resource instance.
+// Parameters for a resource instance. This is specific for each resource type.
 // It must be unmarshallable by gopkg.in/yaml.v3.
 type Parameters interface{}
 
 // Instance holds parameters for a resource instance.
 type Instance struct {
-	Name       InstanceName `yaml:"name"`
-	Parameters Parameters   `yaml:"parameters"`
+	Name       Name       `yaml:"name"`
+	Parameters Parameters `yaml:"parameters"`
 }
 
-// State holds information about a resource state.
+// State holds information about a resource state. This is specific for each resource type.
 // It must be marshallable by gopkg.in/yaml.v3.
 // It must work with reflect.DeepEqual.
 type State interface{}
@@ -63,70 +65,106 @@ type ManageableResource interface {
 	) error
 }
 
-////////////////////////////////////////////
-////////////////////////////////////////////
-////////////////////////////////////////////
-////////////////////////////////////////////
-////////////////////////////////////////////
+// HostState is the schema used to save/load state for all resources for a host.
+type HostState map[TypeName]State
 
-// ResourceName is the name of the resource.
+// Merge appends received HostState.
+func (hs HostState) Merge(stateData HostState) {
+	for resourceInstanceKey, resourceState := range stateData {
+		if _, ok := hs[resourceInstanceKey]; ok {
+			panic(fmt.Sprintf("duplicated resource instance %s", resourceInstanceKey))
+		}
+		hs[resourceInstanceKey] = resourceState
+	}
+}
+
+// Type is the name of the resource.
 // Must match resource's reflect.Type.Name().
-type ResourceName string
+type Type string
+
+func (t Type) String() string {
+	return string(t)
+}
+
+var typeToManageableResource = map[Type]ManageableResource{
+	"File": File{},
+}
+
+var validResourceTypes string
 
 // ManageableResource returns an instance for the resource.
-func (rn ResourceName) ManageableResource() (ManageableResource, error) {
-	switch string(rn) {
-	case "File":
-		return File{}, nil
-	default:
-		return nil, fmt.Errorf("unknown resource type '%s'", rn)
+func (t Type) ManageableResource() (ManageableResource, error) {
+	manageableResource, ok := typeToManageableResource[t]
+	if !ok {
+		return nil, fmt.Errorf("unknown resource type '%s'; valid types: %s", t, validResourceTypes)
 	}
+	return manageableResource, nil
 }
 
-// ResourceDefinition groups Instance by ResourceName.
+// TypeName is a string that identifies a resource type and name.
+// Eg: File[/etc/issue].
+type TypeName string
+
+var resourceInstanceKeyRegexp = regexp.MustCompile(`^(.+)\[(.+)\]$`)
+
+// GetTypeName returns the Type and Name.
+func (rik TypeName) GetTypeName() (Type, Name, error) {
+	var tpe Type
+	var name Name
+	matches := resourceInstanceKeyRegexp.FindStringSubmatch(string(rik))
+	if len(matches) != 3 {
+		return tpe, name, fmt.Errorf("%s does not match Type[Name] format", rik)
+	}
+	tpe = Type(matches[1])
+	name = Name(matches[2])
+	return tpe, name, nil
+}
+
+// NewTypeName creates a new TypeName.
+func NewTypeName(tpe Type, name Name) TypeName {
+	return TypeName(fmt.Sprintf("%s[%s]", tpe, name))
+}
+
+// ResourceDefinition is the schema used to declare a single resource.
 type ResourceDefinition struct {
-	ResourceInstanceKey ResourceInstanceKey `yaml:"resource"`
-	Parameters          Parameters          `yaml:"parameters"`
+	TypeName   TypeName   `yaml:"resource"`
+	Parameters Parameters `yaml:"parameters"`
 }
 
-// ResourceDefinitions is the schema used for loading resources from yaml files.
+// ResourceDefinitions is the schema used to declare multiple resources.
 type ResourceDefinitions []ResourceDefinition
 
-func (rd ResourceDefinitions) ReadState(ctx context.Context, host host.Host) (StateData, error) {
-	stateData := StateData{}
+// ReadState reads and return the state from all resource definitions.
+func (rd ResourceDefinitions) ReadState(ctx context.Context, host host.Host) (HostState, error) {
+	hostState := HostState{}
 
 	for _, resourceDefinition := range rd {
-		resourceName, instanceName, err := resourceDefinition.ResourceInstanceKey.GetNames()
+		tpe, name, err := resourceDefinition.TypeName.GetTypeName()
 		if err != nil {
-			return StateData{}, err
+			return hostState, err
 		}
-		resource, err := resourceName.ManageableResource()
+		resource, err := tpe.ManageableResource()
 		if err != nil {
-			return StateData{}, err
+			return hostState, err
 		}
 		instance := Instance{
-			Name:       instanceName,
+			Name:       name,
 			Parameters: resourceDefinition.Parameters,
 		}
-		resourceState, err := resource.ReadState(ctx, host, instance)
+		state, err := resource.ReadState(ctx, host, instance)
 		if err != nil {
-			return StateData{}, fmt.Errorf("%s: failed to read state: %w", instanceName, err)
+			return hostState, fmt.Errorf("%s: failed to read state: %w", resourceDefinition.TypeName, err)
 		}
 
-		resourceInstanceKey := GetResourceInstanceKey(
-			resourceName,
-			instance.Name,
-		)
-		stateData[resourceInstanceKey] = resourceState
+		hostState[resourceDefinition.TypeName] = state
 	}
 
-	return stateData, nil
+	return hostState, nil
 }
 
 // Load loads resource definitions from given Yaml file path which contains
 // the schema defined by ResourceDefinitions.
 func LoadResourceDefinitions(ctx context.Context, path string) (ResourceDefinitions, error) {
-
 	f, err := os.Open(path)
 	if err != nil {
 		return ResourceDefinitions{}, fmt.Errorf("failed to load resource definitions: %w", err)
@@ -152,33 +190,10 @@ func LoadResourceDefinitions(ctx context.Context, path string) (ResourceDefiniti
 	return resourceDefinitions, nil
 }
 
-type ResourceInstanceKey string
-
-var resourceInstanceKeyRegexp = regexp.MustCompile(`^(.+)\[(.+)\]$`)
-
-func (rik ResourceInstanceKey) GetNames() (ResourceName, InstanceName, error) {
-	var resourceName ResourceName
-	var instanceName InstanceName
-	matches := resourceInstanceKeyRegexp.FindStringSubmatch(string(rik))
-	if len(matches) != 3 {
-		return resourceName, instanceName, fmt.Errorf("%s does not match Type[Name] format", rik)
+func init() {
+	types := []string{}
+	for tpe := range typeToManageableResource {
+		types = append(types, tpe.String())
 	}
-	resourceName = ResourceName(matches[1])
-	instanceName = InstanceName(matches[2])
-	return resourceName, instanceName, nil
-}
-
-func GetResourceInstanceKey(resourceName ResourceName, instanceName InstanceName) ResourceInstanceKey {
-	return ResourceInstanceKey(fmt.Sprintf("%s[%s]", resourceName, instanceName))
-}
-
-type StateData map[ResourceInstanceKey]State
-
-func (sd StateData) Merge(stateData StateData) {
-	for resourceInstanceKey, resourceState := range stateData {
-		if _, ok := sd[resourceInstanceKey]; ok {
-			panic(fmt.Sprintf("duplicated resource instance %s", resourceInstanceKey))
-		}
-		sd[resourceInstanceKey] = resourceState
-	}
+	validResourceTypes = strings.Join(types, ", ")
 }

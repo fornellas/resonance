@@ -7,6 +7,6 @@ import (
 )
 
 type PersistantState interface {
-	Load(ctx context.Context) (resource.StateData, error)
-	Save(ctx context.Context, stateData resource.StateData) error
+	Load(ctx context.Context) (resource.HostState, error)
+	Save(ctx context.Context, stateData resource.HostState) error
 }

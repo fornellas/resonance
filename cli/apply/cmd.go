@@ -46,7 +46,7 @@ var Cmd = &cobra.Command{
 		}
 
 		// resourceBundles := []resource.ResourceDefinitions{}
-		currentStateData := resource.StateData{}
+		currentHostState := resource.HostState{}
 		for _, path := range args {
 			resourceDefinitions, err := resource.LoadResourceDefinitions(ctx, path)
 			if err != nil {
@@ -58,10 +58,10 @@ var Cmd = &cobra.Command{
 			if err != nil {
 				logrus.Fatal(err)
 			}
-			currentStateData.Merge(pathStateData)
+			currentHostState.Merge(pathStateData)
 		}
 
-		if reflect.DeepEqual(savedStateData, currentStateData) {
+		if reflect.DeepEqual(savedStateData, currentHostState) {
 			logrus.Info("Nothing to do")
 			return
 		}
