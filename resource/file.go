@@ -11,21 +11,23 @@ import (
 	"strconv"
 	"syscall"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/fornellas/resonance/host"
 )
 
 // FileParams for File
 type FileParams struct {
 	// Contents of the file
-	Content []byte `yaml:"content"`
+	Content string `yaml:"content"`
 	// File permissions
 	Perm os.FileMode `yaml:"perm"`
 	// User ID owner of the file
-	Uid int `yaml:"uid"`
+	Uid uint32 `yaml:"uid"`
 	// User name owner of the file
 	User string `yaml:"user"`
 	// Group ID owner of the file
-	Gid int `yaml:"gid"`
+	Gid uint32 `yaml:"gid"`
 	// Group name owner of the file
 	Group string `yaml:"group"`
 }
@@ -34,27 +36,23 @@ type FileParams struct {
 type FileState struct {
 	Md5   []byte      `yaml:"md5"`
 	Perm  os.FileMode `yaml:"perm"`
-	Uid   os.FileMode `yaml:"uid"`
+	Uid   uint32      `yaml:"uid"`
 	User  string      `yaml:"user"`
-	Gid   os.FileMode `yaml:"gid"`
+	Gid   uint32      `yaml:"gid"`
 	Group string      `yaml:"group"`
 }
 
 // File resource manages files.
 type File struct{}
 
-func (f File) AlwaysMergeApply() bool {
+func (f File) MergeApply() bool {
 	return false
 }
 
-func (f File) ReadState(
-	ctx context.Context,
-	host host.Host,
-	instance Instance,
-) (State, error) {
+func (f File) GetState(ctx context.Context, host host.Host, name Name) (State, error) {
 	fileState := FileState{}
 
-	path := instance.Name.String()
+	path := name.String()
 
 	// Md5
 	h := md5.New()
@@ -83,7 +81,7 @@ func (f File) ReadState(
 	fileState.Perm = fileInfo.Mode()
 
 	// Uid
-	fileState.Uid = os.FileMode(fileInfo.Sys().(*syscall.Stat_t).Uid)
+	fileState.Uid = fileInfo.Sys().(*syscall.Stat_t).Uid
 
 	// User
 	u, err := user.LookupId(strconv.Itoa(int(fileState.Uid)))
@@ -93,7 +91,7 @@ func (f File) ReadState(
 	fileState.User = u.Username
 
 	// Gid
-	fileState.Gid = os.FileMode(fileInfo.Sys().(*syscall.Stat_t).Gid)
+	fileState.Gid = fileInfo.Sys().(*syscall.Stat_t).Gid
 
 	// Group
 	g, err := user.LookupGroupId(strconv.Itoa(int(fileState.Gid)))
@@ -105,11 +103,51 @@ func (f File) ReadState(
 	return fileState, nil
 }
 
-func (f File) Apply(
-	ctx context.Context,
-	host host.Host,
-	instances []Instance,
-) error {
+func (f File) GetDesiredState(ctx context.Context, parameters yaml.Node) (State, error) {
+	var fileParams FileParams
+	fileState := FileState{}
+
+	if err := parameters.Decode(&fileParams); err != nil {
+		return fileState, err
+	}
+
+	h := md5.New()
+	n, err := h.Write([]byte(fileParams.Content))
+	if err != nil {
+		return fileState, err
+	}
+	if n != len(fileParams.Content) {
+		return fileState, fmt.Errorf("unexpected write length when generating md5: expected %d, got %d", len(fileParams.Content), n)
+	}
+	fileState.Md5 = h.Sum(nil)
+
+	if fileParams.Perm == 0 {
+		return fileState, fmt.Errorf("perm must be set")
+	}
+	fileState.Perm = fileParams.Perm
+
+	if fileParams.Uid != 0 && fileParams.User != "" {
+		return fileState, fmt.Errorf("can't set both uid and user")
+	}
+	if fileParams.Uid == 0 && fileParams.User == "" {
+		return fileState, fmt.Errorf("must set eithre uid or user")
+	}
+	fileState.Uid = fileParams.Uid
+	fileState.User = fileParams.User
+
+	if fileParams.Gid != 0 && fileParams.Group != "" {
+		return fileState, fmt.Errorf("can't set both gid and group")
+	}
+	if fileParams.Gid == 0 && fileParams.Group == "" {
+		return fileState, fmt.Errorf("must set eithre gid or group")
+	}
+	fileState.Gid = fileParams.Gid
+	fileState.Group = fileParams.Group
+
+	return fileState, nil
+}
+
+func (f File) Apply(ctx context.Context, host host.Host, instances []Instance) error {
 	// TODO use Host interface
 	// fileParams := parameters.(FileParams)
 
@@ -120,11 +158,7 @@ func (f File) Apply(
 	return fmt.Errorf("TODO File.Apply")
 }
 
-func (f File) Destroy(
-	ctx context.Context,
-	host host.Host,
-	instances []Instance,
-) error {
+func (f File) Destroy(ctx context.Context, host host.Host, name Name) error {
 	return fmt.Errorf("TODO File.Destroy")
 }
 

@@ -1,6 +1,7 @@
 package resource
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -10,6 +11,8 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/fornellas/resonance/host"
 )
@@ -24,12 +27,12 @@ func (n Name) String() string {
 
 // Parameters for a resource instance. This is specific for each resource type.
 // It must be unmarshallable by gopkg.in/yaml.v3.
-type Parameters interface{}
+// type Parameters yaml.Node
 
 // Instance holds parameters for a resource instance.
 type Instance struct {
-	Name       Name       `yaml:"name"`
-	Parameters Parameters `yaml:"parameters"`
+	Name       Name      `yaml:"name"`
+	Parameters yaml.Node `yaml:"parameters"`
 }
 
 // State holds information about a resource state. This is specific for each resource type.
@@ -39,34 +42,25 @@ type State interface{}
 
 // ManageableResource defines an interface for managing resource state.
 type ManageableResource interface {
-	// AlwaysMergeApply informs whether all resources from the same type are to
+	// MergeApply informs whether all resources from the same type are to
 	// be always merged together when applying.
 	// When true, Apply is called only once, with all instances.
 	// When false, Apply is called one time for each instance.
-	AlwaysMergeApply() bool
+	MergeApply() bool
 
-	// Reads current resource state without any side effects.
-	ReadState(
-		ctx context.Context,
-		host host.Host,
-		instance Instance,
-	) (State, error)
+	// GetState returns current resource state from host without any side effects.
+	GetState(ctx context.Context, host host.Host, name Name) (State, error)
+
+	// GetDesiredState return desired state for given parameters.
+	GetDesiredState(ctx context.Context, parameters yaml.Node) (State, error)
 
 	// Apply confiugres the resource at host to given instances state.
 	// Must be idempotent.
-	Apply(
-		ctx context.Context,
-		host host.Host,
-		instances []Instance,
-	) error
+	Apply(ctx context.Context, host host.Host, instances []Instance) error
 
 	// Destroy a configured resource at given host.
 	// Must be idempotent.
-	Destroy(
-		ctx context.Context,
-		host host.Host,
-		instances []Instance,
-	) error
+	Destroy(ctx context.Context, host host.Host, name Name) error
 }
 
 // Type is the name of the resource.
@@ -129,67 +123,115 @@ func (hs HostState) Merge(stateData HostState) {
 	}
 }
 
-// ResourceDefinition is the schema used to declare a single resource.
-type ResourceDefinition struct {
-	TypeName   TypeName   `yaml:"resource"`
-	Parameters Parameters `yaml:"parameters"`
+func (hs HostState) String() (string, error) {
+	buffer := bytes.Buffer{}
+	encoder := yaml.NewEncoder(&buffer)
+	if err := encoder.Encode(hs); err != nil {
+		return "", err
+	}
+	return buffer.String(), nil
 }
 
-// ResourceDefinitions is the schema used to declare multiple resources.
-type ResourceDefinitions []ResourceDefinition
+// ResourceDefinition is the schema used to declare a single resource within a file.
+type ResourceDefinition struct {
+	TypeName   TypeName  `yaml:"resource"`
+	Parameters yaml.Node `yaml:"parameters"`
+}
 
-// ReadState reads and return the state from all resource definitions.
-func (rd ResourceDefinitions) ReadState(ctx context.Context, host host.Host) (HostState, error) {
+// ResourceBundle is the schema used to declare multiple resources at a single file.
+type ResourceBundle []ResourceDefinition
+
+// ResourceBundles holds all resources definitions for a host.
+type ResourceBundles []ResourceBundle
+
+// GetHostState reads and return the state from all resource definitions.
+func (rbs ResourceBundles) GetHostState(ctx context.Context, host host.Host) (HostState, error) {
 	hostState := HostState{}
 
-	for _, resourceDefinition := range rd {
-		tpe, name, err := resourceDefinition.TypeName.GetTypeName()
-		if err != nil {
-			return hostState, err
-		}
-		resource, err := tpe.ManageableResource()
-		if err != nil {
-			return hostState, err
-		}
-		instance := Instance{
-			Name:       name,
-			Parameters: resourceDefinition.Parameters,
-		}
-		state, err := resource.ReadState(ctx, host, instance)
-		if err != nil {
-			return hostState, fmt.Errorf("%s: failed to read state: %w", resourceDefinition.TypeName, err)
-		}
+	for _, resourceBundle := range rbs {
+		for _, resourceDefinition := range resourceBundle {
+			tpe, name, err := resourceDefinition.TypeName.GetTypeName()
+			if err != nil {
+				return hostState, err
+			}
+			resource, err := tpe.ManageableResource()
+			if err != nil {
+				return hostState, err
+			}
+			state, err := resource.GetState(ctx, host, name)
+			if err != nil {
+				return hostState, fmt.Errorf("%s: failed to read state: %w", resourceDefinition.TypeName, err)
+			}
 
-		hostState[resourceDefinition.TypeName] = state
+			hostState[resourceDefinition.TypeName] = state
+		}
 	}
 
 	return hostState, nil
 }
 
-// Load loads resource definitions from given Yaml file path which contains
-// the schema defined by ResourceDefinitions.
-func LoadResourceDefinitions(ctx context.Context, path string) (ResourceDefinitions, error) {
+// GetDesiredHostState returns the desired HostState for all resources.
+func (rbs ResourceBundles) GetDesiredHostState(ctx context.Context) (HostState, error) {
+	hostState := HostState{}
+
+	for _, resourceBundle := range rbs {
+		for _, resourceDefinition := range resourceBundle {
+			tpe, _, err := resourceDefinition.TypeName.GetTypeName()
+			if err != nil {
+				return hostState, err
+			}
+			resource, err := tpe.ManageableResource()
+			if err != nil {
+				return hostState, err
+			}
+			state, err := resource.GetDesiredState(ctx, resourceDefinition.Parameters)
+			if err != nil {
+				return hostState, fmt.Errorf("%s: failed get desired state: %w", resourceDefinition.TypeName, err)
+			}
+
+			hostState[resourceDefinition.TypeName] = state
+		}
+	}
+
+	return hostState, nil
+}
+
+func loadResourceBundle(ctx context.Context, path string) (ResourceBundle, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return ResourceDefinitions{}, fmt.Errorf("failed to load resource definitions: %w", err)
+		return ResourceBundle{}, fmt.Errorf("failed to load resource definitions: %w", err)
 	}
 	defer f.Close()
 
 	decoder := yaml.NewDecoder(f)
 	decoder.KnownFields(true)
 
-	resourceDefinitions := ResourceDefinitions{}
+	resourceBundle := ResourceBundle{}
 
 	for {
-		docResourceDefinitions := ResourceDefinitions{}
-		if err := decoder.Decode(&docResourceDefinitions); err != nil {
+		docResourceBundle := ResourceBundle{}
+		if err := decoder.Decode(&docResourceBundle); err != nil {
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return ResourceDefinitions{}, fmt.Errorf("failed to load resource definitions: %s: %w", path, err)
+			return ResourceBundle{}, fmt.Errorf("failed to load resource definitions: %s: %w", path, err)
 		}
-		resourceDefinitions = append(resourceDefinitions, docResourceDefinitions...)
+		resourceBundle = append(resourceBundle, docResourceBundle...)
 	}
 
-	return resourceDefinitions, nil
+	return resourceBundle, nil
+}
+
+// LoadResourceBundles loads resource definitions from all given Yaml file paths.
+// Each file must have the schema defined by ResourceBundle.
+func LoadResourceBundles(ctx context.Context, paths []string) ResourceBundles {
+	resourceBundles := ResourceBundles{}
+	for _, path := range paths {
+		resourceBundle, err := loadResourceBundle(ctx, path)
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		resourceBundles = append(resourceBundles, resourceBundle)
+	}
+	return resourceBundles
 }

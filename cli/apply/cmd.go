@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"io/fs"
-	"reflect"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	"github.com/openconfig/goyang/pkg/indent"
 
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/resource"
@@ -31,18 +32,6 @@ func getHost() host.Host {
 	return nil
 }
 
-func LoadResourceDefinitions(ctx context.Context, paths []string) resource.ResourceDefinitions {
-	resourceDefinitions := resource.ResourceDefinitions{}
-	for _, path := range paths {
-		pathResourceDefinitions, err := resource.LoadResourceDefinitions(ctx, path)
-		if err != nil {
-			logrus.Fatal(err)
-		}
-		resourceDefinitions = append(resourceDefinitions, pathResourceDefinitions...)
-	}
-	return resourceDefinitions
-}
-
 var Cmd = &cobra.Command{
 	Use:   "apply [flags] yaml...",
 	Short: "Applies configuration to a host.",
@@ -53,6 +42,7 @@ var Cmd = &cobra.Command{
 
 		hst := getHost()
 
+		// Saved state
 		localState := state.Local{
 			Path: stateYaml,
 		}
@@ -60,18 +50,36 @@ var Cmd = &cobra.Command{
 		if err != nil && !errors.Is(err, fs.ErrNotExist) {
 			logrus.Fatal(err)
 		}
-
-		resourceDefinitions := LoadResourceDefinitions(ctx, args)
-
-		currentHostState, err := resourceDefinitions.ReadState(ctx, hst)
+		savedHostStateStr, err := savedHostState.String()
 		if err != nil {
 			logrus.Fatal(err)
 		}
+		logrus.Debugf("savedHostState:\n%s", indent.String("  ", savedHostStateStr))
 
-		if reflect.DeepEqual(savedHostState, currentHostState) {
-			logrus.Info("Nothing to do")
-			return
+		// Load resources
+		resourceBundles := resource.LoadResourceBundles(ctx, args)
+
+		// Desired state
+		desiredHostState, err := resourceBundles.GetDesiredHostState(ctx)
+		if err != nil {
+			logrus.Fatal(err)
 		}
+		desiredHostStateStr, err := desiredHostState.String()
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		logrus.Debugf("desiredHostStateStr:\n%s", indent.String("  ", desiredHostStateStr))
+
+		// Host state
+		currentHostState, err := resourceBundles.GetHostState(ctx, hst)
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		currentHostStateStr, err := currentHostState.String()
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		logrus.Debugf("currentHostStateStr:\n%s", indent.String("  ", currentHostStateStr))
 
 		// merge resources
 		// Define execution order
