@@ -7,8 +7,11 @@ import (
 
 // Ssh interacts with a remote machine connecting to it via SSH protocol.
 type Ssh struct {
-	Host
 	Hostname string
+}
+
+func (s Ssh) ReadFile(ctx context.Context, name string) ([]byte, error) {
+	return nil, errors.New("TODO Ssh.ReadFile")
 }
 
 func (s Ssh) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {

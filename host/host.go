@@ -109,8 +109,8 @@ type Host interface {
 	// // Mkdir works similar to os.Mkdir.
 	// Mkdir(ctx context.Context, name string, perm os.FileMode) error
 
-	// // ReadFile works similar to os.ReadFile.
-	// ReadFile(ctx context.Context, name string) ([]byte, error)
+	// ReadFile works similar to os.ReadFile.
+	ReadFile(ctx context.Context, name string) ([]byte, error)
 
 	// // Readlink works similar to os.Readlink.
 	// Readlink(ctx context.Context, name string) (string, error)

@@ -18,6 +18,10 @@ import (
 // Eg: for File type a Name would be the file absolute path such as /etc/issue.
 type Name string
 
+func (n Name) String() string {
+	return string(n)
+}
+
 // Parameters for a resource instance. This is specific for each resource type.
 // It must be unmarshallable by gopkg.in/yaml.v3.
 type Parameters interface{}

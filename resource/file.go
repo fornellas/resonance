@@ -2,7 +2,10 @@ package resource
 
 import (
 	"context"
+	"crypto/md5"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 
 	"github.com/fornellas/resonance/host"
@@ -11,28 +14,31 @@ import (
 // FileParams for File
 type FileParams struct {
 	// Contents of the file
-	Content []byte
+	Content []byte `yaml:"content"`
 	// File permissions
-	Perm os.FileMode
+	Perm os.FileMode `yaml:"perm"`
 	// User name owner of the file
-	User string
+	User string `yaml:"user"`
 	// User ID owner of the file
-	Uid int
+	Uid int `yaml:"uid"`
 	// Group name owner of the file
-	Group string
+	Group string `yaml:"group"`
 	// Group ID owner of the file
-	Gid int
+	Gid int `yaml:"gid"`
 }
 
 // FileState for File
 type FileState struct {
-	Md5 []byte
+	Md5   []byte      `yaml:"md5"`
+	Perm  os.FileMode `yaml:"perm"`
+	User  string      `yaml:"user"`
+	Uid   int         `yaml:"uid"`
+	Group string      `yaml:"group"`
+	Gid   int         `yaml:"gid"`
 }
 
 // File resource manages files.
-type File struct {
-	// Resource
-}
+type File struct{}
 
 func (f File) AlwaysMergeApply() bool {
 	return false
@@ -43,24 +49,28 @@ func (f File) ReadState(
 	host host.Host,
 	instance Instance,
 ) (State, error) {
-	// TODO use Host interface
-	// fileParams := parameters.(FileParams)
+	fileState := FileState{}
 
-	// f, err := os.Open(fileParams.Path)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// defer f.Close()
+	path := instance.Name.String()
 
-	// h := md5.New()
-	// if _, err := io.Copy(h, f); err != nil {
-	// 	return nil, err
-	// }
+	h := md5.New()
+	content, err := host.ReadFile(ctx, path)
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			return fileState, err
+		}
+	} else {
+		n, err := h.Write(content)
+		if err != nil {
+			return fileState, err
+		}
+		if n != len(content) {
+			return fileState, fmt.Errorf("unexpected write length when generating md5: expected %d, got %d", len(content), n)
+		}
+	}
+	fileState.Md5 = h.Sum(nil)
 
-	// return FileState{
-	// 	Md5: h.Sum(nil),
-	// }, nil
-	return FileState{}, fmt.Errorf("TODO File.ReadState")
+	return fileState, fmt.Errorf("TODO File.ReadState")
 }
 
 func (f File) Apply(
