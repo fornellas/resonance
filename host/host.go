@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 )
 
 // Cmd represents a command to be run.
@@ -105,6 +106,9 @@ type Host interface {
 
 	// // Link works similar to os.Link.
 	// Link(ctx context.Context, oldname, newname string) error
+
+	// Lstat works similar to os.Lstat, but it always returns non-nil Sys().
+	Lstat(ctx context.Context, name string) (os.FileInfo, error)
 
 	// // Mkdir works similar to os.Mkdir.
 	// Mkdir(ctx context.Context, name string, perm os.FileMode) error

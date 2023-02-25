@@ -9,6 +9,10 @@ import (
 // Local interacts with the local machine running the code.
 type Local struct{}
 
+func (l Local) Lstat(ctx context.Context, name string) (os.FileInfo, error) {
+	return os.Lstat(name)
+}
+
 func (l Local) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	return os.ReadFile(name)
 }

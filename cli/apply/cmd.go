@@ -87,7 +87,7 @@ var Cmd = &cobra.Command{
 		// 		fail
 		// 	start over
 
-		logrus.Fatal("TODO apply.Run")
+		logrus.Fatal("TODO resonance apply")
 	},
 }
 
