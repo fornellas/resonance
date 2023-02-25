@@ -127,3 +127,7 @@ func (f File) Destroy(
 ) error {
 	return fmt.Errorf("TODO File.Destroy")
 }
+
+func init() {
+	TypeToManageableResource["File"] = File{}
+}

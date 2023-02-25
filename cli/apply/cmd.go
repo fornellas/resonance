@@ -75,7 +75,7 @@ var Cmd = &cobra.Command{
 
 		// merge resources
 		// Define execution order
-		// read initial inventory
+		// read initial inventory: if different from saved, it means state is busted
 		// apply resources that are different
 		// destroy resources that are not present anymore
 		// read final state of all resources
