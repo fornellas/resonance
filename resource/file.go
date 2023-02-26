@@ -93,14 +93,14 @@ func (f File) GetDesiredState(parameters yaml.Node) (State, error) {
 	return fileState, nil
 }
 
-func (f File) GetState(ctx context.Context, host host.Host, name Name) (State, error) {
+func (f File) GetState(ctx context.Context, hst host.Host, name Name) (State, error) {
 	fileState := FileState{}
 
 	path := name.String()
 
 	// Md5
 	h := md5.New()
-	content, err := host.ReadFile(ctx, path)
+	content, err := hst.ReadFile(ctx, path)
 	if err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
 			return fileState, err
@@ -118,7 +118,7 @@ func (f File) GetState(ctx context.Context, host host.Host, name Name) (State, e
 	fileState.Md5 = h.Sum(nil)
 
 	// Perm
-	fileInfo, err := host.Lstat(ctx, path)
+	fileInfo, err := hst.Lstat(ctx, path)
 	if err != nil {
 		return fileState, err
 	}
@@ -147,7 +147,7 @@ func (f File) GetState(ctx context.Context, host host.Host, name Name) (State, e
 	return fileState, nil
 }
 
-func (f File) Apply(ctx context.Context, host host.Host, instances []Instance) error {
+func (f File) Apply(ctx context.Context, hst host.Host, instances []Instance) error {
 	// TODO use Host interface
 	// fileParams := parameters.(FileParams)
 
@@ -158,11 +158,11 @@ func (f File) Apply(ctx context.Context, host host.Host, instances []Instance) e
 	return fmt.Errorf("TODO File.Apply")
 }
 
-func (f File) Refresh(ctx context.Context, host host.Host, name Name) error {
+func (f File) Refresh(ctx context.Context, hst host.Host, name Name) error {
 	return nil
 }
 
-func (f File) Destroy(ctx context.Context, host host.Host, name Name) error {
+func (f File) Destroy(ctx context.Context, hst host.Host, name Name) error {
 	return fmt.Errorf("TODO File.Destroy")
 }
 

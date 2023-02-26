@@ -50,20 +50,20 @@ type ManageableResource interface {
 	GetDesiredState(parameters yaml.Node) (State, error)
 
 	// GetState returns current resource state from host without any side effects.
-	GetState(ctx context.Context, host host.Host, name Name) (State, error)
+	GetState(ctx context.Context, hst host.Host, name Name) (State, error)
 
 	// Apply confiugres the resource at host to given instances state.
 	// Must be idempotent.
-	Apply(ctx context.Context, host host.Host, instances []Instance) error
+	Apply(ctx context.Context, hst host.Host, instances []Instance) error
 
 	// Refresh the resource. This is typically used to update the in-memory state of a resource
 	// (eg: kerner: sysctl, iptables; process: systemd service) after persistant changes are made
 	// (eg: change configuration file)
-	Refresh(ctx context.Context, host host.Host, name Name) error
+	Refresh(ctx context.Context, hst host.Host, name Name) error
 
 	// Destroy a configured resource at given host.
 	// Must be idempotent.
-	Destroy(ctx context.Context, host host.Host, name Name) error
+	Destroy(ctx context.Context, hst host.Host, name Name) error
 }
 
 // Type is the name of the resource.
@@ -115,6 +115,11 @@ func (tn TypeName) GetTypeName() (Type, Name, error) {
 func (tn TypeName) Type() (Type, error) {
 	tpe, _, err := tn.GetTypeName()
 	return tpe, err
+}
+
+func (tn TypeName) Name() (Name, error) {
+	_, name, err := tn.GetTypeName()
+	return name, err
 }
 
 // ManageableResource returns an instance for the resource type.
@@ -170,7 +175,7 @@ type ResourceBundle []ResourceDefinition
 type ResourceBundles []ResourceBundle
 
 // GetHostState reads and return the state from all resource definitions.
-func (rbs ResourceBundles) GetHostState(ctx context.Context, host host.Host) (HostState, error) {
+func (rbs ResourceBundles) GetHostState(ctx context.Context, hst host.Host) (HostState, error) {
 	hostState := HostState{}
 
 	for _, resourceBundle := range rbs {
@@ -183,7 +188,7 @@ func (rbs ResourceBundles) GetHostState(ctx context.Context, host host.Host) (Ho
 			if err != nil {
 				return hostState, err
 			}
-			state, err := resource.GetState(ctx, host, name)
+			state, err := resource.GetState(ctx, hst, name)
 			if err != nil {
 				return hostState, fmt.Errorf("%s: failed to read state: %w", resourceDefinition.TypeName, err)
 			}
@@ -224,6 +229,18 @@ func (rbs ResourceBundles) GetDesiredHostState() (HostState, error) {
 // Action to be executed for a given Node.
 type Action int
 
+var actionNames = []string{
+	"unknown",
+	"none",
+	"skip",
+	"apply",
+	"destroy",
+}
+
+func (a Action) String() string {
+	return actionNames[a]
+}
+
 const (
 	ActionUnknown Action = iota
 	ActionNone
@@ -238,6 +255,18 @@ type Node struct {
 	PrerequisiteFor     []*Node
 	Action              Action
 	Refresh             bool
+}
+
+func (n Node) ManageableResource() (ManageableResource, error) {
+	tpe, err := n.ResourceDefinitions[0].TypeName.Type()
+	if err != nil {
+		return nil, err
+	}
+	manageableResource, err := tpe.ManageableResource()
+	if err != nil {
+		return nil, err
+	}
+	return manageableResource, nil
 }
 
 // Name of the node.
@@ -358,17 +387,83 @@ func (dg Digraph) TopologicalSort() (Digraph, error) {
 	return result, nil
 }
 
+// Apply required changes to host
+func (dg Digraph) Apply(ctx context.Context, hst host.Host) error {
+	for _, node := range dg {
+		manageableResource, err := node.ManageableResource()
+		if err != nil {
+			return err
+		}
+
+		switch node.Action {
+		case ActionNone, ActionSkip:
+			if node.Refresh {
+				logrus.Infof("  %s: Action: %s", node.Name(), "Refresh")
+				for _, resourceDefinition := range node.ResourceDefinitions {
+					if len(node.ResourceDefinitions) > 1 {
+						logrus.Infof("    Refreshing %s", resourceDefinition)
+					}
+					name, err := resourceDefinition.TypeName.Name()
+					if err != nil {
+						return err
+					}
+					if err := manageableResource.Refresh(ctx, hst, name); err != nil {
+						return err
+					}
+				}
+			} else {
+				logrus.Infof("  %s: Action: %s", node.Name(), node.Action)
+			}
+		case ActionApply:
+			logrus.Infof("  %s: Action: %s", node.Name(), node.Action)
+			instances := []Instance{}
+			for _, resourceDefinition := range node.ResourceDefinitions {
+				name, err := resourceDefinition.TypeName.Name()
+				if err != nil {
+					return err
+				}
+				instances = append(instances, Instance{
+					Name:       name,
+					Parameters: resourceDefinition.Parameters,
+				})
+			}
+			if err := manageableResource.Apply(ctx, hst, instances); err != nil {
+				return err
+			}
+		case ActionDestroy:
+			logrus.Infof("  %s: Action: %s", node.Name(), node.Action)
+			for _, resourceDefinition := range node.ResourceDefinitions {
+				if len(node.ResourceDefinitions) > 1 {
+					logrus.Infof("    Destroying %s", resourceDefinition)
+				}
+				name, err := resourceDefinition.TypeName.Name()
+				if err != nil {
+					return err
+				}
+				if err := manageableResource.Destroy(ctx, hst, name); err != nil {
+					return err
+				}
+			}
+		default:
+			panic(fmt.Sprintf("unexpected action %q", node.Action))
+		}
+	}
+	return nil
+}
+
 // GetSortedDigraph calculates the plan and returns it in the form of a Digraph
 func (rbs ResourceBundles) GetSortedDigraph(savedHostState, desiredHostState, currentHostState HostState) (Digraph, error) {
 	unsortedDigraph := Digraph{}
 	mergedNodes := map[Type]*Node{}
 	for _, resourceBundle := range rbs {
+		// Create nodes with only resource definitions...
 		resourceBundleNodes := []*Node{}
 		for _, resourceDefinition := range resourceBundle {
 			resourceBundleNodes = append(resourceBundleNodes, &Node{
 				ResourceDefinitions: []ResourceDefinition{resourceDefinition},
 			})
 		}
+		// ...and populate other Node attributes
 		var lastNode *Node
 		refresh := false
 		for _, node := range resourceBundleNodes {
@@ -412,14 +507,13 @@ func (rbs ResourceBundles) GetSortedDigraph(savedHostState, desiredHostState, cu
 		unsortedDigraph = append(unsortedDigraph, resourceBundleNodes...)
 	}
 
+	// Sort
 	sortedDigraph, err := unsortedDigraph.TopologicalSort()
 	if err != nil {
 		return nil, err
 	}
-	for _, node := range sortedDigraph {
-		logrus.Warnf("%s", node.Name())
-	}
 
+	// Append destroy nodes
 	for savedTypeName := range savedHostState {
 		if _, ok := desiredHostState[savedTypeName]; !ok {
 			sortedDigraph = append(sortedDigraph, &Node{

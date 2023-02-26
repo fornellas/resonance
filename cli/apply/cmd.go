@@ -43,6 +43,7 @@ var Cmd = &cobra.Command{
 		hst := getHost()
 
 		// Load saved host state
+		logrus.Info("Loading saved host state")
 		localState := state.Local{
 			Path: stateYaml,
 		}
@@ -57,9 +58,11 @@ var Cmd = &cobra.Command{
 		logrus.Debugf("savedHostState:\n%s", indent.String("  ", savedHostStateStr))
 
 		// Load resources
+		logrus.Info("Loading resources")
 		resourceBundles := resource.LoadResourceBundles(ctx, args)
 
 		// Get desired host state
+		logrus.Info("Calculating desired host state")
 		desiredHostState, err := resourceBundles.GetDesiredHostState()
 		if err != nil {
 			logrus.Fatal(err)
@@ -71,6 +74,7 @@ var Cmd = &cobra.Command{
 		logrus.Debugf("desiredHostStateStr:\n%s", indent.String("  ", desiredHostStateStr))
 
 		// Get current host state
+		logrus.Info("Getting current host state")
 		currentHostState, err := resourceBundles.GetHostState(ctx, hst)
 		if err != nil {
 			logrus.Fatal(err)
@@ -81,24 +85,22 @@ var Cmd = &cobra.Command{
 		}
 		logrus.Debugf("currentHostStateStr:\n%v", indent.String("  ", currentHostStateStr))
 
+		// Plan
+		logrus.Info("Planning changes")
 		digraph, err := resourceBundles.GetSortedDigraph(savedHostState, desiredHostState, currentHostState)
 		if err != nil {
 			logrus.Fatal(err)
 		}
 		logrus.Debugf("digraph:\n%v", indent.String("  ", digraph.Graphviz()))
 
-		// Define execution order
-		// read initial inventory: if different from saved, it means state is busted
-		// apply resources that are different
-		// destroy resources that are not present anymore
+		// Applying changes
+		logrus.Info("Applying changes")
+		if err := digraph.Apply(ctx, hst); err != nil {
+			logrus.Fatal(err)
+		}
+
 		// read final state of all resources
 		// save state of all resources
-		// read final inventory
-		// if initial / final inventory differ
-		// 	big fat warning
-		// 	if more than once
-		// 		fail
-		// 	start over
 
 		logrus.Fatal("TODO resonance apply")
 	},

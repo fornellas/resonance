@@ -78,15 +78,15 @@ func (ap APTPackage) GetState(ctx context.Context, hst host.Host, name Name) (St
 	return aptPackageState, nil
 }
 
-func (ap APTPackage) Apply(ctx context.Context, host host.Host, instances []Instance) error {
+func (ap APTPackage) Apply(ctx context.Context, hst host.Host, instances []Instance) error {
 	return fmt.Errorf("TODO APTPackage.Apply")
 }
 
-func (ap APTPackage) Refresh(ctx context.Context, host host.Host, name Name) error {
+func (ap APTPackage) Refresh(ctx context.Context, hst host.Host, name Name) error {
 	return nil
 }
 
-func (ap APTPackage) Destroy(ctx context.Context, host host.Host, name Name) error {
+func (ap APTPackage) Destroy(ctx context.Context, hst host.Host, name Name) error {
 	return fmt.Errorf("TODO APTPackage.Destroy")
 }
 
