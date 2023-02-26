@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io/fs"
-	"reflect"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -61,7 +60,7 @@ var Cmd = &cobra.Command{
 		resourceBundles := resource.LoadResourceBundles(ctx, args)
 
 		// Get desired host state
-		desiredHostState, err := resourceBundles.GetDesiredHostState(ctx)
+		desiredHostState, err := resourceBundles.GetDesiredHostState()
 		if err != nil {
 			logrus.Fatal(err)
 		}
@@ -80,13 +79,22 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			logrus.Fatal(err)
 		}
-		logrus.Debugf("currentHostStateStr:\n%s", indent.String("  ", currentHostStateStr))
+		logrus.Debugf("currentHostStateStr:\n%v", indent.String("  ", currentHostStateStr))
 
-		// Nothing to do
-		if reflect.DeepEqual(desiredHostState, currentHostState) {
-			logrus.Info("All resources at host already at desired state")
-			return
+		digraph, err := resourceBundles.GetDigraph(savedHostState, desiredHostState, currentHostState)
+		if err != nil {
+			logrus.Fatal(err)
 		}
+		logrus.Debugf("digraph:\n%v", indent.String("  ", digraph.Graphviz()))
+
+		// State
+		//   Saved
+		//	 Desired
+		//   Current
+		// if saved && !desired
+		//   destroy
+		// if desired && !current
+		//   apply
 
 		// merge resources
 		// Define execution order

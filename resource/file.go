@@ -49,7 +49,7 @@ func (f File) MergeApply() bool {
 	return false
 }
 
-func (f File) GetDesiredState(ctx context.Context, parameters yaml.Node) (State, error) {
+func (f File) GetDesiredState(parameters yaml.Node) (State, error) {
 	var fileParams FileParams
 	fileState := FileState{}
 

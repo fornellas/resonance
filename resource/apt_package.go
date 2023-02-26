@@ -30,7 +30,7 @@ func (ap APTPackage) MergeApply() bool {
 	return true
 }
 
-func (ap APTPackage) GetDesiredState(ctx context.Context, parameters yaml.Node) (State, error) {
+func (ap APTPackage) GetDesiredState(parameters yaml.Node) (State, error) {
 	aptPackageParams := APTPackageParams{}
 	if err := parameters.Decode(&aptPackageParams); err != nil {
 		return nil, err
