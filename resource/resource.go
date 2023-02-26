@@ -238,7 +238,6 @@ type Node struct {
 	PrerequisiteFor     []*Node
 	Action              Action
 	Refresh             bool
-	// visited             bool
 }
 
 // Name of the node.
@@ -311,9 +310,57 @@ func (dg Digraph) Graphviz() string {
 	return str
 }
 
-// GetDigraph calculates the plan and returns it in the form of a Digraph
-func (rbs ResourceBundles) GetDigraph(savedHostState, desiredHostState, currentHostState HostState) (Digraph, error) {
-	digraph := Digraph{}
+// TopologicalSort sorts the nodes based on their prerequisites. If the graph has cycles, it returns
+// error.
+func (dg Digraph) TopologicalSort() (Digraph, error) {
+	// TODO this came verbatim from ChatGPT, review if correct
+
+	// 1. Create a map to store the in-degree of each node
+	inDegree := make(map[*Node]int)
+	for _, node := range dg {
+		inDegree[node] = 0
+	}
+	// 2. Calculate the in-degree of each node
+	for _, node := range dg {
+		for _, prereq := range node.PrerequisiteFor {
+			inDegree[prereq]++
+		}
+	}
+	// 3. Create a queue to store nodes with in-degree 0
+	queue := make([]*Node, 0)
+	for _, node := range dg {
+		if inDegree[node] == 0 {
+			queue = append(queue, node)
+		}
+	}
+	// 4. Initialize the result slice
+	result := make(Digraph, 0)
+	// 5. Process nodes in the queue
+	for len(queue) > 0 {
+		// 5.1. Dequeue a node from the queue
+		node := queue[0]
+		queue = queue[1:]
+		// 5.2. Add the node to the result
+		result = append(result, node)
+		// 5.3. Decrease the in-degree of each of its neighbors
+		for _, neighbor := range node.PrerequisiteFor {
+			inDegree[neighbor]--
+			// 5.4. If the neighbor's in-degree is 0, add it to the queue
+			if inDegree[neighbor] == 0 {
+				queue = append(queue, neighbor)
+			}
+		}
+	}
+	// 6. Check if all nodes were visited
+	if len(result) != len(dg) {
+		return nil, errors.New("the graph has cycles")
+	}
+	return result, nil
+}
+
+// GetSortedDigraph calculates the plan and returns it in the form of a Digraph
+func (rbs ResourceBundles) GetSortedDigraph(savedHostState, desiredHostState, currentHostState HostState) (Digraph, error) {
+	unsortedDigraph := Digraph{}
 	mergedNodes := map[Type]*Node{}
 	for _, resourceBundle := range rbs {
 		resourceBundleNodes := []*Node{}
@@ -344,7 +391,7 @@ func (rbs ResourceBundles) GetDigraph(savedHostState, desiredHostState, currentH
 				if !ok {
 					mergedNode = &Node{}
 					mergedNodes[tpe] = mergedNode
-					digraph = append(digraph, mergedNode)
+					unsortedDigraph = append(unsortedDigraph, mergedNode)
 				}
 				mergedNode.ResourceDefinitions = append(mergedNode.ResourceDefinitions, node.ResourceDefinitions...)
 				mergedNode.PrerequisiteFor = append(mergedNode.PrerequisiteFor, node)
@@ -362,20 +409,29 @@ func (rbs ResourceBundles) GetDigraph(savedHostState, desiredHostState, currentH
 			node.Refresh = refresh
 			lastNode = node
 		}
-		digraph = append(digraph, resourceBundleNodes...)
+		unsortedDigraph = append(unsortedDigraph, resourceBundleNodes...)
 	}
 
-	// TODO topological sort
+	sortedDigraph, err := unsortedDigraph.TopologicalSort()
+	if err != nil {
+		return nil, err
+	}
+	for _, node := range sortedDigraph {
+		logrus.Warnf("%s", node.Name())
+	}
 
-	// TODO append nodes to destroy
-	// toDestroyTypeNames := []TypeName{}
-	// for savedTypeName := range savedHostState {
-	// 	if _, ok := desiredHostState[savedTypeName]; !ok {
-	// 		toDestroyTypeNames = append(toDestroyTypeNames, savedTypeName)
-	// 	}
-	// }
+	for savedTypeName := range savedHostState {
+		if _, ok := desiredHostState[savedTypeName]; !ok {
+			sortedDigraph = append(sortedDigraph, &Node{
+				ResourceDefinitions: []ResourceDefinition{ResourceDefinition{
+					TypeName: savedTypeName,
+				}},
+				Action: ActionDestroy,
+			})
+		}
+	}
 
-	return digraph, nil
+	return sortedDigraph, nil
 }
 
 func loadResourceBundle(ctx context.Context, path string) (ResourceBundle, error) {

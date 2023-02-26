@@ -81,22 +81,12 @@ var Cmd = &cobra.Command{
 		}
 		logrus.Debugf("currentHostStateStr:\n%v", indent.String("  ", currentHostStateStr))
 
-		digraph, err := resourceBundles.GetDigraph(savedHostState, desiredHostState, currentHostState)
+		digraph, err := resourceBundles.GetSortedDigraph(savedHostState, desiredHostState, currentHostState)
 		if err != nil {
 			logrus.Fatal(err)
 		}
 		logrus.Debugf("digraph:\n%v", indent.String("  ", digraph.Graphviz()))
 
-		// State
-		//   Saved
-		//	 Desired
-		//   Current
-		// if saved && !desired
-		//   destroy
-		// if desired && !current
-		//   apply
-
-		// merge resources
 		// Define execution order
 		// read initial inventory: if different from saved, it means state is busted
 		// apply resources that are different
