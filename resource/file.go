@@ -49,6 +49,50 @@ func (f File) MergeApply() bool {
 	return false
 }
 
+func (f File) GetDesiredState(ctx context.Context, parameters yaml.Node) (State, error) {
+	var fileParams FileParams
+	fileState := FileState{}
+
+	if err := parameters.Decode(&fileParams); err != nil {
+		return fileState, err
+	}
+
+	h := md5.New()
+	n, err := h.Write([]byte(fileParams.Content))
+	if err != nil {
+		return fileState, err
+	}
+	if n != len(fileParams.Content) {
+		return fileState, fmt.Errorf("unexpected write length when generating md5: expected %d, got %d", len(fileParams.Content), n)
+	}
+	fileState.Md5 = h.Sum(nil)
+
+	if fileParams.Perm == 0 {
+		return fileState, fmt.Errorf("perm must be set")
+	}
+	fileState.Perm = fileParams.Perm
+
+	if fileParams.Uid != 0 && fileParams.User != "" {
+		return fileState, fmt.Errorf("can't set both uid and user")
+	}
+	if fileParams.Uid == 0 && fileParams.User == "" {
+		return fileState, fmt.Errorf("must set eithre uid or user")
+	}
+	fileState.Uid = fileParams.Uid
+	fileState.User = fileParams.User
+
+	if fileParams.Gid != 0 && fileParams.Group != "" {
+		return fileState, fmt.Errorf("can't set both gid and group")
+	}
+	if fileParams.Gid == 0 && fileParams.Group == "" {
+		return fileState, fmt.Errorf("must set eithre gid or group")
+	}
+	fileState.Gid = fileParams.Gid
+	fileState.Group = fileParams.Group
+
+	return fileState, nil
+}
+
 func (f File) GetState(ctx context.Context, host host.Host, name Name) (State, error) {
 	fileState := FileState{}
 
@@ -103,50 +147,6 @@ func (f File) GetState(ctx context.Context, host host.Host, name Name) (State, e
 	return fileState, nil
 }
 
-func (f File) GetDesiredState(ctx context.Context, parameters yaml.Node) (State, error) {
-	var fileParams FileParams
-	fileState := FileState{}
-
-	if err := parameters.Decode(&fileParams); err != nil {
-		return fileState, err
-	}
-
-	h := md5.New()
-	n, err := h.Write([]byte(fileParams.Content))
-	if err != nil {
-		return fileState, err
-	}
-	if n != len(fileParams.Content) {
-		return fileState, fmt.Errorf("unexpected write length when generating md5: expected %d, got %d", len(fileParams.Content), n)
-	}
-	fileState.Md5 = h.Sum(nil)
-
-	if fileParams.Perm == 0 {
-		return fileState, fmt.Errorf("perm must be set")
-	}
-	fileState.Perm = fileParams.Perm
-
-	if fileParams.Uid != 0 && fileParams.User != "" {
-		return fileState, fmt.Errorf("can't set both uid and user")
-	}
-	if fileParams.Uid == 0 && fileParams.User == "" {
-		return fileState, fmt.Errorf("must set eithre uid or user")
-	}
-	fileState.Uid = fileParams.Uid
-	fileState.User = fileParams.User
-
-	if fileParams.Gid != 0 && fileParams.Group != "" {
-		return fileState, fmt.Errorf("can't set both gid and group")
-	}
-	if fileParams.Gid == 0 && fileParams.Group == "" {
-		return fileState, fmt.Errorf("must set eithre gid or group")
-	}
-	fileState.Gid = fileParams.Gid
-	fileState.Group = fileParams.Group
-
-	return fileState, nil
-}
-
 func (f File) Apply(ctx context.Context, host host.Host, instances []Instance) error {
 	// TODO use Host interface
 	// fileParams := parameters.(FileParams)
@@ -156,6 +156,10 @@ func (f File) Apply(ctx context.Context, host host.Host, instances []Instance) e
 	// }
 	// return nil
 	return fmt.Errorf("TODO File.Apply")
+}
+
+func (f File) Refresh(ctx context.Context, host host.Host, name Name) error {
+	return nil
 }
 
 func (f File) Destroy(ctx context.Context, host host.Host, name Name) error {

@@ -25,13 +25,10 @@ func (n Name) String() string {
 	return string(n)
 }
 
-// Parameters for a resource instance. This is specific for each resource type.
-// It must be unmarshallable by gopkg.in/yaml.v3.
-// type Parameters yaml.Node
-
 // Instance holds parameters for a resource instance.
 type Instance struct {
-	Name       Name      `yaml:"name"`
+	Name Name `yaml:"name"`
+	// Parameters for a resource instance. This is specific for each resource type.
 	Parameters yaml.Node `yaml:"parameters"`
 }
 
@@ -48,15 +45,20 @@ type ManageableResource interface {
 	// When false, Apply is called one time for each instance.
 	MergeApply() bool
 
-	// GetState returns current resource state from host without any side effects.
-	GetState(ctx context.Context, host host.Host, name Name) (State, error)
-
 	// GetDesiredState return desired state for given parameters.
 	GetDesiredState(ctx context.Context, parameters yaml.Node) (State, error)
+
+	// GetState returns current resource state from host without any side effects.
+	GetState(ctx context.Context, host host.Host, name Name) (State, error)
 
 	// Apply confiugres the resource at host to given instances state.
 	// Must be idempotent.
 	Apply(ctx context.Context, host host.Host, instances []Instance) error
+
+	// Refresh the resource. This is typically used to update the in-memory state of a resource
+	// (eg: kerner: sysctl, iptables; process: systemd service) after persistant changes are made
+	// (eg: change configuration file)
+	Refresh(ctx context.Context, host host.Host, name Name) error
 
 	// Destroy a configured resource at given host.
 	// Must be idempotent.
@@ -234,4 +236,10 @@ func LoadResourceBundles(ctx context.Context, paths []string) ResourceBundles {
 		resourceBundles = append(resourceBundles, resourceBundle)
 	}
 	return resourceBundles
+}
+
+type Node struct {
+	ResourceDefinitions []ResourceDefinition
+	Next                *Node
+	Refreshes           []*Node
 }

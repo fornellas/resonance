@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 // Cmd represents a command to be run.
@@ -22,17 +23,13 @@ type Cmd struct {
 
 	// Env specifies the environment of the process.
 	// Each entry is of the form "key=value".
-	// If Env is nil, the new process uses the current process's
-	// environment.
+	// If Env is nil, the new process uses LANG=en_US.UTF-8
 	// If Env contains duplicate environment keys, only the last
 	// value in the slice for each duplicate key is used.
-	// As a special case on Windows, SYSTEMROOT is always added if
-	// missing and not explicitly set to the empty string.
 	Env []string
 
 	// Dir specifies the working directory of the command.
-	// If Dir is the empty string, Run runs the command in the
-	// calling process's current directory.
+	// If Dir is the empty string, Run runs the command in /tmp
 	Dir string
 
 	// Stdin specifies the process's standard input.
@@ -49,6 +46,10 @@ type Cmd struct {
 	// (EOF or a read error), or because writing to the pipe returned an error,
 	// or because a nonzero WaitDelay was set and expired.
 	Stdin io.Reader
+}
+
+func (c Cmd) String() string {
+	return fmt.Sprintf("%s %s", c.Path, strings.Join(c.Args, " "))
 }
 
 // WaitStatus
@@ -123,7 +124,8 @@ type Host interface {
 	// Remove(ctx context.Context, name string) error
 
 	// Run starts the specified command and waits for it to complete.
-	Run(ctx context.Context, cmd Cmd) (WaitStatus, error)
+	// Returns WaitStatus, stdout, stderr, error
+	Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, error)
 
 	// // Symlink works similar to os.Symlink.
 	// Symlink(ctx context.Context, oldname, newname string) error
