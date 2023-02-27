@@ -19,6 +19,7 @@
     - Save state in the end.
     - Get final host state, and confirm whether some resource inadvertedly changed something it should not.
     - Paralelise reading state.
+- Add TESTS!
 - HostState
 	- Add field for version, required if the schema changes over time.
 - ^C cancel context
