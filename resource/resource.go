@@ -35,7 +35,6 @@ type Instance struct {
 
 // State holds information about a resource state. This is specific for each resource type.
 // It must be marshallable by gopkg.in/yaml.v3.
-// It must work with reflect.DeepEqual.
 type State interface{}
 
 // ManageableResource defines an interface for managing resource state.
@@ -249,7 +248,7 @@ const (
 	ActionDestroy
 )
 
-// Node from a Digraph
+// Node from a Plan
 type Node struct {
 	ResourceDefinitions []ResourceDefinition
 	PrerequisiteFor     []*Node
@@ -291,11 +290,11 @@ func (n Node) Name() string {
 	}
 }
 
-// Digraph is a directed graph which contains the plan for applying resources to a host.
-type Digraph []*Node
+// Plan is a directed graph which contains the plan for applying resources to a host.
+type Plan []*Node
 
 // Graphviz returns a DOT directed graph containing the apply plan.
-func (dg Digraph) Graphviz() string {
+func (p Plan) Graphviz() string {
 	str := "digraph resonance {\n"
 	str += "  subgraph cluster_Action {\n"
 	str += "    label=Action\n"
@@ -309,7 +308,7 @@ func (dg Digraph) Graphviz() string {
 	str += "    Apply -> Destroy  [style=invis]\n"
 	str += "    Destroy -> Refresh  [style=invis]\n"
 	str += "  }\n"
-	for _, node := range dg {
+	for _, node := range p {
 		var style, color string
 		if node.Refresh {
 			style = "dashed"
@@ -330,7 +329,7 @@ func (dg Digraph) Graphviz() string {
 		}
 		str += fmt.Sprintf("  node [style=%s color=%s] \"%s\";\n", style, color, node.Name())
 	}
-	for _, node := range dg {
+	for _, node := range p {
 		for _, dependantNode := range node.PrerequisiteFor {
 			str += fmt.Sprintf("  \"%s\" -> \"%s\";\n", node.Name(), dependantNode.Name())
 		}
@@ -339,31 +338,31 @@ func (dg Digraph) Graphviz() string {
 	return str
 }
 
-// TopologicalSort sorts the nodes based on their prerequisites. If the graph has cycles, it returns
+// topologicalSort sorts the nodes based on their prerequisites. If the graph has cycles, it returns
 // error.
-func (dg Digraph) TopologicalSort() (Digraph, error) {
-	// TODO this came verbatim from ChatGPT, review if correct
+func (p Plan) topologicalSort() (Plan, error) {
+	// Thanks ChatGPT :-D
 
 	// 1. Create a map to store the in-degree of each node
 	inDegree := make(map[*Node]int)
-	for _, node := range dg {
+	for _, node := range p {
 		inDegree[node] = 0
 	}
 	// 2. Calculate the in-degree of each node
-	for _, node := range dg {
+	for _, node := range p {
 		for _, prereq := range node.PrerequisiteFor {
 			inDegree[prereq]++
 		}
 	}
 	// 3. Create a queue to store nodes with in-degree 0
 	queue := make([]*Node, 0)
-	for _, node := range dg {
+	for _, node := range p {
 		if inDegree[node] == 0 {
 			queue = append(queue, node)
 		}
 	}
 	// 4. Initialize the result slice
-	result := make(Digraph, 0)
+	result := make(Plan, 0)
 	// 5. Process nodes in the queue
 	for len(queue) > 0 {
 		// 5.1. Dequeue a node from the queue
@@ -381,15 +380,15 @@ func (dg Digraph) TopologicalSort() (Digraph, error) {
 		}
 	}
 	// 6. Check if all nodes were visited
-	if len(result) != len(dg) {
+	if len(result) != len(p) {
 		return nil, errors.New("the graph has cycles")
 	}
 	return result, nil
 }
 
 // Apply required changes to host
-func (dg Digraph) Apply(ctx context.Context, hst host.Host) error {
-	for _, node := range dg {
+func (p Plan) Apply(ctx context.Context, hst host.Host) error {
+	for _, node := range p {
 		manageableResource, err := node.ManageableResource()
 		if err != nil {
 			return err
@@ -451,9 +450,9 @@ func (dg Digraph) Apply(ctx context.Context, hst host.Host) error {
 	return nil
 }
 
-// GetSortedDigraph calculates the plan and returns it in the form of a Digraph
-func (rbs ResourceBundles) GetSortedDigraph(savedHostState, desiredHostState, currentHostState HostState) (Digraph, error) {
-	unsortedDigraph := Digraph{}
+// GetPlan calculates the plan and returns it in the form of a Plan
+func (rbs ResourceBundles) GetPlan(savedHostState, desiredHostState, currentHostState HostState) (Plan, error) {
+	unsortedPlan := Plan{}
 	mergedNodes := map[Type]*Node{}
 	for _, resourceBundle := range rbs {
 		// Create nodes with only resource definitions...
@@ -486,7 +485,7 @@ func (rbs ResourceBundles) GetSortedDigraph(savedHostState, desiredHostState, cu
 				if !ok {
 					mergedNode = &Node{}
 					mergedNodes[tpe] = mergedNode
-					unsortedDigraph = append(unsortedDigraph, mergedNode)
+					unsortedPlan = append(unsortedPlan, mergedNode)
 				}
 				mergedNode.ResourceDefinitions = append(mergedNode.ResourceDefinitions, node.ResourceDefinitions...)
 				mergedNode.PrerequisiteFor = append(mergedNode.PrerequisiteFor, node)
@@ -504,11 +503,11 @@ func (rbs ResourceBundles) GetSortedDigraph(savedHostState, desiredHostState, cu
 			node.Refresh = refresh
 			lastNode = node
 		}
-		unsortedDigraph = append(unsortedDigraph, resourceBundleNodes...)
+		unsortedPlan = append(unsortedPlan, resourceBundleNodes...)
 	}
 
 	// Sort
-	sortedDigraph, err := unsortedDigraph.TopologicalSort()
+	plan, err := unsortedPlan.topologicalSort()
 	if err != nil {
 		return nil, err
 	}
@@ -516,7 +515,7 @@ func (rbs ResourceBundles) GetSortedDigraph(savedHostState, desiredHostState, cu
 	// Append destroy nodes
 	for savedTypeName := range savedHostState {
 		if _, ok := desiredHostState[savedTypeName]; !ok {
-			sortedDigraph = append(sortedDigraph, &Node{
+			plan = append(plan, &Node{
 				ResourceDefinitions: []ResourceDefinition{ResourceDefinition{
 					TypeName: savedTypeName,
 				}},
@@ -525,7 +524,7 @@ func (rbs ResourceBundles) GetSortedDigraph(savedHostState, desiredHostState, cu
 		}
 	}
 
-	return sortedDigraph, nil
+	return plan, nil
 }
 
 func loadResourceBundle(ctx context.Context, path string) (ResourceBundle, error) {

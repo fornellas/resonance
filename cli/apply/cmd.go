@@ -42,11 +42,13 @@ var Cmd = &cobra.Command{
 
 		hst := getHost()
 
-		// Load saved host state
+		// Local state
 		logrus.Info("Loading saved host state")
 		localState := state.Local{
 			Path: stateYaml,
 		}
+
+		// Load saved state
 		savedHostState, err := localState.Load(ctx)
 		if err != nil && !errors.Is(err, fs.ErrNotExist) {
 			logrus.Fatal(err)
@@ -61,6 +63,22 @@ var Cmd = &cobra.Command{
 		logrus.Info("Loading resources")
 		resourceBundles := resource.LoadResourceBundles(ctx, args)
 
+		// Get current host state
+		logrus.Info("Getting current host state")
+		currentHostState, err := resourceBundles.GetHostState(ctx, hst)
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		currentHostStateStr, err := currentHostState.String()
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		logrus.Debugf("currentHostStateStr:\n%v", indent.String("  ", currentHostStateStr))
+		// TODO if currentHostState != savedHostState
+		// - something changed the state outside, do `resonance state push`
+		// - How to deal with partial resource parameters (eg: APTPackage without Version)
+		// - should host state also save resource bundles?
+
 		// Get desired host state
 		logrus.Info("Calculating desired host state")
 		desiredHostState, err := resourceBundles.GetDesiredHostState()
@@ -73,29 +91,17 @@ var Cmd = &cobra.Command{
 		}
 		logrus.Debugf("desiredHostStateStr:\n%s", indent.String("  ", desiredHostStateStr))
 
-		// Get current host state
-		logrus.Info("Getting current host state")
-		currentHostState, err := resourceBundles.GetHostState(ctx, hst)
-		if err != nil {
-			logrus.Fatal(err)
-		}
-		currentHostStateStr, err := currentHostState.String()
-		if err != nil {
-			logrus.Fatal(err)
-		}
-		logrus.Debugf("currentHostStateStr:\n%v", indent.String("  ", currentHostStateStr))
-
 		// Plan
 		logrus.Info("Planning changes")
-		digraph, err := resourceBundles.GetSortedDigraph(savedHostState, desiredHostState, currentHostState)
+		plan, err := resourceBundles.GetPlan(savedHostState, desiredHostState, currentHostState)
 		if err != nil {
 			logrus.Fatal(err)
 		}
-		logrus.Debugf("digraph:\n%v", indent.String("  ", digraph.Graphviz()))
+		logrus.Debugf("plan:\n%v", indent.String("  ", plan.Graphviz()))
 
 		// Applying changes
 		logrus.Info("Applying changes")
-		if err := digraph.Apply(ctx, hst); err != nil {
+		if err := plan.Apply(ctx, hst); err != nil {
 			logrus.Fatal(err)
 		}
 
