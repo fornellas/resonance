@@ -1,18 +1,40 @@
+- GitHub Action
+    - Use same base image as `devvm.sh`
+        - Add a check for that.
+    - Call `make ci`
+    - If there's a tag, generate a release with Linux binaries for various archs.
+        - Publish Go reference documentation.
+        - Publish Go package.
+- README.md
+    - Add badges
+      - GH actions state
+      - Go reference
 - logging
 	- Propagate logging with context
 		- Indent log messages by `  ` with each extra item on the stack.
 		- This enables output to me a lot more readable.
 	- Use https://github.com/uber-go/zap maybe?
+- restic apply
+    - Improve state (saved / current / desired) comparison: it must also be a function of the resource parameters.
+    - Save state in the end.
+    - Get final host state, and confirm whether some resource inadvertedly changed something it should not.
+    - Paralelise reading state.
 - HostState
 	- Add field for version, required if the schema changes over time.
-- restic apply
-	- 
+- ^C cancel context
+- host/ssh.go
+    - Implement
 - restic plan
 	- Implement :-D
 	- Add --graphviz option
 	- Add --svg option (generate the svg directly from the internal graphviz)
-- restic state update
+- restic lint
+    - Validate resource definitions
+    - Lint yaml (format & sort)
+- restic refresh
 	- Update state from current host state
+- restic destroy
+    - Destroy all resources at state
 - ResourceDefinition
 	- refreshed_by: enables a resource (eg: nginx service) to subscribe to any resources it depends on (eg: File[/etc/nginx/.+])
 - Go templates
@@ -24,6 +46,3 @@
             - Must only contains things that are NOT affected by any resource (eg: CPU, memory etc.)
             - Should save with HostState and check for changes?
             - After apply, reload HostInventory, and check whether anything changed. If so, it means there's a bug in some resource.
-- ^C cancel context
-- host/ssh.go
-    - Implement
