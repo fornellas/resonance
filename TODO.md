@@ -1,0 +1,29 @@
+- logging
+	- Propagate logging with context
+		- Indent log messages by `  ` with each extra item on the stack.
+		- This enables output to me a lot more readable.
+	- Use https://github.com/uber-go/zap maybe?
+- HostState
+	- Add field for version, required if the schema changes over time.
+- restic apply
+	- 
+- restic plan
+	- Implement :-D
+	- Add --graphviz option
+	- Add --svg option (generate the svg directly from the internal graphviz)
+- restic state update
+	- Update state from current host state
+- ResourceDefinition
+	- refreshed_by: enables a resource (eg: nginx service) to subscribe to any resources it depends on (eg: File[/etc/nginx/.+])
+- Go templates
+    - Process all resource bundle yamls with Go template
+    - Template can be a function of:
+        - --host-parameters parms.yaml, containing host specific stuff (Eg: same resource bundle yaml can be used with different hosts)
+        - HostInventory
+            - General information about the host.
+            - Must only contains things that are NOT affected by any resource (eg: CPU, memory etc.)
+            - Should save with HostState and check for changes?
+            - After apply, reload HostInventory, and check whether anything changed. If so, it means there's a bug in some resource.
+- ^C cancel context
+- host/ssh.go
+    - Implement
