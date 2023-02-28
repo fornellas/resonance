@@ -569,15 +569,16 @@ func (rbs ResourceBundles) GetPlan(ctx context.Context, hst host.Host, persistan
 				lastNode.PrerequisiteFor = append(lastNode.PrerequisiteFor, node)
 			}
 			typeName := node.ResourceDefinitions[0].TypeName
+			logger.Debugf("%s", typeName)
 			manageableResource, err := typeName.ManageableResource()
 			if err != nil {
 				return nil, err
 			}
 			checkResult, ok := checkResults[typeName]
+			logger.Debugf("check result %v", checkResult)
 			if !ok {
 				panic("missing check result")
 			}
-			apply := !checkResult
 			if manageableResource.MergeApply() {
 				node.Action = ActionSkip
 				tpe, err := typeName.Type()
@@ -592,11 +593,11 @@ func (rbs ResourceBundles) GetPlan(ctx context.Context, hst host.Host, persistan
 				}
 				mergedNode.ResourceDefinitions = append(mergedNode.ResourceDefinitions, node.ResourceDefinitions...)
 				mergedNode.PrerequisiteFor = append(mergedNode.PrerequisiteFor, node)
-				if !apply {
+				if !checkResult {
 					mergedNode.Action = ActionApply
 				}
 			} else {
-				if apply {
+				if checkResult {
 					node.Action = ActionNone
 				} else {
 					node.Action = ActionApply
