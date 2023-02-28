@@ -323,51 +323,51 @@ func (p Plan) Graphviz() string {
 
 // topologicalSort sorts the nodes based on their prerequisites. If the graph has cycles, it returns
 // error.
-// func (p Plan) topologicalSort() (Plan, error) {
-// 	// Thanks ChatGPT :-D
+func (p Plan) topologicalSort() (Plan, error) {
+	// Thanks ChatGPT :-D
 
-// 	// 1. Create a map to store the in-degree of each node
-// 	inDegree := make(map[*Node]int)
-// 	for _, node := range p {
-// 		inDegree[node] = 0
-// 	}
-// 	// 2. Calculate the in-degree of each node
-// 	for _, node := range p {
-// 		for _, prereq := range node.PrerequisiteFor {
-// 			inDegree[prereq]++
-// 		}
-// 	}
-// 	// 3. Create a queue to store nodes with in-degree 0
-// 	queue := make([]*Node, 0)
-// 	for _, node := range p {
-// 		if inDegree[node] == 0 {
-// 			queue = append(queue, node)
-// 		}
-// 	}
-// 	// 4. Initialize the result slice
-// 	result := make(Plan, 0)
-// 	// 5. Process nodes in the queue
-// 	for len(queue) > 0 {
-// 		// 5.1. Dequeue a node from the queue
-// 		node := queue[0]
-// 		queue = queue[1:]
-// 		// 5.2. Add the node to the result
-// 		result = append(result, node)
-// 		// 5.3. Decrease the in-degree of each of its neighbors
-// 		for _, neighbor := range node.PrerequisiteFor {
-// 			inDegree[neighbor]--
-// 			// 5.4. If the neighbor's in-degree is 0, add it to the queue
-// 			if inDegree[neighbor] == 0 {
-// 				queue = append(queue, neighbor)
-// 			}
-// 		}
-// 	}
-// 	// 6. Check if all nodes were visited
-// 	if len(result) != len(p) {
-// 		return nil, errors.New("the graph has cycles")
-// 	}
-// 	return result, nil
-// }
+	// 1. Create a map to store the in-degree of each node
+	inDegree := make(map[*Node]int)
+	for _, node := range p {
+		inDegree[node] = 0
+	}
+	// 2. Calculate the in-degree of each node
+	for _, node := range p {
+		for _, prereq := range node.PrerequisiteFor {
+			inDegree[prereq]++
+		}
+	}
+	// 3. Create a queue to store nodes with in-degree 0
+	queue := make([]*Node, 0)
+	for _, node := range p {
+		if inDegree[node] == 0 {
+			queue = append(queue, node)
+		}
+	}
+	// 4. Initialize the result slice
+	result := make(Plan, 0)
+	// 5. Process nodes in the queue
+	for len(queue) > 0 {
+		// 5.1. Dequeue a node from the queue
+		node := queue[0]
+		queue = queue[1:]
+		// 5.2. Add the node to the result
+		result = append(result, node)
+		// 5.3. Decrease the in-degree of each of its neighbors
+		for _, neighbor := range node.PrerequisiteFor {
+			inDegree[neighbor]--
+			// 5.4. If the neighbor's in-degree is 0, add it to the queue
+			if inDegree[neighbor] == 0 {
+				queue = append(queue, neighbor)
+			}
+		}
+	}
+	// 6. Check if all nodes were visited
+	if len(result) != len(p) {
+		return nil, errors.New("the graph has cycles")
+	}
+	return result, nil
+}
 
 // Apply required changes to host
 func (p Plan) Apply(ctx context.Context, hst host.Host) error {
@@ -549,93 +549,87 @@ func (rbs ResourceBundles) GetPlan(ctx context.Context, hst host.Host, persistan
 		}
 	}
 
-	// Calculate resources to destroy
-	// logger.Info("Calculating resources to destroy")
-	// destroyTypeNames := []TypeName{}
-	// for _, savedResourceBundle := range savedResourceDefinition {
-	// 	for _, savedResourceDefinition := range savedResourceBundle {
-	// 		if !rbs.HasTypeName(savedResourceDefinition.TypeName) {
-	// 			// TODO log
-	// 			destroyTypeNames = append(destroyTypeNames, savedResourceDefinition.TypeName)
-	// 		}
-	// 	}
-	// }
+	// Build unsorted digraph
+	logger.Info("Planning")
+	unsortedPlan := Plan{}
+	mergedNodes := map[Type]*Node{}
+	for _, resourceBundle := range rbs {
+		// Create nodes with only resource definitions...
+		resourceBundleNodes := []*Node{}
+		for _, resourceDefinition := range resourceBundle {
+			resourceBundleNodes = append(resourceBundleNodes, &Node{
+				ResourceDefinitions: []ResourceDefinition{resourceDefinition},
+			})
+		}
+		// ...and populate other Node attributes
+		var lastNode *Node
+		refresh := false
+		for _, node := range resourceBundleNodes {
+			if lastNode != nil {
+				lastNode.PrerequisiteFor = append(lastNode.PrerequisiteFor, node)
+			}
+			typeName := node.ResourceDefinitions[0].TypeName
+			manageableResource, err := typeName.ManageableResource()
+			if err != nil {
+				return nil, err
+			}
+			checkResult, ok := checkResults[typeName]
+			if !ok {
+				panic("missing check result")
+			}
+			apply := !checkResult
+			if manageableResource.MergeApply() {
+				node.Action = ActionSkip
+				tpe, err := typeName.Type()
+				if err != nil {
+					return nil, err
+				}
+				mergedNode, ok := mergedNodes[tpe]
+				if !ok {
+					mergedNode = &Node{}
+					mergedNodes[tpe] = mergedNode
+					unsortedPlan = append(unsortedPlan, mergedNode)
+				}
+				mergedNode.ResourceDefinitions = append(mergedNode.ResourceDefinitions, node.ResourceDefinitions...)
+				mergedNode.PrerequisiteFor = append(mergedNode.PrerequisiteFor, node)
+				if !apply {
+					mergedNode.Action = ActionApply
+				}
+			} else {
+				if apply {
+					node.Action = ActionNone
+				} else {
+					node.Action = ActionApply
+					refresh = true
+				}
+			}
+			node.Refresh = refresh
+			lastNode = node
+		}
+		unsortedPlan = append(unsortedPlan, resourceBundleNodes...)
+	}
 
-	// unsortedPlan := Plan{}
-	// mergedNodes := map[Type]*Node{}
-	// for _, resourceBundle := range rbs {
-	// 	// Create nodes with only resource definitions...
-	// 	resourceBundleNodes := []*Node{}
-	// 	for _, resourceDefinition := range resourceBundle {
-	// 		resourceBundleNodes = append(resourceBundleNodes, &Node{
-	// 			ResourceDefinitions: []ResourceDefinition{resourceDefinition},
-	// 		})
-	// 	}
-	// 	// ...and populate other Node attributes
-	// 	var lastNode *Node
-	// 	refresh := false
-	// 	for _, node := range resourceBundleNodes {
-	// 		if lastNode != nil {
-	// 			lastNode.PrerequisiteFor = append(lastNode.PrerequisiteFor, node)
-	// 		}
-	// 		typeName := node.ResourceDefinitions[0].TypeName
-	// 		manageableResource, err := typeName.ManageableResource()
-	// 		if err != nil {
-	// 			return nil, err
-	// 		}
-	// 		stateEqual := reflect.DeepEqual(desiredHostState[typeName], currentHostState[typeName])
-	// 		if manageableResource.MergeApply() {
-	// 			node.Action = ActionSkip
-	// 			tpe, err := typeName.Type()
-	// 			if err != nil {
-	// 				return nil, err
-	// 			}
-	// 			mergedNode, ok := mergedNodes[tpe]
-	// 			if !ok {
-	// 				mergedNode = &Node{}
-	// 				mergedNodes[tpe] = mergedNode
-	// 				unsortedPlan = append(unsortedPlan, mergedNode)
-	// 			}
-	// 			mergedNode.ResourceDefinitions = append(mergedNode.ResourceDefinitions, node.ResourceDefinitions...)
-	// 			mergedNode.PrerequisiteFor = append(mergedNode.PrerequisiteFor, node)
-	// 			if !stateEqual {
-	// 				mergedNode.Action = ActionApply
-	// 			}
-	// 		} else {
-	// 			if stateEqual {
-	// 				node.Action = ActionNone
-	// 			} else {
-	// 				node.Action = ActionApply
-	// 				refresh = true
-	// 			}
-	// 		}
-	// 		node.Refresh = refresh
-	// 		lastNode = node
-	// 	}
-	// 	unsortedPlan = append(unsortedPlan, resourceBundleNodes...)
-	// }
+	// Sort
+	plan, err := unsortedPlan.topologicalSort()
+	if err != nil {
+		return nil, err
+	}
 
-	// // Sort
-	// plan, err := unsortedPlan.topologicalSort()
-	// if err != nil {
-	// 	return nil, err
-	// }
+	// Append destroy nodes
+	for _, resourceDefinition := range savedResourceDefinition {
+		if !rbs.HasTypeName(resourceDefinition.TypeName) {
+			plan = append(plan, &Node{
+				ResourceDefinitions: []ResourceDefinition{ResourceDefinition{
+					TypeName: resourceDefinition.TypeName,
+				}},
+				Action: ActionDestroy,
+			})
+		}
+	}
 
-	// // Append destroy nodes
-	// for savedTypeName := range savedHostState {
-	// 	if _, ok := desiredHostState[savedTypeName]; !ok {
-	// 		plan = append(plan, &Node{
-	// 			ResourceDefinitions: []ResourceDefinition{ResourceDefinition{
-	// 				TypeName: savedTypeName,
-	// 			}},
-	// 			Action: ActionDestroy,
-	// 		})
-	// 	}
-	// }
+	nestedLogger.WithFields(logrus.Fields{"Graphviz": plan.Graphviz()}).Debug("Final plan")
 
-	// return plan, nil
-
-	return nil, fmt.Errorf("ResourceBundles.GetPlan")
+	return plan, nil
 }
 
 func loadResourceBundle(ctx context.Context, path string) (ResourceBundle, error) {

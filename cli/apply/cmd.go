@@ -5,8 +5,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/openconfig/goyang/pkg/indent"
-
 	"github.com/fornellas/resonance/log"
 
 	"github.com/fornellas/resonance/host"
@@ -95,7 +93,6 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			logger.Fatal(err)
 		}
-		logger.Debugf("plan:\n%v", indent.String("  ", plan.Graphviz()))
 
 		// Applying changes
 		logger.Info("Applying changes")

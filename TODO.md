@@ -9,6 +9,7 @@
     - Add badges
       - GH actions state
       - Go reference
+- GOCYCLO_OVER: decrease to 15
 - PersistantState
     - Change interface to only read / write `[]bytes`, so that serialization code can be shared across all interface implementations.
 - restic apply
