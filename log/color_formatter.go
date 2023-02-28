@@ -52,10 +52,10 @@ func (cf *ColorFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		fmt.Fprintf(buff, "  %s=", k)
+		fmt.Fprintf(buff, "    %s=", k)
 		data := strings.TrimSuffix(fmt.Sprintf("%v", entry.Data[k]), "\n")
 		if strings.Contains(data, "\n") {
-			fmt.Fprintf(buff, "\n%s\n", indent.String("    ", data))
+			fmt.Fprintf(buff, "\n%s\n", indent.String("      ", data))
 		} else {
 			fmt.Fprintf(buff, "%s\n", data)
 		}

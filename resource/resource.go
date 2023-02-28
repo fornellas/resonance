@@ -181,6 +181,8 @@ type ResourceBundles []ResourceBundle
 
 // GetHostState reads and return the state from all resource definitions.
 // func (rbs ResourceBundles) GetHostState(ctx context.Context, hst host.Host) (HostState, error) {
+// logger := log.GetLogger(ctx)
+// logger.Debug("Getting host state")
 // 	hostState := HostState{}
 
 // 	for _, resourceBundle := range rbs {
@@ -503,10 +505,10 @@ func (p Plan) Apply(ctx context.Context, hst host.Host) error {
 		switch node.Action {
 		case ActionNone, ActionSkip:
 			if node.Refresh {
-				logger.Infof("  %s: Action: %s", node.Name(), "Refresh")
+				logger.Infof("%s: Action: %s", node.Name(), "Refresh")
 				for _, resourceDefinition := range node.ResourceDefinitions {
 					if len(node.ResourceDefinitions) > 1 {
-						logger.Infof("    Refreshing %s", resourceDefinition)
+						logger.Infof("  Refreshing %s", resourceDefinition)
 					}
 					name, err := resourceDefinition.TypeName.Name()
 					if err != nil {
@@ -517,10 +519,10 @@ func (p Plan) Apply(ctx context.Context, hst host.Host) error {
 					}
 				}
 			} else {
-				logger.Infof("  %s: Action: %s", node.Name(), node.Action)
+				logger.Infof("%s: Action: %s", node.Name(), node.Action)
 			}
 		case ActionApply:
-			logger.Infof("  %s: Action: %s", node.Name(), node.Action)
+			logger.Infof("%s: Action: %s", node.Name(), node.Action)
 			instances := []Instance{}
 			for _, resourceDefinition := range node.ResourceDefinitions {
 				name, err := resourceDefinition.TypeName.Name()
@@ -536,10 +538,10 @@ func (p Plan) Apply(ctx context.Context, hst host.Host) error {
 				return err
 			}
 		case ActionDestroy:
-			logger.Infof("  %s: Action: %s", node.Name(), node.Action)
+			logger.Infof("%s: Action: %s", node.Name(), node.Action)
 			for _, resourceDefinition := range node.ResourceDefinitions {
 				if len(node.ResourceDefinitions) > 1 {
-					logger.Infof("    Destroying %s", resourceDefinition)
+					logger.Infof("Destroying %s", resourceDefinition)
 				}
 				name, err := resourceDefinition.TypeName.Name()
 				if err != nil {

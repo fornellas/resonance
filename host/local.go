@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"syscall"
 	"time"
+
+	"github.com/fornellas/resonance/log"
 )
 
 // Local interacts with the local machine running the code.
@@ -21,10 +23,13 @@ func (l Local) ReadFile(ctx context.Context, name string) ([]byte, error) {
 }
 
 func (l Local) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, error) {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("Running %s", cmd)
+
 	stdoutBuffer := bytes.Buffer{}
 	stderrBuffer := bytes.Buffer{}
 
-	execCmd := exec.CommandContext(ctx, cmd.Path, cmd.Args...)
+	execCmd := exec.CommandContext(log.IndentLogger(ctx), cmd.Path, cmd.Args...)
 	if len(cmd.Env) == 0 {
 		cmd.Env = []string{"LANG=en_US.UTF-8"}
 	}
