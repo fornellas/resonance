@@ -1,7 +1,6 @@
 package resource
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -36,7 +35,7 @@ type Instance struct {
 
 // State holds information about a resource state. This is specific for each resource type.
 // It must be marshallable by gopkg.in/yaml.v3.
-type State interface{}
+// type State interface{}
 
 // ManageableResource defines an interface for managing resource state.
 type ManageableResource interface {
@@ -51,6 +50,10 @@ type ManageableResource interface {
 
 	// GetState returns current resource state from host without any side effects.
 	// GetState(ctx context.Context, hst host.Host, name Name) (State, error)
+
+	// Check host for the state of instatnce. If changes are required, returns true,
+	// otherwise, returns false.
+	Check(ctx context.Context, hst host.Host, instance Instance) (bool, error)
 
 	// Apply confiugres the resource at host to given instances state.
 	// Must be idempotent.
@@ -135,27 +138,27 @@ func NewTypeName(tpe Type, name Name) TypeName {
 	return TypeName(fmt.Sprintf("%s[%s]", tpe, name))
 }
 
-// HostState is the schema used to save/load state for all resources for a host.
-type HostState map[TypeName]State
+// // HostState is the schema used to save/load state for all resources for a host.
+// type HostState map[TypeName]State
 
-// Merge appends received HostState.
-func (hs HostState) Merge(stateData HostState) {
-	for resourceInstanceKey, resourceState := range stateData {
-		if _, ok := hs[resourceInstanceKey]; ok {
-			panic(fmt.Sprintf("duplicated resource instance %s", resourceInstanceKey))
-		}
-		hs[resourceInstanceKey] = resourceState
-	}
-}
+// // Merge appends received HostState.
+// func (hs HostState) Merge(stateData HostState) {
+// 	for resourceInstanceKey, resourceState := range stateData {
+// 		if _, ok := hs[resourceInstanceKey]; ok {
+// 			panic(fmt.Sprintf("duplicated resource instance %s", resourceInstanceKey))
+// 		}
+// 		hs[resourceInstanceKey] = resourceState
+// 	}
+// }
 
-func (hs HostState) String() string {
-	buffer := bytes.Buffer{}
-	encoder := yaml.NewEncoder(&buffer)
-	if err := encoder.Encode(hs); err != nil {
-		panic(fmt.Sprintf("failed to encode %#v: %s", hs, err))
-	}
-	return buffer.String()
-}
+// func (hs HostState) String() string {
+// 	buffer := bytes.Buffer{}
+// 	encoder := yaml.NewEncoder(&buffer)
+// 	if err := encoder.Encode(hs); err != nil {
+// 		panic(fmt.Sprintf("failed to encode %#v: %s", hs, err))
+// 	}
+// 	return buffer.String()
+// }
 
 // ResourceDefinition is the schema used to declare a single resource within a file.
 type ResourceDefinition struct {
@@ -167,165 +170,20 @@ func (rd ResourceDefinition) String() string {
 	return rd.TypeName.String()
 }
 
+func (rd ResourceDefinition) ManageableResource() (ManageableResource, error) {
+	return rd.TypeName.ManageableResource()
+}
+
+func (rd ResourceDefinition) Instance() (Instance, error) {
+	name, err := rd.TypeName.Name()
+	if err != nil {
+		return Instance{}, err
+	}
+	return Instance{Name: name, Parameters: rd.Parameters}, nil
+}
+
 // ResourceBundle is the schema used to declare multiple resources at a single file.
 type ResourceBundle []ResourceDefinition
-
-// PersistantState defines an interface for loading and saving HostState
-type PersistantState interface {
-	Load(ctx context.Context) (HostState, error)
-	Save(ctx context.Context, hostState HostState) error
-}
-
-// ResourceBundles holds all resources definitions for a host.
-type ResourceBundles []ResourceBundle
-
-// GetHostState reads and return the state from all resource definitions.
-// func (rbs ResourceBundles) GetHostState(ctx context.Context, hst host.Host) (HostState, error) {
-// logger := log.GetLogger(ctx)
-// logger.Debug("Getting host state")
-// 	hostState := HostState{}
-
-// 	for _, resourceBundle := range rbs {
-// 		for _, resourceDefinition := range resourceBundle {
-// 			tpe, name, err := resourceDefinition.TypeName.GetTypeName()
-// 			if err != nil {
-// 				return hostState, err
-// 			}
-// 			resource, err := tpe.ManageableResource()
-// 			if err != nil {
-// 				return hostState, err
-// 			}
-// 			state, err := resource.GetState(ctx, hst, name)
-// 			if err != nil {
-// 				return hostState, fmt.Errorf("%s: failed to read state: %w", resourceDefinition.TypeName, err)
-// 			}
-
-// 			hostState[resourceDefinition.TypeName] = state
-// 		}
-// 	}
-
-// 	return hostState, nil
-// }
-
-// GetDesiredHostState returns the desired HostState for all resources.
-// func (rbs ResourceBundles) GetDesiredHostState() (HostState, error) {
-// 	hostState := HostState{}
-
-// 	for _, resourceBundle := range rbs {
-// 		for _, resourceDefinition := range resourceBundle {
-// 			tpe, _, err := resourceDefinition.TypeName.GetTypeName()
-// 			if err != nil {
-// 				return hostState, err
-// 			}
-// 			resource, err := tpe.ManageableResource()
-// 			if err != nil {
-// 				return hostState, err
-// 			}
-// 			state, err := resource.GetDesiredState(resourceDefinition.Parameters)
-// 			if err != nil {
-// 				return hostState, fmt.Errorf("%s: failed get desired state: %w", resourceDefinition.TypeName, err)
-// 			}
-
-// 			hostState[resourceDefinition.TypeName] = state
-// 		}
-// 	}
-
-// 	return hostState, nil
-// }
-
-// GetPlan calculates the plan and returns it in the form of a Plan
-func (rbs ResourceBundles) GetPlan(ctx context.Context, hst host.Host, persistantState PersistantState) (Plan, error) {
-	logger := log.GetLogger(ctx)
-
-	// Load saved state
-	logger.Info("Loading saved host state")
-	savedHostState, err := persistantState.Load(ctx)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		logger.Fatal(err)
-	}
-	logger.WithFields(logrus.Fields{"HostState": savedHostState.String()}).Debug("Loaded saved HostState")
-
-	//
-	// for typeName, state := range savedHostState {
-
-	// }
-
-	// unsortedPlan := Plan{}
-	// mergedNodes := map[Type]*Node{}
-	// for _, resourceBundle := range rbs {
-	// 	// Create nodes with only resource definitions...
-	// 	resourceBundleNodes := []*Node{}
-	// 	for _, resourceDefinition := range resourceBundle {
-	// 		resourceBundleNodes = append(resourceBundleNodes, &Node{
-	// 			ResourceDefinitions: []ResourceDefinition{resourceDefinition},
-	// 		})
-	// 	}
-	// 	// ...and populate other Node attributes
-	// 	var lastNode *Node
-	// 	refresh := false
-	// 	for _, node := range resourceBundleNodes {
-	// 		if lastNode != nil {
-	// 			lastNode.PrerequisiteFor = append(lastNode.PrerequisiteFor, node)
-	// 		}
-	// 		typeName := node.ResourceDefinitions[0].TypeName
-	// 		manageableResource, err := typeName.ManageableResource()
-	// 		if err != nil {
-	// 			return nil, err
-	// 		}
-	// 		stateEqual := reflect.DeepEqual(desiredHostState[typeName], currentHostState[typeName])
-	// 		if manageableResource.MergeApply() {
-	// 			node.Action = ActionSkip
-	// 			tpe, err := typeName.Type()
-	// 			if err != nil {
-	// 				return nil, err
-	// 			}
-	// 			mergedNode, ok := mergedNodes[tpe]
-	// 			if !ok {
-	// 				mergedNode = &Node{}
-	// 				mergedNodes[tpe] = mergedNode
-	// 				unsortedPlan = append(unsortedPlan, mergedNode)
-	// 			}
-	// 			mergedNode.ResourceDefinitions = append(mergedNode.ResourceDefinitions, node.ResourceDefinitions...)
-	// 			mergedNode.PrerequisiteFor = append(mergedNode.PrerequisiteFor, node)
-	// 			if !stateEqual {
-	// 				mergedNode.Action = ActionApply
-	// 			}
-	// 		} else {
-	// 			if stateEqual {
-	// 				node.Action = ActionNone
-	// 			} else {
-	// 				node.Action = ActionApply
-	// 				refresh = true
-	// 			}
-	// 		}
-	// 		node.Refresh = refresh
-	// 		lastNode = node
-	// 	}
-	// 	unsortedPlan = append(unsortedPlan, resourceBundleNodes...)
-	// }
-
-	// // Sort
-	// plan, err := unsortedPlan.topologicalSort()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// // Append destroy nodes
-	// for savedTypeName := range savedHostState {
-	// 	if _, ok := desiredHostState[savedTypeName]; !ok {
-	// 		plan = append(plan, &Node{
-	// 			ResourceDefinitions: []ResourceDefinition{ResourceDefinition{
-	// 				TypeName: savedTypeName,
-	// 			}},
-	// 			Action: ActionDestroy,
-	// 		})
-	// 	}
-	// }
-
-	// return plan, nil
-
-	return nil, fmt.Errorf("ResourceBundles.GetPlan")
-}
 
 // Action to be executed for a given Node.
 type Action int
@@ -558,6 +416,201 @@ func (p Plan) Apply(ctx context.Context, hst host.Host) error {
 	return nil
 }
 
+// ResourceBundles holds all resources definitions for a host.
+type ResourceBundles []ResourceBundle
+
+// GetHostState reads and return the state from all resource definitions.
+// func (rbs ResourceBundles) GetHostState(ctx context.Context, hst host.Host) (HostState, error) {
+// logger := log.GetLogger(ctx)
+// logger.Debug("Getting host state")
+// 	hostState := HostState{}
+
+// 	for _, resourceBundle := range rbs {
+// 		for _, resourceDefinition := range resourceBundle {
+// 			tpe, name, err := resourceDefinition.TypeName.GetTypeName()
+// 			if err != nil {
+// 				return hostState, err
+// 			}
+// 			resource, err := tpe.ManageableResource()
+// 			if err != nil {
+// 				return hostState, err
+// 			}
+// 			state, err := resource.GetState(ctx, hst, name)
+// 			if err != nil {
+// 				return hostState, fmt.Errorf("%s: failed to read state: %w", resourceDefinition.TypeName, err)
+// 			}
+
+// 			hostState[resourceDefinition.TypeName] = state
+// 		}
+// 	}
+
+// 	return hostState, nil
+// }
+
+// GetDesiredHostState returns the desired HostState for all resources.
+// func (rbs ResourceBundles) GetDesiredHostState() (HostState, error) {
+// 	hostState := HostState{}
+
+// 	for _, resourceBundle := range rbs {
+// 		for _, resourceDefinition := range resourceBundle {
+// 			tpe, _, err := resourceDefinition.TypeName.GetTypeName()
+// 			if err != nil {
+// 				return hostState, err
+// 			}
+// 			resource, err := tpe.ManageableResource()
+// 			if err != nil {
+// 				return hostState, err
+// 			}
+// 			state, err := resource.GetDesiredState(resourceDefinition.Parameters)
+// 			if err != nil {
+// 				return hostState, fmt.Errorf("%s: failed get desired state: %w", resourceDefinition.TypeName, err)
+// 			}
+
+// 			hostState[resourceDefinition.TypeName] = state
+// 		}
+// 	}
+
+// 	return hostState, nil
+// }
+
+func (rbs ResourceBundles) HasTypeName(typeName TypeName) bool {
+	for _, resourceBundle := range rbs {
+		for _, resourceDefinition := range resourceBundle {
+			if resourceDefinition.TypeName == typeName {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// GetPlan calculates the plan and returns it in the form of a Plan
+func (rbs ResourceBundles) GetPlan(ctx context.Context, hst host.Host, persistantState PersistantState) (Plan, error) {
+	logger := log.GetLogger(ctx)
+	nestedCtx := log.IndentLogger(ctx)
+	nestedLogger := log.GetLogger(nestedCtx)
+
+	// Load saved state
+	logger.Info("Loading saved state")
+	savedResourceDefinition, err := persistantState.Load(nestedCtx)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
+	}
+	savedResourceBundlesYamlBytes, err := yaml.Marshal(&savedResourceDefinition)
+	if err != nil {
+		return nil, err
+	}
+	logger.WithFields(logrus.Fields{"ResourceBundles": string(savedResourceBundlesYamlBytes)}).Debug("Loaded saved state")
+
+	// Checking state
+	logger.Info("Checking state")
+	checkResult := map[TypeName]bool{}
+	for _, resourceDefinition := range savedResourceDefinition {
+		manageableResource, err := resourceDefinition.ManageableResource()
+		if err != nil {
+			return nil, err
+		}
+		instance, err := resourceDefinition.Instance()
+		if err != nil {
+			return nil, err
+		}
+		nestedLogger.Debugf("Checking %s", resourceDefinition.TypeName)
+		check, err := manageableResource.Check(log.IndentLogger(nestedCtx), hst, instance)
+		if err != nil {
+			return nil, err
+		}
+		checkResult[resourceDefinition.TypeName] = check
+	}
+
+	// Calculate resources to destroy
+	// logger.Info("Calculating resources to destroy")
+	// destroyTypeNames := []TypeName{}
+	// for _, savedResourceBundle := range savedResourceDefinition {
+	// 	for _, savedResourceDefinition := range savedResourceBundle {
+	// 		if !rbs.HasTypeName(savedResourceDefinition.TypeName) {
+	// 			// TODO log
+	// 			destroyTypeNames = append(destroyTypeNames, savedResourceDefinition.TypeName)
+	// 		}
+	// 	}
+	// }
+
+	// unsortedPlan := Plan{}
+	// mergedNodes := map[Type]*Node{}
+	// for _, resourceBundle := range rbs {
+	// 	// Create nodes with only resource definitions...
+	// 	resourceBundleNodes := []*Node{}
+	// 	for _, resourceDefinition := range resourceBundle {
+	// 		resourceBundleNodes = append(resourceBundleNodes, &Node{
+	// 			ResourceDefinitions: []ResourceDefinition{resourceDefinition},
+	// 		})
+	// 	}
+	// 	// ...and populate other Node attributes
+	// 	var lastNode *Node
+	// 	refresh := false
+	// 	for _, node := range resourceBundleNodes {
+	// 		if lastNode != nil {
+	// 			lastNode.PrerequisiteFor = append(lastNode.PrerequisiteFor, node)
+	// 		}
+	// 		typeName := node.ResourceDefinitions[0].TypeName
+	// 		manageableResource, err := typeName.ManageableResource()
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
+	// 		stateEqual := reflect.DeepEqual(desiredHostState[typeName], currentHostState[typeName])
+	// 		if manageableResource.MergeApply() {
+	// 			node.Action = ActionSkip
+	// 			tpe, err := typeName.Type()
+	// 			if err != nil {
+	// 				return nil, err
+	// 			}
+	// 			mergedNode, ok := mergedNodes[tpe]
+	// 			if !ok {
+	// 				mergedNode = &Node{}
+	// 				mergedNodes[tpe] = mergedNode
+	// 				unsortedPlan = append(unsortedPlan, mergedNode)
+	// 			}
+	// 			mergedNode.ResourceDefinitions = append(mergedNode.ResourceDefinitions, node.ResourceDefinitions...)
+	// 			mergedNode.PrerequisiteFor = append(mergedNode.PrerequisiteFor, node)
+	// 			if !stateEqual {
+	// 				mergedNode.Action = ActionApply
+	// 			}
+	// 		} else {
+	// 			if stateEqual {
+	// 				node.Action = ActionNone
+	// 			} else {
+	// 				node.Action = ActionApply
+	// 				refresh = true
+	// 			}
+	// 		}
+	// 		node.Refresh = refresh
+	// 		lastNode = node
+	// 	}
+	// 	unsortedPlan = append(unsortedPlan, resourceBundleNodes...)
+	// }
+
+	// // Sort
+	// plan, err := unsortedPlan.topologicalSort()
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// // Append destroy nodes
+	// for savedTypeName := range savedHostState {
+	// 	if _, ok := desiredHostState[savedTypeName]; !ok {
+	// 		plan = append(plan, &Node{
+	// 			ResourceDefinitions: []ResourceDefinition{ResourceDefinition{
+	// 				TypeName: savedTypeName,
+	// 			}},
+	// 			Action: ActionDestroy,
+	// 		})
+	// 	}
+	// }
+
+	// return plan, nil
+
+	return nil, fmt.Errorf("ResourceBundles.GetPlan")
+}
+
 func loadResourceBundle(ctx context.Context, path string) (ResourceBundle, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -598,4 +651,10 @@ func LoadResourceBundles(ctx context.Context, paths []string) ResourceBundles {
 		resourceBundles = append(resourceBundles, resourceBundle)
 	}
 	return resourceBundles
+}
+
+// PersistantState defines an interface for loading and saving HostState
+type PersistantState interface {
+	Load(ctx context.Context) ([]ResourceDefinition, error)
+	Save(ctx context.Context, resourceDefinitions []ResourceDefinition) error
 }

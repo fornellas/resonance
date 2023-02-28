@@ -74,6 +74,10 @@ func (ap APTPackage) MergeApply() bool {
 // 	return aptPackageState, nil
 // }
 
+func (ap APTPackage) Check(ctx context.Context, hst host.Host, instance Instance) (bool, error) {
+	return false, fmt.Errorf("TODO APTPackage.Check")
+}
+
 func (ap APTPackage) Apply(ctx context.Context, hst host.Host, instances []Instance) error {
 	return fmt.Errorf("TODO APTPackage.Apply")
 }

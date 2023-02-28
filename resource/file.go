@@ -139,6 +139,10 @@ func (f File) MergeApply() bool {
 // 	return fileState, nil
 // }
 
+func (f File) Check(ctx context.Context, hst host.Host, instance Instance) (bool, error) {
+	return false, fmt.Errorf("TODO File.Check")
+}
+
 func (f File) Apply(ctx context.Context, hst host.Host, instances []Instance) error {
 	// TODO use Host interface
 	// fileParams := parameters.(FileParams)
