@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/fatih/color"
+	"github.com/openconfig/goyang/pkg/indent"
 	"github.com/sirupsen/logrus"
 )
 
@@ -47,7 +49,13 @@ func (f *ColorFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		fmt.Fprintf(buff, "  %s=%v\n", k, entry.Data[k])
+		fmt.Fprintf(buff, "  %s=", k)
+		data := strings.TrimSuffix(fmt.Sprintf("%v", entry.Data[k]), "\n")
+		if strings.Contains(data, "\n") {
+			fmt.Fprintf(buff, "\n%s\n", indent.String("    ", data))
+		} else {
+			fmt.Fprintf(buff, "%s\n", data)
+		}
 	}
 
 	return buff.Bytes(), nil
