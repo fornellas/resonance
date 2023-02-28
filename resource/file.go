@@ -2,8 +2,12 @@ package resource
 
 import (
 	"context"
+	"crypto/md5"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
+	"syscall"
 
 	"github.com/fornellas/resonance/host"
 )
@@ -24,16 +28,6 @@ type FileParams struct {
 	Group string `yaml:"group"`
 }
 
-// FileState for File
-type FileState struct {
-	Md5   []byte      `yaml:"md5"`
-	Perm  os.FileMode `yaml:"perm"`
-	Uid   uint32      `yaml:"uid"`
-	User  string      `yaml:"user"`
-	Gid   uint32      `yaml:"gid"`
-	Group string      `yaml:"group"`
-}
-
 // File resource manages files.
 type File struct{}
 
@@ -41,106 +35,81 @@ func (f File) MergeApply() bool {
 	return false
 }
 
-// func (f File) GetDesiredState(parameters yaml.Node) (State, error) {
-// 	var fileParams FileParams
-// 	fileState := FileState{}
-
-// 	if err := parameters.Decode(&fileParams); err != nil {
-// 		return fileState, err
-// 	}
-
-// 	h := md5.New()
-// 	n, err := h.Write([]byte(fileParams.Content))
-// 	if err != nil {
-// 		return fileState, err
-// 	}
-// 	if n != len(fileParams.Content) {
-// 		return fileState, fmt.Errorf("unexpected write length when generating md5: expected %d, got %d", len(fileParams.Content), n)
-// 	}
-// 	fileState.Md5 = h.Sum(nil)
-
-// 	if fileParams.Perm == 0 {
-// 		return fileState, fmt.Errorf("perm must be set")
-// 	}
-// 	fileState.Perm = fileParams.Perm
-
-// 	if fileParams.Uid != 0 && fileParams.User != "" {
-// 		return fileState, fmt.Errorf("can't set both uid and user")
-// 	}
-// 	if fileParams.Uid == 0 && fileParams.User == "" {
-// 		return fileState, fmt.Errorf("must set eithre uid or user")
-// 	}
-// 	fileState.Uid = fileParams.Uid
-// 	fileState.User = fileParams.User
-
-// 	if fileParams.Gid != 0 && fileParams.Group != "" {
-// 		return fileState, fmt.Errorf("can't set both gid and group")
-// 	}
-// 	if fileParams.Gid == 0 && fileParams.Group == "" {
-// 		return fileState, fmt.Errorf("must set eithre gid or group")
-// 	}
-// 	fileState.Gid = fileParams.Gid
-// 	fileState.Group = fileParams.Group
-
-// 	return fileState, nil
-// }
-
-// func (f File) GetState(ctx context.Context, hst host.Host, name Name) (State, error) {
-// 	fileState := FileState{}
-
-// 	path := name.String()
-
-// 	// Md5
-// 	h := md5.New()
-// 	content, err := hst.ReadFile(ctx, path)
-// 	if err != nil {
-// 		if !errors.Is(err, fs.ErrNotExist) {
-// 			return fileState, err
-// 		}
-// 		return fileState, nil
-// 	} else {
-// 		n, err := h.Write(content)
-// 		if err != nil {
-// 			return fileState, err
-// 		}
-// 		if n != len(content) {
-// 			return fileState, fmt.Errorf("unexpected write length when generating md5: expected %d, got %d", len(content), n)
-// 		}
-// 	}
-// 	fileState.Md5 = h.Sum(nil)
-
-// 	// Perm
-// 	fileInfo, err := hst.Lstat(ctx, path)
-// 	if err != nil {
-// 		return fileState, err
-// 	}
-// 	fileState.Perm = fileInfo.Mode()
-
-// 	// Uid
-// 	fileState.Uid = fileInfo.Sys().(*syscall.Stat_t).Uid
-
-// 	// User
-// 	u, err := user.LookupId(strconv.Itoa(int(fileState.Uid)))
-// 	if err != nil {
-// 		return fileState, err
-// 	}
-// 	fileState.User = u.Username
-
-// 	// Gid
-// 	fileState.Gid = fileInfo.Sys().(*syscall.Stat_t).Gid
-
-// 	// Group
-// 	g, err := user.LookupGroupId(strconv.Itoa(int(fileState.Gid)))
-// 	if err != nil {
-// 		return fileState, err
-// 	}
-// 	fileState.Group = g.Name
-
-// 	return fileState, nil
-// }
-
 func (f File) Check(ctx context.Context, hst host.Host, instance Instance) (bool, error) {
-	return false, fmt.Errorf("TODO File.Check")
+	path := instance.Name.String()
+
+	var fileParams FileParams
+	if err := instance.Parameters.Decode(&fileParams); err != nil {
+		return false, err
+	}
+
+	// Path Hash
+	pathtHash := md5.New()
+	content, err := hst.ReadFile(ctx, path)
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			return false, err
+		}
+		return false, nil
+	} else {
+		n, err := pathtHash.Write(content)
+		if err != nil {
+			return false, err
+		}
+		if n != len(content) {
+			return false, fmt.Errorf("unexpected write length when generating md5: expected %d, got %d", len(content), n)
+		}
+	}
+
+	// Instance Hash
+	fileParamsHash := md5.New()
+	n, err := fileParamsHash.Write([]byte(fileParams.Content))
+	if err != nil {
+		return false, err
+	}
+	if n != len(fileParams.Content) {
+		return false, fmt.Errorf("unexpected write length when generating md5: expected %d, got %d", len(fileParams.Content), n)
+	}
+
+	// Compare Hash
+	if fmt.Sprintf("%v", pathtHash.Sum(nil)) != fmt.Sprintf("%v", fileParamsHash.Sum(nil)) {
+		return false, nil
+	}
+
+	// Perm
+	fileInfo, err := hst.Lstat(ctx, path)
+	if err != nil {
+		return false, err
+	}
+	if fileInfo.Mode() != fileParams.Perm {
+		return false, nil
+	}
+
+	// Uid
+	if fileInfo.Sys().(*syscall.Stat_t).Uid != fileParams.Uid {
+		return false, nil
+	}
+
+	// User
+	// u, err := user.LookupId(strconv.Itoa(int(fileState.Uid)))
+	// if err != nil {
+	// 	return false, err
+	// }
+	// fileState.User = u.Username
+
+	// Gid
+	if fileInfo.Sys().(*syscall.Stat_t).Gid != fileParams.Gid {
+		return false, nil
+	}
+
+	// // Group
+	// g, err := user.LookupGroupId(strconv.Itoa(int(fileState.Gid)))
+	// if err != nil {
+	// 	return false, err
+	// }
+	// fileState.Group = g.Name
+
+	return true, nil
 }
 
 func (f File) Apply(ctx context.Context, hst host.Host, instances []Instance) error {

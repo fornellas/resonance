@@ -51,14 +51,29 @@ func (cf *ColorFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	for k := range entry.Data {
 		keys = append(keys, k)
 	}
+	dataBuff := &bytes.Buffer{}
 	sort.Strings(keys)
 	for _, k := range keys {
-		fmt.Fprintf(buff, "  %s:", k)
+		fmt.Fprintf(dataBuff, "  %s:", k)
 		data := strings.TrimSuffix(fmt.Sprintf("%v", entry.Data[k]), "\n")
 		if strings.Contains(data, "\n") {
-			fmt.Fprintf(buff, "\n%s\n", indent.String("    ", data))
+			fmt.Fprintf(dataBuff, "\n%s\n", indent.String("    ", data))
 		} else {
-			fmt.Fprintf(buff, " %s\n", data)
+			fmt.Fprintf(dataBuff, " %s\n", data)
+		}
+	}
+	if len(keys) > 0 {
+		if color.NoColor {
+			fmt.Fprintf(buff, "%s", dataBuff.String())
+		} else {
+			reset := color.New(color.Reset)
+			reset.Fprintf(buff, "")
+
+			faint := color.New(color.Faint)
+			faint.Fprintf(buff, "%s", dataBuff.String())
+
+			reset.Fprintf(buff, "")
+			fmt.Fprintf(buff, "\n")
 		}
 	}
 

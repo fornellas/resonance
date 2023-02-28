@@ -182,6 +182,25 @@ func (rd ResourceDefinition) Instance() (Instance, error) {
 	return Instance{Name: name, Parameters: rd.Parameters}, nil
 }
 
+func (rd ResourceDefinition) Check(ctx context.Context, hst host.Host) (bool, error) {
+	logger := log.GetLogger(ctx)
+
+	manageableResource, err := rd.ManageableResource()
+	if err != nil {
+		return false, err
+	}
+	instance, err := rd.Instance()
+	if err != nil {
+		return false, err
+	}
+	logger.Debugf("Checking %s", rd.TypeName)
+	check, err := manageableResource.Check(log.IndentLogger(ctx), hst, instance)
+	if err != nil {
+		return false, err
+	}
+	return check, nil
+}
+
 // ResourceBundle is the schema used to declare multiple resources at a single file.
 type ResourceBundle []ResourceDefinition
 
@@ -500,27 +519,27 @@ func (rbs ResourceBundles) GetPlan(ctx context.Context, hst host.Host, persistan
 	if err != nil {
 		return nil, err
 	}
-	logger.WithFields(logrus.Fields{"ResourceBundles": string(savedResourceBundlesYamlBytes)}).Debug("Loaded saved state")
+	nestedLogger.WithFields(logrus.Fields{"ResourceBundles": string(savedResourceBundlesYamlBytes)}).Debug("Loaded saved state")
 
 	// Checking state
 	logger.Info("Checking state")
 	checkResult := map[TypeName]bool{}
 	for _, resourceDefinition := range savedResourceDefinition {
-		manageableResource, err := resourceDefinition.ManageableResource()
+		check, err := resourceDefinition.Check(nestedCtx, hst)
 		if err != nil {
 			return nil, err
 		}
-		instance, err := resourceDefinition.Instance()
-		if err != nil {
-			return nil, err
-		}
-		nestedLogger.Debugf("Checking %s", resourceDefinition.TypeName)
-		check, err := manageableResource.Check(log.IndentLogger(nestedCtx), hst, instance)
-		if err != nil {
-			return nil, err
-		}
+		nestedLogger.Infof("%s: %v", resourceDefinition.TypeName, check)
 		checkResult[resourceDefinition.TypeName] = check
 	}
+	// for _, resourceBundle := range rbs {
+	// 	for _, resourceDefinition := range resourceBundle {
+	// 		if _, ok := checkResult[resourceDefinition.TypeName] {
+	// 			continue
+	// 		}
+
+	// 	}
+	// }
 
 	// Calculate resources to destroy
 	// logger.Info("Calculating resources to destroy")

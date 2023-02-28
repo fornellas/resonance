@@ -41,6 +41,8 @@
     - Destroy all resources at state
 - ResourceDefinition
 	- refreshed_by: enables a resource (eg: nginx service) to subscribe to any resources it depends on (eg: File[/etc/nginx/.+])
+- resource/file.go
+  - Set default values for parameters
 - Go templates
     - Process all resource bundle yamls with Go template
     - Template can be a function of:
