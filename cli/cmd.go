@@ -1,44 +1,32 @@
 package cli
 
 import (
-	"errors"
-	"fmt"
-	"os"
-
-	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 
 	"github.com/fornellas/resonance/cli/apply"
 	"github.com/fornellas/resonance/log"
-
-	"github.com/spf13/cobra"
 )
 
-var logLevel string
-
-func cobraInit() {
-	if err := log.Setup(logLevel); err != nil {
-		fmt.Fprintf(os.Stderr, "%s", err)
-	}
-}
+var logLevelStr string
 
 var Cmd = &cobra.Command{
 	Use:   "resonance",
 	Short: "Resonance is a configuration management tool.",
 	Args:  cobra.NoArgs,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		cmd.SetContext(log.SetLoggerValue(cmd.Context(), logLevelStr))
+	},
 	Run: func(cmd *cobra.Command, args []string) {
+		logger := log.GetLogger(cmd.Context())
 		if err := cmd.Help(); err != nil {
-			logrus.Fatal(err)
+			logger.Fatal(err)
 		}
-
-		logrus.Fatal(errors.New("missing command"))
 	},
 }
 
 func init() {
-	cobra.OnInitialize(cobraInit)
-
 	Cmd.PersistentFlags().StringVarP(
-		&logLevel, "log-level", "l", "info",
+		&logLevelStr, "log-level", "l", "info",
 		"Logging level",
 	)
 

@@ -12,7 +12,7 @@ import (
 )
 
 // ColorFormatter is a formatter that uses different colors for each level.
-type ColorFormatter struct{}
+type colorFormatter struct{}
 
 var logColorMap = map[logrus.Level]*color.Color{
 	logrus.PanicLevel: color.New(color.FgHiRed, color.Bold),
@@ -24,7 +24,7 @@ var logColorMap = map[logrus.Level]*color.Color{
 	logrus.TraceLevel: color.New(color.FgHiCyan),
 }
 
-func (f *ColorFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+func (f *colorFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	buff := &bytes.Buffer{}
 	if entry.Buffer != nil {
 		buff = entry.Buffer
@@ -59,25 +59,4 @@ func (f *ColorFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	}
 
 	return buff.Bytes(), nil
-}
-
-func getLevel(logLevel string) (logrus.Level, error) {
-	for _, level := range logrus.AllLevels {
-		if logLevel == level.String() {
-			return level, nil
-		}
-	}
-	return logrus.TraceLevel, fmt.Errorf("invalid level %v", logLevel)
-}
-
-// Setup configures logrus standard logger with ColorFormatter and given log level.
-func Setup(logLevel string) error {
-	logrus.SetFormatter(&ColorFormatter{})
-
-	level, err := getLevel(logLevel)
-	if err != nil {
-		return err
-	}
-	logrus.SetLevel(level)
-	return nil
 }
