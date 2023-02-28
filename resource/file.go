@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/fornellas/resonance/host"
+	"github.com/fornellas/resonance/log"
 )
 
 // FileParams for File
@@ -36,6 +37,8 @@ func (f File) MergeApply() bool {
 }
 
 func (f File) Check(ctx context.Context, hst host.Host, instance Instance) (bool, error) {
+	logger := log.GetLogger(ctx)
+
 	path := instance.Name.String()
 
 	var fileParams FileParams
@@ -50,6 +53,7 @@ func (f File) Check(ctx context.Context, hst host.Host, instance Instance) (bool
 		if !errors.Is(err, fs.ErrNotExist) {
 			return false, err
 		}
+		logger.Debug("File not found")
 		return false, nil
 	} else {
 		n, err := pathtHash.Write(content)
@@ -73,6 +77,7 @@ func (f File) Check(ctx context.Context, hst host.Host, instance Instance) (bool
 
 	// Compare Hash
 	if fmt.Sprintf("%v", pathtHash.Sum(nil)) != fmt.Sprintf("%v", fileParamsHash.Sum(nil)) {
+		logger.Debug("Hash differs")
 		return false, nil
 	}
 
@@ -82,15 +87,18 @@ func (f File) Check(ctx context.Context, hst host.Host, instance Instance) (bool
 		return false, err
 	}
 	if fileInfo.Mode() != fileParams.Perm {
+		logger.Debug("Perm differs")
 		return false, nil
 	}
 
 	// Uid
 	if fileInfo.Sys().(*syscall.Stat_t).Uid != fileParams.Uid {
+		logger.Debug("Uid differs")
 		return false, nil
 	}
 
 	// User
+	// TODO use host interface
 	// u, err := user.LookupId(strconv.Itoa(int(fileState.Uid)))
 	// if err != nil {
 	// 	return false, err
@@ -99,10 +107,12 @@ func (f File) Check(ctx context.Context, hst host.Host, instance Instance) (bool
 
 	// Gid
 	if fileInfo.Sys().(*syscall.Stat_t).Gid != fileParams.Gid {
+		logger.Debug("Gid differs")
 		return false, nil
 	}
 
-	// // Group
+	// Group
+	// TODO use host interface
 	// g, err := user.LookupGroupId(strconv.Itoa(int(fileState.Gid)))
 	// if err != nil {
 	// 	return false, err

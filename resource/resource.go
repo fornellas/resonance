@@ -523,23 +523,31 @@ func (rbs ResourceBundles) GetPlan(ctx context.Context, hst host.Host, persistan
 
 	// Checking state
 	logger.Info("Checking state")
-	checkResult := map[TypeName]bool{}
+	checkResults := map[TypeName]bool{}
 	for _, resourceDefinition := range savedResourceDefinition {
-		check, err := resourceDefinition.Check(nestedCtx, hst)
+		checkResult, err := resourceDefinition.Check(nestedCtx, hst)
 		if err != nil {
 			return nil, err
 		}
-		nestedLogger.Infof("%s: %v", resourceDefinition.TypeName, check)
-		checkResult[resourceDefinition.TypeName] = check
+		nestedLogger.Infof("%s: %v", resourceDefinition.TypeName, checkResult)
+		if !checkResult {
+			return nil, fmt.Errorf("resource previously applied now failing check; this usually means that the resource was changed externally")
+		}
+		checkResults[resourceDefinition.TypeName] = checkResult
 	}
-	// for _, resourceBundle := range rbs {
-	// 	for _, resourceDefinition := range resourceBundle {
-	// 		if _, ok := checkResult[resourceDefinition.TypeName] {
-	// 			continue
-	// 		}
-
-	// 	}
-	// }
+	for _, resourceBundle := range rbs {
+		for _, resourceDefinition := range resourceBundle {
+			if _, ok := checkResults[resourceDefinition.TypeName]; ok {
+				continue
+			}
+			checkResult, err := resourceDefinition.Check(nestedCtx, hst)
+			if err != nil {
+				return nil, err
+			}
+			nestedLogger.Infof("%s: %v", resourceDefinition.TypeName, checkResult)
+			checkResults[resourceDefinition.TypeName] = checkResult
+		}
+	}
 
 	// Calculate resources to destroy
 	// logger.Info("Calculating resources to destroy")

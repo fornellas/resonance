@@ -19,6 +19,8 @@ func (l Local) Lstat(ctx context.Context, name string) (os.FileInfo, error) {
 }
 
 func (l Local) ReadFile(ctx context.Context, name string) ([]byte, error) {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("ReadFile %s", name)
 	return os.ReadFile(name)
 }
 
