@@ -10,6 +10,7 @@ type loggerKeyType string
 
 var loggerKey = loggerKeyType("logger")
 
+// SetLoggerValue returns a copy of the context with a logger value set.
 func SetLoggerValue(ctx context.Context, logLevelStr string) context.Context {
 	logger := logrus.New()
 
@@ -29,6 +30,7 @@ func SetLoggerValue(ctx context.Context, logLevelStr string) context.Context {
 	return context.WithValue(ctx, loggerKey, logger)
 }
 
+// GetLogger returns a logger previously set with SetLoggerValue.
 func GetLogger(ctx context.Context) *logrus.Logger {
 	logger, ok := ctx.Value(loggerKey).(*logrus.Logger)
 	if !ok {
@@ -37,6 +39,8 @@ func GetLogger(ctx context.Context) *logrus.Logger {
 	return logger
 }
 
+// IndentLogger receives a context with a previously set logger (SetLoggerValue),
+// and returns a copy of it but with a logger with one extra indentation.
 func IndentLogger(ctx context.Context) context.Context {
 	oldLogger := GetLogger(ctx)
 	newLogger := logrus.New()

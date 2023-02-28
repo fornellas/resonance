@@ -13,6 +13,7 @@ import (
 
 // ColorFormatter is a formatter that uses different colors for each level.
 type ColorFormatter struct {
+	// Indent defines by how much to indent each log line
 	Indent int
 }
 
