@@ -12,7 +12,9 @@ import (
 )
 
 // ColorFormatter is a formatter that uses different colors for each level.
-type colorFormatter struct{}
+type ColorFormatter struct {
+	Indent int
+}
 
 var logColorMap = map[logrus.Level]*color.Color{
 	logrus.PanicLevel: color.New(color.FgHiRed, color.Bold),
@@ -24,7 +26,7 @@ var logColorMap = map[logrus.Level]*color.Color{
 	logrus.TraceLevel: color.New(color.FgHiCyan),
 }
 
-func (f *colorFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+func (cf *ColorFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	buff := &bytes.Buffer{}
 	if entry.Buffer != nil {
 		buff = entry.Buffer
@@ -58,5 +60,5 @@ func (f *colorFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 		}
 	}
 
-	return buff.Bytes(), nil
+	return indent.Bytes([]byte(strings.Repeat("  ", cf.Indent)), buff.Bytes()), nil
 }

@@ -13,7 +13,7 @@ var loggerKey = loggerKeyType("logger")
 func SetLoggerValue(ctx context.Context, logLevelStr string) context.Context {
 	logger := logrus.New()
 
-	logger.SetFormatter(&colorFormatter{})
+	logger.SetFormatter(&ColorFormatter{})
 
 	var level *logrus.Level
 	for _, l := range logrus.AllLevels {
@@ -35,4 +35,14 @@ func GetLogger(ctx context.Context) *logrus.Logger {
 		panic("logger value missing from context")
 	}
 	return logger
+}
+
+func IndentLogger(ctx context.Context) context.Context {
+	oldLogger := GetLogger(ctx)
+	newLogger := logrus.New()
+	newLogger.SetFormatter(&ColorFormatter{
+		Indent: oldLogger.Formatter.(*ColorFormatter).Indent + 1,
+	})
+	newLogger.SetLevel(oldLogger.Level)
+	return context.WithValue(ctx, loggerKey, newLogger)
 }

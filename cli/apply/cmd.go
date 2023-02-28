@@ -48,11 +48,11 @@ var Cmd = &cobra.Command{
 
 		// Load resources
 		logger.Info("Loading resources")
-		resourceBundles := resource.LoadResourceBundles(ctx, args)
+		resourceBundles := resource.LoadResourceBundles(log.IndentLogger(ctx), args)
 
 		// Get current host state
 		// logger.Info("Getting current host state")
-		// currentHostState, err := resourceBundles.GetHostState(ctx, hst)
+		// currentHostState, err := resourceBundles.GetHostState(log.IndentLogger(ctx), hst)
 		// if err != nil {
 		// 	logger.Fatal(err)
 		// }
@@ -67,7 +67,7 @@ var Cmd = &cobra.Command{
 		// - should host state also save resource bundles?
 
 		// Load saved state
-		// savedHostState, err := localState.Load(ctx)
+		// savedHostState, err := localState.Load(log.IndentLogger(ctx))
 		// if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		// 	logger.Fatal(err)
 		// }
@@ -91,7 +91,7 @@ var Cmd = &cobra.Command{
 
 		// Plan
 		logger.Info("Planning changes")
-		plan, err := resourceBundles.GetPlan(ctx, hst, localState)
+		plan, err := resourceBundles.GetPlan(log.IndentLogger(ctx), hst, localState)
 		if err != nil {
 			logger.Fatal(err)
 		}
@@ -99,7 +99,7 @@ var Cmd = &cobra.Command{
 
 		// Applying changes
 		logger.Info("Applying changes")
-		if err := plan.Apply(ctx, hst); err != nil {
+		if err := plan.Apply(log.IndentLogger(ctx), hst); err != nil {
 			logger.Fatal(err)
 		}
 
