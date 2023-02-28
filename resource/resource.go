@@ -33,10 +33,6 @@ type Instance struct {
 	Parameters yaml.Node `yaml:"parameters"`
 }
 
-// State holds information about a resource state. This is specific for each resource type.
-// It must be marshallable by gopkg.in/yaml.v3.
-// type State interface{}
-
 // ManageableResource defines an interface for managing resource state.
 type ManageableResource interface {
 	// MergeApply informs whether all resources from the same type are to
@@ -44,12 +40,6 @@ type ManageableResource interface {
 	// When true, Apply is called only once, with all instances.
 	// When false, Apply is called one time for each instance.
 	MergeApply() bool
-
-	// GetDesiredState return desired state for given parameters.
-	// GetDesiredState(parameters yaml.Node) (State, error)
-
-	// GetState returns current resource state from host without any side effects.
-	// GetState(ctx context.Context, hst host.Host, name Name) (State, error)
 
 	// Check host for the state of instatnce. If changes are required, returns true,
 	// otherwise, returns false.
@@ -137,28 +127,6 @@ func (tn TypeName) ManageableResource() (ManageableResource, error) {
 func NewTypeName(tpe Type, name Name) TypeName {
 	return TypeName(fmt.Sprintf("%s[%s]", tpe, name))
 }
-
-// // HostState is the schema used to save/load state for all resources for a host.
-// type HostState map[TypeName]State
-
-// // Merge appends received HostState.
-// func (hs HostState) Merge(stateData HostState) {
-// 	for resourceInstanceKey, resourceState := range stateData {
-// 		if _, ok := hs[resourceInstanceKey]; ok {
-// 			panic(fmt.Sprintf("duplicated resource instance %s", resourceInstanceKey))
-// 		}
-// 		hs[resourceInstanceKey] = resourceState
-// 	}
-// }
-
-// func (hs HostState) String() string {
-// 	buffer := bytes.Buffer{}
-// 	encoder := yaml.NewEncoder(&buffer)
-// 	if err := encoder.Encode(hs); err != nil {
-// 		panic(fmt.Sprintf("failed to encode %#v: %s", hs, err))
-// 	}
-// 	return buffer.String()
-// }
 
 // ResourceDefinition is the schema used to declare a single resource within a file.
 type ResourceDefinition struct {
@@ -438,60 +406,6 @@ func (p Plan) Apply(ctx context.Context, hst host.Host) error {
 // ResourceBundles holds all resources definitions for a host.
 type ResourceBundles []ResourceBundle
 
-// GetHostState reads and return the state from all resource definitions.
-// func (rbs ResourceBundles) GetHostState(ctx context.Context, hst host.Host) (HostState, error) {
-// logger := log.GetLogger(ctx)
-// logger.Debug("Getting host state")
-// 	hostState := HostState{}
-
-// 	for _, resourceBundle := range rbs {
-// 		for _, resourceDefinition := range resourceBundle {
-// 			tpe, name, err := resourceDefinition.TypeName.GetTypeName()
-// 			if err != nil {
-// 				return hostState, err
-// 			}
-// 			resource, err := tpe.ManageableResource()
-// 			if err != nil {
-// 				return hostState, err
-// 			}
-// 			state, err := resource.GetState(ctx, hst, name)
-// 			if err != nil {
-// 				return hostState, fmt.Errorf("%s: failed to read state: %w", resourceDefinition.TypeName, err)
-// 			}
-
-// 			hostState[resourceDefinition.TypeName] = state
-// 		}
-// 	}
-
-// 	return hostState, nil
-// }
-
-// GetDesiredHostState returns the desired HostState for all resources.
-// func (rbs ResourceBundles) GetDesiredHostState() (HostState, error) {
-// 	hostState := HostState{}
-
-// 	for _, resourceBundle := range rbs {
-// 		for _, resourceDefinition := range resourceBundle {
-// 			tpe, _, err := resourceDefinition.TypeName.GetTypeName()
-// 			if err != nil {
-// 				return hostState, err
-// 			}
-// 			resource, err := tpe.ManageableResource()
-// 			if err != nil {
-// 				return hostState, err
-// 			}
-// 			state, err := resource.GetDesiredState(resourceDefinition.Parameters)
-// 			if err != nil {
-// 				return hostState, fmt.Errorf("%s: failed get desired state: %w", resourceDefinition.TypeName, err)
-// 			}
-
-// 			hostState[resourceDefinition.TypeName] = state
-// 		}
-// 	}
-
-// 	return hostState, nil
-// }
-
 func (rbs ResourceBundles) HasTypeName(typeName TypeName) bool {
 	for _, resourceBundle := range rbs {
 		for _, resourceDefinition := range resourceBundle {
@@ -569,13 +483,13 @@ func (rbs ResourceBundles) GetPlan(ctx context.Context, hst host.Host, persistan
 				lastNode.PrerequisiteFor = append(lastNode.PrerequisiteFor, node)
 			}
 			typeName := node.ResourceDefinitions[0].TypeName
-			logger.Debugf("%s", typeName)
+			nestedLogger.Debugf("%s", typeName)
 			manageableResource, err := typeName.ManageableResource()
 			if err != nil {
 				return nil, err
 			}
 			checkResult, ok := checkResults[typeName]
-			logger.Debugf("check result %v", checkResult)
+			nestedLogger.Debugf("check result %v", checkResult)
 			if !ok {
 				panic("missing check result")
 			}

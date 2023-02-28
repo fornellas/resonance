@@ -48,45 +48,6 @@ var Cmd = &cobra.Command{
 		logger.Info("Loading resources")
 		resourceBundles := resource.LoadResourceBundles(log.IndentLogger(ctx), args)
 
-		// Get current host state
-		// logger.Info("Getting current host state")
-		// currentHostState, err := resourceBundles.GetHostState(log.IndentLogger(ctx), hst)
-		// if err != nil {
-		// 	logger.Fatal(err)
-		// }
-		// currentHostStateStr, err := currentHostState.String()
-		// if err != nil {
-		// 	logger.Fatal(err)
-		// }
-		// logger.Debugf("currentHostStateStr:\n%v", indent.String("  ", currentHostStateStr))
-		// TODO if currentHostState != savedHostState
-		// - something changed the state outside, do `resonance state push`
-		// - How to deal with partial resource parameters (eg: APTPackage without Version)
-		// - should host state also save resource bundles?
-
-		// Load saved state
-		// savedHostState, err := localState.Load(log.IndentLogger(ctx))
-		// if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		// 	logger.Fatal(err)
-		// }
-		// savedHostStateStr, err := savedHostState.String()
-		// if err != nil {
-		// 	logger.Fatal(err)
-		// }
-		// logger.Debugf("savedHostState:\n%s", indent.String("  ", savedHostStateStr))
-
-		// Get desired host state
-		// logger.Info("Calculating desired host state")
-		// desiredHostState, err := resourceBundles.GetDesiredHostState()
-		// if err != nil {
-		// 	logger.Fatal(err)
-		// }
-		// desiredHostStateStr, err := desiredHostState.String()
-		// if err != nil {
-		// 	logger.Fatal(err)
-		// }
-		// logger.Debugf("desiredHostStateStr:\n%s", indent.String("  ", desiredHostStateStr))
-
 		// Plan
 		logger.Info("Planning changes")
 		plan, err := resourceBundles.GetPlan(log.IndentLogger(ctx), hst, localState)
@@ -94,16 +55,11 @@ var Cmd = &cobra.Command{
 			logger.Fatal(err)
 		}
 
-		// Applying changes
+		// Apply changes
 		logger.Info("Applying changes")
 		if err := plan.Apply(log.IndentLogger(ctx), hst); err != nil {
 			logger.Fatal(err)
 		}
-
-		// read final state of all resources
-		// save state of all resources
-
-		logger.Fatal("TODO resonance apply")
 	},
 }
 
