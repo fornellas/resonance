@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
-	"reflect"
 	"regexp"
 	"strings"
 
@@ -16,6 +16,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/fornellas/resonance/host"
+	"github.com/fornellas/resonance/log"
 )
 
 // Name is a name that globally uniquely identifies a resource instance of a given type.
@@ -46,10 +47,10 @@ type ManageableResource interface {
 	MergeApply() bool
 
 	// GetDesiredState return desired state for given parameters.
-	GetDesiredState(parameters yaml.Node) (State, error)
+	// GetDesiredState(parameters yaml.Node) (State, error)
 
 	// GetState returns current resource state from host without any side effects.
-	GetState(ctx context.Context, hst host.Host, name Name) (State, error)
+	// GetState(ctx context.Context, hst host.Host, name Name) (State, error)
 
 	// Apply confiugres the resource at host to given instances state.
 	// Must be idempotent.
@@ -98,8 +99,7 @@ func (tn TypeName) String() string {
 
 var resourceInstanceKeyRegexp = regexp.MustCompile(`^(.+)\[(.+)\]$`)
 
-// GetTypeName returns the Type and Name.
-func (tn TypeName) GetTypeName() (Type, Name, error) {
+func (tn TypeName) typeName() (Type, Name, error) {
 	var tpe Type
 	var name Name
 	matches := resourceInstanceKeyRegexp.FindStringSubmatch(string(tn))
@@ -112,18 +112,18 @@ func (tn TypeName) GetTypeName() (Type, Name, error) {
 }
 
 func (tn TypeName) Type() (Type, error) {
-	tpe, _, err := tn.GetTypeName()
+	tpe, _, err := tn.typeName()
 	return tpe, err
 }
 
 func (tn TypeName) Name() (Name, error) {
-	_, name, err := tn.GetTypeName()
+	_, name, err := tn.typeName()
 	return name, err
 }
 
 // ManageableResource returns an instance for the resource type.
 func (tn TypeName) ManageableResource() (ManageableResource, error) {
-	tpe, _, err := tn.GetTypeName()
+	tpe, err := tn.Type()
 	if err != nil {
 		return nil, err
 	}
@@ -148,13 +148,13 @@ func (hs HostState) Merge(stateData HostState) {
 	}
 }
 
-func (hs HostState) String() (string, error) {
+func (hs HostState) String() string {
 	buffer := bytes.Buffer{}
 	encoder := yaml.NewEncoder(&buffer)
 	if err := encoder.Encode(hs); err != nil {
-		return "", err
+		panic(fmt.Sprintf("failed to encode %#v: %s", hs, err))
 	}
-	return buffer.String(), nil
+	return buffer.String()
 }
 
 // ResourceDefinition is the schema used to declare a single resource within a file.
@@ -170,59 +170,159 @@ func (rd ResourceDefinition) String() string {
 // ResourceBundle is the schema used to declare multiple resources at a single file.
 type ResourceBundle []ResourceDefinition
 
+// PersistantState defines an interface for loading and saving HostState
+type PersistantState interface {
+	Load(ctx context.Context) (HostState, error)
+	Save(ctx context.Context, hostState HostState) error
+}
+
 // ResourceBundles holds all resources definitions for a host.
 type ResourceBundles []ResourceBundle
 
 // GetHostState reads and return the state from all resource definitions.
-func (rbs ResourceBundles) GetHostState(ctx context.Context, hst host.Host) (HostState, error) {
-	hostState := HostState{}
+// func (rbs ResourceBundles) GetHostState(ctx context.Context, hst host.Host) (HostState, error) {
+// 	hostState := HostState{}
 
-	for _, resourceBundle := range rbs {
-		for _, resourceDefinition := range resourceBundle {
-			tpe, name, err := resourceDefinition.TypeName.GetTypeName()
-			if err != nil {
-				return hostState, err
-			}
-			resource, err := tpe.ManageableResource()
-			if err != nil {
-				return hostState, err
-			}
-			state, err := resource.GetState(ctx, hst, name)
-			if err != nil {
-				return hostState, fmt.Errorf("%s: failed to read state: %w", resourceDefinition.TypeName, err)
-			}
+// 	for _, resourceBundle := range rbs {
+// 		for _, resourceDefinition := range resourceBundle {
+// 			tpe, name, err := resourceDefinition.TypeName.GetTypeName()
+// 			if err != nil {
+// 				return hostState, err
+// 			}
+// 			resource, err := tpe.ManageableResource()
+// 			if err != nil {
+// 				return hostState, err
+// 			}
+// 			state, err := resource.GetState(ctx, hst, name)
+// 			if err != nil {
+// 				return hostState, fmt.Errorf("%s: failed to read state: %w", resourceDefinition.TypeName, err)
+// 			}
 
-			hostState[resourceDefinition.TypeName] = state
-		}
-	}
+// 			hostState[resourceDefinition.TypeName] = state
+// 		}
+// 	}
 
-	return hostState, nil
-}
+// 	return hostState, nil
+// }
 
 // GetDesiredHostState returns the desired HostState for all resources.
-func (rbs ResourceBundles) GetDesiredHostState() (HostState, error) {
-	hostState := HostState{}
+// func (rbs ResourceBundles) GetDesiredHostState() (HostState, error) {
+// 	hostState := HostState{}
 
-	for _, resourceBundle := range rbs {
-		for _, resourceDefinition := range resourceBundle {
-			tpe, _, err := resourceDefinition.TypeName.GetTypeName()
-			if err != nil {
-				return hostState, err
-			}
-			resource, err := tpe.ManageableResource()
-			if err != nil {
-				return hostState, err
-			}
-			state, err := resource.GetDesiredState(resourceDefinition.Parameters)
-			if err != nil {
-				return hostState, fmt.Errorf("%s: failed get desired state: %w", resourceDefinition.TypeName, err)
-			}
+// 	for _, resourceBundle := range rbs {
+// 		for _, resourceDefinition := range resourceBundle {
+// 			tpe, _, err := resourceDefinition.TypeName.GetTypeName()
+// 			if err != nil {
+// 				return hostState, err
+// 			}
+// 			resource, err := tpe.ManageableResource()
+// 			if err != nil {
+// 				return hostState, err
+// 			}
+// 			state, err := resource.GetDesiredState(resourceDefinition.Parameters)
+// 			if err != nil {
+// 				return hostState, fmt.Errorf("%s: failed get desired state: %w", resourceDefinition.TypeName, err)
+// 			}
 
-			hostState[resourceDefinition.TypeName] = state
-		}
+// 			hostState[resourceDefinition.TypeName] = state
+// 		}
+// 	}
+
+// 	return hostState, nil
+// }
+
+// GetPlan calculates the plan and returns it in the form of a Plan
+func (rbs ResourceBundles) GetPlan(ctx context.Context, hst host.Host, persistantState PersistantState) (Plan, error) {
+	logger := log.GetLogger(ctx)
+
+	// Load saved state
+	logger.Info("Loading saved host state")
+	savedHostState, err := persistantState.Load(ctx)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		logger.Fatal(err)
 	}
+	logger.WithFields(logrus.Fields{"HostState": savedHostState.String()}).Debug("Loaded saved HostState")
 
-	return hostState, nil
+	//
+	// for typeName, state := range savedHostState {
+
+	// }
+
+	// unsortedPlan := Plan{}
+	// mergedNodes := map[Type]*Node{}
+	// for _, resourceBundle := range rbs {
+	// 	// Create nodes with only resource definitions...
+	// 	resourceBundleNodes := []*Node{}
+	// 	for _, resourceDefinition := range resourceBundle {
+	// 		resourceBundleNodes = append(resourceBundleNodes, &Node{
+	// 			ResourceDefinitions: []ResourceDefinition{resourceDefinition},
+	// 		})
+	// 	}
+	// 	// ...and populate other Node attributes
+	// 	var lastNode *Node
+	// 	refresh := false
+	// 	for _, node := range resourceBundleNodes {
+	// 		if lastNode != nil {
+	// 			lastNode.PrerequisiteFor = append(lastNode.PrerequisiteFor, node)
+	// 		}
+	// 		typeName := node.ResourceDefinitions[0].TypeName
+	// 		manageableResource, err := typeName.ManageableResource()
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
+	// 		stateEqual := reflect.DeepEqual(desiredHostState[typeName], currentHostState[typeName])
+	// 		if manageableResource.MergeApply() {
+	// 			node.Action = ActionSkip
+	// 			tpe, err := typeName.Type()
+	// 			if err != nil {
+	// 				return nil, err
+	// 			}
+	// 			mergedNode, ok := mergedNodes[tpe]
+	// 			if !ok {
+	// 				mergedNode = &Node{}
+	// 				mergedNodes[tpe] = mergedNode
+	// 				unsortedPlan = append(unsortedPlan, mergedNode)
+	// 			}
+	// 			mergedNode.ResourceDefinitions = append(mergedNode.ResourceDefinitions, node.ResourceDefinitions...)
+	// 			mergedNode.PrerequisiteFor = append(mergedNode.PrerequisiteFor, node)
+	// 			if !stateEqual {
+	// 				mergedNode.Action = ActionApply
+	// 			}
+	// 		} else {
+	// 			if stateEqual {
+	// 				node.Action = ActionNone
+	// 			} else {
+	// 				node.Action = ActionApply
+	// 				refresh = true
+	// 			}
+	// 		}
+	// 		node.Refresh = refresh
+	// 		lastNode = node
+	// 	}
+	// 	unsortedPlan = append(unsortedPlan, resourceBundleNodes...)
+	// }
+
+	// // Sort
+	// plan, err := unsortedPlan.topologicalSort()
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// // Append destroy nodes
+	// for savedTypeName := range savedHostState {
+	// 	if _, ok := desiredHostState[savedTypeName]; !ok {
+	// 		plan = append(plan, &Node{
+	// 			ResourceDefinitions: []ResourceDefinition{ResourceDefinition{
+	// 				TypeName: savedTypeName,
+	// 			}},
+	// 			Action: ActionDestroy,
+	// 		})
+	// 	}
+	// }
+
+	// return plan, nil
+
+	return nil, fmt.Errorf("ResourceBundles.GetPlan")
 }
 
 // Action to be executed for a given Node.
@@ -277,11 +377,15 @@ func (n Node) Name() string {
 		names := []string{}
 		for _, resourceDefinition := range n.ResourceDefinitions {
 			typeName := resourceDefinition.TypeName
-			tpe, name, err := typeName.GetTypeName()
+			tpe, err := typeName.Type()
 			if err != nil {
 				panic(fmt.Sprintf("invalid node: bad TypeName: %s", typeName))
 			}
 			tpeStr = tpe.String()
+			name, err := typeName.Name()
+			if err != nil {
+				panic(fmt.Sprintf("invalid node: bad TypeName: %s", typeName))
+			}
 			names = append(names, name.String())
 		}
 		return fmt.Sprintf("%s[%s]", tpeStr, strings.Join(names, ","))
@@ -340,54 +444,56 @@ func (p Plan) Graphviz() string {
 
 // topologicalSort sorts the nodes based on their prerequisites. If the graph has cycles, it returns
 // error.
-func (p Plan) topologicalSort() (Plan, error) {
-	// Thanks ChatGPT :-D
+// func (p Plan) topologicalSort() (Plan, error) {
+// 	// Thanks ChatGPT :-D
 
-	// 1. Create a map to store the in-degree of each node
-	inDegree := make(map[*Node]int)
-	for _, node := range p {
-		inDegree[node] = 0
-	}
-	// 2. Calculate the in-degree of each node
-	for _, node := range p {
-		for _, prereq := range node.PrerequisiteFor {
-			inDegree[prereq]++
-		}
-	}
-	// 3. Create a queue to store nodes with in-degree 0
-	queue := make([]*Node, 0)
-	for _, node := range p {
-		if inDegree[node] == 0 {
-			queue = append(queue, node)
-		}
-	}
-	// 4. Initialize the result slice
-	result := make(Plan, 0)
-	// 5. Process nodes in the queue
-	for len(queue) > 0 {
-		// 5.1. Dequeue a node from the queue
-		node := queue[0]
-		queue = queue[1:]
-		// 5.2. Add the node to the result
-		result = append(result, node)
-		// 5.3. Decrease the in-degree of each of its neighbors
-		for _, neighbor := range node.PrerequisiteFor {
-			inDegree[neighbor]--
-			// 5.4. If the neighbor's in-degree is 0, add it to the queue
-			if inDegree[neighbor] == 0 {
-				queue = append(queue, neighbor)
-			}
-		}
-	}
-	// 6. Check if all nodes were visited
-	if len(result) != len(p) {
-		return nil, errors.New("the graph has cycles")
-	}
-	return result, nil
-}
+// 	// 1. Create a map to store the in-degree of each node
+// 	inDegree := make(map[*Node]int)
+// 	for _, node := range p {
+// 		inDegree[node] = 0
+// 	}
+// 	// 2. Calculate the in-degree of each node
+// 	for _, node := range p {
+// 		for _, prereq := range node.PrerequisiteFor {
+// 			inDegree[prereq]++
+// 		}
+// 	}
+// 	// 3. Create a queue to store nodes with in-degree 0
+// 	queue := make([]*Node, 0)
+// 	for _, node := range p {
+// 		if inDegree[node] == 0 {
+// 			queue = append(queue, node)
+// 		}
+// 	}
+// 	// 4. Initialize the result slice
+// 	result := make(Plan, 0)
+// 	// 5. Process nodes in the queue
+// 	for len(queue) > 0 {
+// 		// 5.1. Dequeue a node from the queue
+// 		node := queue[0]
+// 		queue = queue[1:]
+// 		// 5.2. Add the node to the result
+// 		result = append(result, node)
+// 		// 5.3. Decrease the in-degree of each of its neighbors
+// 		for _, neighbor := range node.PrerequisiteFor {
+// 			inDegree[neighbor]--
+// 			// 5.4. If the neighbor's in-degree is 0, add it to the queue
+// 			if inDegree[neighbor] == 0 {
+// 				queue = append(queue, neighbor)
+// 			}
+// 		}
+// 	}
+// 	// 6. Check if all nodes were visited
+// 	if len(result) != len(p) {
+// 		return nil, errors.New("the graph has cycles")
+// 	}
+// 	return result, nil
+// }
 
 // Apply required changes to host
 func (p Plan) Apply(ctx context.Context, hst host.Host) error {
+	logger := log.GetLogger(ctx)
+
 	for _, node := range p {
 		manageableResource, err := node.ManageableResource()
 		if err != nil {
@@ -397,10 +503,10 @@ func (p Plan) Apply(ctx context.Context, hst host.Host) error {
 		switch node.Action {
 		case ActionNone, ActionSkip:
 			if node.Refresh {
-				logrus.Infof("  %s: Action: %s", node.Name(), "Refresh")
+				logger.Infof("  %s: Action: %s", node.Name(), "Refresh")
 				for _, resourceDefinition := range node.ResourceDefinitions {
 					if len(node.ResourceDefinitions) > 1 {
-						logrus.Infof("    Refreshing %s", resourceDefinition)
+						logger.Infof("    Refreshing %s", resourceDefinition)
 					}
 					name, err := resourceDefinition.TypeName.Name()
 					if err != nil {
@@ -411,10 +517,10 @@ func (p Plan) Apply(ctx context.Context, hst host.Host) error {
 					}
 				}
 			} else {
-				logrus.Infof("  %s: Action: %s", node.Name(), node.Action)
+				logger.Infof("  %s: Action: %s", node.Name(), node.Action)
 			}
 		case ActionApply:
-			logrus.Infof("  %s: Action: %s", node.Name(), node.Action)
+			logger.Infof("  %s: Action: %s", node.Name(), node.Action)
 			instances := []Instance{}
 			for _, resourceDefinition := range node.ResourceDefinitions {
 				name, err := resourceDefinition.TypeName.Name()
@@ -430,10 +536,10 @@ func (p Plan) Apply(ctx context.Context, hst host.Host) error {
 				return err
 			}
 		case ActionDestroy:
-			logrus.Infof("  %s: Action: %s", node.Name(), node.Action)
+			logger.Infof("  %s: Action: %s", node.Name(), node.Action)
 			for _, resourceDefinition := range node.ResourceDefinitions {
 				if len(node.ResourceDefinitions) > 1 {
-					logrus.Infof("    Destroying %s", resourceDefinition)
+					logger.Infof("    Destroying %s", resourceDefinition)
 				}
 				name, err := resourceDefinition.TypeName.Name()
 				if err != nil {
@@ -448,83 +554,6 @@ func (p Plan) Apply(ctx context.Context, hst host.Host) error {
 		}
 	}
 	return nil
-}
-
-// GetPlan calculates the plan and returns it in the form of a Plan
-func (rbs ResourceBundles) GetPlan(savedHostState, desiredHostState, currentHostState HostState) (Plan, error) {
-	unsortedPlan := Plan{}
-	mergedNodes := map[Type]*Node{}
-	for _, resourceBundle := range rbs {
-		// Create nodes with only resource definitions...
-		resourceBundleNodes := []*Node{}
-		for _, resourceDefinition := range resourceBundle {
-			resourceBundleNodes = append(resourceBundleNodes, &Node{
-				ResourceDefinitions: []ResourceDefinition{resourceDefinition},
-			})
-		}
-		// ...and populate other Node attributes
-		var lastNode *Node
-		refresh := false
-		for _, node := range resourceBundleNodes {
-			if lastNode != nil {
-				lastNode.PrerequisiteFor = append(lastNode.PrerequisiteFor, node)
-			}
-			typeName := node.ResourceDefinitions[0].TypeName
-			manageableResource, err := typeName.ManageableResource()
-			if err != nil {
-				return nil, err
-			}
-			stateEqual := reflect.DeepEqual(desiredHostState[typeName], currentHostState[typeName])
-			if manageableResource.MergeApply() {
-				node.Action = ActionSkip
-				tpe, err := typeName.Type()
-				if err != nil {
-					return nil, err
-				}
-				mergedNode, ok := mergedNodes[tpe]
-				if !ok {
-					mergedNode = &Node{}
-					mergedNodes[tpe] = mergedNode
-					unsortedPlan = append(unsortedPlan, mergedNode)
-				}
-				mergedNode.ResourceDefinitions = append(mergedNode.ResourceDefinitions, node.ResourceDefinitions...)
-				mergedNode.PrerequisiteFor = append(mergedNode.PrerequisiteFor, node)
-				if !stateEqual {
-					mergedNode.Action = ActionApply
-				}
-			} else {
-				if stateEqual {
-					node.Action = ActionNone
-				} else {
-					node.Action = ActionApply
-					refresh = true
-				}
-			}
-			node.Refresh = refresh
-			lastNode = node
-		}
-		unsortedPlan = append(unsortedPlan, resourceBundleNodes...)
-	}
-
-	// Sort
-	plan, err := unsortedPlan.topologicalSort()
-	if err != nil {
-		return nil, err
-	}
-
-	// Append destroy nodes
-	for savedTypeName := range savedHostState {
-		if _, ok := desiredHostState[savedTypeName]; !ok {
-			plan = append(plan, &Node{
-				ResourceDefinitions: []ResourceDefinition{ResourceDefinition{
-					TypeName: savedTypeName,
-				}},
-				Action: ActionDestroy,
-			})
-		}
-	}
-
-	return plan, nil
 }
 
 func loadResourceBundle(ctx context.Context, path string) (ResourceBundle, error) {
@@ -556,11 +585,13 @@ func loadResourceBundle(ctx context.Context, path string) (ResourceBundle, error
 // LoadResourceBundles loads resource definitions from all given Yaml file paths.
 // Each file must have the schema defined by ResourceBundle.
 func LoadResourceBundles(ctx context.Context, paths []string) ResourceBundles {
+	logger := log.GetLogger(ctx)
+
 	resourceBundles := ResourceBundles{}
 	for _, path := range paths {
 		resourceBundle, err := loadResourceBundle(ctx, path)
 		if err != nil {
-			logrus.Fatal(err)
+			logger.Fatal(err)
 		}
 		resourceBundles = append(resourceBundles, resourceBundle)
 	}

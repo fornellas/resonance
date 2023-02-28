@@ -13,7 +13,6 @@ import (
 )
 
 type Local struct {
-	PersistantState
 	Path string
 }
 
