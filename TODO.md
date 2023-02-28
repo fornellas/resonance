@@ -9,15 +9,16 @@
     - Add badges
       - GH actions state
       - Go reference
-- logging
-	- Propagate logging with context
-		- Indent log messages by `  ` with each extra item on the stack.
-		- This enables output to me a lot more readable.
-	- Use https://github.com/uber-go/zap maybe?
+- PersistantState
+    - Change interface to only read / write `[]bytes`, so that serialization code can be shared across all interface implementations.
 - restic apply
-    - Improve state (saved / current / desired) comparison: it must also be a function of the resource parameters.
-    - Save state in the end.
-    - Get final host state, and confirm whether some resource inadvertedly changed something it should not.
+    - Make HostState == ResourceBundles
+        - First run check, that tests whether current host state matches the state after last execution
+            - If not, something external changed, bail, suggest fix / restic refresh.
+        - Drop resource.State, in favour of ManageableResource.Check(ctx context.Context, hst host.Host, instance Instance) bool, which tells whether resource is at state defined by Instance or not.
+        - Defining resources to apply should use ManageableResource.Check.
+    - Before the end, call check again: if changes detected, there's a bug in implementation.
+    - On success, save ResourceBundles to host state.
     - Paralelise reading state.
 - Add TESTS!
 - HostState
@@ -25,6 +26,8 @@
 - ^C cancel context
 - host/ssh.go
     - Implement
+- restic check
+    - Check whether host state matches desired state
 - restic plan
 	- Implement :-D
 	- Add --graphviz option
