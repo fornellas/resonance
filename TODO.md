@@ -13,11 +13,8 @@
 - PersistantState
     - Change interface to only read / write `[]bytes`, so that serialization code can be shared across all interface implementations.
 - restic apply
-    - Make HostState == ResourceBundles
-        - First run check, that tests whether current host state matches the state after last execution
-            - If not, something external changed, bail, suggest fix / restic refresh.
-        - Drop resource.State, in favour of ManageableResource.Check(ctx context.Context, hst host.Host, instance Instance) bool, which tells whether resource is at state defined by Instance or not.
-        - Defining resources to apply should use ManageableResource.Check.
+    - ResourceBundles:
+        - Have each resource bundle last ResourceDefinition as prerequisite for first definition of the next
     - Before the end, call check again: if changes detected, there's a bug in implementation.
     - On success, save ResourceBundles to host state.
     - Paralelise reading state.
