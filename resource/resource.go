@@ -39,7 +39,7 @@ func (cr CheckResult) String() string {
 	if cr {
 		return "✔️ "
 	} else {
-		return "❌"
+		return "🚫"
 	}
 }
 

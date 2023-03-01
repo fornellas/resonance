@@ -27,6 +27,16 @@ var logColorMap = map[logrus.Level]*color.Color{
 	logrus.TraceLevel: color.New(color.FgHiCyan),
 }
 
+var logEmojiMap = map[logrus.Level]string{
+	logrus.PanicLevel: "😨 ",
+	logrus.FatalLevel: "☠️  ",
+	logrus.ErrorLevel: "❌ ",
+	logrus.WarnLevel:  "⚠️ ",
+	logrus.InfoLevel:  "",
+	logrus.DebugLevel: "",
+	logrus.TraceLevel: "",
+}
+
 func (cf *ColorFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	buff := &bytes.Buffer{}
 	if entry.Buffer != nil {
@@ -34,7 +44,7 @@ func (cf *ColorFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	}
 
 	if color.NoColor {
-		fmt.Fprintf(buff, "%s\n", entry.Message)
+		fmt.Fprintf(buff, "%s%s\n", logEmojiMap[entry.Level], entry.Message)
 	} else {
 		reset := color.New(color.Reset)
 		reset.Fprintf(buff, "")
@@ -42,7 +52,7 @@ func (cf *ColorFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 		if !ok {
 			panic(fmt.Sprintf("unexpected level: %v", entry.Level))
 		}
-		logColor.Fprintf(buff, "%s", entry.Message)
+		logColor.Fprintf(buff, "%s%s", logEmojiMap[entry.Level], entry.Message)
 		reset.Fprintf(buff, "")
 		fmt.Fprintf(buff, "\n")
 	}
