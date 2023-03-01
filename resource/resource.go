@@ -84,26 +84,7 @@ func (a Action) String() string {
 	if !ok {
 		panic(fmt.Errorf("invalid action %d", a))
 	}
-	return fmt.Sprintf("%s %s", a.Emoji(), str)
-}
-
-func (a Action) GraphvizColor() string {
-	var color string
-	switch a {
-	case ActionOk:
-		color = "green4"
-	case ActionSkip:
-		color = "gray4"
-	case ActionRefresh:
-		color = "blue4"
-	case ActionApply:
-		color = "yellow4"
-	case ActionDestroy:
-		color = "red4"
-	default:
-		panic(fmt.Sprintf("unexpected Action %q", a))
-	}
-	return color
+	return str
 }
 
 // Definitions describe a set of resource declarations.
@@ -307,10 +288,6 @@ func (rd ResourceDefinition) String() string {
 	return fmt.Sprintf("%s[%s]", rd.Type(), rd.Name)
 }
 
-func (rd ResourceDefinition) GraphvizLabel(action Action) string {
-	return fmt.Sprintf("< %s[<font color=\"%s\"><b>%s</b></font>] >", rd.Type(), action.GraphvizColor(), rd.Name)
-}
-
 func (rd ResourceDefinition) ResourceDefinitionKey() ResourceDefinitionKey {
 	return ResourceDefinitionKey(rd.String())
 }
@@ -436,7 +413,6 @@ func LoadResourceBundles(ctx context.Context, paths []string) ResourceBundles {
 type NodeAction interface {
 	Execute(ctx context.Context, hst host.Host) error
 	String() string
-	GraphvizLabel() string
 }
 
 type NodeActionIndividual struct {
@@ -466,10 +442,6 @@ func (nai NodeActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 
 func (nai NodeActionIndividual) String() string {
 	return fmt.Sprintf("%s[%s %s]", nai.ResourceDefinition.Type(), nai.Action.Emoji(), nai.ResourceDefinition.Name)
-}
-
-func (nai NodeActionIndividual) GraphvizLabel() string {
-	return nai.ResourceDefinition.GraphvizLabel(nai.Action)
 }
 
 type NodeActionMerged struct {
@@ -538,29 +510,6 @@ func (nam NodeActionMerged) Type() Type {
 	tpe := Type(reflect.TypeOf(nam.MergeableManageableResources()).Name())
 	tpe.MustValidate()
 	return tpe
-}
-
-func (nam NodeActionMerged) GraphvizLabel() string {
-	var buff bytes.Buffer
-
-	fmt.Fprintf(&buff, "< %s[", nam.Type())
-
-	first := true
-	for action, resourceDefinitions := range nam.ActionResourceDefinitions {
-		for _, resourceDefinition := range resourceDefinitions {
-			if !first {
-				fmt.Fprint(&buff, ",")
-			}
-			fmt.Fprintf(
-				&buff, "<font color=\"%s\"><b>%s</b></font>",
-				action.GraphvizColor(), resourceDefinition.Name,
-			)
-			first = false
-		}
-	}
-	fmt.Fprint(&buff, "] >")
-
-	return buff.String()
 }
 
 // Node from a Plan
