@@ -14,6 +14,8 @@
 - restic apply
     - ResourceBundles:
         - Have each resource bundle last ResourceDefinition as prerequisite for first definition of the next
+    - ManageableResource
+        - Destroy: must also merge instances (just like Apply)
     - Before the end, call check again: if changes detected, there's a bug in implementation.
     - On success, save ResourceBundles to host state.
     - Paralelise reading state.
