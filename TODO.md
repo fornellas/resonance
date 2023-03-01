@@ -18,6 +18,8 @@
     - On success, save ResourceBundles to host state.
     - Paralelise reading state.
         - Log is indented, it'll be messy: how to address?
+- ManageableResource
+    - Support defining implicit dependencies (eg: APTSource before APTPackage)
 - Add TESTS!
 - HostState
 	- Add field for version, required if the schema changes over time.
