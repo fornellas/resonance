@@ -681,11 +681,11 @@ func buildApplyRefreshPlan(
 	logger.Info("👷 Building apply/refresh plan")
 	unsortedPlan := Plan{}
 
-	// TODO refresh
 	// TODO link last node from one bundle to the first node of the next bundle
 	mergedNodes := map[Type]*Node{}
 	for _, resourceBundle := range resourceBundles {
 		resourceBundleNodes := []*Node{}
+		refresh := false
 		for i, resourceDefinition := range resourceBundle {
 			node := &Node{}
 			unsortedPlan = append(unsortedPlan, node)
@@ -699,7 +699,11 @@ func buildApplyRefreshPlan(
 			// Action
 			var action Action
 			if checkResult {
-				action = ActionOk
+				if refresh {
+					action = ActionRefresh
+				} else {
+					action = ActionOk
+				}
 			} else {
 				action = ActionApply
 			}
@@ -741,6 +745,11 @@ func buildApplyRefreshPlan(
 				panic(fmt.Errorf("%s: unknown managed resource", resourceDefinition))
 			}
 			node.NodeAction = nodeAction
+
+			// Refresh
+			if action == ActionApply {
+				refresh = true
+			}
 		}
 	}
 
