@@ -38,7 +38,9 @@
 - restic destroy
     - Destroy all resources at state
 - ResourceDefinition
-	- refreshed_by: enables a resource (eg: nginx service) to subscribe to any resources it depends on (eg: File[/etc/nginx/.+])
+	- refreshed_by
+        - enables a resource (eg: nginx service) to subscribe to any resources it depends on (eg: File[/etc/nginx/.+])
+        - Both apply and destroy must trigger refresh.
 - resource/file.go
   - Set default values for parameters
 - Go templates
