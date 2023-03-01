@@ -476,6 +476,9 @@ func (nam NodeActionMerged) Execute(ctx context.Context, hst host.Host) error {
 			if action == ActionRefresh {
 				refreshNames = append(refreshNames, resourceDefinition.Name)
 			} else {
+				if configureActionDefinition[action] == nil {
+					configureActionDefinition[action] = Definitions{}
+				}
 				configureActionDefinition[action][resourceDefinition.Name] = resourceDefinition.Parameters
 			}
 		}

@@ -120,8 +120,8 @@ type Host interface {
 	// // Readlink works similar to os.Readlink.
 	// Readlink(ctx context.Context, name string) (string, error)
 
-	// // Remove works similar to os.Remove.
-	// Remove(ctx context.Context, name string) error
+	// Remove works similar to os.Remove.
+	Remove(ctx context.Context, name string) error
 
 	// Run starts the specified command and waits for it to complete.
 	// Returns WaitStatus, stdout, stderr, error

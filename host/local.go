@@ -24,6 +24,13 @@ func (l Local) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	return os.ReadFile(name)
 }
 
+func (l Local) Remove(ctx context.Context, name string) error {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("Removing %s", name)
+
+	return os.Remove(name)
+}
+
 func (l Local) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Running %s", cmd)

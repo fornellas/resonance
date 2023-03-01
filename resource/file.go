@@ -137,7 +137,9 @@ func (f File) Apply(ctx context.Context, hst host.Host, name Name, parameters ya
 }
 
 func (f File) Destroy(ctx context.Context, hst host.Host, name Name) error {
-	return fmt.Errorf("TODO File.Destroy")
+	nestedCtx := log.IndentLogger(ctx)
+	path := string(name)
+	return hst.Remove(nestedCtx, path)
 }
 
 func init() {
