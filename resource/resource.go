@@ -823,9 +823,6 @@ func NewPlan(
 	// Append destroy nodes
 	plan = appendDestroyNodes(nestedCtx, savedResourceBundle, resourceBundles, plan)
 
-	// Print
-	plan.Print(ctx)
-
 	return plan, nil
 }
 

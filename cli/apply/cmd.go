@@ -57,6 +57,7 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			logger.Fatal(err)
 		}
+		plan.Print(ctx)
 
 		// Execute plan
 		if err := plan.Execute(ctx, hst); err != nil {
