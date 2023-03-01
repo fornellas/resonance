@@ -30,9 +30,9 @@ type CheckResult bool
 
 func (cr CheckResult) String() string {
 	if cr {
-		return "✅"
+		return "🗸"
 	} else {
-		return "🚫"
+		return "❌"
 	}
 }
 
@@ -56,9 +56,9 @@ const (
 )
 
 var actionEmojiMap = map[Action]string{
-	ActionOk:      "✅",
-	ActionSkip:    "⏩",
-	ActionRefresh: "🔁",
+	ActionOk:      "🗸",
+	ActionSkip:    "💨",
+	ActionRefresh: "🔄",
 	ActionApply:   "🔧",
 	ActionDestroy: "💀",
 }
@@ -465,7 +465,7 @@ func (nai NodeActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 }
 
 func (nai NodeActionIndividual) String() string {
-	return fmt.Sprintf("%s[%s%s]", nai.ResourceDefinition.Type(), nai.Action.Emoji(), nai.ResourceDefinition.Name)
+	return fmt.Sprintf("%s[%s %s]", nai.ResourceDefinition.Type(), nai.Action.Emoji(), nai.ResourceDefinition.Name)
 }
 
 func (nai NodeActionIndividual) GraphvizLabel() string {
@@ -528,10 +528,10 @@ func (nam NodeActionMerged) String() string {
 	for action, resourceDefinitions := range nam.ActionResourceDefinitions {
 		for _, resourceDefinition := range resourceDefinitions {
 			tpe = resourceDefinition.Type()
-			names = append(names, fmt.Sprintf("%s%s", action.Emoji(), string(resourceDefinition.Name)))
+			names = append(names, fmt.Sprintf("%s %s", action.Emoji(), string(resourceDefinition.Name)))
 		}
 	}
-	return fmt.Sprintf("%s[%s]", tpe, strings.Join(names, ","))
+	return fmt.Sprintf("%s[%s]", tpe, strings.Join(names, ", "))
 }
 
 func (nam NodeActionMerged) Type() Type {
