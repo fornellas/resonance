@@ -30,9 +30,9 @@ type CheckResult bool
 
 func (cr CheckResult) String() string {
 	if cr {
-		return "🗸"
+		return "✅"
 	} else {
-		return "❌"
+		return "🔧"
 	}
 }
 
@@ -56,7 +56,7 @@ const (
 )
 
 var actionEmojiMap = map[Action]string{
-	ActionOk:      "🗸",
+	ActionOk:      "✅",
 	ActionSkip:    "💨",
 	ActionRefresh: "🔄",
 	ActionApply:   "🔧",
