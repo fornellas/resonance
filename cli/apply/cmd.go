@@ -47,9 +47,15 @@ var Cmd = &cobra.Command{
 		logger.Info("⚙️  Loading resources")
 		resourceBundles := resource.LoadResourceBundles(log.IndentLogger(ctx), args)
 
+		// Load saved state
+		savedResourceBundle, err := resource.LoadSavedState(ctx, localState)
+		if err != nil {
+			logger.Fatal(err)
+		}
+
 		// Plan
 		logger.Info("📝 Planning changes")
-		plan, err := resourceBundles.GetPlan(log.IndentLogger(ctx), hst, localState)
+		plan, err := resource.NewPlan(log.IndentLogger(ctx), hst, savedResourceBundle, resourceBundles)
 		if err != nil {
 			logger.Fatal(err)
 		}

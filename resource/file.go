@@ -9,6 +9,8 @@ import (
 	"os"
 	"syscall"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
 )
@@ -36,13 +38,14 @@ func (f File) MergeApply() bool {
 	return false
 }
 
-func (f File) Check(ctx context.Context, hst host.Host, instance Instance) (CheckResult, error) {
+func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters yaml.Node) (CheckResult, error) {
 	logger := log.GetLogger(ctx)
 
-	path := instance.Name.String()
+	path := string(name)
 
+	// FileParams
 	var fileParams FileParams
-	if err := instance.Parameters.Decode(&fileParams); err != nil {
+	if err := parameters.Decode(&fileParams); err != nil {
 		return false, err
 	}
 
@@ -122,7 +125,7 @@ func (f File) Check(ctx context.Context, hst host.Host, instance Instance) (Chec
 	return true, nil
 }
 
-func (f File) Apply(ctx context.Context, hst host.Host, instances []Instance) error {
+func (f File) Apply(ctx context.Context, hst host.Host, definitions Definitions) error {
 	// TODO use Host interface
 	// fileParams := parameters.(FileParams)
 

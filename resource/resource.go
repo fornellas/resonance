@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -22,17 +23,8 @@ import (
 // Eg: for File type a Name would be the file absolute path such as /etc/issue.
 type Name string
 
-func (n Name) String() string {
-	return string(n)
-}
-
-// Instance holds parameters for a resource instance.
-type Instance struct {
-	Name Name `yaml:"name"`
-	// Parameters for a resource instance. This is specific for each resource type.
-	Parameters yaml.Node `yaml:"parameters"`
-}
-
+// CheckResult is what's returned when a resource is checked. true means resource state is as
+// parameterized, false means changes are pending.
 type CheckResult bool
 
 func (cr CheckResult) String() string {
@@ -43,21 +35,24 @@ func (cr CheckResult) String() string {
 	}
 }
 
+// Definitions describe a set of resource declarations.
+type Definitions map[Name]yaml.Node
+
 // ManageableResource defines an interface for managing resource state.
 type ManageableResource interface {
 	// MergeApply informs whether all resources from the same type are to
 	// be always merged together when applying.
-	// When true, Apply is called only once, with all instances.
-	// When false, Apply is called one time for each instance.
+	// When true, Apply is called only once, with all definitions.
+	// When false, Apply is called one time for each definition.
 	MergeApply() bool
 
 	// Check host for the state of instatnce. If changes are required, returns true,
 	// otherwise, returns false.
-	Check(ctx context.Context, hst host.Host, instance Instance) (CheckResult, error)
+	Check(ctx context.Context, hst host.Host, name Name, parameters yaml.Node) (CheckResult, error)
 
-	// Apply confiugres the resource at host to given instances state.
+	// Apply configures all resource definitions at host.
 	// Must be idempotent.
-	Apply(ctx context.Context, hst host.Host, instances []Instance) error
+	Apply(ctx context.Context, hst host.Host, definitions Definitions) error
 
 	// Refresh the resource. This is typically used to update the in-memory state of a resource
 	// (eg: kerner: sysctl, iptables; process: systemd service) after persistant changes are made
@@ -69,36 +64,40 @@ type ManageableResource interface {
 	Destroy(ctx context.Context, hst host.Host, name Name) error
 }
 
-// Type is the name of the resource.
-// Must match resource's reflect.Type.Name().
+// Type is the name of the resource (aka: a ManageableResource).
 type Type string
 
-func (t Type) String() string {
-	return string(t)
-}
-
+// TypeToManageableResource maps Type to ManageableResource.
 var TypeToManageableResource = map[Type]ManageableResource{}
 
-// ManageableResource returns an instance for the resource type.
-func (t Type) ManageableResource() (ManageableResource, error) {
+// Validate whether type is known.
+func (t Type) Validate() error {
 	manageableResource, ok := TypeToManageableResource[t]
 	if !ok {
-		types := []string{}
-		for tpe := range TypeToManageableResource {
-			types = append(types, tpe.String())
-		}
-		return nil, fmt.Errorf("unknown resource type '%s'; valid types: %s", t, strings.Join(types, ", "))
+		return fmt.Errorf("unknown resource type '%s'", t)
 	}
-	return manageableResource, nil
+	rType := reflect.TypeOf(manageableResource)
+	if string(t) != rType.Name() {
+		panic(fmt.Errorf(
+			"ManageableResource %s must be defined with key %s at TypeToManageableResource, not %s",
+			rType.Name(), rType.Name(), string(t),
+		))
+	}
+	return nil
+}
+
+// ManageableResource returns an instance for the resource type.
+func (t Type) ManageableResource() ManageableResource {
+	manageableResource, ok := TypeToManageableResource[t]
+	if !ok {
+		panic(fmt.Errorf("unknown resource type '%s'", t))
+	}
+	return manageableResource
 }
 
 // TypeName is a string that identifies a resource type and name.
 // Eg: File[/etc/issue].
 type TypeName string
-
-func (tn TypeName) String() string {
-	return string(tn)
-}
 
 var resourceInstanceKeyRegexp = regexp.MustCompile(`^(.+)\[(.+)\]$`)
 
@@ -114,65 +113,95 @@ func (tn TypeName) typeName() (Type, Name, error) {
 	return tpe, name, nil
 }
 
-func (tn TypeName) Type() (Type, error) {
-	tpe, _, err := tn.typeName()
-	return tpe, err
+func (tn TypeName) Validate() error {
+	var tpe Type
+	var err error
+	if tpe, _, err = tn.typeName(); err != nil {
+		return err
+	}
+	if err := tpe.Validate(); err != nil {
+		return err
+	}
+	return nil
 }
 
-func (tn TypeName) Name() (Name, error) {
+func (tn *TypeName) UnmarshalYAML(node *yaml.Node) error {
+	var typeNameStr string
+	if err := node.Decode(&typeNameStr); err != nil {
+		return err
+	}
+	*tn = TypeName(typeNameStr)
+	if err := tn.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Name returns the Name of the resource.
+func (tn TypeName) Name() Name {
 	_, name, err := tn.typeName()
-	return name, err
+	if err != nil {
+		panic(err)
+	}
+	return name
 }
 
 // ManageableResource returns an instance for the resource type.
-func (tn TypeName) ManageableResource() (ManageableResource, error) {
-	tpe, err := tn.Type()
+func (tn TypeName) ManageableResource() ManageableResource {
+	tpe, _, err := tn.typeName()
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 	return tpe.ManageableResource()
 }
 
-// NewTypeName creates a new TypeName.
-func NewTypeName(tpe Type, name Name) TypeName {
-	return TypeName(fmt.Sprintf("%s[%s]", tpe, name))
-}
-
-// ResourceDefinition is the schema used to declare a single resource within a file.
-type ResourceDefinition struct {
+// ResourceDefinition is the schema used to define a single resource within a Yaml file.
+type ResourceDefinitionSchema struct {
 	TypeName   TypeName  `yaml:"resource"`
 	Parameters yaml.Node `yaml:"parameters"`
 }
 
-func (rd ResourceDefinition) String() string {
-	return rd.TypeName.String()
+// ResourceDefinitionKey is a unique identifier for a ResourceDefinition that
+// can be used as keys in maps.
+type ResourceDefinitionKey string
+
+// ResourceDefinition holds a single resource definition.
+type ResourceDefinition struct {
+	ManageableResource ManageableResource
+	Name               Name
+	Parameters         yaml.Node
 }
 
-func (rd ResourceDefinition) ManageableResource() (ManageableResource, error) {
-	return rd.TypeName.ManageableResource()
-}
-
-func (rd ResourceDefinition) Instance() (Instance, error) {
-	name, err := rd.TypeName.Name()
-	if err != nil {
-		return Instance{}, err
+func (rd *ResourceDefinition) UnmarshalYAML(node *yaml.Node) error {
+	var resourceDefinitionSchema ResourceDefinitionSchema
+	if err := node.Decode(&resourceDefinitionSchema); err != nil {
+		return err
 	}
-	return Instance{Name: name, Parameters: rd.Parameters}, nil
+	*rd = ResourceDefinition{
+		ManageableResource: resourceDefinitionSchema.TypeName.ManageableResource(),
+		Name:               resourceDefinitionSchema.TypeName.Name(),
+		Parameters:         resourceDefinitionSchema.Parameters,
+	}
+	return nil
+}
+
+func (rd *ResourceDefinition) Type() Type {
+	return Type(reflect.TypeOf(rd.ManageableResource).Name())
+}
+
+func (rd ResourceDefinition) String() string {
+	return fmt.Sprintf("%s[%s]", rd.Type(), rd.Name)
+}
+
+func (rd ResourceDefinition) ResourceDefinitionKey() ResourceDefinitionKey {
+	return ResourceDefinitionKey(rd.String())
 }
 
 func (rd ResourceDefinition) Check(ctx context.Context, hst host.Host) (CheckResult, error) {
 	logger := log.GetLogger(ctx)
 
-	manageableResource, err := rd.ManageableResource()
-	if err != nil {
-		return false, err
-	}
-	instance, err := rd.Instance()
-	if err != nil {
-		return false, err
-	}
-	logger.Debugf("Checking %s", rd.TypeName)
-	check, err := manageableResource.Check(log.IndentLogger(ctx), hst, instance)
+	logger.Debugf("Checking %v", rd)
+	check, err := rd.ManageableResource.Check(log.IndentLogger(ctx), hst, rd.Name, rd.Parameters)
 	if err != nil {
 		return false, err
 	}
@@ -181,6 +210,83 @@ func (rd ResourceDefinition) Check(ctx context.Context, hst host.Host) (CheckRes
 
 // ResourceBundle is the schema used to declare multiple resources at a single file.
 type ResourceBundle []ResourceDefinition
+
+// LoadResourceBundle loads resource definitions from given Yaml file path.
+func LoadResourceBundle(ctx context.Context, path string) (ResourceBundle, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return ResourceBundle{}, fmt.Errorf("failed to load resource definitions: %w", err)
+	}
+	defer f.Close()
+
+	decoder := yaml.NewDecoder(f)
+	decoder.KnownFields(true)
+
+	resourceBundle := ResourceBundle{}
+
+	for {
+		docResourceBundle := ResourceBundle{}
+		if err := decoder.Decode(&docResourceBundle); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return ResourceBundle{}, fmt.Errorf("failed to load resource definitions: %s: %w", path, err)
+		}
+		resourceBundle = append(resourceBundle, docResourceBundle...)
+	}
+
+	return resourceBundle, nil
+}
+
+// LoadSavedState loads a ResourceBundle saved after it was applied to a host.
+func LoadSavedState(ctx context.Context, persistantState PersistantState) (ResourceBundle, error) {
+	logger := log.GetLogger(ctx)
+	nestedCtx := log.IndentLogger(ctx)
+	nestedLogger := log.GetLogger(nestedCtx)
+
+	logger.Info("📂 Loading saved state")
+	savedResourceDefinition, err := persistantState.Load(nestedCtx)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
+	}
+	savedResourceBundlesYamlBytes, err := yaml.Marshal(&savedResourceDefinition)
+	if err != nil {
+		return nil, err
+	}
+	nestedLogger.WithFields(logrus.Fields{"ResourceBundles": string(savedResourceBundlesYamlBytes)}).Debug("Loaded saved state")
+
+	return savedResourceDefinition, nil
+}
+
+// ResourceBundles holds all resources definitions for a host.
+type ResourceBundles []ResourceBundle
+
+func (rbs ResourceBundles) HasResourceDefinition(resourceDefinition ResourceDefinition) bool {
+	for _, resourceBundle := range rbs {
+		for _, rd := range resourceBundle {
+			if rd.ResourceDefinitionKey() == resourceDefinition.ResourceDefinitionKey() {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// LoadResourceBundles loads resource definitions from all given Yaml file paths.
+// Each file must have the schema defined by ResourceBundle.
+func LoadResourceBundles(ctx context.Context, paths []string) ResourceBundles {
+	logger := log.GetLogger(ctx)
+
+	resourceBundles := ResourceBundles{}
+	for _, path := range paths {
+		resourceBundle, err := LoadResourceBundle(ctx, path)
+		if err != nil {
+			logger.Fatal(err)
+		}
+		resourceBundles = append(resourceBundles, resourceBundle)
+	}
+	return resourceBundles
+}
 
 // Action to be executed for a given Node.
 type Action int
@@ -213,42 +319,25 @@ type Node struct {
 	Refresh             bool
 }
 
-func (n Node) ManageableResource() (ManageableResource, error) {
-	tpe, err := n.ResourceDefinitions[0].TypeName.Type()
-	if err != nil {
-		return nil, err
-	}
-	manageableResource, err := tpe.ManageableResource()
-	if err != nil {
-		return nil, err
-	}
-	return manageableResource, nil
-}
-
 // Name of the node.
 func (n Node) Name() string {
 	if len(n.ResourceDefinitions) == 1 {
-		return string(n.ResourceDefinitions[0].TypeName)
+		return n.ResourceDefinitions[0].String()
 	} else if len(n.ResourceDefinitions) > 1 {
-		var tpeStr string
+		var tpe Type
 		names := []string{}
 		for _, resourceDefinition := range n.ResourceDefinitions {
-			typeName := resourceDefinition.TypeName
-			tpe, err := typeName.Type()
-			if err != nil {
-				panic(fmt.Sprintf("invalid node: bad TypeName: %s", typeName))
-			}
-			tpeStr = tpe.String()
-			name, err := typeName.Name()
-			if err != nil {
-				panic(fmt.Sprintf("invalid node: bad TypeName: %s", typeName))
-			}
-			names = append(names, name.String())
+			tpe = resourceDefinition.Type()
+			names = append(names, string(resourceDefinition.Name))
 		}
-		return fmt.Sprintf("%s[%s]", tpeStr, strings.Join(names, ","))
+		return fmt.Sprintf("%s[%s]", tpe, strings.Join(names, ","))
 	} else {
 		panic("invalid node: empty ResourceDefinitions")
 	}
+}
+
+func (n Node) ManageableResource() ManageableResource {
+	return n.ResourceDefinitions[0].ManageableResource
 }
 
 // Plan is a directed graph which contains the plan for applying resources to a host.
@@ -299,6 +388,69 @@ func (p Plan) Graphviz() string {
 	return str
 }
 
+func (p Plan) actionNoneSkip(ctx context.Context, hst host.Host, node *Node) error {
+	logger := log.GetLogger(ctx)
+	if node.Refresh {
+		logger.Infof("🔁 Refresh: %s", node.Name())
+		for _, resourceDefinition := range node.ResourceDefinitions {
+			if len(node.ResourceDefinitions) > 1 {
+				logger.Infof("  Refreshing %s", resourceDefinition)
+			}
+			if err := node.ManageableResource().Refresh(ctx, hst, resourceDefinition.Name); err != nil {
+				return err
+			}
+		}
+	} else {
+		logger.Infof("%s: %s", node.Action, node.Name())
+	}
+	return nil
+}
+
+func (p Plan) actionApply(ctx context.Context, hst host.Host, node *Node) error {
+	logger := log.GetLogger(ctx)
+	logger.Infof("%s: %s", node.Action, node.Name())
+	definitions := Definitions{}
+	for _, resourceDefinition := range node.ResourceDefinitions {
+		definitions[resourceDefinition.Name] = resourceDefinition.Parameters
+	}
+	if err := node.ManageableResource().Apply(ctx, hst, definitions); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p Plan) actionDestroy(ctx context.Context, hst host.Host, node *Node) error {
+	logger := log.GetLogger(ctx)
+	logger.Infof("%s: %s", node.Action, node.Name())
+	for _, resourceDefinition := range node.ResourceDefinitions {
+		if len(node.ResourceDefinitions) > 1 {
+			logger.Infof("Destroying %s", resourceDefinition)
+		}
+		if err := node.ManageableResource().Destroy(ctx, hst, resourceDefinition.Name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Apply required changes to host
+func (p Plan) Apply(ctx context.Context, hst host.Host) error {
+	for _, node := range p {
+		switch node.Action {
+		case ActionNone, ActionSkip:
+			return p.actionNoneSkip(ctx, hst, node)
+		case ActionApply:
+			return p.actionApply(ctx, hst, node)
+		case ActionDestroy:
+			return p.actionDestroy(ctx, hst, node)
+		default:
+			panic(fmt.Sprintf("unexpected action %q", node.Action))
+		}
+	}
+	return nil
+}
+
 // topologicalSort sorts the nodes based on their prerequisites. If the graph has cycles, it returns
 // error.
 func (p Plan) topologicalSort() (Plan, error) {
@@ -347,172 +499,50 @@ func (p Plan) topologicalSort() (Plan, error) {
 	return result, nil
 }
 
-func (p Plan) actionNoneSkip(ctx context.Context, hst host.Host, node *Node) error {
-	logger := log.GetLogger(ctx)
-
-	manageableResource, err := node.ManageableResource()
-	if err != nil {
-		return err
-	}
-
-	if node.Refresh {
-		logger.Infof("🔁 Refresh: %s", node.Name())
-		for _, resourceDefinition := range node.ResourceDefinitions {
-			if len(node.ResourceDefinitions) > 1 {
-				logger.Infof("  Refreshing %s", resourceDefinition)
-			}
-			name, err := resourceDefinition.TypeName.Name()
-			if err != nil {
-				return err
-			}
-			if err := manageableResource.Refresh(ctx, hst, name); err != nil {
-				return err
-			}
-		}
-	} else {
-		logger.Infof("%s: %s", node.Action, node.Name())
-	}
-	return nil
-}
-
-func (p Plan) actionApply(ctx context.Context, hst host.Host, node *Node) error {
-	logger := log.GetLogger(ctx)
-
-	manageableResource, err := node.ManageableResource()
-	if err != nil {
-		return err
-	}
-
-	logger.Infof("%s: %s", node.Action, node.Name())
-	instances := []Instance{}
-	for _, resourceDefinition := range node.ResourceDefinitions {
-		name, err := resourceDefinition.TypeName.Name()
-		if err != nil {
-			return err
-		}
-		instances = append(instances, Instance{
-			Name:       name,
-			Parameters: resourceDefinition.Parameters,
-		})
-	}
-	if err := manageableResource.Apply(ctx, hst, instances); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (p Plan) actionDestroy(ctx context.Context, hst host.Host, node *Node) error {
-	logger := log.GetLogger(ctx)
-
-	manageableResource, err := node.ManageableResource()
-	if err != nil {
-		return err
-	}
-
-	logger.Infof("%s: %s", node.Action, node.Name())
-	for _, resourceDefinition := range node.ResourceDefinitions {
-		if len(node.ResourceDefinitions) > 1 {
-			logger.Infof("Destroying %s", resourceDefinition)
-		}
-		name, err := resourceDefinition.TypeName.Name()
-		if err != nil {
-			return err
-		}
-		if err := manageableResource.Destroy(ctx, hst, name); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// Apply required changes to host
-func (p Plan) Apply(ctx context.Context, hst host.Host) error {
-	for _, node := range p {
-		switch node.Action {
-		case ActionNone, ActionSkip:
-			return p.actionNoneSkip(ctx, hst, node)
-		case ActionApply:
-			return p.actionApply(ctx, hst, node)
-		case ActionDestroy:
-			return p.actionDestroy(ctx, hst, node)
-		default:
-			panic(fmt.Sprintf("unexpected action %q", node.Action))
-		}
-	}
-	return nil
-}
-
-// ResourceBundles holds all resources definitions for a host.
-type ResourceBundles []ResourceBundle
-
-func (rbs ResourceBundles) HasTypeName(typeName TypeName) bool {
-	for _, resourceBundle := range rbs {
-		for _, resourceDefinition := range resourceBundle {
-			if resourceDefinition.TypeName == typeName {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func (rbs ResourceBundles) getSavedResourceDefinition(ctx context.Context, persistantState PersistantState) ([]ResourceDefinition, error) {
-	logger := log.GetLogger(ctx)
-	nestedCtx := log.IndentLogger(ctx)
-	nestedLogger := log.GetLogger(nestedCtx)
-
-	logger.Info("📂 Loading saved state")
-	savedResourceDefinition, err := persistantState.Load(nestedCtx)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return nil, err
-	}
-	savedResourceBundlesYamlBytes, err := yaml.Marshal(&savedResourceDefinition)
-	if err != nil {
-		return nil, err
-	}
-	nestedLogger.WithFields(logrus.Fields{"ResourceBundles": string(savedResourceBundlesYamlBytes)}).Debug("Loaded saved state")
-
-	return savedResourceDefinition, nil
-}
-
-func (rbs ResourceBundles) check(
-	ctx context.Context, hst host.Host, savedResourceDefinition []ResourceDefinition,
-) (map[TypeName]CheckResult, error) {
+func checkResourcesState(
+	ctx context.Context,
+	hst host.Host,
+	savedResourceDefinition []ResourceDefinition,
+	resourceBundles ResourceBundles,
+) (map[ResourceDefinitionKey]CheckResult, error) {
 	logger := log.GetLogger(ctx)
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 
 	logger.Info("🔎 Checking state")
-	checkResults := map[TypeName]CheckResult{}
+	checkResults := map[ResourceDefinitionKey]CheckResult{}
 	for _, resourceDefinition := range savedResourceDefinition {
 		checkResult, err := resourceDefinition.Check(nestedCtx, hst)
 		if err != nil {
 			return nil, err
 		}
-		nestedLogger.Infof("%s %v", checkResult, resourceDefinition.TypeName)
+		nestedLogger.Infof("%s %s", checkResult, resourceDefinition)
 		if !checkResult {
 			return nil, fmt.Errorf("resource previously applied now failing check; this usually means that the resource was changed externally")
 		}
-		checkResults[resourceDefinition.TypeName] = checkResult
+		checkResults[resourceDefinition.ResourceDefinitionKey()] = checkResult
 	}
-	for _, resourceBundle := range rbs {
+	for _, resourceBundle := range resourceBundles {
 		for _, resourceDefinition := range resourceBundle {
-			if _, ok := checkResults[resourceDefinition.TypeName]; ok {
+			if _, ok := checkResults[resourceDefinition.ResourceDefinitionKey()]; ok {
 				continue
 			}
 			checkResult, err := resourceDefinition.Check(nestedCtx, hst)
 			if err != nil {
 				return nil, err
 			}
-			nestedLogger.Infof("%s %v", checkResult, resourceDefinition.TypeName)
-			checkResults[resourceDefinition.TypeName] = checkResult
+			nestedLogger.Infof("%s %s", checkResult, resourceDefinition)
+			checkResults[resourceDefinition.ResourceDefinitionKey()] = checkResult
 		}
 	}
 	return checkResults, nil
 }
 
-func (rbs ResourceBundles) buildPlan(ctx context.Context, checkResults map[TypeName]CheckResult) (Plan, error) {
+func buildPlan(
+	ctx context.Context,
+	resourceBundles ResourceBundles,
+	checkResults map[ResourceDefinitionKey]CheckResult,
+) (Plan, error) {
 	logger := log.GetLogger(ctx)
 
 	// Build unsorted digraph
@@ -520,7 +550,7 @@ func (rbs ResourceBundles) buildPlan(ctx context.Context, checkResults map[TypeN
 	unsortedPlan := Plan{}
 	mergedNodes := map[Type]*Node{}
 	var lastResourceBundleLastNode *Node
-	for _, resourceBundle := range rbs {
+	for _, resourceBundle := range resourceBundles {
 		// Create nodes with only resource definitions...
 		resourceBundleNodes := []*Node{}
 		var node *Node
@@ -541,25 +571,17 @@ func (rbs ResourceBundles) buildPlan(ctx context.Context, checkResults map[TypeN
 			if previousNode != nil {
 				previousNode.PrerequisiteFor = append(previousNode.PrerequisiteFor, node)
 			}
-			typeName := node.ResourceDefinitions[0].TypeName
-			manageableResource, err := typeName.ManageableResource()
-			if err != nil {
-				return nil, err
-			}
-			checkResult, ok := checkResults[typeName]
+			resourceDefinition := node.ResourceDefinitions[0]
+			checkResult, ok := checkResults[resourceDefinition.ResourceDefinitionKey()]
 			if !ok {
 				panic("missing check result")
 			}
-			if manageableResource.MergeApply() {
+			if node.ManageableResource().MergeApply() {
 				node.Action = ActionSkip
-				tpe, err := typeName.Type()
-				if err != nil {
-					return nil, err
-				}
-				mergedNode, ok := mergedNodes[tpe]
+				mergedNode, ok := mergedNodes[resourceDefinition.Type()]
 				if !ok {
 					mergedNode = &Node{}
-					mergedNodes[tpe] = mergedNode
+					mergedNodes[resourceDefinition.Type()] = mergedNode
 					unsortedPlan = append(unsortedPlan, mergedNode)
 				}
 				mergedNode.ResourceDefinitions = append(mergedNode.ResourceDefinitions, node.ResourceDefinitions...)
@@ -590,38 +612,35 @@ func (rbs ResourceBundles) buildPlan(ctx context.Context, checkResults map[TypeN
 	return plan, nil
 }
 
-// GetPlan calculates the plan and returns it in the form of a Plan
-func (rbs ResourceBundles) GetPlan(ctx context.Context, hst host.Host, persistantState PersistantState) (Plan, error) {
+// NewPlan calculates the plan and returns it in the form of a Plan
+func NewPlan(
+	ctx context.Context,
+	hst host.Host,
+	savedResourceBundle ResourceBundle,
+	resourceBundles ResourceBundles,
+) (Plan, error) {
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 
-	// Load saved state
-	savedResourceDefinition, err := rbs.getSavedResourceDefinition(ctx, persistantState)
-	if err != nil {
-		return nil, err
-	}
-
 	// Checking state
-	checkResults, err := rbs.check(ctx, hst, savedResourceDefinition)
+	checkResults, err := checkResourcesState(ctx, hst, savedResourceBundle, resourceBundles)
 	if err != nil {
 		return nil, err
 	}
 
 	// Build unsorted digraph
-	plan, err := rbs.buildPlan(ctx, checkResults)
+	plan, err := buildPlan(ctx, resourceBundles, checkResults)
 	if err != nil {
 		return nil, err
 	}
 
 	// Append destroy nodes
-	for _, resourceDefinition := range savedResourceDefinition {
-		if !rbs.HasTypeName(resourceDefinition.TypeName) {
+	for _, resourceDefinition := range savedResourceBundle {
+		if !resourceBundles.HasResourceDefinition(resourceDefinition) {
 			node := &Node{
-				ResourceDefinitions: []ResourceDefinition{ResourceDefinition{
-					TypeName: resourceDefinition.TypeName,
-				}},
-				PrerequisiteFor: []*Node{plan[0]},
-				Action:          ActionDestroy,
+				ResourceDefinitions: []ResourceDefinition{resourceDefinition},
+				PrerequisiteFor:     []*Node{plan[0]},
+				Action:              ActionDestroy,
 			}
 			plan = append(Plan{node}, plan...)
 		}
@@ -630,48 +649,6 @@ func (rbs ResourceBundles) GetPlan(ctx context.Context, hst host.Host, persistan
 	nestedLogger.WithFields(logrus.Fields{"Graphviz": plan.Graphviz()}).Debug("Final plan")
 
 	return plan, nil
-}
-
-func loadResourceBundle(ctx context.Context, path string) (ResourceBundle, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return ResourceBundle{}, fmt.Errorf("failed to load resource definitions: %w", err)
-	}
-	defer f.Close()
-
-	decoder := yaml.NewDecoder(f)
-	decoder.KnownFields(true)
-
-	resourceBundle := ResourceBundle{}
-
-	for {
-		docResourceBundle := ResourceBundle{}
-		if err := decoder.Decode(&docResourceBundle); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return ResourceBundle{}, fmt.Errorf("failed to load resource definitions: %s: %w", path, err)
-		}
-		resourceBundle = append(resourceBundle, docResourceBundle...)
-	}
-
-	return resourceBundle, nil
-}
-
-// LoadResourceBundles loads resource definitions from all given Yaml file paths.
-// Each file must have the schema defined by ResourceBundle.
-func LoadResourceBundles(ctx context.Context, paths []string) ResourceBundles {
-	logger := log.GetLogger(ctx)
-
-	resourceBundles := ResourceBundles{}
-	for _, path := range paths {
-		resourceBundle, err := loadResourceBundle(ctx, path)
-		if err != nil {
-			logger.Fatal(err)
-		}
-		resourceBundles = append(resourceBundles, resourceBundle)
-	}
-	return resourceBundles
 }
 
 // PersistantState defines an interface for loading and saving HostState
