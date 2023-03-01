@@ -337,65 +337,95 @@ func (p Plan) topologicalSort() (Plan, error) {
 	return result, nil
 }
 
-// Apply required changes to host
-func (p Plan) Apply(ctx context.Context, hst host.Host) error {
+func (p Plan) actionNoneSkip(ctx context.Context, hst host.Host, node *Node) error {
 	logger := log.GetLogger(ctx)
 
-	for _, node := range p {
-		manageableResource, err := node.ManageableResource()
+	manageableResource, err := node.ManageableResource()
+	if err != nil {
+		return err
+	}
+
+	if node.Refresh {
+		logger.Infof("%s: Action: %s", node.Name(), "Refresh")
+		for _, resourceDefinition := range node.ResourceDefinitions {
+			if len(node.ResourceDefinitions) > 1 {
+				logger.Infof("  Refreshing %s", resourceDefinition)
+			}
+			name, err := resourceDefinition.TypeName.Name()
+			if err != nil {
+				return err
+			}
+			if err := manageableResource.Refresh(ctx, hst, name); err != nil {
+				return err
+			}
+		}
+	} else {
+		logger.Infof("%s: Action: %s", node.Name(), node.Action)
+	}
+	return nil
+}
+
+func (p Plan) actionApply(ctx context.Context, hst host.Host, node *Node) error {
+	logger := log.GetLogger(ctx)
+
+	manageableResource, err := node.ManageableResource()
+	if err != nil {
+		return err
+	}
+
+	logger.Infof("%s: Action: %s", node.Name(), node.Action)
+	instances := []Instance{}
+	for _, resourceDefinition := range node.ResourceDefinitions {
+		name, err := resourceDefinition.TypeName.Name()
 		if err != nil {
 			return err
 		}
+		instances = append(instances, Instance{
+			Name:       name,
+			Parameters: resourceDefinition.Parameters,
+		})
+	}
+	if err := manageableResource.Apply(ctx, hst, instances); err != nil {
+		return err
+	}
 
+	return nil
+}
+
+func (p Plan) actionDestroy(ctx context.Context, hst host.Host, node *Node) error {
+	logger := log.GetLogger(ctx)
+
+	manageableResource, err := node.ManageableResource()
+	if err != nil {
+		return err
+	}
+
+	logger.Infof("%s: Action: %s", node.Name(), node.Action)
+	for _, resourceDefinition := range node.ResourceDefinitions {
+		if len(node.ResourceDefinitions) > 1 {
+			logger.Infof("Destroying %s", resourceDefinition)
+		}
+		name, err := resourceDefinition.TypeName.Name()
+		if err != nil {
+			return err
+		}
+		if err := manageableResource.Destroy(ctx, hst, name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Apply required changes to host
+func (p Plan) Apply(ctx context.Context, hst host.Host) error {
+	for _, node := range p {
 		switch node.Action {
 		case ActionNone, ActionSkip:
-			if node.Refresh {
-				logger.Infof("%s: Action: %s", node.Name(), "Refresh")
-				for _, resourceDefinition := range node.ResourceDefinitions {
-					if len(node.ResourceDefinitions) > 1 {
-						logger.Infof("  Refreshing %s", resourceDefinition)
-					}
-					name, err := resourceDefinition.TypeName.Name()
-					if err != nil {
-						return err
-					}
-					if err := manageableResource.Refresh(ctx, hst, name); err != nil {
-						return err
-					}
-				}
-			} else {
-				logger.Infof("%s: Action: %s", node.Name(), node.Action)
-			}
+			return p.actionNoneSkip(ctx, hst, node)
 		case ActionApply:
-			logger.Infof("%s: Action: %s", node.Name(), node.Action)
-			instances := []Instance{}
-			for _, resourceDefinition := range node.ResourceDefinitions {
-				name, err := resourceDefinition.TypeName.Name()
-				if err != nil {
-					return err
-				}
-				instances = append(instances, Instance{
-					Name:       name,
-					Parameters: resourceDefinition.Parameters,
-				})
-			}
-			if err := manageableResource.Apply(ctx, hst, instances); err != nil {
-				return err
-			}
+			return p.actionApply(ctx, hst, node)
 		case ActionDestroy:
-			logger.Infof("%s: Action: %s", node.Name(), node.Action)
-			for _, resourceDefinition := range node.ResourceDefinitions {
-				if len(node.ResourceDefinitions) > 1 {
-					logger.Infof("Destroying %s", resourceDefinition)
-				}
-				name, err := resourceDefinition.TypeName.Name()
-				if err != nil {
-					return err
-				}
-				if err := manageableResource.Destroy(ctx, hst, name); err != nil {
-					return err
-				}
-			}
+			return p.actionDestroy(ctx, hst, node)
 		default:
 			panic(fmt.Sprintf("unexpected action %q", node.Action))
 		}
@@ -417,13 +447,11 @@ func (rbs ResourceBundles) HasTypeName(typeName TypeName) bool {
 	return false
 }
 
-// GetPlan calculates the plan and returns it in the form of a Plan
-func (rbs ResourceBundles) GetPlan(ctx context.Context, hst host.Host, persistantState PersistantState) (Plan, error) {
+func (rbs ResourceBundles) getSavedResourceDefinition(ctx context.Context, persistantState PersistantState) ([]ResourceDefinition, error) {
 	logger := log.GetLogger(ctx)
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 
-	// Load saved state
 	logger.Info("Loading saved state")
 	savedResourceDefinition, err := persistantState.Load(nestedCtx)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
@@ -435,7 +463,16 @@ func (rbs ResourceBundles) GetPlan(ctx context.Context, hst host.Host, persistan
 	}
 	nestedLogger.WithFields(logrus.Fields{"ResourceBundles": string(savedResourceBundlesYamlBytes)}).Debug("Loaded saved state")
 
-	// Checking state
+	return savedResourceDefinition, nil
+}
+
+func (rbs ResourceBundles) check(
+	ctx context.Context, hst host.Host, savedResourceDefinition []ResourceDefinition,
+) (map[TypeName]bool, error) {
+	logger := log.GetLogger(ctx)
+	nestedCtx := log.IndentLogger(ctx)
+	nestedLogger := log.GetLogger(nestedCtx)
+
 	logger.Info("Checking state")
 	checkResults := map[TypeName]bool{}
 	for _, resourceDefinition := range savedResourceDefinition {
@@ -462,6 +499,13 @@ func (rbs ResourceBundles) GetPlan(ctx context.Context, hst host.Host, persistan
 			checkResults[resourceDefinition.TypeName] = checkResult
 		}
 	}
+	return checkResults, nil
+}
+
+func (rbs ResourceBundles) buildPlan(ctx context.Context, checkResults map[TypeName]bool) (Plan, error) {
+	logger := log.GetLogger(ctx)
+	nestedCtx := log.IndentLogger(ctx)
+	nestedLogger := log.GetLogger(nestedCtx)
 
 	// Build unsorted digraph
 	logger.Info("Planning")
@@ -526,6 +570,32 @@ func (rbs ResourceBundles) GetPlan(ctx context.Context, hst host.Host, persistan
 
 	// Sort
 	plan, err := unsortedPlan.topologicalSort()
+	if err != nil {
+		return nil, err
+	}
+
+	return plan, nil
+}
+
+// GetPlan calculates the plan and returns it in the form of a Plan
+func (rbs ResourceBundles) GetPlan(ctx context.Context, hst host.Host, persistantState PersistantState) (Plan, error) {
+	nestedCtx := log.IndentLogger(ctx)
+	nestedLogger := log.GetLogger(nestedCtx)
+
+	// Load saved state
+	savedResourceDefinition, err := rbs.getSavedResourceDefinition(ctx, persistantState)
+	if err != nil {
+		return nil, err
+	}
+
+	// Checking state
+	checkResults, err := rbs.check(ctx, hst, savedResourceDefinition)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build unsorted digraph
+	plan, err := rbs.buildPlan(ctx, checkResults)
 	if err != nil {
 		return nil, err
 	}
