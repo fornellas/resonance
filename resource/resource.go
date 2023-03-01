@@ -584,21 +584,8 @@ type Plan []*Node
 func (p Plan) Graphviz() string {
 	var buff bytes.Buffer
 	fmt.Fprint(&buff, "digraph resonance {\n")
-	fmt.Fprint(&buff, "  subgraph cluster_Action {\n")
-	for action := Action(0); action < ActionCount; action++ {
-		fmt.Fprintf(
-			&buff, "    node [shape=none label=< <font color=\"%s\"><b>%s</b></font> >] \"%s\"\n",
-			action.GraphvizColor(), action.String(), action.String(),
-		)
-	}
-	prevAction := Action(0)
-	for action := prevAction + 1; action < ActionCount; action++ {
-		fmt.Fprintf(&buff, "    \"%s\" -> \"%s\"  [style=invis]\n", prevAction.String(), action.String())
-		prevAction = action
-	}
-	fmt.Fprint(&buff, "  }\n")
 	for _, node := range p {
-		fmt.Fprintf(&buff, "  node [shape=rectangle label=%s] \"%s\"\n", node.NodeAction.GraphvizLabel(), node.String())
+		fmt.Fprintf(&buff, "  node [shape=rectanble] \"%s\"\n", node)
 	}
 	for _, node := range p {
 		for _, dependantNode := range node.PrerequisiteFor {
