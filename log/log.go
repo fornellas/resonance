@@ -20,6 +20,7 @@ func SetLoggerValue(ctx context.Context, logLevelStr string) context.Context {
 	for _, l := range logrus.AllLevels {
 		if logLevelStr == l.String() {
 			level = &l
+			break
 		}
 	}
 	if level == nil {
