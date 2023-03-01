@@ -34,10 +34,6 @@ type FileParams struct {
 // File resource manages files.
 type File struct{}
 
-func (f File) MergeApply() bool {
-	return false
-}
-
 func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters yaml.Node) (CheckResult, error) {
 	logger := log.GetLogger(ctx)
 
@@ -125,7 +121,11 @@ func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters ya
 	return true, nil
 }
 
-func (f File) Apply(ctx context.Context, hst host.Host, definitions Definitions) error {
+func (f File) Refresh(ctx context.Context, hst host.Host, name Name) error {
+	return nil
+}
+
+func (f File) Apply(ctx context.Context, hst host.Host, name Name, parameters yaml.Node) error {
 	// TODO use Host interface
 	// fileParams := parameters.(FileParams)
 
@@ -136,14 +136,10 @@ func (f File) Apply(ctx context.Context, hst host.Host, definitions Definitions)
 	return fmt.Errorf("TODO File.Apply")
 }
 
-func (f File) Refresh(ctx context.Context, hst host.Host, name Name) error {
-	return nil
-}
-
 func (f File) Destroy(ctx context.Context, hst host.Host, name Name) error {
 	return fmt.Errorf("TODO File.Destroy")
 }
 
 func init() {
-	TypeToManageableResource["File"] = File{}
+	IndividuallyManageableResourceTypeMap["File"] = File{}
 }
