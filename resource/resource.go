@@ -33,6 +33,16 @@ type Instance struct {
 	Parameters yaml.Node `yaml:"parameters"`
 }
 
+type CheckResult bool
+
+func (cr CheckResult) String() string {
+	if cr {
+		return "✔️ "
+	} else {
+		return "❌"
+	}
+}
+
 // ManageableResource defines an interface for managing resource state.
 type ManageableResource interface {
 	// MergeApply informs whether all resources from the same type are to
@@ -43,7 +53,7 @@ type ManageableResource interface {
 
 	// Check host for the state of instatnce. If changes are required, returns true,
 	// otherwise, returns false.
-	Check(ctx context.Context, hst host.Host, instance Instance) (bool, error)
+	Check(ctx context.Context, hst host.Host, instance Instance) (CheckResult, error)
 
 	// Apply confiugres the resource at host to given instances state.
 	// Must be idempotent.
@@ -150,7 +160,7 @@ func (rd ResourceDefinition) Instance() (Instance, error) {
 	return Instance{Name: name, Parameters: rd.Parameters}, nil
 }
 
-func (rd ResourceDefinition) Check(ctx context.Context, hst host.Host) (bool, error) {
+func (rd ResourceDefinition) Check(ctx context.Context, hst host.Host) (CheckResult, error) {
 	logger := log.GetLogger(ctx)
 
 	manageableResource, err := rd.ManageableResource()
@@ -452,7 +462,7 @@ func (rbs ResourceBundles) getSavedResourceDefinition(ctx context.Context, persi
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 
-	logger.Info("Loading saved state")
+	logger.Info("📂 Loading saved state")
 	savedResourceDefinition, err := persistantState.Load(nestedCtx)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return nil, err
@@ -468,19 +478,19 @@ func (rbs ResourceBundles) getSavedResourceDefinition(ctx context.Context, persi
 
 func (rbs ResourceBundles) check(
 	ctx context.Context, hst host.Host, savedResourceDefinition []ResourceDefinition,
-) (map[TypeName]bool, error) {
+) (map[TypeName]CheckResult, error) {
 	logger := log.GetLogger(ctx)
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 
-	logger.Info("Checking state")
-	checkResults := map[TypeName]bool{}
+	logger.Info("🔎 Checking state")
+	checkResults := map[TypeName]CheckResult{}
 	for _, resourceDefinition := range savedResourceDefinition {
 		checkResult, err := resourceDefinition.Check(nestedCtx, hst)
 		if err != nil {
 			return nil, err
 		}
-		nestedLogger.Infof("%s: %v", resourceDefinition.TypeName, checkResult)
+		nestedLogger.Infof("%s %v", checkResult, resourceDefinition.TypeName)
 		if !checkResult {
 			return nil, fmt.Errorf("resource previously applied now failing check; this usually means that the resource was changed externally")
 		}
@@ -495,18 +505,18 @@ func (rbs ResourceBundles) check(
 			if err != nil {
 				return nil, err
 			}
-			nestedLogger.Infof("%s: %v", resourceDefinition.TypeName, checkResult)
+			nestedLogger.Infof("%s %v", checkResult, resourceDefinition.TypeName)
 			checkResults[resourceDefinition.TypeName] = checkResult
 		}
 	}
 	return checkResults, nil
 }
 
-func (rbs ResourceBundles) buildPlan(ctx context.Context, checkResults map[TypeName]bool) (Plan, error) {
+func (rbs ResourceBundles) buildPlan(ctx context.Context, checkResults map[TypeName]CheckResult) (Plan, error) {
 	logger := log.GetLogger(ctx)
 
 	// Build unsorted digraph
-	logger.Info("Planning")
+	logger.Info("🏗️  Building plan")
 	unsortedPlan := Plan{}
 	mergedNodes := map[Type]*Node{}
 	var lastResourceBundleLastNode *Node

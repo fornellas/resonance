@@ -36,7 +36,7 @@ func (f File) MergeApply() bool {
 	return false
 }
 
-func (f File) Check(ctx context.Context, hst host.Host, instance Instance) (bool, error) {
+func (f File) Check(ctx context.Context, hst host.Host, instance Instance) (CheckResult, error) {
 	logger := log.GetLogger(ctx)
 
 	path := instance.Name.String()

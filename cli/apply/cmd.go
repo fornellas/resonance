@@ -39,24 +39,23 @@ var Cmd = &cobra.Command{
 		}
 
 		// Local state
-		logger.Info("Loading saved host state")
 		localState := state.Local{
 			Path: stateYaml,
 		}
 
 		// Load resources
-		logger.Info("Loading resources")
+		logger.Info("⚙️  Loading resources")
 		resourceBundles := resource.LoadResourceBundles(log.IndentLogger(ctx), args)
 
 		// Plan
-		logger.Info("Planning changes")
+		logger.Info("📝 Planning changes")
 		plan, err := resourceBundles.GetPlan(log.IndentLogger(ctx), hst, localState)
 		if err != nil {
 			logger.Fatal(err)
 		}
 
 		// Apply changes
-		logger.Info("Applying changes")
+		logger.Info("🛠️  Applying changes")
 		if err := plan.Apply(log.IndentLogger(ctx), hst); err != nil {
 			logger.Fatal(err)
 		}

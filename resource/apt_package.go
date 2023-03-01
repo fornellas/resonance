@@ -32,7 +32,7 @@ func (ap APTPackage) MergeApply() bool {
 var aptPackageRegexpStatus = regexp.MustCompile(`^Status: (.+)$`)
 var aptPackageRegexpVersion = regexp.MustCompile(`^Version: (.+)$`)
 
-func (ap APTPackage) Check(ctx context.Context, hst host.Host, instance Instance) (bool, error) {
+func (ap APTPackage) Check(ctx context.Context, hst host.Host, instance Instance) (CheckResult, error) {
 	logger := log.GetLogger(ctx)
 
 	hostCmd := host.Cmd{
