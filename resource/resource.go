@@ -504,36 +504,39 @@ func (rbs ResourceBundles) check(
 
 func (rbs ResourceBundles) buildPlan(ctx context.Context, checkResults map[TypeName]bool) (Plan, error) {
 	logger := log.GetLogger(ctx)
-	nestedCtx := log.IndentLogger(ctx)
-	nestedLogger := log.GetLogger(nestedCtx)
 
 	// Build unsorted digraph
 	logger.Info("Planning")
 	unsortedPlan := Plan{}
 	mergedNodes := map[Type]*Node{}
+	var lastResourceBundleLastNode *Node
 	for _, resourceBundle := range rbs {
 		// Create nodes with only resource definitions...
 		resourceBundleNodes := []*Node{}
-		for _, resourceDefinition := range resourceBundle {
-			resourceBundleNodes = append(resourceBundleNodes, &Node{
+		var node *Node
+		for i, resourceDefinition := range resourceBundle {
+			node = &Node{
 				ResourceDefinitions: []ResourceDefinition{resourceDefinition},
-			})
+			}
+			resourceBundleNodes = append(resourceBundleNodes, node)
+			if i == 0 && lastResourceBundleLastNode != nil {
+				lastResourceBundleLastNode.PrerequisiteFor = append(lastResourceBundleLastNode.PrerequisiteFor, node)
+			}
 		}
+		lastResourceBundleLastNode = node
 		// ...and populate other Node attributes
-		var lastNode *Node
+		var previousNode *Node
 		refresh := false
 		for _, node := range resourceBundleNodes {
-			if lastNode != nil {
-				lastNode.PrerequisiteFor = append(lastNode.PrerequisiteFor, node)
+			if previousNode != nil {
+				previousNode.PrerequisiteFor = append(previousNode.PrerequisiteFor, node)
 			}
 			typeName := node.ResourceDefinitions[0].TypeName
-			nestedLogger.Debugf("%s", typeName)
 			manageableResource, err := typeName.ManageableResource()
 			if err != nil {
 				return nil, err
 			}
 			checkResult, ok := checkResults[typeName]
-			nestedLogger.Debugf("check result %v", checkResult)
 			if !ok {
 				panic("missing check result")
 			}
@@ -563,7 +566,7 @@ func (rbs ResourceBundles) buildPlan(ctx context.Context, checkResults map[TypeN
 				}
 			}
 			node.Refresh = refresh
-			lastNode = node
+			previousNode = node
 		}
 		unsortedPlan = append(unsortedPlan, resourceBundleNodes...)
 	}
@@ -603,12 +606,15 @@ func (rbs ResourceBundles) GetPlan(ctx context.Context, hst host.Host, persistan
 	// Append destroy nodes
 	for _, resourceDefinition := range savedResourceDefinition {
 		if !rbs.HasTypeName(resourceDefinition.TypeName) {
-			plan = append(plan, &Node{
+			lastNode := plan[len(plan)-1]
+			node := &Node{
 				ResourceDefinitions: []ResourceDefinition{ResourceDefinition{
 					TypeName: resourceDefinition.TypeName,
 				}},
 				Action: ActionDestroy,
-			})
+			}
+			lastNode.PrerequisiteFor = append(lastNode.PrerequisiteFor, node)
+			plan = append(plan, node)
 		}
 	}
 

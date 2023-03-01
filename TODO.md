@@ -12,13 +12,12 @@
 - PersistantState
     - Change interface to only read / write `[]bytes`, so that serialization code can be shared across all interface implementations.
 - restic apply
-    - ResourceBundles:
-        - Have each resource bundle last ResourceDefinition as prerequisite for first definition of the next
     - ManageableResource
         - Destroy: must also merge instances (just like Apply)
     - Before the end, call check again: if changes detected, there's a bug in implementation.
     - On success, save ResourceBundles to host state.
     - Paralelise reading state.
+        - Log is indented, it'll be messy: how to address?
 - Add TESTS!
 - HostState
 	- Add field for version, required if the schema changes over time.
