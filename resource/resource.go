@@ -613,6 +613,17 @@ func (p Plan) Print(ctx context.Context) {
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 
+	var legendBuff bytes.Buffer
+	first := true
+	for action := Action(0); action < ActionCount; action++ {
+		if !first {
+			fmt.Fprint(&legendBuff, ", ")
+		}
+		fmt.Fprintf(&legendBuff, "%s = %s", action.Emoji(), action.String())
+		first = false
+	}
+	nestedLogger.Infof("%s", legendBuff.String())
+
 	for _, node := range p {
 		nestedLogger.Infof("%s", node)
 	}
@@ -750,8 +761,6 @@ func appendDestroyNodes(
 ) Plan {
 	logger := log.GetLogger(ctx)
 	logger.Info("💀 Prepending resources to destroy")
-	nestedCtx := log.IndentLogger(ctx)
-	nestedLogger := log.GetLogger(nestedCtx)
 	for _, resourceDefinition := range savedResourceBundle {
 		if resourceBundles.HasResourceDefinition(resourceDefinition) ||
 			resourceDefinition.IndividuallyManageableResource() == nil {
@@ -764,7 +773,6 @@ func appendDestroyNodes(
 			},
 			PrerequisiteFor: []*Node{plan[0]},
 		}
-		nestedLogger.Infof("💀 %s", node)
 		plan = append(Plan{node}, plan...)
 	}
 	return plan
