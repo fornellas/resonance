@@ -186,11 +186,11 @@ type ResourceBundle []ResourceDefinition
 type Action int
 
 var actionNames = []string{
-	"unknown",
-	"none",
-	"skip",
-	"apply",
-	"destroy",
+	"❓ Unknown",
+	"✔️ OK",
+	"⏩ Skip",
+	"🔧 Apply",
+	"💀 Destroy",
 }
 
 func (a Action) String() string {
@@ -356,7 +356,7 @@ func (p Plan) actionNoneSkip(ctx context.Context, hst host.Host, node *Node) err
 	}
 
 	if node.Refresh {
-		logger.Infof("%s: Action: %s", node.Name(), "Refresh")
+		logger.Infof("🔁 Refresh: %s", node.Name())
 		for _, resourceDefinition := range node.ResourceDefinitions {
 			if len(node.ResourceDefinitions) > 1 {
 				logger.Infof("  Refreshing %s", resourceDefinition)
@@ -370,7 +370,7 @@ func (p Plan) actionNoneSkip(ctx context.Context, hst host.Host, node *Node) err
 			}
 		}
 	} else {
-		logger.Infof("%s: Action: %s", node.Name(), node.Action)
+		logger.Infof("%s: %s", node.Action, node.Name())
 	}
 	return nil
 }
@@ -383,7 +383,7 @@ func (p Plan) actionApply(ctx context.Context, hst host.Host, node *Node) error 
 		return err
 	}
 
-	logger.Infof("%s: Action: %s", node.Name(), node.Action)
+	logger.Infof("%s: %s", node.Action, node.Name())
 	instances := []Instance{}
 	for _, resourceDefinition := range node.ResourceDefinitions {
 		name, err := resourceDefinition.TypeName.Name()
@@ -410,7 +410,7 @@ func (p Plan) actionDestroy(ctx context.Context, hst host.Host, node *Node) erro
 		return err
 	}
 
-	logger.Infof("%s: Action: %s", node.Name(), node.Action)
+	logger.Infof("%s: %s", node.Action, node.Name())
 	for _, resourceDefinition := range node.ResourceDefinitions {
 		if len(node.ResourceDefinitions) > 1 {
 			logger.Infof("Destroying %s", resourceDefinition)
