@@ -606,15 +606,14 @@ func (rbs ResourceBundles) GetPlan(ctx context.Context, hst host.Host, persistan
 	// Append destroy nodes
 	for _, resourceDefinition := range savedResourceDefinition {
 		if !rbs.HasTypeName(resourceDefinition.TypeName) {
-			lastNode := plan[len(plan)-1]
 			node := &Node{
 				ResourceDefinitions: []ResourceDefinition{ResourceDefinition{
 					TypeName: resourceDefinition.TypeName,
 				}},
-				Action: ActionDestroy,
+				PrerequisiteFor: []*Node{plan[0]},
+				Action:          ActionDestroy,
 			}
-			lastNode.PrerequisiteFor = append(lastNode.PrerequisiteFor, node)
-			plan = append(plan, node)
+			plan = append(Plan{node}, plan...)
 		}
 	}
 
