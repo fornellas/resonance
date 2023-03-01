@@ -548,7 +548,7 @@ func (p Plan) Graphviz() string {
 // Execute required changes to host
 func (p Plan) Execute(ctx context.Context, hst host.Host) error {
 	logger := log.GetLogger(ctx)
-	logger.Info("▶️  Executing changes")
+	logger.Info("🛠️  Executing changes")
 	nestedCtx := log.IndentLogger(ctx)
 	for _, node := range p {
 		err := node.Execute(nestedCtx, hst)
