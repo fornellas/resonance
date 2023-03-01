@@ -22,11 +22,11 @@ type FileParams struct {
 	// User ID owner of the file
 	Uid uint32 `yaml:"uid"`
 	// User name owner of the file
-	User string `yaml:"user"`
+	// User string `yaml:"user"`
 	// Group ID owner of the file
 	Gid uint32 `yaml:"gid"`
 	// Group name owner of the file
-	Group string `yaml:"group"`
+	// Group string `yaml:"group"`
 }
 
 // File resource manages files.

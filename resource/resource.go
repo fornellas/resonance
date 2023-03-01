@@ -516,7 +516,7 @@ func (rbs ResourceBundles) buildPlan(ctx context.Context, checkResults map[TypeN
 	logger := log.GetLogger(ctx)
 
 	// Build unsorted digraph
-	logger.Info("🏗️  Building plan")
+	logger.Info("👷  Building plan")
 	unsortedPlan := Plan{}
 	mergedNodes := map[Type]*Node{}
 	var lastResourceBundleLastNode *Node
