@@ -681,14 +681,20 @@ func buildApplyRefreshPlan(
 	logger.Info("👷 Building apply/refresh plan")
 	unsortedPlan := Plan{}
 
-	// TODO link last node from one bundle to the first node of the next bundle
 	mergedNodes := map[Type]*Node{}
+	var lastBundleLastNode *Node
 	for _, resourceBundle := range resourceBundles {
 		resourceBundleNodes := []*Node{}
 		refresh := false
+		var node *Node
 		for i, resourceDefinition := range resourceBundle {
-			node := &Node{}
+			node = &Node{}
 			unsortedPlan = append(unsortedPlan, node)
+
+			// Dependant on previous bundle
+			if i == 0 && lastBundleLastNode != nil {
+				lastBundleLastNode.PrerequisiteFor = append(lastBundleLastNode.PrerequisiteFor, node)
+			}
 
 			// Result
 			checkResult, ok := checkResults[resourceDefinition.ResourceDefinitionKey()]
@@ -751,6 +757,7 @@ func buildApplyRefreshPlan(
 				refresh = true
 			}
 		}
+		lastBundleLastNode = node
 	}
 
 	// Sort
