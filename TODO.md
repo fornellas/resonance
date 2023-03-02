@@ -20,17 +20,37 @@
     - `ssh.go`
         - Implement using Go Ssh libraries.
 - `resource/`
+    - `alternatives.go`
+        - Implement with `update-alternatives`.
+    - `apt_update.go`
+        - Calls `apt-get update`.
+        - There should be a single resource declaration
+            - Implicitly added if not present.
+        - It must be `refreshed_by` `APTRepository`.
+        - Parameters can be "freshness", so eg, if update is > freshness, then do update.
+    - `apt_repository.go`:
+        - Use `add-apt-repository` to add at `/etc/apt/sources.list.d`
     - `apt_package.go`
         - Implement `ConfigureAll`.
+        - Support directly passing `.deb` packages.
+        - Enforce after `File[/etc/apt/preferences.d/.+]`.
     - `file.go`
         - Implement `Apply`.
         - Set default values for parameters.
         - Support `User` and `Group` (requries `host.Host.Getuid/Getgid`)
+        - Type: regular, link, dir, char device, block device, pipe, socket.
+    - `group.go`
+        - Manage groups.
+        - Mergeable.
+    - `user.go`
+        - After `Group[.+]`.
+        - Mergeable.
     - `resource.go`
         - `Plan.Execute`
             - At the end check again, fail if changes detected (bug in implementation).
             - On success, save `ResourceBundles` to `PersistantState`.
             - Parallelise check.
+            - Call check after apply to validate.
         - `LoadResourceBundles`
             - Receive a single directory and load recursively from it.
             - Go templates
@@ -50,9 +70,10 @@
             - Change interface to only read / write `[]bytes`, so that serialization code can be shared across all interface implementations.
             - Add field with resonance version at schema.
         - `ResourceDefinition`
-            - Support refreshed_by, to enable resources to subscribe to others (eg: `SystemdUnit[nginx.service]` is `refreshed_by` `File[/etc/nginx/.+]`)
+            - Support `refreshed_by`, to enable resources to subscribe to others (eg: `SystemdUnit[nginx.service]` is `refreshed_by` `File[/etc/nginx/.+]`)
         - `ManageableResource`
             - Support defining implicit dependencies (eg: APTSource before APTPackage)
+            - Check if current host OS is supported.
 - `cli/`
     - `**/cmd.go`
         - ^C cancel context
