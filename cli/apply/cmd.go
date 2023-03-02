@@ -63,6 +63,9 @@ var Cmd = &cobra.Command{
 		if err := plan.Execute(ctx, hst); err != nil {
 			logger.Fatal(err)
 		}
+
+		// Success
+		logger.Info("🎆 Success")
 	},
 }
 
