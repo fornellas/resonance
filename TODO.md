@@ -17,8 +17,10 @@
 - `host/`
     - `local.go`
         - Use [subreaper to wait on all children](https://github.com/fornellas/rrb/blob/main/runner/runner.go).
+        - Add option to use sudo to run commands.
     - `ssh.go`
         - Implement using Go Ssh libraries.
+        - Add option to use sudo to run commands.
 - `resource/`
     - `alternatives.go`
         - Implement with `update-alternatives`.
