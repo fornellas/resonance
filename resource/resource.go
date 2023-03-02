@@ -63,6 +63,7 @@ var actionEmojiMap = map[Action]string{
 	ActionDestroy: "💀",
 }
 
+// Emoji representing the action
 func (a Action) Emoji() string {
 	emoji, ok := actionEmojiMap[a]
 	if !ok {
@@ -169,6 +170,7 @@ func (t Type) Validate() error {
 	return fmt.Errorf("unknown resource type '%s'", t)
 }
 
+// Mustvalidate panics if it validation fails
 func (t Type) MustValidate() {
 	if err := t.Validate(); err != nil {
 		panic(err)
@@ -208,6 +210,7 @@ func (tn TypeName) typeName() (Type, Name, error) {
 	return tpe, name, nil
 }
 
+// Validate whether format and type are valid.
 func (tn TypeName) Validate() error {
 	var tpe Type
 	var err error
@@ -232,7 +235,6 @@ func (tn *TypeName) UnmarshalYAML(node *yaml.Node) error {
 	return nil
 }
 
-// Name returns the Name of the resource.
 func (tn TypeName) Name() Name {
 	_, name, err := tn.typeName()
 	if err != nil {
@@ -295,23 +297,23 @@ func (rd ResourceDefinition) ResourceDefinitionKey() ResourceDefinitionKey {
 	return ResourceDefinitionKey(rd.String())
 }
 
+// Check runs ManageableResource.Check.
 func (rd ResourceDefinition) Check(ctx context.Context, hst host.Host) (CheckResult, error) {
 	logger := log.GetLogger(ctx)
 
 	logger.Debugf("Checking %v", rd)
-	check, err := rd.ManageableResource.Check(log.IndentLogger(ctx), hst, rd.Name, rd.Parameters)
-	if err != nil {
-		return false, err
-	}
-	return check, nil
+	return rd.ManageableResource.Check(log.IndentLogger(ctx), hst, rd.Name, rd.Parameters)
 }
 
+// IsIndividuallyManageableResource returns true only if ManageableResource is of type IndividuallyManageableResource.
 func (rd ResourceDefinition) IsIndividuallyManageableResource() bool {
 	_, ok := rd.ManageableResource.(IndividuallyManageableResource)
 	return ok
 }
 
-func (rd ResourceDefinition) IndividuallyManageableResource() IndividuallyManageableResource {
+// MustIndividuallyManageableResource returns IndividuallyManageableResource from ManageableResource or
+// panics if it isn't of the required type.
+func (rd ResourceDefinition) MustIndividuallyManageableResource() IndividuallyManageableResource {
 	individuallyManageableResource, ok := rd.ManageableResource.(IndividuallyManageableResource)
 	if !ok {
 		panic(fmt.Errorf("%s is not IndividuallyManageableResource", rd))
@@ -319,12 +321,15 @@ func (rd ResourceDefinition) IndividuallyManageableResource() IndividuallyManage
 	return individuallyManageableResource
 }
 
+// IsMergeableManageableResources returns true only if ManageableResource is of type MergeableManageableResources.
 func (rd ResourceDefinition) IsMergeableManageableResources() bool {
 	_, ok := rd.ManageableResource.(MergeableManageableResources)
 	return ok
 }
 
-func (rd ResourceDefinition) MergeableManageableResources() MergeableManageableResources {
+// MustMergeableManageableResources returns MergeableManageableResources from ManageableResource or
+// panics if it isn't of the required type.
+func (rd ResourceDefinition) MustMergeableManageableResources() MergeableManageableResources {
 	mergeableManageableResources, ok := rd.ManageableResource.(MergeableManageableResources)
 	if !ok {
 		panic(fmt.Errorf("%s is not MergeableManageableResources", rd))
@@ -385,6 +390,7 @@ func LoadSavedState(ctx context.Context, persistantState PersistantState) (Resou
 // ResourceBundles holds all resources definitions for a host.
 type ResourceBundles []ResourceBundle
 
+// HasResourceDefinition returns true if ResourceDefinition is contained at ResourceBundles.
 func (rbs ResourceBundles) HasResourceDefinition(resourceDefinition ResourceDefinition) bool {
 	for _, resourceBundle := range rbs {
 		for _, rd := range resourceBundle {
@@ -413,16 +419,19 @@ func LoadResourceBundles(ctx context.Context, paths []string) ResourceBundles {
 	return resourceBundles
 }
 
+// NodeAction defines an interface for an action that can be executed from a Node.
 type NodeAction interface {
 	Execute(ctx context.Context, hst host.Host) error
 	String() string
 }
 
+// NodeActionIndividual is a NodeAction which can execute a single ResourceDefinition.
 type NodeActionIndividual struct {
 	ResourceDefinition ResourceDefinition
 	Action             Action
 }
 
+// Execute Action for the ResourceDefinition.
 func (nai NodeActionIndividual) Execute(ctx context.Context, hst host.Host) error {
 	logger := log.GetLogger(ctx)
 	logger.Infof("%s", nai)
@@ -432,11 +441,11 @@ func (nai NodeActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 	switch nai.Action {
 	case ActionOk, ActionSkip:
 	case ActionRefresh:
-		return nai.ResourceDefinition.IndividuallyManageableResource().Refresh(nestedCtx, hst, name)
+		return nai.ResourceDefinition.MustIndividuallyManageableResource().Refresh(nestedCtx, hst, name)
 	case ActionApply:
-		return nai.ResourceDefinition.IndividuallyManageableResource().Apply(nestedCtx, hst, name, parameters)
+		return nai.ResourceDefinition.MustIndividuallyManageableResource().Apply(nestedCtx, hst, name, parameters)
 	case ActionDestroy:
-		return nai.ResourceDefinition.IndividuallyManageableResource().Destroy(nestedCtx, hst, name)
+		return nai.ResourceDefinition.MustIndividuallyManageableResource().Destroy(nestedCtx, hst, name)
 	default:
 		panic(fmt.Errorf("unexpected action %v", nai.Action))
 	}
@@ -447,18 +456,22 @@ func (nai NodeActionIndividual) String() string {
 	return fmt.Sprintf("%s[%s %s]", nai.ResourceDefinition.Type(), nai.Action.Emoji(), nai.ResourceDefinition.Name)
 }
 
+// NodeActionMerged is a NodeAction which contains multiple merged ResourceDefinition.
 type NodeActionMerged struct {
 	ActionResourceDefinitions map[Action][]ResourceDefinition
 }
 
-func (nam NodeActionMerged) MergeableManageableResources() MergeableManageableResources {
+// MustMergeableManageableResources returns MergeableManageableResources common to all
+// ResourceDefinition or panics.
+func (nam NodeActionMerged) MustMergeableManageableResources() MergeableManageableResources {
 	var mergeableManageableResources MergeableManageableResources
 	for _, resourceDefinitions := range nam.ActionResourceDefinitions {
 		for _, resourceDefinition := range resourceDefinitions {
-			if mergeableManageableResources != nil && mergeableManageableResources != resourceDefinition.MergeableManageableResources() {
+			if mergeableManageableResources != nil &&
+				mergeableManageableResources != resourceDefinition.MustMergeableManageableResources() {
 				panic(fmt.Errorf("%s: mixed resource types", nam))
 			}
-			mergeableManageableResources = resourceDefinition.MergeableManageableResources()
+			mergeableManageableResources = resourceDefinition.MustMergeableManageableResources()
 		}
 	}
 	if mergeableManageableResources == nil {
@@ -467,6 +480,7 @@ func (nam NodeActionMerged) MergeableManageableResources() MergeableManageableRe
 	return mergeableManageableResources
 }
 
+// Execute the required Action for each ResourceDefinition.
 func (nam NodeActionMerged) Execute(ctx context.Context, hst host.Host) error {
 	logger := log.GetLogger(ctx)
 	logger.Infof("%s", nam)
@@ -487,12 +501,12 @@ func (nam NodeActionMerged) Execute(ctx context.Context, hst host.Host) error {
 		}
 	}
 
-	if err := nam.MergeableManageableResources().ConfigureAll(nestedCtx, hst, configureActionDefinition); err != nil {
+	if err := nam.MustMergeableManageableResources().ConfigureAll(nestedCtx, hst, configureActionDefinition); err != nil {
 		return err
 	}
 
 	for _, name := range refreshNames {
-		if err := nam.MergeableManageableResources().Refresh(nestedCtx, hst, name); err != nil {
+		if err := nam.MustMergeableManageableResources().Refresh(nestedCtx, hst, name); err != nil {
 			return err
 		}
 	}
@@ -512,13 +526,7 @@ func (nam NodeActionMerged) String() string {
 	return fmt.Sprintf("%s[%s]", tpe, strings.Join(names, ", "))
 }
 
-func (nam NodeActionMerged) Type() Type {
-	tpe := Type(reflect.TypeOf(nam.MergeableManageableResources()).Name())
-	tpe.MustValidate()
-	return tpe
-}
-
-// Node from a Plan
+// Node that's used at a Plan
 type Node struct {
 	NodeAction      NodeAction
 	PrerequisiteFor []*Node
@@ -528,6 +536,7 @@ func (n Node) String() string {
 	return n.NodeAction.String()
 }
 
+// Execute NodeAction
 func (n Node) Execute(ctx context.Context, hst host.Host) error {
 	return n.NodeAction.Execute(ctx, hst)
 }
@@ -551,7 +560,7 @@ func (p Plan) Graphviz() string {
 	return buff.String()
 }
 
-// Execute required changes to host
+// Execute all Node at the Plan.
 func (p Plan) Execute(ctx context.Context, hst host.Host) error {
 	logger := log.GetLogger(ctx)
 	logger.Info("🛠️  Executing changes")
@@ -613,6 +622,7 @@ func (p Plan) topologicalSort() (Plan, error) {
 	return result, nil
 }
 
+// Print the whole plan
 func (p Plan) Print(ctx context.Context) {
 	logger := log.GetLogger(ctx)
 	logger.Info("📝 Plan")
@@ -787,7 +797,7 @@ func appendDestroyNodes(
 	nestedLogger := log.GetLogger(nestedCtx)
 	for _, resourceDefinition := range savedResourceBundle {
 		if resourceBundles.HasResourceDefinition(resourceDefinition) ||
-			resourceDefinition.IndividuallyManageableResource() == nil {
+			resourceDefinition.MustIndividuallyManageableResource() == nil {
 			continue
 		}
 		node := &Node{
