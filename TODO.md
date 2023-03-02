@@ -13,52 +13,58 @@
       - Coverage
       - go report
       - license
-- `host/local.go`
-    - Use [subreaper to wait on all children](https://github.com/fornellas/rrb/blob/main/runner/runner.go).
-- `host/ssh.go`: implement.
-- `resource/apt_package.go`: implement.
-- `resource/file.go`
-    - Set default values for parameters.
-    - Support `User` and `Group` (requries `host.Host.Getuid/Getgid`)
-- `resource/resource.go`
-    - `PersistantState`
-        - Change interface to only read / write `[]bytes`, so that serialization code can be shared across all interface implementations.
-        - Add field with resonance version at schema.
-    - `Plan.Execute`
-        - At the end check again, fail if changes detected (bug in implementation).
-        - On success, save `ResourceBundles` to `PersistantState`.
-        - Parallelise check.
-    - `LoadResourceBundles`
-        - Receive a single directory and load recursively from it.
-        - Go templates
-            - Before parsing yaml, Go template each resource bundle yaml.
-            - Template is a function of:
-                - `--host-parameters parms.yaml`, containing host specific stuff (Eg: secrets)
-                - `HostInventory`
-                    - General information about the host.
-                    - Must only contains things that are NOT affected by any resource (eg: CPU, memory etc.)
-                    - Should save with state and check for changes?
-                    - After apply, reload `HostInventory`
-                        - If there are any changes, it means an implementation bug.
-                        - There may be valid corner cases here. In such scenarios:
-                            - `--allow-inventory-changes` have apply re-run when inventory changes at the end.
-                            - Should put a limit (otherwise, inifinite loops can happen).
-    - `ManageableResource`
-        - Support defining implicit dependencies (eg: APTSource before APTPackage)
-    - `ResourceDefinition`
-        - Support refreshed_by, to enable resources to subscribe to others (eg: `SystemdUnit[nginx.service]` is `refreshed_by` `File[/etc/nginx/.+]`)
-- `cli/**/cmd.go`
-    - ^C cancel context
 - Add TESTS!
-- `cli/check/cmd.go`: implement: checks host state / resources against host.
-- `cli/plan/cmd.go`:
-    - implement: checks host state / resources and calculate plan against host.
-	- Add `--graphviz` option
-	- Add `--svg option` (generate the svg directly from the internal graphviz)
-- `cli/lint/cmd.go`: implement:
-    - Validate resource definitions
-    - Lint yaml (format & sort)
-- `cli/refresh/cmd.go`
-	- Update state to match declared resources.
-- `cli/destroy/cmd.go`
-    - Destroy all resources at state
+- `host/`
+    - `local.go`
+        - Use [subreaper to wait on all children](https://github.com/fornellas/rrb/blob/main/runner/runner.go).
+    - `ssh.go`
+        - Implement using Go Ssh libraries.
+- `resource/`
+    - `apt_package.go`
+        - Implement `ConfigureAll`.
+    - `file.go`
+        - Implement `Apply`.
+        - Set default values for parameters.
+        - Support `User` and `Group` (requries `host.Host.Getuid/Getgid`)
+    - `resource.go`
+        - `Plan.Execute`
+            - At the end check again, fail if changes detected (bug in implementation).
+            - On success, save `ResourceBundles` to `PersistantState`.
+            - Parallelise check.
+        - `LoadResourceBundles`
+            - Receive a single directory and load recursively from it.
+            - Go templates
+                - Before parsing yaml, Go template each resource bundle yaml.
+                - Template is a function of:
+                    - `--host-parameters parms.yaml`, containing host specific stuff (Eg: secrets)
+                    - `HostInventory`
+                        - General information about the host.
+                        - Must only contains things that are NOT affected by any resource (eg: CPU, memory etc.)
+                        - Should save with state and check for changes?
+                        - After apply, reload `HostInventory`
+                            - If there are any changes, it means an implementation bug.
+                            - There may be valid corner cases here. In such scenarios:
+                                - `--allow-inventory-changes` have apply re-run when inventory changes at the end.
+                                - Should put a limit (otherwise, inifinite loops can happen).
+        - `PersistantState`
+            - Change interface to only read / write `[]bytes`, so that serialization code can be shared across all interface implementations.
+            - Add field with resonance version at schema.
+        - `ResourceDefinition`
+            - Support refreshed_by, to enable resources to subscribe to others (eg: `SystemdUnit[nginx.service]` is `refreshed_by` `File[/etc/nginx/.+]`)
+        - `ManageableResource`
+            - Support defining implicit dependencies (eg: APTSource before APTPackage)
+- `cli/`
+    - `**/cmd.go`
+        - ^C cancel context
+    - `check/cmd.go`: implement: checks host state / resources against host.
+    - `plan/cmd.go`:
+        - implement: checks host state / resources and calculate plan against host.
+        - Add `--graphviz` option
+        - Add `--svg option` (generate the svg directly from the internal graphviz)
+    - `lint/cmd.go`: implement:
+        - Validate resource definitions
+        - Lint yaml (format & sort)
+    - `refresh/cmd.go`
+    	- Update state to match declared resources.
+    - `destroy/cmd.go`
+        - Destroy all resources at state
