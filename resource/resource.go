@@ -10,6 +10,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -523,6 +524,7 @@ func (nam NodeActionMerged) String() string {
 			names = append(names, fmt.Sprintf("%s %s", action.Emoji(), string(resourceDefinition.Name)))
 		}
 	}
+	sort.Strings(names)
 	return fmt.Sprintf("%s[%s]", tpe, strings.Join(names, ", "))
 }
 
