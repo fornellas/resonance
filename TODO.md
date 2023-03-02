@@ -73,6 +73,9 @@
         - `ManageableResource`
             - Support defining implicit dependencies (eg: APTSource before APTPackage)
             - Check if current host OS is supported.
+        - Output
+            - Use the output of one resource as parameter for another.
+                - Eg: a service creates an ID which another resource depends on.
 - `cli/`
     - `**/cmd.go`
         - ^C cancel context
