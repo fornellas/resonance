@@ -83,8 +83,52 @@ func (ap APTPackage) Refresh(ctx context.Context, hst host.Host, name Name) erro
 	return nil
 }
 
-func (ap APTPackage) ConfigureAll(ctx context.Context, hst host.Host, actionDefinition map[Action]Definitions) error {
-	return fmt.Errorf("TODO APTPackage.Apply")
+func (ap APTPackage) ConfigureAll(ctx context.Context, hst host.Host, actionDefinitions map[Action]Definitions) error {
+	nestedCtx := log.IndentLogger(ctx)
+
+	// Package arguments
+	pkgs := []string{}
+	for action, definitions := range actionDefinitions {
+		var pkgAction string
+		switch action {
+		case ActionOk:
+		case ActionApply:
+			pkgAction = "+"
+		case ActionDestroy:
+			pkgAction = "-"
+		default:
+			return fmt.Errorf("unexpected action %s", action)
+		}
+		for name, parameters := range definitions {
+			var aptPackageParams APTPackageParams
+			if err := parameters.Decode(&aptPackageParams); err != nil {
+				return err
+			}
+			var version string
+			if aptPackageParams.Version != "" {
+				version = fmt.Sprintf("=%s", aptPackageParams.Version)
+			}
+			pkgs = append(pkgs, fmt.Sprintf("%s%s%s", string(name), version, pkgAction))
+		}
+	}
+
+	// Run apt
+	cmd := host.Cmd{
+		Path: "apt-get",
+		Args: append([]string{"install"}, pkgs...),
+	}
+	waitStatus, stdout, stderr, err := hst.Run(nestedCtx, cmd)
+	if err != nil {
+		return fmt.Errorf("failed to run '%s': %s", cmd, err)
+	}
+	if !waitStatus.Success() {
+		return fmt.Errorf(
+			"failed to run '%v': %s:\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
+		)
+	}
+
+	return nil
 }
 
 func init() {

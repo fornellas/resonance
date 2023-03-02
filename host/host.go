@@ -71,14 +71,14 @@ func (ws *WaitStatus) String() string {
 	var str string
 
 	if ws.Exited {
-		str := fmt.Sprintf("Process exited with status %v", ws.ExitCode)
+		str = fmt.Sprintf("Process exited with status %v", ws.ExitCode)
 		if ws.Signal != "" {
 			str += fmt.Sprintf(" from signal %v", ws.Signal)
 		}
 	} else {
-		str := "Process did not exit"
+		str = "Process did not exit"
 		if ws.Signal != "" {
-			str += fmt.Sprintf(" with signal %v", ws.Signal)
+			str += fmt.Sprintf(" from signal %v", ws.Signal)
 		}
 	}
 

@@ -130,7 +130,7 @@ type MergeableManageableResources interface {
 
 	// ConfigureAll configures all resource definitions at host.
 	// Must be idempotent.
-	ConfigureAll(ctx context.Context, hst host.Host, actionDefinition map[Action]Definitions) error
+	ConfigureAll(ctx context.Context, hst host.Host, actionDefinitions map[Action]Definitions) error
 }
 
 // Type is the name of the resource type.

@@ -31,7 +31,6 @@
     - `apt_repository.go`:
         - Use `add-apt-repository` to add at `/etc/apt/sources.list.d`
     - `apt_package.go`
-        - Implement `ConfigureAll`.
         - Support directly passing `.deb` packages.
         - Enforce after `File[/etc/apt/preferences.d/.+]`.
     - `file.go`
