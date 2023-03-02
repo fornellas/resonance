@@ -51,6 +51,7 @@
             - On success, save `ResourceBundles` to `PersistantState`.
             - Parallelise check.
             - Call check after apply to validate.
+            - Auto-rollback saved state on failures.
         - `LoadResourceBundles`
             - Receive a single directory and load recursively from it.
             - Go templates
