@@ -3,6 +3,7 @@ package host
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 )
 
@@ -25,6 +26,10 @@ func (s Ssh) Remove(ctx context.Context, name string) error {
 
 func (s Ssh) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, error) {
 	return WaitStatus{}, "", "", errors.New("TODO Ssh.Run")
+}
+
+func (s Ssh) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
+	return fmt.Errorf("TODO Ssh.WriteFile")
 }
 
 func (s Ssh) String() string {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"syscall"
 
 	"gopkg.in/yaml.v3"
@@ -43,6 +44,9 @@ func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters ya
 	var fileParams FileParams
 	if err := parameters.Decode(&fileParams); err != nil {
 		return false, err
+	}
+	if !filepath.IsAbs(path) {
+		return false, fmt.Errorf("path must be absolute: %s", path)
 	}
 
 	// Path Hash
@@ -126,14 +130,16 @@ func (f File) Refresh(ctx context.Context, hst host.Host, name Name) error {
 }
 
 func (f File) Apply(ctx context.Context, hst host.Host, name Name, parameters yaml.Node) error {
-	// TODO use Host interface
-	// fileParams := parameters.(FileParams)
+	nestedCtx := log.IndentLogger(ctx)
+	path := string(name)
 
-	// if err := os.WriteFile(name, fileParams.Content, fileParams.Perm); err != nil {
-	// 	return err
-	// }
-	// return nil
-	return fmt.Errorf("TODO File.Apply")
+	// FileParams
+	var fileParams FileParams
+	if err := parameters.Decode(&fileParams); err != nil {
+		return err
+	}
+
+	return hst.WriteFile(nestedCtx, path, []byte(fileParams.Content), fileParams.Perm)
 }
 
 func (f File) Destroy(ctx context.Context, hst host.Host, name Name) error {

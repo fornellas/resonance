@@ -77,6 +77,10 @@ func (l Local) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, er
 	return waitStatus, stdoutBuffer.String(), stderrBuffer.String(), nil
 }
 
+func (l Local) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
+	return os.WriteFile(name, data, perm)
+}
+
 func (l Local) String() string {
 	return "localhost"
 }

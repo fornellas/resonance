@@ -34,7 +34,6 @@
         - Support directly passing `.deb` packages.
         - Enforce after `File[/etc/apt/preferences.d/.+]`.
     - `file.go`
-        - Implement `Apply`.
         - Set default values for parameters.
         - Support `User` and `Group` (requries `host.Host.Getuid/Getgid`)
         - Type: regular, link, dir, char device, block device, pipe, socket.

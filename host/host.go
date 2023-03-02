@@ -130,8 +130,8 @@ type Host interface {
 	// // Symlink works similar to os.Symlink.
 	// Symlink(ctx context.Context, oldname, newname string) error
 
-	// // WriteFile works similar to os.WriteFile.
-	// WriteFile(ctx context.Context, path string, perm os.FileMode)
+	// WriteFile works similar to os.WriteFile.
+	WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error
 
 	String() string
 }
