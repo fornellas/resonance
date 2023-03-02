@@ -18,12 +18,16 @@
 - `host/ssh.go`: implement.
 - `resource/apt_package.go`: implement.
 - `resource/file.go`: implement.
+- `resource/resource.go`
+    - `PersistantState`
+        - Change interface to only read / write `[]bytes`, so that serialization code can be shared across all interface implementations.
+    - `Plan.Execute`
+        - At the end check again, fail if changes detected (bug in implementation).
+        - On success, save `ResourceBundles` to `PersistantState`.
+        - Parallelise check.
 
-- PersistantState
-    - Change interface to only read / write `[]bytes`, so that serialization code can be shared across all interface implementations.
 - restic apply
-    - Before the end, call check again: if changes detected, there's a bug in implementation.
-    - On success, save ResourceBundles to host state.
+
     - Paralelise reading state.
         - Log is indented, it'll be messy: how to address?
     - LoadResourceBundles
