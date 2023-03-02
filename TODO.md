@@ -13,6 +13,12 @@
       - Coverage
       - go report
       - license
+- `host/local.go`
+    - Use [subreaper to wait on all children](https://github.com/fornellas/rrb/blob/main/runner/runner.go).
+- `host/ssh.go`: implement.
+- `resource/apt_package.go`: implement.
+- `resource/file.go`: implement.
+
 - PersistantState
     - Change interface to only read / write `[]bytes`, so that serialization code can be shared across all interface implementations.
 - restic apply

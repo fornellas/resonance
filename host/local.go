@@ -57,17 +57,10 @@ func (l Local) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, er
 		time.Sleep(3 * time.Second)
 		// process may have exited by now, should be safe-ish to ignore errors here
 		execCmd.Process.Signal(syscall.SIGKILL)
-		// TODO babysit children
 		return nil
 	}
 
 	waitStatus := WaitStatus{}
-
-	// This ensures that orphan process will become children of the process
-	// that forks, so we can be sure to babysit them.
-	// if err := subreaper.Set(); err != nil {
-	// 	return waitStatus, stdoutBuffer.String(), stderrBuffer.String(), err
-	// }
 
 	err := execCmd.Run()
 	waitStatus.ExitCode = execCmd.ProcessState.ExitCode()
