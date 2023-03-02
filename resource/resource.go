@@ -260,6 +260,9 @@ type ResourceDefinitionSchema struct {
 // can be used as keys in maps.
 type ResourceDefinitionKey string
 
+// CheckResults holds results for multiple resources.
+type CheckResults map[ResourceDefinitionKey]CheckResult
+
 // ResourceDefinition holds a single resource definition.
 type ResourceDefinition struct {
 	ManageableResource ManageableResource
@@ -639,13 +642,13 @@ func checkResourcesState(
 	hst host.Host,
 	savedResourceDefinition []ResourceDefinition,
 	resourceBundles ResourceBundles,
-) (map[ResourceDefinitionKey]CheckResult, error) {
+) (CheckResults, error) {
 	logger := log.GetLogger(ctx)
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 
 	logger.Info("🔎 Checking state")
-	checkResults := map[ResourceDefinitionKey]CheckResult{}
+	checkResults := CheckResults{}
 	for _, resourceDefinition := range savedResourceDefinition {
 		checkResult, err := resourceDefinition.Check(nestedCtx, hst)
 		if err != nil {
@@ -676,7 +679,7 @@ func checkResourcesState(
 func buildApplyRefreshPlan(
 	ctx context.Context,
 	resourceBundles ResourceBundles,
-	checkResults map[ResourceDefinitionKey]CheckResult,
+	checkResults CheckResults,
 ) (Plan, error) {
 	logger := log.GetLogger(ctx)
 
