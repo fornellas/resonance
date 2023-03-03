@@ -58,6 +58,11 @@
             - ❗At the end check again, fail if changes detected (bug in implementation).
             - ❗Auto-rollback saved state on failures.
             - Parallelise check.
+        - `PersistantState`
+            - ❗Change interface to only read / write `[]bytes`, so that serialization code can be shared across all interface implementations.
+            - ❗Add field with resonance version at schema.
+            - Save history of states: enable to rollback to any previous state.
+            - Local state: save to `XDG_STATE_HOME/resonance/$target_hostname/`
         - `LoadResourceBundles`
             - ❗Receive a single directory and load recursively from it.
             - Go templates
@@ -73,14 +78,14 @@
                             - There may be valid corner cases here. In such scenarios:
                                 - `--allow-inventory-changes` have apply re-run when inventory changes at the end.
                                 - Should put a limit (otherwise, inifinite loops can happen).
-        - `PersistantState`
-            - ❗Change interface to only read / write `[]bytes`, so that serialization code can be shared across all interface implementations.
-            - ❗Add field with resonance version at schema.
         - `ResourceDefinition`
             - Support `refreshed_by`, to enable resources to subscribe to others (eg: `SystemdUnit[nginx.service]` is `refreshed_by` `File[/etc/nginx/.+]`)
         - `ManageableResource`
             - Support defining implicit dependencies (eg: APTSource before APTPackage)
             - Check if current host OS is supported.
+        - `Plan`
+            - `Execute`
+                - Apply nodes concurrently for cases where it can be done (eg: no refresh)
         - Output
             - Use the output of one resource as parameter for another.
                 - Eg: a service creates an ID which another resource depends on.
