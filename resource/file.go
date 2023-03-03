@@ -112,6 +112,8 @@ func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters ya
 		return false, err
 	}
 
+	checkResult := CheckResult(true)
+
 	// Path Hash
 	pathtHash := md5.New()
 	content, err := hst.ReadFile(ctx, path)
@@ -120,7 +122,7 @@ func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters ya
 			return false, err
 		}
 		logger.Debug("File not found")
-		return false, nil
+		checkResult = false
 	} else {
 		n, err := pathtHash.Write(content)
 		if err != nil {
@@ -143,8 +145,8 @@ func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters ya
 
 	// Compare Hash
 	if fmt.Sprintf("%v", pathtHash.Sum(nil)) != fmt.Sprintf("%v", fileParamsHash.Sum(nil)) {
-		logger.Debug("Hash differs")
-		return false, nil
+		logger.Debug("Content differs")
+		checkResult = false
 	}
 
 	// FileInfo
@@ -156,8 +158,8 @@ func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters ya
 
 	// Perm
 	if fileInfo.Mode() != fileParams.Perm {
-		logger.Debug("Perm differs")
-		return false, nil
+		logger.Debugf("Expected permission 0%o, got 0%o", fileParams.Perm, fileInfo.Mode())
+		checkResult = false
 	}
 
 	// Uid / User
@@ -166,8 +168,8 @@ func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters ya
 		return false, err
 	}
 	if stat_t.Uid != uid {
-		logger.Debug("Uid differs")
-		return false, nil
+		logger.Debugf("Expected UID %d, got %d", uid, stat_t.Uid)
+		checkResult = false
 	}
 
 	// Gid
@@ -176,19 +178,11 @@ func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters ya
 		return false, err
 	}
 	if stat_t.Gid != gid {
-		logger.Debug("Gid differs")
-		return false, nil
+		logger.Debugf("Expected GID %d, got %d", gid, stat_t.Gid)
+		checkResult = false
 	}
 
-	// Group
-	// TODO use host interface
-	// g, err := user.LookupGroupId(strconv.Itoa(int(fileState.Gid)))
-	// if err != nil {
-	// 	return false, err
-	// }
-	// fileState.Group = g.Name
-
-	return true, nil
+	return checkResult, nil
 }
 
 func (f File) Refresh(ctx context.Context, hst host.Host, name Name) error {

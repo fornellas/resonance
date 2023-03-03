@@ -40,6 +40,8 @@
         - Enforce after `File[/etc/apt/preferences.d/.+]`.
     - `file.go`
         - Type: regular, link, dir, char device, block device, pipe, socket.
+        - `Check`
+            - Print colored diff on content difference.
     - `group.go`
         - Manage groups.
         - Mergeable.
