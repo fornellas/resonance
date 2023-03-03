@@ -37,6 +37,8 @@ func (ap APTPackage) Check(ctx context.Context, hst host.Host, name Name, parame
 		return false, err
 	}
 
+	checkResult := CheckResult(true)
+
 	// Get package state
 	hostCmd := host.Cmd{
 		Path: "dpkg",
@@ -48,10 +50,11 @@ func (ap APTPackage) Check(ctx context.Context, hst host.Host, name Name, parame
 	}
 	if !waitStatus.Success() {
 		if waitStatus.Exited && waitStatus.ExitCode == 1 && strings.Contains(stderr, "not installed") {
-			logger.Debugf("Not installed")
-			return false, nil
+			logger.Debugf("Package not installed")
+			checkResult = false
+		} else {
+			return false, fmt.Errorf("failed to call '%s': %s\nstdout:\n%s\nstderr:\n%s", hostCmd.String(), waitStatus.String(), stdout, stderr)
 		}
-		return false, fmt.Errorf("failed to call '%s': %s\nstdout:\n%s\nstderr:\n%s", hostCmd.String(), waitStatus.String(), stdout, stderr)
 	}
 
 	// Parse result
@@ -71,16 +74,17 @@ func (ap APTPackage) Check(ctx context.Context, hst host.Host, name Name, parame
 	}
 
 	// Process
-	if status != "install ok installed" {
-		logger.Debugf("Status %s", status)
-		return false, nil
+	expectedStatus := "install ok installed"
+	if status != expectedStatus {
+		logger.Debugf("Expected status '%s', got '%s'", expectedStatus, status)
+		checkResult = false
 	}
 	if aptPackageParams.Version != "" && aptPackageParams.Version != version {
-		logger.Debugf("Version %s", version)
-		return false, nil
+		logger.Debugf("Expected version %s, got %s", aptPackageParams.Version, version)
+		checkResult = false
 	}
 
-	return true, nil
+	return checkResult, nil
 }
 
 func (ap APTPackage) Refresh(ctx context.Context, hst host.Host, name Name) error {
