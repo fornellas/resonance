@@ -10,7 +10,7 @@ A configuration management tool, somewhat similar to Ansible, Chef or Puppet, bu
   - Detecting external changes that may break automation.
   - Deletion of resources that are not required anymore.
   - Automatic rollback on failures: "all or nothing" approach.
-- Transaction resource changes.
+- Transactional resource changes.
   - Resources such as packages (eg: APT) can conflict if applied individually.
   - Resonance merges all of such resources and applies them "all or nothing", preventing any conflicts.
 - "Just Works ©" refresh.
