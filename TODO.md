@@ -17,6 +17,8 @@
 - Add TESTS!
 - `Makefile`
     - Cache `install-deps`.
+    - Add https://github.com/gordonklaus/ineffassign
+    - Add https://github.com/client9/misspell
 - `host/`
     - `local.go`
         - Use [subreaper to wait on all children](https://github.com/fornellas/rrb/blob/main/runner/runner.go).

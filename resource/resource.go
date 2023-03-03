@@ -103,7 +103,7 @@ type ManageableResource interface {
 	Check(ctx context.Context, hst host.Host, name Name, parameters yaml.Node) (CheckResult, error)
 
 	// Refresh the resource. This is typically used to update the in-memory state of a resource
-	// (eg: kerner: sysctl, iptables; process: systemd service) after persistant changes are made
+	// (eg: kerner: sysctl, iptables; process: systemd service) after persistent changes are made
 	// (eg: change configuration file)
 	Refresh(ctx context.Context, hst host.Host, name Name) error
 }
