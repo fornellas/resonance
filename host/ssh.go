@@ -12,6 +12,10 @@ type Ssh struct {
 	Hostname string
 }
 
+func (s Ssh) Chown(ctx context.Context, name string, uid, gid int) error {
+	return errors.New("TODO Ssh.Chown")
+}
+
 func (s Ssh) Lstat(ctx context.Context, name string) (os.FileInfo, error) {
 	return nil, errors.New("TODO Ssh.Lstat")
 }

@@ -90,8 +90,8 @@ type Host interface {
 	// // Chmod works similar to os.Chmod.
 	// Chmod(ctx context.Context, name string, mode os.FileMode) error
 
-	// // Chown works similar to os.Chown.
-	// Chown(ctx context.Context, name string, uid, gid int) error
+	// Chown works similar to os.Chown.
+	Chown(ctx context.Context, name string, uid, gid int) error
 
 	// // GetGid works similar to os.GetGid.
 	// GetGid(ctx context.Context, groupname string) int

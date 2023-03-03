@@ -32,8 +32,37 @@ type FileParams struct {
 	// Group string `yaml:"group"`
 }
 
+func (fp *FileParams) Validate() error {
+	if fp.Perm == os.FileMode(0) {
+		return fmt.Errorf("missing permissions")
+	}
+	return nil
+}
+
+func (fp *FileParams) UnmarshalYAML(node *yaml.Node) error {
+	type FileParamsDecode FileParams
+	var fileParamsDecode FileParamsDecode
+	if err := node.Decode(&fileParamsDecode); err != nil {
+		return err
+	}
+	fileParams := FileParams(fileParamsDecode)
+	if err := fileParams.Validate(); err != nil {
+		return err
+	}
+	*fp = fileParams
+	return nil
+}
+
 // File resource manages files.
 type File struct{}
+
+func (f File) Validate(name Name) error {
+	path := string(name)
+	if !filepath.IsAbs(path) {
+		return fmt.Errorf("path must be absolute: %s", path)
+	}
+	return nil
+}
 
 func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters yaml.Node) (CheckResult, error) {
 	logger := log.GetLogger(ctx)
@@ -44,9 +73,6 @@ func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters ya
 	var fileParams FileParams
 	if err := parameters.Decode(&fileParams); err != nil {
 		return false, err
-	}
-	if !filepath.IsAbs(path) {
-		return false, fmt.Errorf("path must be absolute: %s", path)
 	}
 
 	// Path Hash
@@ -84,18 +110,21 @@ func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters ya
 		return false, nil
 	}
 
-	// Perm
+	// FileInfo
 	fileInfo, err := hst.Lstat(ctx, path)
 	if err != nil {
 		return false, err
 	}
+	stat_t := fileInfo.Sys().(*syscall.Stat_t)
+
+	// Perm
 	if fileInfo.Mode() != fileParams.Perm {
 		logger.Debug("Perm differs")
 		return false, nil
 	}
 
 	// Uid
-	if fileInfo.Sys().(*syscall.Stat_t).Uid != fileParams.Uid {
+	if stat_t.Uid != fileParams.Uid {
 		logger.Debug("Uid differs")
 		return false, nil
 	}
@@ -109,7 +138,7 @@ func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters ya
 	// fileState.User = u.Username
 
 	// Gid
-	if fileInfo.Sys().(*syscall.Stat_t).Gid != fileParams.Gid {
+	if stat_t.Gid != fileParams.Gid {
 		logger.Debug("Gid differs")
 		return false, nil
 	}
@@ -139,7 +168,17 @@ func (f File) Apply(ctx context.Context, hst host.Host, name Name, parameters ya
 		return err
 	}
 
-	return hst.WriteFile(nestedCtx, path, []byte(fileParams.Content), fileParams.Perm)
+	// Content / Perm
+	if err := hst.WriteFile(nestedCtx, path, []byte(fileParams.Content), fileParams.Perm); err != nil {
+		return err
+	}
+
+	// Uid / Gid
+	if err := hst.Chown(ctx, path, int(fileParams.Uid), int(fileParams.Gid)); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (f File) Destroy(ctx context.Context, hst host.Host, name Name) error {

@@ -29,7 +29,7 @@ var logColorMap = map[logrus.Level]*color.Color{
 
 var logEmojiMap = map[logrus.Level]string{
 	logrus.PanicLevel: "😨 ",
-	logrus.FatalLevel: "☠️  ",
+	logrus.FatalLevel: "💥  ",
 	logrus.ErrorLevel: "❌ ",
 	logrus.WarnLevel:  "⚠️ ",
 	logrus.InfoLevel:  "",

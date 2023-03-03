@@ -24,6 +24,10 @@ type APTPackage struct{}
 var aptPackageRegexpStatus = regexp.MustCompile(`^Status: (.+)$`)
 var aptPackageRegexpVersion = regexp.MustCompile(`^Version: (.+)$`)
 
+func (ap APTPackage) Validate(name Name) error {
+	return nil
+}
+
 func (ap APTPackage) Check(ctx context.Context, hst host.Host, name Name, parameters yaml.Node) (CheckResult, error) {
 	logger := log.GetLogger(ctx)
 

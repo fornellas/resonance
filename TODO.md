@@ -1,11 +1,12 @@
-- GitHub Action
+- ❗GitHub Action
     - Use same base image as `devvm.sh`
         - Add a check for that.
     - Call `make ci`
     - If there's a tag, generate a release with Linux binaries for various archs.
         - Publish Go reference documentation.
         - Publish Go package.
-- README.md
+    - Cache 
+- ❗README.md
     - Add badges
       - GH actions state
       - Go reference
@@ -14,6 +15,8 @@
       - go report
       - license
 - Add TESTS!
+- `Makefile`
+    - Cache `install-deps`.
 - `host/`
     - `local.go`
         - Use [subreaper to wait on all children](https://github.com/fornellas/rrb/blob/main/runner/runner.go).
@@ -47,13 +50,12 @@
         - Mergeable.
     - `resource.go`
         - `Plan.Execute`
-            - At the end check again, fail if changes detected (bug in implementation).
-            - On success, save `ResourceBundles` to `PersistantState`.
+            - ❗On success, save `ResourceBundles` to `PersistantState`.
+            - ❗At the end check again, fail if changes detected (bug in implementation).
+            - ❗Auto-rollback saved state on failures.
             - Parallelise check.
-            - Call check after apply to validate.
-            - Auto-rollback saved state on failures.
         - `LoadResourceBundles`
-            - Receive a single directory and load recursively from it.
+            - ❗Receive a single directory and load recursively from it.
             - Go templates
                 - Before parsing yaml, Go template each resource bundle yaml.
                 - Template is a function of:
@@ -68,8 +70,8 @@
                                 - `--allow-inventory-changes` have apply re-run when inventory changes at the end.
                                 - Should put a limit (otherwise, inifinite loops can happen).
         - `PersistantState`
-            - Change interface to only read / write `[]bytes`, so that serialization code can be shared across all interface implementations.
-            - Add field with resonance version at schema.
+            - ❗Change interface to only read / write `[]bytes`, so that serialization code can be shared across all interface implementations.
+            - ❗Add field with resonance version at schema.
         - `ResourceDefinition`
             - Support `refreshed_by`, to enable resources to subscribe to others (eg: `SystemdUnit[nginx.service]` is `refreshed_by` `File[/etc/nginx/.+]`)
         - `ManageableResource`
@@ -80,16 +82,18 @@
                 - Eg: a service creates an ID which another resource depends on.
 - `cli/`
     - `**/cmd.go`
-        - ^C cancel context
+        - ❗^C cancel context
     - `check/cmd.go`: implement: checks host state / resources against host.
     - `plan/cmd.go`:
-        - implement: checks host state / resources and calculate plan against host.
-        - Add `--graphviz` option
-        - Add `--svg option` (generate the svg directly from the internal graphviz)
+        - ❗implement: checks host state / resources and calculate plan against host.
+        - ❗Add `--graphviz` option
+        - ❗Add `--svg option` (generate the svg directly from the internal graphviz)
     - `lint/cmd.go`: implement:
         - Validate resource definitions
         - Lint yaml (format & sort)
     - `refresh/cmd.go`
-    	- Update state to match declared resources.
+    	- ❗Update state to match declared resources.
     - `destroy/cmd.go`
-        - Destroy all resources at state
+        - ❗Destroy all resources at state.
+    - `restore/cmd.go`
+        - ❗Restore machine to saved state.

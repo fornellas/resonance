@@ -94,6 +94,9 @@ type Definitions map[Name]yaml.Node
 
 // ManageableResource defines a common interface for managing resource state.
 type ManageableResource interface {
+	// Validate the name of the resource
+	Validate(name Name) error
+
 	// Check host for the state of instatnce. If changes are required, returns true,
 	// otherwise, returns false.
 	// No side-effects are to happen when this function is called, which may happen concurrently.
@@ -278,9 +281,14 @@ func (rd *ResourceDefinition) UnmarshalYAML(node *yaml.Node) error {
 	if err := node.Decode(&resourceDefinitionSchema); err != nil {
 		return err
 	}
+	manageableResource := resourceDefinitionSchema.TypeName.ManageableResource()
+	name := resourceDefinitionSchema.TypeName.Name()
+	if err := manageableResource.Validate(name); err != nil {
+		return err
+	}
 	*rd = ResourceDefinition{
-		ManageableResource: resourceDefinitionSchema.TypeName.ManageableResource(),
-		Name:               resourceDefinitionSchema.TypeName.Name(),
+		ManageableResource: manageableResource,
+		Name:               name,
 		Parameters:         resourceDefinitionSchema.Parameters,
 	}
 	return nil
@@ -437,16 +445,26 @@ func (nai NodeActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 	logger := log.GetLogger(ctx)
 	logger.Infof("%s", nai)
 	nestedCtx := log.IndentLogger(ctx)
+	individuallyManageableResource := nai.ResourceDefinition.MustIndividuallyManageableResource()
 	name := nai.ResourceDefinition.Name
 	parameters := nai.ResourceDefinition.Parameters
 	switch nai.Action {
 	case ActionOk, ActionSkip:
 	case ActionRefresh:
-		return nai.ResourceDefinition.MustIndividuallyManageableResource().Refresh(nestedCtx, hst, name)
+		return individuallyManageableResource.Refresh(nestedCtx, hst, name)
 	case ActionApply:
-		return nai.ResourceDefinition.MustIndividuallyManageableResource().Apply(nestedCtx, hst, name, parameters)
+		if err := individuallyManageableResource.Apply(nestedCtx, hst, name, parameters); err != nil {
+			return err
+		}
+		checkResult, err := individuallyManageableResource.Check(nestedCtx, hst, name, parameters)
+		if err != nil {
+			return err
+		}
+		if !checkResult {
+			return fmt.Errorf("%s: check failed immediately after apply: this often means there's a bug 🪲 with the resource implementation", nai.ResourceDefinition)
+		}
 	case ActionDestroy:
-		return nai.ResourceDefinition.MustIndividuallyManageableResource().Destroy(nestedCtx, hst, name)
+		return individuallyManageableResource.Destroy(nestedCtx, hst, name)
 	default:
 		panic(fmt.Errorf("unexpected action %v", nai.Action))
 	}
@@ -487,6 +505,7 @@ func (nam NodeActionMerged) Execute(ctx context.Context, hst host.Host) error {
 	logger.Infof("%s", nam)
 	nestedCtx := log.IndentLogger(ctx)
 
+	checkResourceDefinitions := []ResourceDefinition{}
 	configureActionDefinition := map[Action]Definitions{}
 	refreshNames := []Name{}
 	for action, resourceDefinitions := range nam.ActionResourceDefinitions {
@@ -499,11 +518,28 @@ func (nam NodeActionMerged) Execute(ctx context.Context, hst host.Host) error {
 				}
 				configureActionDefinition[action][resourceDefinition.Name] = resourceDefinition.Parameters
 			}
+			if action != ActionDestroy {
+				checkResourceDefinitions = append(checkResourceDefinitions, resourceDefinition)
+			}
 		}
 	}
 
-	if err := nam.MustMergeableManageableResources().ConfigureAll(nestedCtx, hst, configureActionDefinition); err != nil {
+	if err := nam.MustMergeableManageableResources().ConfigureAll(
+		nestedCtx, hst, configureActionDefinition,
+	); err != nil {
 		return err
+	}
+
+	for _, resourceDefinition := range checkResourceDefinitions {
+		checkResult, err := nam.MustMergeableManageableResources().Check(
+			nestedCtx, hst, resourceDefinition.Name, resourceDefinition.Parameters,
+		)
+		if err != nil {
+			return err
+		}
+		if !checkResult {
+			return fmt.Errorf("%s: check failed immediately after apply: this often means there's a bug 🪲 with the resource implementation", resourceDefinition)
+		}
 	}
 
 	for _, name := range refreshNames {

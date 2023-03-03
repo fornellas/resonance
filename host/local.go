@@ -14,6 +14,10 @@ import (
 // Local interacts with the local machine running the code.
 type Local struct{}
 
+func (l Local) Chown(ctx context.Context, name string, uid, gid int) error {
+	return os.Chown(name, uid, gid)
+}
+
 func (l Local) Lstat(ctx context.Context, name string) (os.FileInfo, error) {
 	return os.Lstat(name)
 }
