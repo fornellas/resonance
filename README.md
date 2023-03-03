@@ -15,10 +15,11 @@ A configuration management tool, somewhat similar to Ansible, Chef or Puppet, bu
   - Resonance merges all of such resources and applies them "all or nothing", preventing any conflicts.
 - "Just Works ©" refresh.
   - In memory state (eg: a daemon) must be refreshed when its dependencies change (eg: its configuration file).
-  - By simply declaring first the configuration then the service, the service will be automatically restarted only when changes to its configuration happens.
+  - By simply declaring first the configuration then the service, the service will be automatically reloaded only when required.
+  - Resources may subscribe to any resources it depends on:
+    - Eg: an app service is dependant on any configuration file at `/etc/app/**/*.conf`.
+    - It is not required to fiddle with multiple individual dependecies declaration.
+  - No more "forgot to declare to restart service".
 - "Just Works ©" dependencies.
   - Order in which resources are declared is used for applying them.
-  - Merged resources considered are considered for ordering.
-  - Resources may declare other resources that it depends on.
-    - Eg: an app service is dependant on any configuration files at `/etc/app/**/*.conf`.
-    - It is not required to fiddle with multiple individual dependecies declaration.
+  - Merged resources are considered and do not break declared order.
