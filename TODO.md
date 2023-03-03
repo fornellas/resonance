@@ -1,5 +1,5 @@
 - ❗GitHub Action
-    - Use same base image as `devvm.sh`
+    - Use same base image as `devenv.sh`
         - Add a check for that.
     - Call `make ci`
     - If there's a tag, generate a release with Linux binaries for various archs.
