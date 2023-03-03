@@ -1,8 +1,17 @@
-- ❗GitHub Action
+# Roadmap
+
+- 🥇v0.1: MVP
+    - Minimum CI /CD.
+    - Basic types: `File`, `APTPackage`, `SystemdUnit`.
+    - CLI with basic commands.
+
+## Backlog
+
+- GitHub Action
     - `.github/actions/build.yaml`
         - Use same go version from go.mod
             - Add a check for that.
-        - Call `make ci`
+        - 🥇Call `make ci`
         - Add check for test code coverage (integrate with badge).
         - `actions/cache`
             - `GOMODCACHE`
@@ -18,25 +27,25 @@
                 - key: `${{ runner.os }}-staticcheck-${{ hashFiles('**/go.sum') }}-${{ hahFiles('**/*.go') }}`
                 - restore-keys: `${{ runner.os }}-staticcheck-`
     - `.github/workflows/pull_request.yaml`
-        - Triggers on all pull requests.
-        - Runs `.github/actions/build.yaml`
+        - 🥇Triggers on all pull requests.
+        - 🥇Runs `.github/actions/build.yaml`
         - Use same base image as `devenv.sh`.
             - Add check to ensure both are in sync.
     - `.github/workflows/push.yaml`
-        - Triggers on push to `master`.
-        - Runs `.github/actions/build.yaml`
+        - 🥇Triggers on push to `master`.
+        - 🥇Runs `.github/actions/build.yaml`
         - Use same base image as `devenv.sh`.
             - Add check to ensure both are in sync.
-        - Do release:
-            - Create tag
-            - Do GH Release.
-                - Publish binary for linux-amd64.
-                - Publish GH Package
-                    - Container / Docker registry, so resonance can be used via `docker run`.
-- ❗README.md
+    - `.github/workflows/release.yaml`
+        - https://github.com/softprops/action-gh-release
+        - 🥇Triggers on created tag
+        - 🥇Publish binary for linux-amd64.
+        - Publish GH Package
+            - Container / Docker registry, so resonance can be used via `docker run`.
+- README.md
     - Add badges
-      - GH actions state
-      - Version
+      - 🥇GH actions state
+      - 🥇Version
       - Coverage
 - Add TESTS!
 - `Makefile`
@@ -79,17 +88,17 @@
             - Change `Parameters` to `interface{}` and unmarshall it from `ResourceDefinitionSchema.Parameters` at `ResourceDefinition.UnmarshalYAML`.
                 - Thus pulls unmarshall errors when loading, and not when running.
         - `Plan.Execute`
-            - ❗On success, save `ResourceBundles` to `PersistantState`.
-            - ❗At the end check again, fail if changes detected (bug in implementation).
-            - ❗Auto-rollback saved state on failures.
+            - 🥇On success, save `ResourceBundles` to `PersistantState`.
+            - 🥇At the end check again, fail if changes detected (bug in implementation).
+            - 🥇Auto-rollback saved state on failures.
             - Parallelise check.
         - `PersistantState`
-            - ❗Change interface to only read / write `[]bytes`, so that serialization code can be shared across all interface implementations.
-            - ❗Add field with resonance version at schema.
+            - 🥇Change interface to only read / write `[]bytes`, so that serialization code can be shared across all interface implementations.
+            - 🥇Add field with resonance version at schema.
             - Save history of states: enable to rollback to any previous state.
             - Local state: save to `XDG_STATE_HOME/resonance/$target_hostname/`
         - `LoadResourceBundles`
-            - ❗Receive a single directory and load recursively from it.
+            - 🥇Receive a single directory and load recursively from it.
             - Go templates
                 - Before parsing yaml, Go template each resource bundle yaml.
                 - Template is a function of:
@@ -114,20 +123,24 @@
         - Output
             - Use the output of one resource as parameter for another.
                 - Eg: a service creates an ID which another resource depends on.
+    - 🥇`systemd_unit.go`
+        - Manages https://www.freedesktop.org/software/systemd/man/systemd.unit.html
+        - Calls `systemctl daemon-reload` on change.
+        - On refresh, do `systemctl reload-or-restart $unit`.
 - `cli/`
-    - `**/cmd.go`
-        - ❗^C cancel context
-    - `check/cmd.go`: implement: checks host state / resources against host.
+    - 🥇`**/cmd.go`
+        - ^C cancel context
+    - 🥇`check/cmd.go`: implement: checks host state / resources against host.
     - `plan/cmd.go`:
-        - ❗implement: checks host state / resources and calculate plan against host.
-        - ❗Add `--graphviz` option
-        - ❗Add `--svg option` (generate the svg directly from the internal graphviz)
+        - 🥇implement: checks host state / resources and calculate plan against host.
+        - 🥇Add `--graphviz` option
+        - Add `--svg option` (generate the svg directly from the internal graphviz)
     - `lint/cmd.go`: implement:
         - Validate resource definitions
         - Lint yaml (format & sort)
     - `refresh/cmd.go`
-    	- ❗Update state to match declared resources.
+        - 🥇Update state to match declared resources.
     - `destroy/cmd.go`
-        - ❗Destroy all resources at state.
+        - 🥇Destroy all resources at state.
     - `restore/cmd.go`
-        - ❗Restore machine to saved state.
+        - 🥇Restore machine to saved state.
