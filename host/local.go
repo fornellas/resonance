@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"os/user"
 	"syscall"
 	"time"
 
@@ -16,6 +17,14 @@ type Local struct{}
 
 func (l Local) Chown(ctx context.Context, name string, uid, gid int) error {
 	return os.Chown(name, uid, gid)
+}
+
+func (l Local) Lookup(ctx context.Context, username string) (*user.User, error) {
+	return user.Lookup(username)
+}
+
+func (l Local) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
+	return user.LookupGroup(name)
 }
 
 func (l Local) Lstat(ctx context.Context, name string) (os.FileInfo, error) {

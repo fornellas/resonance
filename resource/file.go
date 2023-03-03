@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
 	"syscall"
 
 	"gopkg.in/yaml.v3"
@@ -25,16 +26,22 @@ type FileParams struct {
 	// User ID owner of the file
 	Uid uint32 `yaml:"uid"`
 	// User name owner of the file
-	// User string `yaml:"user"`
+	User string `yaml:"user"`
 	// Group ID owner of the file
 	Gid uint32 `yaml:"gid"`
 	// Group name owner of the file
-	// Group string `yaml:"group"`
+	Group string `yaml:"group"`
 }
 
 func (fp *FileParams) Validate() error {
 	if fp.Perm == os.FileMode(0) {
-		return fmt.Errorf("missing permissions")
+		return fmt.Errorf("missing 'perm'")
+	}
+	if fp.Uid != 0 && fp.User != "" {
+		return fmt.Errorf("can't set both 'uid' and 'user'")
+	}
+	if fp.Gid != 0 && fp.Group != "" {
+		return fmt.Errorf("can't set both 'gid' and 'group'")
 	}
 	return nil
 }
@@ -51,6 +58,36 @@ func (fp *FileParams) UnmarshalYAML(node *yaml.Node) error {
 	}
 	*fp = fileParams
 	return nil
+}
+
+func (fp FileParams) GetUid(ctx context.Context, hst host.Host) (uint32, error) {
+	if fp.User != "" {
+		usr, err := hst.Lookup(ctx, fp.User)
+		if err != nil {
+			return 0, err
+		}
+		uid, err := strconv.ParseUint(usr.Uid, 10, 32)
+		if err != nil {
+			return 0, fmt.Errorf("failed to parse UID: %s", usr.Uid)
+		}
+		return uint32(uid), nil
+	}
+	return fp.Uid, nil
+}
+
+func (fp FileParams) GetGid(ctx context.Context, hst host.Host) (uint32, error) {
+	if fp.Group != "" {
+		group, err := hst.LookupGroup(ctx, fp.Group)
+		if err != nil {
+			return 0, err
+		}
+		gid, err := strconv.ParseUint(group.Gid, 10, 32)
+		if err != nil {
+			return 0, fmt.Errorf("failed to parse GID: %s", group.Gid)
+		}
+		return uint32(gid), nil
+	}
+	return fp.Uid, nil
 }
 
 // File resource manages files.
@@ -123,22 +160,22 @@ func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters ya
 		return false, nil
 	}
 
-	// Uid
-	if stat_t.Uid != fileParams.Uid {
+	// Uid / User
+	uid, err := fileParams.GetUid(ctx, hst)
+	if err != nil {
+		return false, err
+	}
+	if stat_t.Uid != uid {
 		logger.Debug("Uid differs")
 		return false, nil
 	}
 
-	// User
-	// TODO use host interface
-	// u, err := user.LookupId(strconv.Itoa(int(fileState.Uid)))
-	// if err != nil {
-	// 	return false, err
-	// }
-	// fileState.User = u.Username
-
 	// Gid
-	if stat_t.Gid != fileParams.Gid {
+	gid, err := fileParams.GetGid(ctx, hst)
+	if err != nil {
+		return false, err
+	}
+	if stat_t.Gid != gid {
 		logger.Debug("Gid differs")
 		return false, nil
 	}
@@ -173,9 +210,18 @@ func (f File) Apply(ctx context.Context, hst host.Host, name Name, parameters ya
 		return err
 	}
 
-	// Uid / Gid
-	if err := hst.Chown(ctx, path, int(fileParams.Uid), int(fileParams.Gid)); err != nil {
+	// FileInfo
+	fileInfo, err := hst.Lstat(ctx, path)
+	if err != nil {
 		return err
+	}
+	stat_t := fileInfo.Sys().(*syscall.Stat_t)
+
+	// Uid / Gid
+	if stat_t.Uid != fileParams.Uid || stat_t.Gid != fileParams.Gid {
+		if err := hst.Chown(ctx, path, int(fileParams.Uid), int(fileParams.Gid)); err != nil {
+			return err
+		}
 	}
 
 	return nil

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/user"
 	"strings"
 )
 
@@ -93,12 +94,6 @@ type Host interface {
 	// Chown works similar to os.Chown.
 	Chown(ctx context.Context, name string, uid, gid int) error
 
-	// // GetGid works similar to os.GetGid.
-	// GetGid(ctx context.Context, groupname string) int
-
-	// // GetUid works similar to os.GetUid.
-	// GetUid(ctx context.Context, username string) int
-
 	// // Hostname works similar to os.Hostname.
 	// Hostname() (ctx context.Context, name string, err error)
 
@@ -107,6 +102,12 @@ type Host interface {
 
 	// // Link works similar to os.Link.
 	// Link(ctx context.Context, oldname, newname string) error
+
+	// Lookup works similar to os/user.Lookup
+	Lookup(ctx context.Context, username string) (*user.User, error)
+
+	// LookupGroup works similar to os/user.LookupGroup
+	LookupGroup(ctx context.Context, name string) (*user.Group, error)
 
 	// Lstat works similar to os.Lstat, but it always returns non-nil Sys().
 	Lstat(ctx context.Context, name string) (os.FileInfo, error)

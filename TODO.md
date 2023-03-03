@@ -39,8 +39,6 @@
         - Support directly passing `.deb` packages.
         - Enforce after `File[/etc/apt/preferences.d/.+]`.
     - `file.go`
-        - Set default values for parameters.
-        - Support `User` and `Group` (requries `host.Host.Getuid/Getgid`)
         - Type: regular, link, dir, char device, block device, pipe, socket.
     - `group.go`
         - Manage groups.
@@ -49,6 +47,9 @@
         - After `Group[.+]`.
         - Mergeable.
     - `resource.go`
+        - `ResourceDefinition`
+            - Change `Parameters` to `interface{}` and unmarshall it from `ResourceDefinitionSchema.Parameters` at `ResourceDefinition.UnmarshalYAML`.
+                - Thus pulls unmarshall errors when loading, and not when running.
         - `Plan.Execute`
             - ❗On success, save `ResourceBundles` to `PersistantState`.
             - ❗At the end check again, fail if changes detected (bug in implementation).

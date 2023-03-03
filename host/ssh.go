@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/user"
 )
 
 // Ssh interacts with a remote machine connecting to it via SSH protocol.
@@ -14,6 +15,14 @@ type Ssh struct {
 
 func (s Ssh) Chown(ctx context.Context, name string, uid, gid int) error {
 	return errors.New("TODO Ssh.Chown")
+}
+
+func (s Ssh) Lookup(ctx context.Context, username string) (*user.User, error) {
+	return nil, errors.New("TODO Ssh.LookupId")
+}
+
+func (s Ssh) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
+	return nil, errors.New("TODO Ssh.LookupGroup")
 }
 
 func (s Ssh) Lstat(ctx context.Context, name string) (os.FileInfo, error) {
