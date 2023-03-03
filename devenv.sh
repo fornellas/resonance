@@ -11,8 +11,8 @@ fi
 
 DOCKER_PLATFORM="linux/amd64"
 
-USER_ID="$(id -u)"
-GROUP_ID="$(id -g)"
+GID="$(id -g)"
+GROUP="$(getent group $(getent passwd $USER | cut -d: -f4) | cut -d: -f1)"
 GO_VERSION="$(awk '/^go /{print $2}' go.mod)"
 
 GIT_ROOT="$(cd $(dirname $0) && git rev-parse --show-toplevel)"
@@ -27,26 +27,26 @@ docker run \
 	--rm \
 	--tty \
 	--interactive \
-	--volume /home/user \
-	--volume ${GIT_ROOT}:/home/user/resonance \
-	--volume ${GIT_ROOT}/.cache:/home/user/.cache \
-	--volume /home/user/resonance/.cache \
-	--workdir /home/user/resonance \
+	--volume ${HOME} \
+	--volume ${GIT_ROOT}:${HOME}/resonance \
+	--volume ${GIT_ROOT}/.cache:${HOME}/.cache \
+	--volume ${HOME}/resonance/.cache \
+	--workdir ${HOME}/resonance \
 	golang:${GO_VERSION}-bullseye \
 	/bin/bash -c "$(cat <<EOF
 set -e
 
 # User
-addgroup --gid ${GROUP_ID} user
-useradd --home-dir /home/user --gid ${GROUP_ID} --no-create-home --shell /bin/bash --uid ${USER_ID} user
-ln -s /home/user/resonance/.bashrc /home/user/.bashrc
+addgroup --gid ${GID} ${GROUP}
+useradd --home-dir ${HOME} --gid ${GID} --no-create-home --shell /bin/bash --uid ${UID} ${USER}
+ln -s ${HOME}/resonance/.bashrc ${HOME}/.bashrc
 
 # Shell
-exec su --group user --pty user sh -c "
-export BINDIR=/home/user/.cache/bin
-export PATH=/home/user/.cache/bin:\$PATH
-export GOCACHE=/home/user/.cache/go-build
-export GOMODCACHE=/home/user/.cache/go-mod
+exec su --group ${GROUP} --pty ${USER} sh -c "
+export BINDIR=${HOME}/.cache/bin
+export PATH=${HOME}/.cache/bin:\$PATH
+export GOCACHE=${HOME}/.cache/go-build
+export GOMODCACHE=${HOME}/.cache/go-mod
 echo Available make targets: &&
 make help &&
 exec bash -i"
