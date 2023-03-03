@@ -5,6 +5,8 @@
     - If there's a tag, generate a release with Linux binaries for various archs.
         - Publish Go reference documentation.
         - Publish Go package.
+        - Do GH Release.
+        - Publish GH Package (container).
     - Cache 
 - ❗README.md
     - Add badges
