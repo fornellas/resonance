@@ -1,13 +1,38 @@
 - ❗GitHub Action
-    - Use same base image as `devenv.sh`
-        - Add a check for that.
-    - Call `make ci`
-    - If there's a tag, generate a release with Linux binaries for various archs.
-        - Publish Go reference documentation.
-        - Publish Go package.
-        - Do GH Release.
-        - Publish GH Package (container).
-    - Cache 
+    - `.github/actions/build.yaml`
+        - Use same go version from go.mod
+            - Add a check for that.
+        - Call `make ci`
+        - Add check for test code coverage (integrate with badge).
+        - `actions/cache`
+            - `GOMODCACHE`
+                - path: `go env GOMODCACHE`
+                - key: `${{ runner.os }}-gomodcache-${{ hashFiles('**/go.sum') }}`
+                - restore-keys: `${{ runner.os }}-gomodcache-`
+            - `GOCACHE`
+                - path: `go env GOCACHE`
+                - key: `${{ runner.os }}-gocache-${{ hashFiles('**/go.sum') }}-${{ hahFiles('**/*.go') }}`
+                - restore-keys: `${{ runner.os }}-gocache-`
+            - `staticcheck`
+                - path: `$XDG_CACHE_HOME/staticcheck` or `$HOME/.cache/staticcheck`
+                - key: `${{ runner.os }}-staticcheck-${{ hashFiles('**/go.sum') }}-${{ hahFiles('**/*.go') }}`
+                - restore-keys: `${{ runner.os }}-staticcheck-`
+    - `.github/workflows/pull_request.yaml`
+        - Triggers on all pull requests.
+        - Runs `.github/actions/build.yaml`
+        - Use same base image as `devenv.sh`.
+            - Add check to ensure both are in sync.
+    - `.github/workflows/push.yaml`
+        - Triggers on push to `master`.
+        - Runs `.github/actions/build.yaml`
+        - Use same base image as `devenv.sh`.
+            - Add check to ensure both are in sync.
+        - Do release:
+            - Create tag
+            - Do GH Release.
+                - Publish binary for linux-amd64.
+                - Publish GH Package
+                    - Container / Docker registry, so resonance can be used via `docker run`.
 - ❗README.md
     - Add badges
       - GH actions state
