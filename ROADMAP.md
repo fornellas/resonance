@@ -93,6 +93,22 @@
         - 📈Manage groups.
     - `user.go`
         - 📈After `Group[.+]`.
+    - `git.go`
+        - 💡Clone a git repository and clean checkout to a specific hash.
+    - `hostname.go`
+        - 💡Set the hostname.
+    - `network_manager.go`
+        - 💡Setup network interfaces.
+    - `fstab.go`
+        - 💡Manage entries
+    - `reboot.go`
+        - 💡Handle reboots (eg: for kernel upgrades).
+    - `sysctl.go`
+        - 💡`/etc/sysctl.d/` file and refresh.
+    - `iptables.go`
+        - 💡iptables configuration in disk & reload.
+    - `hosts.go`
+        - 💡Manage entries.
     - `resource.go`
         - `ResourceDefinition`
             - 🧪Change `Parameters` to `interface{}` and unmarshall it from `ResourceDefinitionSchema.Parameters` at `ResourceDefinition.UnmarshalYAML`. This pulls unmarshall errors when loading, and not when running.
@@ -107,6 +123,7 @@
             - Save history of states: enable to rollback to any previous state.
             - Local state: save to `XDG_STATE_HOME/resonance/$target_hostname/`
         - `LoadResourceBundles`
+            - 🧪Add check against duplicated resource `TypeName`.
             - 🧪Receive a single directory and load recursively from it.
             - Go templates
                 - 📄Before parsing yaml, Go template each resource bundle yaml.
