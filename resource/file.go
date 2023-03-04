@@ -122,7 +122,7 @@ func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters ya
 			return false, err
 		}
 		logger.Debug("File not found")
-		checkResult = false
+		return false, nil
 	} else {
 		n, err := pathtHash.Write(content)
 		if err != nil {
