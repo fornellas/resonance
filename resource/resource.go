@@ -704,6 +704,15 @@ func (p Plan) topologicalSort() (Plan, error) {
 	return result, nil
 }
 
+func (p Plan) Actionable() bool {
+	for _, node := range p {
+		if node.NodeAction.Actionable() {
+			return true
+		}
+	}
+	return false
+}
+
 // Print the whole plan
 func (p Plan) Print(ctx context.Context) {
 	logger := log.GetLogger(ctx)

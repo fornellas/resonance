@@ -57,6 +57,10 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			logger.Fatal(err)
 		}
+		if !plan.Actionable() {
+			logger.Info("👌 Nothing to do")
+			return
+		}
 		plan.Print(ctx)
 
 		// Execute plan
