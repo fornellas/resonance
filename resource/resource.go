@@ -446,8 +446,8 @@ type NodeAction interface {
 	// Execute actions for all bundled resource definitions.
 	Execute(ctx context.Context, hst host.Host) error
 	String() string
-	// HasAction returns whether any action is different from ActionOk or ActionSkip
-	HasAction() bool
+	// Actionable returns whether any action is different from ActionOk or ActionSkip
+	Actionable() bool
 }
 
 // NodeActionIndividual is a NodeAction which can execute a single ResourceDefinition.
@@ -497,7 +497,7 @@ func (nai NodeActionIndividual) String() string {
 	return fmt.Sprintf("%s[%s %s]", nai.ResourceDefinition.Type(), nai.Action.Emoji(), nai.ResourceDefinition.Name)
 }
 
-func (nai NodeActionIndividual) HasAction() bool {
+func (nai NodeActionIndividual) Actionable() bool {
 	return !(nai.Action == ActionOk || nai.Action == ActionSkip)
 }
 
@@ -525,7 +525,7 @@ func (nam NodeActionMerged) MustMergeableManageableResources() MergeableManageab
 	return mergeableManageableResources
 }
 
-func (nam NodeActionMerged) HasAction() bool {
+func (nam NodeActionMerged) Actionable() bool {
 	hasAction := false
 	for action := range nam.ActionResourceDefinitions {
 		if action == ActionOk || action == ActionSkip {
@@ -542,7 +542,7 @@ func (nam NodeActionMerged) Execute(ctx context.Context, hst host.Host) error {
 	logger := log.GetLogger(ctx)
 	nestedCtx := log.IndentLogger(ctx)
 
-	if !nam.HasAction() {
+	if !nam.Actionable() {
 		logger.Debugf("%s", nam)
 		return nil
 	}
@@ -723,7 +723,7 @@ func (p Plan) Print(ctx context.Context) {
 	nestedLogger.Infof("%s", legendBuff.String())
 
 	for _, node := range p {
-		if node.NodeAction.HasAction() {
+		if node.NodeAction.Actionable() {
 			nestedLogger.Infof("%s", node)
 		} else {
 			nestedLogger.Debugf("%s", node)
