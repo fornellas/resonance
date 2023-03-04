@@ -199,8 +199,13 @@ func (f File) Apply(ctx context.Context, hst host.Host, name Name, parameters ya
 		return err
 	}
 
-	// Content / Perm
+	// Content
 	if err := hst.WriteFile(nestedCtx, path, []byte(fileParams.Content), fileParams.Perm); err != nil {
+		return err
+	}
+
+	// Perm
+	if err := hst.Chmod(nestedCtx, path, fileParams.Perm); err != nil {
 		return err
 	}
 
@@ -212,7 +217,15 @@ func (f File) Apply(ctx context.Context, hst host.Host, name Name, parameters ya
 	stat_t := fileInfo.Sys().(*syscall.Stat_t)
 
 	// Uid / Gid
-	if stat_t.Uid != fileParams.Uid || stat_t.Gid != fileParams.Gid {
+	uid, err := fileParams.GetUid(ctx, hst)
+	if err != nil {
+		return err
+	}
+	gid, err := fileParams.GetGid(ctx, hst)
+	if err != nil {
+		return err
+	}
+	if stat_t.Uid != uid || stat_t.Gid != gid {
 		if err := hst.Chown(ctx, path, int(fileParams.Uid), int(fileParams.Gid)); err != nil {
 			return err
 		}

@@ -13,6 +13,10 @@ type Ssh struct {
 	Hostname string
 }
 
+func (s Ssh) Chmod(ctx context.Context, name string, mode os.FileMode) error {
+	return errors.New("TODO Ssh.Chmod")
+}
+
 func (s Ssh) Chown(ctx context.Context, name string, uid, gid int) error {
 	return errors.New("TODO Ssh.Chown")
 }

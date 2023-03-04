@@ -15,6 +15,10 @@ import (
 // Local interacts with the local machine running the code.
 type Local struct{}
 
+func (l Local) Chmod(ctx context.Context, name string, mode os.FileMode) error {
+	return os.Chmod(name, mode)
+}
+
 func (l Local) Chown(ctx context.Context, name string, uid, gid int) error {
 	return os.Chown(name, uid, gid)
 }
