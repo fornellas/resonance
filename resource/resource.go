@@ -101,6 +101,13 @@ type ManageableResource interface {
 	// otherwise, returns false.
 	// No side-effects are to happen when this function is called, which may happen concurrently.
 	Check(ctx context.Context, hst host.Host, name Name, parameters yaml.Node) (CheckResult, error)
+}
+
+// RefreshableManageableResource defines an interface for resources that can be refreshed.
+// Refresh means updating in-memory state as a function of file changes (eg: restarting a service,
+// loading iptables rules to the kernel etc.)
+type RefreshableManageableResource interface {
+	ManageableResource
 
 	// Refresh the resource. This is typically used to update the in-memory state of a resource
 	// (eg: kerner: sysctl, iptables; process: systemd service) after persistent changes are made
@@ -451,7 +458,10 @@ func (nai NodeActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 	switch nai.Action {
 	case ActionOk, ActionSkip:
 	case ActionRefresh:
-		return individuallyManageableResource.Refresh(nestedCtx, hst, name)
+		refreshableManageableResource, ok := individuallyManageableResource.(RefreshableManageableResource)
+		if ok {
+			return refreshableManageableResource.Refresh(nestedCtx, hst, name)
+		}
 	case ActionApply:
 		if err := individuallyManageableResource.Apply(nestedCtx, hst, name, parameters); err != nil {
 			return err
@@ -543,8 +553,9 @@ func (nam NodeActionMerged) Execute(ctx context.Context, hst host.Host) error {
 	}
 
 	for _, name := range refreshNames {
-		if err := nam.MustMergeableManageableResources().Refresh(nestedCtx, hst, name); err != nil {
-			return err
+		refreshableManageableResource, ok := nam.MustMergeableManageableResources().(RefreshableManageableResource)
+		if ok {
+			return refreshableManageableResource.Refresh(nestedCtx, hst, name)
 		}
 	}
 
