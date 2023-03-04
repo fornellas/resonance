@@ -321,6 +321,12 @@ func (rd ResourceDefinition) Check(ctx context.Context, hst host.Host) (CheckRes
 	return rd.ManageableResource.Check(log.IndentLogger(ctx), hst, rd.Name, rd.Parameters)
 }
 
+// Refreshable returns whether the resource definition is refreshable or not.
+func (rd ResourceDefinition) Refreshable() bool {
+	_, ok := rd.ManageableResource.(RefreshableManageableResource)
+	return ok
+}
+
 // IsIndividuallyManageableResource returns true only if ManageableResource is of type IndividuallyManageableResource.
 func (rd ResourceDefinition) IsIndividuallyManageableResource() bool {
 	_, ok := rd.ManageableResource.(IndividuallyManageableResource)
@@ -770,7 +776,7 @@ func buildApplyRefreshPlan(
 			// Action
 			var action Action
 			if checkResult {
-				if refresh {
+				if refresh && resourceDefinition.Refreshable() {
 					action = ActionRefresh
 				} else {
 					action = ActionOk

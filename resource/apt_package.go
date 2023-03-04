@@ -87,10 +87,6 @@ func (ap APTPackage) Check(ctx context.Context, hst host.Host, name Name, parame
 	return checkResult, nil
 }
 
-func (ap APTPackage) Refresh(ctx context.Context, hst host.Host, name Name) error {
-	return nil
-}
-
 func (ap APTPackage) ConfigureAll(ctx context.Context, hst host.Host, actionDefinitions map[Action]Definitions) error {
 	nestedCtx := log.IndentLogger(ctx)
 

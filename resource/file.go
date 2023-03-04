@@ -185,10 +185,6 @@ func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters ya
 	return checkResult, nil
 }
 
-func (f File) Refresh(ctx context.Context, hst host.Host, name Name) error {
-	return nil
-}
-
 func (f File) Apply(ctx context.Context, hst host.Host, name Name, parameters yaml.Node) error {
 	nestedCtx := log.IndentLogger(ctx)
 	path := string(name)
