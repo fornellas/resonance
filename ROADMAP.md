@@ -1,146 +1,158 @@
 # Roadmap
 
-- 🥇v0.1: MVP
+- 🧪v0.1: MVP
     - Minimum CI /CD.
     - Basic types: `File`, `APTPackage`, `SystemdUnit`.
     - CLI with basic commands.
+- ✨v0.2: Refinement
+    - Add tests
+    - Toughen CI
+    - Speed, refine existing features, squash bugs.
+    - Improve dependencies (type implicit and subscription).
+- 📈v0.3 Expansion
+    - Publish packages.
+    - SSH support.
+    - More resource types.
+- 📄v0.4 Templating
+    - Host inventory.
+    - Generate resources with Go template.
+    - "High level" resources can declare "primitive" resources.
+- 🌎v1.0 Core features complete
+- 💡v? TBD
+    - Support different Linux Distributions (eg: some resources may require slightly different implementations).
+    - Manage multiple hosts: do in parallel, all or nothnig for the whole group.
 
 ## Backlog
 
 - GitHub Action
     - `.github/actions/build.yaml`
-        - Use same go version from go.mod
-            - Add a check for that.
-        - 🥇Call `make ci`
-        - Add check for test code coverage (integrate with badge).
+        - ✨Use same go version from go.mod: add a check for that.
+        - 🧪Call `make ci`
+        - ✨Add check for test code coverage (integrate with badge).
         - `actions/cache`
-            - `GOMODCACHE`
-                - path: `go env GOMODCACHE`
-                - key: `${{ runner.os }}-gomodcache-${{ hashFiles('**/go.sum') }}`
-                - restore-keys: `${{ runner.os }}-gomodcache-`
-            - `GOCACHE`
-                - path: `go env GOCACHE`
-                - key: `${{ runner.os }}-gocache-${{ hashFiles('**/go.sum') }}-${{ hahFiles('**/*.go') }}`
-                - restore-keys: `${{ runner.os }}-gocache-`
-            - `staticcheck`
-                - path: `$XDG_CACHE_HOME/staticcheck` or `$HOME/.cache/staticcheck`
-                - key: `${{ runner.os }}-staticcheck-${{ hashFiles('**/go.sum') }}-${{ hahFiles('**/*.go') }}`
-                - restore-keys: `${{ runner.os }}-staticcheck-`
+            - ✨`GOMODCACHE`
+                - ✨path: `go env GOMODCACHE`
+                - ✨key: `${{ runner.os }}-gomodcache-${{ hashFiles('**/go.sum') }}`
+                - ✨restore-keys: `${{ runner.os }}-gomodcache-`
+            - ✨`GOCACHE`
+                - ✨path: `go env GOCACHE`
+                - ✨key: `${{ runner.os }}-gocache-${{ hashFiles('**/go.sum') }}-${{ hahFiles('**/*.go') }}`
+                - ✨restore-keys: `${{ runner.os }}-gocache-`
+            - ✨`staticcheck`
+                - ✨path: `$XDG_CACHE_HOME/staticcheck` or `$HOME/.cache/staticcheck`
+                - ✨key: `${{ runner.os }}-staticcheck-${{ hashFiles('**/go.sum') }}-${{ hahFiles('**/*.go') }}`
+                - ✨restore-keys: `${{ runner.os }}-staticcheck-`
     - `.github/workflows/pull_request.yaml`
-        - 🥇Triggers on all pull requests.
-        - 🥇Runs `.github/actions/build.yaml`
-        - Use same base image as `devenv.sh`.
-            - Add check to ensure both are in sync.
+        - 🧪Triggers on all pull requests.
+        - 🧪Runs `.github/actions/build.yaml`
+        - ✨Use same base image as `devenv.sh`:a dd check to ensure both are in sync.
     - `.github/workflows/push.yaml`
-        - 🥇Triggers on push to `master`.
-        - 🥇Runs `.github/actions/build.yaml`
-        - Use same base image as `devenv.sh`.
-            - Add check to ensure both are in sync.
+        - 🧪Triggers on push to `master`.
+        - 🧪Runs `.github/actions/build.yaml`
+        - ✨Use same base image as `devenv.sh`:a dd check to ensure both are in sync.
     - `.github/workflows/release.yaml`
         - https://github.com/softprops/action-gh-release
-        - 🥇Triggers on created tag
-        - 🥇Publish binary for linux-amd64.
-        - Publish GH Package
-            - Container / Docker registry, so resonance can be used via `docker run`.
+        - 🧪Triggers on created tag
+        - 📈Publish binary for linux-amd64.
+        - 📈Publish GH Package: Container / Docker registry, so resonance can be used via `docker run`.
 - README.md
     - Add badges
-      - 🥇GH actions state
-      - 🥇Version
-      - Coverage
-- Add TESTS!
+      - 🧪GH actions state
+      - 🧪Version
+      - ✨Coverage
+- ✨Add TESTS!
 - `Makefile`
-    - Cache `install-deps`.
-    - Add https://github.com/gordonklaus/ineffassign
-    - Add https://github.com/client9/misspell
+    - ✨Cache `install-deps`.
+    - ✨Add https://github.com/gordonklaus/ineffassign
+    - ✨Add https://github.com/client9/misspell
 - `host/`
+    - 🧪Add option to use sudo to run commands.
     - `local.go`
-        - Use [subreaper to wait on all children](https://github.com/fornellas/rrb/blob/main/runner/runner.go).
-        - Add option to use sudo to run commands.
+        - ✨Use [subreaper to wait on all children](https://github.com/fornellas/rrb/blob/main/runner/runner.go).
     - `ssh.go`
-        - Implement using Go Ssh libraries.
-        - Add option to use sudo to run commands.
+        - 📈Implement using Go Ssh libraries.
 - `resource/`
     - `alternatives.go`
         - Implement with `update-alternatives`.
     - `apt_update.go`
-        - Calls `apt-get update`.
-        - There should be a single resource declaration
-            - Implicitly added if not present.
-        - It must be `refreshed_by` `APTRepository`.
-        - Parameters can be "freshness", so eg, if update is > freshness, then do update.
+        - 📈Calls `apt-get update`.
+        - 📈There should be a single resource declaration
+            - 📈Implicitly added if not present.
+        - 📈It must be `refreshed_by` `APTRepository`.
+        - 📈Parameters can be "freshness", so eg, if update is > freshness, then do update.
     - `apt_repository.go`:
-        - Use `add-apt-repository` to add at `/etc/apt/sources.list.d`
+        - 📈Use `add-apt-repository` to add at `/etc/apt/sources.list.d`
     - `apt_package.go`
-        - Support directly passing `.deb` packages.
+        - 📈upport directly passing `.deb` packages.
         - Enforce after `File[/etc/apt/preferences.d/.+]`.
     - `file.go`
-        - Type: regular, link, dir, char device, block device, pipe, socket.
+        - ✨Type: regular, link, dir, char device, block device, pipe, socket.
         - `Check`
-            - Print colored diff on content difference.
+            - ✨Print colored diff on content difference.
     - `group.go`
-        - Manage groups.
-        - Mergeable.
+        - 📈Manage groups.
     - `user.go`
-        - After `Group[.+]`.
-        - Mergeable.
+        - 📈After `Group[.+]`.
     - `resource.go`
         - `ResourceDefinition`
-            - Change `Parameters` to `interface{}` and unmarshall it from `ResourceDefinitionSchema.Parameters` at `ResourceDefinition.UnmarshalYAML`.
-                - Thus pulls unmarshall errors when loading, and not when running.
+            - 🧪Change `Parameters` to `interface{}` and unmarshall it from `ResourceDefinitionSchema.Parameters` at `ResourceDefinition.UnmarshalYAML`. This pulls unmarshall errors when loading, and not when running.
         - `Plan.Execute`
-            - 🥇On success, save `ResourceBundles` to `PersistantState`.
-            - 🥇At the end check again, fail if changes detected (bug in implementation).
-            - 🥇Auto-rollback saved state on failures.
+            - 🧪On success, save `ResourceBundles` to `PersistantState`.
+            - 🧪At the end check again, fail if changes detected (bug in implementation).
+            - 🧪Auto-rollback saved state on failures.
             - Parallelise check.
         - `PersistantState`
-            - 🥇Change interface to only read / write `[]bytes`, so that serialization code can be shared across all interface implementations.
-            - 🥇Add field with resonance version at schema.
+            - 🧪Change interface to only read / write `[]bytes`, so that serialization code can be shared across all interface implementations.
+            - 🧪Add field with resonance version at schema.
             - Save history of states: enable to rollback to any previous state.
             - Local state: save to `XDG_STATE_HOME/resonance/$target_hostname/`
         - `LoadResourceBundles`
-            - 🥇Receive a single directory and load recursively from it.
+            - 🧪Receive a single directory and load recursively from it.
             - Go templates
-                - Before parsing yaml, Go template each resource bundle yaml.
-                - Template is a function of:
-                    - `--host-parameters parms.yaml`, containing host specific stuff (Eg: secrets)
-                    - `HostInventory`
-                        - General information about the host.
-                        - Must only contains things that are NOT affected by any resource (eg: CPU, memory etc.)
-                        - Should save with state and check for changes?
-                        - After apply, reload `HostInventory`
-                            - If there are any changes, it means an implementation bug.
-                            - There may be valid corner cases here. In such scenarios:
-                                - `--allow-inventory-changes` have apply re-run when inventory changes at the end.
-                                - Should put a limit (otherwise, inifinite loops can happen).
+                - 📄Before parsing yaml, Go template each resource bundle yaml.
+                - 📄Template is a function of:
+                    - 📄`--host-parameters parms.yaml`, containing host specific stuff (Eg: secrets)
+                    - 📄`HostInventory`
+                        - 📄General information about the host.
+                        - 📄Must only contains things that are NOT affected by any resource (eg: CPU, memory etc.)
+                        - 📄Should save with state and check for changes?
+                        - 📄After apply, reload `HostInventory`
+                            - 📄If there are any changes, it means an implementation bug.
+                            - 📄There may be valid corner cases here. In such scenarios:
+                                - 📄`--allow-inventory-changes` have apply re-run when inventory changes at the end.
+                                - 📄Should put a limit (otherwise, inifinite loops can happen).
         - `ResourceDefinition`
-            - Support `refreshed_by`, to enable resources to subscribe to others (eg: `SystemdUnit[nginx.service]` is `refreshed_by` `File[/etc/nginx/.+]`)
+            - ✨Support `refreshed_by`, to enable resources to subscribe to others (eg: `SystemdUnit[nginx.service]` is `refreshed_by` `File[/etc/nginx/.+]`)
         - `ManageableResource`
-            - Support defining implicit dependencies (eg: APTSource before APTPackage)
+            - ✨Support defining implicit dependencies (eg: `Group` before `User`)
             - Check if current host OS is supported.
         - `Plan`
             - `Execute`
-                - Apply nodes concurrently for cases where it can be done (eg: no refresh)
-        - Output
-            - Use the output of one resource as parameter for another.
-                - Eg: a service creates an ID which another resource depends on.
-    - 🥇`systemd_unit.go`
-        - Manages https://www.freedesktop.org/software/systemd/man/systemd.unit.html
-        - Calls `systemctl daemon-reload` on change.
-        - On refresh, do `systemctl reload-or-restart $unit`.
+                - ✨Apply nodes concurrently for cases where it can be done (eg: no refresh).
+            - `NewPlan`
+                - ✨Run checks concurrently.
+        - 📄High level & Primitive resources
+            - 📄Primitive resources are the basic types (eg: `File`, `Package`)
+            - 📄Support high level resources, that are declared individually, but when loaded, generate various primitive resources.
+    - `systemd_unit.go`
+        - 🧪Manages https://www.freedesktop.org/software/systemd/man/systemd.unit.html
+        - 🧪Calls `systemctl daemon-reload` on change.
+        - 🧪On refresh, do `systemctl reload-or-restart $unit`.
 - `cli/`
-    - 🥇`**/cmd.go`
-        - ^C cancel context
-    - 🥇`check/cmd.go`: implement: checks host state / resources against host.
+    - `**/cmd.go`
+        - 🧪^C cancel context
+    - `check/cmd.go`
+        - 🧪implement: checks host state / resources against host.
     - `plan/cmd.go`:
-        - 🥇implement: checks host state / resources and calculate plan against host.
-        - 🥇Add `--graphviz` option
-        - Add `--svg option` (generate the svg directly from the internal graphviz)
+        - 🧪implement: checks host state / resources and calculate plan against host.
+        - 🧪Add `--graphviz` option
+        - ✨Add `--svg option` (generate the svg directly from the internal graphviz)
     - `lint/cmd.go`: implement:
-        - Validate resource definitions
-        - Lint yaml (format & sort)
+        - ✨Validate resource definitions
+        - ✨Lint yaml (format & sort)
     - `refresh/cmd.go`
-        - 🥇Update state to match declared resources.
+        - 🧪Update state to match declared resources.
     - `destroy/cmd.go`
-        - 🥇Destroy all resources at state.
+        - 🧪Destroy all resources at state.
     - `restore/cmd.go`
-        - 🥇Restore machine to saved state.
+        - 🧪Restore machine to saved state.
