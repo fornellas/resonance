@@ -23,3 +23,6 @@ A configuration management tool, somewhat similar to Ansible, Chef or Puppet, bu
 - "Just Works ©" dependencies.
   - Order in which resources are declared is used for applying them.
   - Merged resources are considered and do not break declared order.
+- Speed
+  - All read-only checks are run in parallel.
+  - All actions that can happen concurrently are done like so (eg: changing multiple files).
