@@ -1,6 +1,6 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/fornellas/resonance)](https://goreportcard.com/report/github.com/fornellas/resonance) [![Go Reference](https://pkg.go.dev/badge/github.com/fornellas/resonance.svg)](https://pkg.go.dev/github.com/fornellas/resonance) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-Status: experimental. Please check the [roadmap](./ROADMAP.md)
+Status: experimental. Please check the [roadmap](./ROADMAP.md). Help welcome 🙏!
 
 # resonance
 
