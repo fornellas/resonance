@@ -887,7 +887,7 @@ func appendDestroyNodes(
 	plan Plan,
 ) Plan {
 	logger := log.GetLogger(ctx)
-	logger.Info("💀 Prepending resources to destroy")
+	logger.Info("💀 Determining resources to destroy")
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 	for _, resourceDefinition := range savedResourceBundle {
