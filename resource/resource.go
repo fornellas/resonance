@@ -725,6 +725,9 @@ func (p Plan) Print(ctx context.Context) {
 	var legendBuff bytes.Buffer
 	first := true
 	for action := Action(0); action < ActionCount; action++ {
+		if action == ActionOk || action == ActionSkip {
+			continue
+		}
 		if !first {
 			fmt.Fprint(&legendBuff, ", ")
 		}
