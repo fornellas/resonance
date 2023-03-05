@@ -47,13 +47,13 @@ var Cmd = &cobra.Command{
 		resourceBundles := resource.LoadResourceBundles(ctx, args)
 
 		// Load saved state
-		savedResourceBundle, err := resource.LoadSavedState(ctx, localState)
+		savedHostState, err := state.LoadHostState(ctx, localState)
 		if err != nil {
 			logger.Fatal(err)
 		}
 
 		// Plan
-		plan, err := resource.NewPlan(ctx, hst, savedResourceBundle, resourceBundles)
+		plan, err := resource.NewPlan(ctx, hst, savedHostState, resourceBundles)
 		if err != nil {
 			logger.Fatal(err)
 		}

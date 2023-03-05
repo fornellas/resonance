@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"reflect"
 	"regexp"
@@ -19,6 +18,7 @@ import (
 
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
+	"github.com/fornellas/resonance/version"
 )
 
 // Name is a name that globally uniquely identifies a resource instance of a given type.
@@ -419,26 +419,6 @@ func LoadResourceBundle(ctx context.Context, path string) (ResourceBundle, error
 	return resourceBundle, nil
 }
 
-// LoadSavedState loads a ResourceBundle saved after it was applied to a host.
-func LoadSavedState(ctx context.Context, persistantState PersistantState) (ResourceBundle, error) {
-	logger := log.GetLogger(ctx)
-	nestedCtx := log.IndentLogger(ctx)
-	nestedLogger := log.GetLogger(nestedCtx)
-
-	logger.Info("📂 Loading saved state")
-	savedResourceDefinition, err := persistantState.Load(nestedCtx)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return nil, err
-	}
-	savedResourceBundlesYamlBytes, err := yaml.Marshal(&savedResourceDefinition)
-	if err != nil {
-		return nil, err
-	}
-	nestedLogger.WithFields(logrus.Fields{"ResourceBundles": string(savedResourceBundlesYamlBytes)}).Debug("Loaded saved state")
-
-	return savedResourceDefinition, nil
-}
-
 // ResourceBundles holds all resources definitions for a host.
 type ResourceBundles []ResourceBundle
 
@@ -452,6 +432,14 @@ func (rbs ResourceBundles) HasResourceDefinition(resourceDefinition ResourceDefi
 		}
 	}
 	return false
+}
+
+// HostState holds the state
+type HostState struct {
+	// Version of the binary used to put the host in this state.
+	Version version.Version `yaml:"version"`
+	// All ResourceDefinition for the host state.
+	ResourceDefinitions []ResourceDefinition
 }
 
 // LoadResourceBundles loads resource definitions from all given Yaml file paths.
@@ -778,7 +766,7 @@ func (p Plan) Print(ctx context.Context) {
 func checkResourcesState(
 	ctx context.Context,
 	hst host.Host,
-	savedResourceDefinition []ResourceDefinition,
+	savedHostState HostState,
 	resourceBundles ResourceBundles,
 ) (CheckResults, error) {
 	logger := log.GetLogger(ctx)
@@ -787,7 +775,7 @@ func checkResourcesState(
 
 	logger.Info("🔎 Checking state")
 	checkResults := CheckResults{}
-	for _, resourceDefinition := range savedResourceDefinition {
+	for _, resourceDefinition := range savedHostState.ResourceDefinitions {
 		checkResult, err := resourceDefinition.Check(nestedCtx, hst)
 		if err != nil {
 			return nil, err
@@ -915,7 +903,7 @@ func buildApplyRefreshPlan(
 
 func appendDestroyNodes(
 	ctx context.Context,
-	savedResourceBundle ResourceBundle,
+	savedHostState HostState,
 	resourceBundles ResourceBundles,
 	plan Plan,
 ) Plan {
@@ -923,7 +911,7 @@ func appendDestroyNodes(
 	logger.Info("💀 Determining resources to destroy")
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
-	for _, resourceDefinition := range savedResourceBundle {
+	for _, resourceDefinition := range savedHostState.ResourceDefinitions {
 		if resourceBundles.HasResourceDefinition(resourceDefinition) ||
 			resourceDefinition.MustIndividuallyManageableResource() == nil {
 			continue
@@ -945,7 +933,7 @@ func appendDestroyNodes(
 func NewPlan(
 	ctx context.Context,
 	hst host.Host,
-	savedResourceBundle ResourceBundle,
+	savedHostState HostState,
 	resourceBundles ResourceBundles,
 ) (Plan, error) {
 	logger := log.GetLogger(ctx)
@@ -953,7 +941,7 @@ func NewPlan(
 	nestedCtx := log.IndentLogger(ctx)
 
 	// Checking state
-	checkResults, err := checkResourcesState(nestedCtx, hst, savedResourceBundle, resourceBundles)
+	checkResults, err := checkResourcesState(nestedCtx, hst, savedHostState, resourceBundles)
 	if err != nil {
 		return nil, err
 	}
@@ -965,13 +953,7 @@ func NewPlan(
 	}
 
 	// Append destroy nodes
-	plan = appendDestroyNodes(nestedCtx, savedResourceBundle, resourceBundles, plan)
+	plan = appendDestroyNodes(nestedCtx, savedHostState, resourceBundles, plan)
 
 	return plan, nil
-}
-
-// PersistantState defines an interface for loading and saving HostState
-type PersistantState interface {
-	Load(ctx context.Context) ([]ResourceDefinition, error)
-	Save(ctx context.Context, resourceDefinitions []ResourceDefinition) error
 }

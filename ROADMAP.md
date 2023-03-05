@@ -115,11 +115,6 @@
             - 🧪At the end check again, fail if changes detected (bug in implementation).
             - 🧪Auto-rollback saved state on failures.
             - Parallelise check.
-        - `PersistantState`
-            - 🧪Change interface to only read / write `[]bytes`, so that serialization code can be shared across all interface implementations.
-            - 🧪Add field with resonance version at schema.
-            - Save history of states: enable to rollback to any previous state.
-            - Local state: save to `XDG_STATE_HOME/resonance/$target_hostname/`
         - `LoadResourceBundles`
             - 🧪Add check against duplicated resource `TypeName`.
             - 🧪Receive a single directory and load recursively from it.
@@ -136,6 +131,9 @@
                             - 📄There may be valid corner cases here. In such scenarios:
                                 - 📄`--allow-inventory-changes` have apply re-run when inventory changes at the end.
                                 - 📄Should put a limit (otherwise, inifinite loops can happen).
+        - `PersistantState`
+            - Save history of states: enable to rollback to any previous state.
+            - Local state: save to `XDG_STATE_HOME/resonance/$target_hostname/`
         - `ResourceDefinition`
             - ✨Support `refreshed_by`, to enable resources to subscribe to others (eg: `SystemdUnit[nginx.service]` is `refreshed_by` `File[/etc/nginx/.+]`)
         - `ManageableResource`
