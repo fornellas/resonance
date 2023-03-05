@@ -1,5 +1,11 @@
-BINDIR ?= /usr/local/bin
+MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
+MAKEFILE_DIR := $(dir $(MAKEFILE_PATH))
+
+CACHE_DIR ?= $(MAKEFILE_DIR)/.cache
+BINDIR := $(CACHE_DIR)/bin
 PATH := $(BINDIR):$(PATH)
+GOCACHE := $(CACHE_DIR)/go-build
+GOMODCACHE := $(CACHE_DIR)/go-mod
 
 ARCH ?= amd64
 
@@ -11,7 +17,7 @@ GOIMPORTS_LOCAL ?= github.com/fornellas/resonance/
 
 STATICCHECK_VERSION ?= 2023.1
 STATICCHECK ?= staticcheck
-STATICCHECK_CACHE ?= $(HOME)/.cache/staticcheck
+STATICCHECK_CACHE ?= $(CACHE_DIR)/staticcheck
 
 GOCYCLO ?= gocyclo
 GOCYCLO_VERSION = v0.6.0
@@ -23,7 +29,7 @@ GOTEST_VERSION ?= v0.0.6
 
 RRB_VERSION ?= latest
 RRB_DEBOUNCE ?= 500ms
-RRB_PATTERN ?= '**/*.{go,yaml}'
+RRB_PATTERN ?= '**/*.{go}'
 RRB_EXTRA_CMD ?= true
 
 ##
@@ -92,7 +98,9 @@ go-generate:
 
 .PHONY: install-deps-goimports
 install-deps-goimports: install-deps-bindir
-	GOBIN=$(BINDIR) $(GO) install golang.org/x/tools/cmd/goimports@v$(GOIMPORTS_VERSION)
+	if [ $(BINDIR)/goimports -nt $(MAKEFILE_PATH) ] ; then \
+		GOBIN=$(BINDIR) $(GO) install golang.org/x/tools/cmd/goimports@v$(GOIMPORTS_VERSION) ; \
+	fi
 install-deps: install-deps-goimports
 
 .PHONY: uninstall-deps-goimports
@@ -116,12 +124,14 @@ lint: go-mod-tidy
 
 .PHONY: install-deps-staticcheck
 install-deps-staticcheck: install-deps-bindir
-	rm -rf $(BINDIR)/staticcheck $(BINDIR)/staticcheck.tmp && \
-		curl -sSfL  https://github.com/dominikh/go-tools/releases/download/$(STATICCHECK_VERSION)/staticcheck_linux_$(ARCH).tar.gz | \
-		tar -zx -C $(BINDIR) staticcheck/staticcheck && \
-		mv $(BINDIR)/staticcheck $(BINDIR)/staticcheck.tmp && \
-		mv $(BINDIR)/staticcheck.tmp/staticcheck $(BINDIR)/ && \
-		rmdir $(BINDIR)/staticcheck.tmp
+	if [ $(BINDIR)/staticcheck -nt $(MAKEFILE_PATH) ] ; then \
+		rm -rf $(BINDIR)/staticcheck $(BINDIR)/staticcheck.tmp && \
+			curl -sSfL  https://github.com/dominikh/go-tools/releases/download/$(STATICCHECK_VERSION)/staticcheck_linux_$(ARCH).tar.gz | \
+			tar -zx -C $(BINDIR) staticcheck/staticcheck && \
+			mv $(BINDIR)/staticcheck $(BINDIR)/staticcheck.tmp && \
+			mv $(BINDIR)/staticcheck.tmp/staticcheck $(BINDIR)/ && \
+			rmdir $(BINDIR)/staticcheck.tmp ; \
+	fi
 install-deps: install-deps-staticcheck
 
 .PHONY: uninstall-deps-staticcheck
@@ -143,7 +153,9 @@ clean: clean-staticcheck
 
 .PHONY: install-deps-gocyclo
 install-deps-gocyclo: install-deps-bindir
-	GOBIN=$(BINDIR) $(GO) install github.com/fzipp/gocyclo/cmd/gocyclo@$(GOCYCLO_VERSION)
+	if [ $(BINDIR)/gocyclo -nt $(MAKEFILE_PATH) ] ; then \
+		GOBIN=$(BINDIR) $(GO) install github.com/fzipp/gocyclo/cmd/gocyclo@$(GOCYCLO_VERSION) ; \
+	fi
 install-deps: install-deps-gocyclo
 
 .PHONY: uninstall-deps-gocyclo
@@ -181,7 +193,9 @@ test:
 
 .PHONY: install-deps-gotest
 install-deps-gotest: install-deps-bindir
-	GOBIN=$(BINDIR) $(GO) install github.com/rakyll/gotest@$(GOTEST_VERSION)
+	if [ $(BINDIR)/gotest -nt $(MAKEFILE_PATH) ] ; then \
+		GOBIN=$(BINDIR) $(GO) install github.com/rakyll/gotest@$(GOTEST_VERSION) ; \
+	fi
 install-deps: install-deps-gotest
 
 .PHONY: uninstall-deps-gotest
@@ -216,7 +230,9 @@ ci: install-deps ci-no-install-deps
 
 .PHONY: install-deps-rrb
 install-deps-rrb: install-deps-bindir
-	GOBIN=$(BINDIR) $(GO) install github.com/fornellas/rrb@$(RRB_VERSION)
+	if [ $(BINDIR)/staticcheck -nt $(MAKEFILE_PATH) ] ; then \
+		GOBIN=$(BINDIR) $(GO) install github.com/fornellas/rrb@$(RRB_VERSION) ; \
+	fi
 install-deps: install-deps-rrb
 
 .PHONY: uninstall-deps-rrb

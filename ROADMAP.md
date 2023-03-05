@@ -62,7 +62,6 @@
       - ✨Coverage
 - ✨Add TESTS!
 - `Makefile`
-    - ✨Cache `install-deps`.
     - ✨Add https://github.com/gordonklaus/ineffassign
     - ✨Add https://github.com/client9/misspell
 - `host/`
