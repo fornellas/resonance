@@ -55,7 +55,7 @@ func (fp *FileParams) UnmarshalYAML(node *yaml.Node) error {
 	}
 	fileParams := FileParams(fileParamsDecode)
 	if err := fileParams.Validate(); err != nil {
-		return err
+		return fmt.Errorf("yaml line %d: validation error: %w", node.Line, err)
 	}
 	*fp = fileParams
 	return nil
@@ -102,16 +102,13 @@ func (f File) Validate(name Name) error {
 	return nil
 }
 
-func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters yaml.Node) (CheckResult, error) {
+func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters Parameters) (CheckResult, error) {
 	logger := log.GetLogger(ctx)
 
 	path := string(name)
 
 	// FileParams
-	var fileParams FileParams
-	if err := parameters.Decode(&fileParams); err != nil {
-		return false, err
-	}
+	fileParams := parameters.(*FileParams)
 
 	checkResult := CheckResult(true)
 
@@ -186,15 +183,12 @@ func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters ya
 	return checkResult, nil
 }
 
-func (f File) Apply(ctx context.Context, hst host.Host, name Name, parameters yaml.Node) error {
+func (f File) Apply(ctx context.Context, hst host.Host, name Name, parameters Parameters) error {
 	nestedCtx := log.IndentLogger(ctx)
 	path := string(name)
 
 	// FileParams
-	var fileParams FileParams
-	if err := parameters.Decode(&fileParams); err != nil {
-		return err
-	}
+	fileParams := parameters.(*FileParams)
 
 	// Content
 	if err := hst.WriteFile(nestedCtx, path, []byte(fileParams.Content), fileParams.Perm); err != nil {
@@ -239,4 +233,5 @@ func (f File) Destroy(ctx context.Context, hst host.Host, name Name) error {
 
 func init() {
 	IndividuallyManageableResourceTypeMap["File"] = File{}
+	ManageableResourcesParametersMap["File"] = FileParams{}
 }

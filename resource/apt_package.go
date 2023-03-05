@@ -37,7 +37,7 @@ func (app *APTPackageParams) UnmarshalYAML(node *yaml.Node) error {
 	}
 	aptPackageParams := APTPackageParams(aptPackageParamsDecode)
 	if err := aptPackageParams.Validate(); err != nil {
-		return err
+		return fmt.Errorf("line %d: validation error: %w", node.Line, err)
 	}
 	*app = aptPackageParams
 	return nil
@@ -53,14 +53,11 @@ func (ap APTPackage) Validate(name Name) error {
 	return nil
 }
 
-func (ap APTPackage) Check(ctx context.Context, hst host.Host, name Name, parameters yaml.Node) (CheckResult, error) {
+func (ap APTPackage) Check(ctx context.Context, hst host.Host, name Name, parameters Parameters) (CheckResult, error) {
 	logger := log.GetLogger(ctx)
 
 	// APTPackageParams
-	var aptPackageParams APTPackageParams
-	if err := parameters.Decode(&aptPackageParams); err != nil {
-		return false, err
-	}
+	aptPackageParams := parameters.(*APTPackageParams)
 
 	checkResult := CheckResult(true)
 
@@ -129,10 +126,7 @@ func (ap APTPackage) ConfigureAll(ctx context.Context, hst host.Host, actionDefi
 			return fmt.Errorf("unexpected action %s", action)
 		}
 		for name, parameters := range definitions {
-			var aptPackageParams APTPackageParams
-			if err := parameters.Decode(&aptPackageParams); err != nil {
-				return err
-			}
+			aptPackageParams := parameters.(*APTPackageParams)
 			var version string
 			if aptPackageParams.Version != "" {
 				version = fmt.Sprintf("=%s", aptPackageParams.Version)
@@ -162,4 +156,5 @@ func (ap APTPackage) ConfigureAll(ctx context.Context, hst host.Host, actionDefi
 
 func init() {
 	MergeableManageableResourcesTypeMap["APTPackage"] = APTPackage{}
+	ManageableResourcesParametersMap["APTPackage"] = APTPackageParams{}
 }

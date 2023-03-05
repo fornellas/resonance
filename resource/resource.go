@@ -89,8 +89,11 @@ func (a Action) String() string {
 	return str
 }
 
+// Parameters is a Type specific interface for defining resource parameters.
+type Parameters interface{}
+
 // Definitions describe a set of resource declarations.
-type Definitions map[Name]yaml.Node
+type Definitions map[Name]Parameters
 
 // ManageableResource defines a common interface for managing resource state.
 type ManageableResource interface {
@@ -100,7 +103,7 @@ type ManageableResource interface {
 	// Check host for the state of instatnce. If changes are required, returns true,
 	// otherwise, returns false.
 	// No side-effects are to happen when this function is called, which may happen concurrently.
-	Check(ctx context.Context, hst host.Host, name Name, parameters yaml.Node) (CheckResult, error)
+	Check(ctx context.Context, hst host.Host, name Name, parameters Parameters) (CheckResult, error)
 }
 
 // RefreshableManageableResource defines an interface for resources that can be refreshed.
@@ -123,7 +126,7 @@ type IndividuallyManageableResource interface {
 
 	// Apply configures the resource definition at host.
 	// Must be idempotent.
-	Apply(ctx context.Context, hst host.Host, name Name, parameters yaml.Node) error
+	Apply(ctx context.Context, hst host.Host, name Name, parameters Parameters) error
 
 	// Destroy a configured resource at given host.
 	// Must be idempotent.
@@ -151,6 +154,9 @@ var IndividuallyManageableResourceTypeMap = map[Type]IndividuallyManageableResou
 
 // MergeableManageableResourcesTypeMap maps Type to MergeableManageableResources.
 var MergeableManageableResourcesTypeMap = map[Type]MergeableManageableResources{}
+
+// ManageableResourcesParametersMap maps Type to its Parameters interface
+var ManageableResourcesParametersMap = map[Type]Parameters{}
 
 // Validate whether type is known.
 func (t Type) Validate() error {
@@ -247,6 +253,14 @@ func (tn *TypeName) UnmarshalYAML(node *yaml.Node) error {
 	return nil
 }
 
+func (tn TypeName) Type() Type {
+	tpe, _, err := tn.typeName()
+	if err != nil {
+		panic(err)
+	}
+	return tpe
+}
+
 func (tn TypeName) Name() Name {
 	_, name, err := tn.typeName()
 	if err != nil {
@@ -281,7 +295,7 @@ type CheckResults map[ResourceDefinitionKey]CheckResult
 type ResourceDefinition struct {
 	ManageableResource ManageableResource
 	Name               Name
-	Parameters         yaml.Node
+	Parameters         Parameters
 }
 
 func (rd *ResourceDefinition) UnmarshalYAML(node *yaml.Node) error {
@@ -290,15 +304,29 @@ func (rd *ResourceDefinition) UnmarshalYAML(node *yaml.Node) error {
 	if err := node.Decode(&resourceDefinitionSchema); err != nil {
 		return err
 	}
+
 	manageableResource := resourceDefinitionSchema.TypeName.ManageableResource()
+	tpe := resourceDefinitionSchema.TypeName.Type()
 	name := resourceDefinitionSchema.TypeName.Name()
 	if err := manageableResource.Validate(name); err != nil {
 		return err
 	}
+
+	parametersInterface, ok := ManageableResourcesParametersMap[tpe]
+	if !ok {
+		panic(fmt.Errorf("Type %s missing from ManageableResourcesParametersMap", tpe))
+	}
+	parametersType := reflect.ValueOf(parametersInterface).Type()
+	parametersValue := reflect.New(parametersType)
+	err := resourceDefinitionSchema.Parameters.Decode(parametersValue.Interface())
+	if err != nil {
+		return err
+	}
+
 	*rd = ResourceDefinition{
 		ManageableResource: manageableResource,
 		Name:               name,
-		Parameters:         resourceDefinitionSchema.Parameters,
+		Parameters:         parametersValue.Interface(),
 	}
 	return nil
 }

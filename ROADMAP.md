@@ -110,8 +110,6 @@
     - `hosts.go`
         - 💡Manage entries.
     - `resource.go`
-        - `ResourceDefinition`
-            - 🧪Change `Parameters` to `interface{}` and unmarshall it from `ResourceDefinitionSchema.Parameters` at `ResourceDefinition.UnmarshalYAML`. This pulls unmarshall errors when loading, and not when running.
         - `Plan.Execute`
             - 🧪On success, save `ResourceBundles` to `PersistantState`.
             - 🧪At the end check again, fail if changes detected (bug in implementation).
