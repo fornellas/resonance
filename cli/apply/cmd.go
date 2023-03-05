@@ -57,14 +57,16 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			logger.Fatal(err)
 		}
-		if !plan.Actionable() {
-			logger.Info("👌 Nothing to do")
-			return
-		}
 		plan.Print(ctx)
 
 		// Execute plan
-		if err := plan.Execute(ctx, hst); err != nil {
+		newHostState, err := plan.Execute(ctx, hst)
+		if err != nil {
+			logger.Fatal(err)
+		}
+
+		// Save host state
+		if err := state.SaveHostState(ctx, newHostState, localState); err != nil {
 			logger.Fatal(err)
 		}
 

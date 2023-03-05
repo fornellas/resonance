@@ -89,6 +89,14 @@ func (a Action) String() string {
 	return str
 }
 
+// SaveState tells whether a Step with this action should have its state saved.
+func (a Action) SaveState() bool {
+	if a == ActionSkip || a == ActionDestroy {
+		return false
+	}
+	return true
+}
+
 // Parameters is a Type specific interface for defining resource parameters.
 type Parameters interface{}
 
@@ -220,7 +228,7 @@ func (tn TypeName) typeName() (Type, Name, error) {
 	var name Name
 	matches := resourceInstanceKeyRegexp.FindStringSubmatch(string(tn))
 	if len(matches) != 3 {
-		return tpe, name, fmt.Errorf("%s does not match Type[Name] format", tn)
+		return tpe, name, fmt.Errorf("%#v does not match Type[Name] format", tn)
 	}
 	tpe = Type(matches[1])
 	name = Name(matches[2])
@@ -246,10 +254,11 @@ func (tn *TypeName) UnmarshalYAML(node *yaml.Node) error {
 	if err := node.Decode(&typeNameStr); err != nil {
 		return err
 	}
-	*tn = TypeName(typeNameStr)
-	if err := tn.Validate(); err != nil {
+	typeName := TypeName(typeNameStr)
+	if err := typeName.Validate(); err != nil {
 		return err
 	}
+	*tn = typeName
 	return nil
 }
 
@@ -278,12 +287,6 @@ func (tn TypeName) ManageableResource() ManageableResource {
 	return tpe.ManageableResource()
 }
 
-// ResourceDefinitionSchema is the schema used to define a single resource within a Yaml file.
-type ResourceDefinitionSchema struct {
-	TypeName   TypeName  `yaml:"resource"`
-	Parameters yaml.Node `yaml:"parameters"`
-}
-
 // ResourceDefinitionKey is a unique identifier for a ResourceDefinition that
 // can be used as keys in maps.
 type ResourceDefinitionKey string
@@ -293,21 +296,26 @@ type CheckResults map[ResourceDefinitionKey]CheckResult
 
 // ResourceDefinition holds a single resource definition.
 type ResourceDefinition struct {
-	ManageableResource ManageableResource
-	Name               Name
-	Parameters         Parameters
+	TypeName           TypeName           `yaml:"resource"`
+	Parameters         Parameters         `yaml:"parameters"`
+	ManageableResource ManageableResource `yaml:"-"`
+}
+
+type ResourceDefinitionUnmarshalSchema struct {
+	TypeName   TypeName  `yaml:"resource"`
+	Parameters yaml.Node `yaml:"parameters"`
 }
 
 func (rd *ResourceDefinition) UnmarshalYAML(node *yaml.Node) error {
-	var resourceDefinitionSchema ResourceDefinitionSchema
+	var resourceDefinitionUnmarshalSchema ResourceDefinitionUnmarshalSchema
 	node.KnownFields(true)
-	if err := node.Decode(&resourceDefinitionSchema); err != nil {
+	if err := node.Decode(&resourceDefinitionUnmarshalSchema); err != nil {
 		return err
 	}
 
-	manageableResource := resourceDefinitionSchema.TypeName.ManageableResource()
-	tpe := resourceDefinitionSchema.TypeName.Type()
-	name := resourceDefinitionSchema.TypeName.Name()
+	manageableResource := resourceDefinitionUnmarshalSchema.TypeName.ManageableResource()
+	tpe := resourceDefinitionUnmarshalSchema.TypeName.Type()
+	name := resourceDefinitionUnmarshalSchema.TypeName.Name()
 	if err := manageableResource.Validate(name); err != nil {
 		return err
 	}
@@ -318,25 +326,29 @@ func (rd *ResourceDefinition) UnmarshalYAML(node *yaml.Node) error {
 	}
 	parametersType := reflect.ValueOf(parametersInterface).Type()
 	parametersValue := reflect.New(parametersType)
-	err := resourceDefinitionSchema.Parameters.Decode(parametersValue.Interface())
+	err := resourceDefinitionUnmarshalSchema.Parameters.Decode(parametersValue.Interface())
 	if err != nil {
 		return err
 	}
 
 	*rd = ResourceDefinition{
+		TypeName:           resourceDefinitionUnmarshalSchema.TypeName,
 		ManageableResource: manageableResource,
-		Name:               name,
 		Parameters:         parametersValue.Interface(),
 	}
 	return nil
 }
 
 func (rd *ResourceDefinition) Type() Type {
-	return Type(reflect.TypeOf(rd.ManageableResource).Name())
+	return rd.TypeName.Type()
+}
+
+func (rd *ResourceDefinition) Name() Name {
+	return rd.TypeName.Name()
 }
 
 func (rd ResourceDefinition) String() string {
-	return fmt.Sprintf("%s[%s]", rd.Type(), rd.Name)
+	return fmt.Sprintf("%s[%s]", rd.Type(), rd.Name())
 }
 
 func (rd ResourceDefinition) ResourceDefinitionKey() ResourceDefinitionKey {
@@ -348,7 +360,7 @@ func (rd ResourceDefinition) Check(ctx context.Context, hst host.Host) (CheckRes
 	logger := log.GetLogger(ctx)
 
 	logger.Debugf("Checking %v", rd)
-	return rd.ManageableResource.Check(log.IndentLogger(ctx), hst, rd.Name, rd.Parameters)
+	return rd.ManageableResource.Check(log.IndentLogger(ctx), hst, rd.Name(), rd.Parameters)
 }
 
 // Refreshable returns whether the resource definition is refreshable or not.
@@ -438,7 +450,7 @@ func (rbs ResourceBundles) HasResourceDefinition(resourceDefinition ResourceDefi
 type HostState struct {
 	// Version of the binary used to put the host in this state.
 	Version version.Version `yaml:"version"`
-	// All ResourceDefinition for the host state.
+	// ResourceDefinitions used to put the host in the state.
 	ResourceDefinitions []ResourceDefinition
 }
 
@@ -459,34 +471,36 @@ func LoadResourceBundles(ctx context.Context, paths []string) ResourceBundles {
 	return resourceBundles
 }
 
-// NodeAction defines an interface for an action that can be executed from a Node.
-type NodeAction interface {
+// StepAction defines an interface for an action that can be executed from a Step.
+type StepAction interface {
 	// Execute actions for all bundled resource definitions.
 	Execute(ctx context.Context, hst host.Host) error
 	String() string
 	// Actionable returns whether any action is different from ActionOk or ActionSkip
 	Actionable() bool
+	// StateResourceDefinitions returns all ResourceDefinition that should have its state saved.
+	StateResourceDefinitions() []ResourceDefinition
 }
 
-// NodeActionIndividual is a NodeAction which can execute a single ResourceDefinition.
-type NodeActionIndividual struct {
+// StepActionIndividual is a StepAction which can execute a single ResourceDefinition.
+type StepActionIndividual struct {
 	ResourceDefinition ResourceDefinition
 	Action             Action
 }
 
 // Execute Action for the ResourceDefinition.
-func (nai NodeActionIndividual) Execute(ctx context.Context, hst host.Host) error {
+func (sai StepActionIndividual) Execute(ctx context.Context, hst host.Host) error {
 	logger := log.GetLogger(ctx)
-	if nai.Action == ActionOk || nai.Action == ActionSkip {
-		logger.Debugf("%s", nai)
+	if sai.Action == ActionOk || sai.Action == ActionSkip {
+		logger.Debugf("%s", sai)
 		return nil
 	}
-	logger.Infof("%s", nai)
+	logger.Infof("%s", sai)
 	nestedCtx := log.IndentLogger(ctx)
-	individuallyManageableResource := nai.ResourceDefinition.MustIndividuallyManageableResource()
-	name := nai.ResourceDefinition.Name
-	parameters := nai.ResourceDefinition.Parameters
-	switch nai.Action {
+	individuallyManageableResource := sai.ResourceDefinition.MustIndividuallyManageableResource()
+	name := sai.ResourceDefinition.Name()
+	parameters := sai.ResourceDefinition.Parameters
+	switch sai.Action {
 	case ActionRefresh:
 		refreshableManageableResource, ok := individuallyManageableResource.(RefreshableManageableResource)
 		if ok {
@@ -501,83 +515,79 @@ func (nai NodeActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 			return err
 		}
 		if !checkResult {
-			return fmt.Errorf("%s: check failed immediately after apply: this often means there's a bug 🪲 with the resource implementation", nai.ResourceDefinition)
+			return fmt.Errorf("%s: check failed immediately after apply: this often means there's a bug 🪲 with the resource implementation", sai.ResourceDefinition)
 		}
 	case ActionDestroy:
 		return individuallyManageableResource.Destroy(nestedCtx, hst, name)
 	default:
-		panic(fmt.Errorf("unexpected action %v", nai.Action))
+		panic(fmt.Errorf("unexpected action %v", sai.Action))
 	}
 	return nil
 }
 
-func (nai NodeActionIndividual) String() string {
-	return fmt.Sprintf("%s[%s %s]", nai.ResourceDefinition.Type(), nai.Action.Emoji(), nai.ResourceDefinition.Name)
+func (sai StepActionIndividual) String() string {
+	return fmt.Sprintf("%s[%s %s]", sai.ResourceDefinition.Type(), sai.Action.Emoji(), sai.ResourceDefinition.Name())
 }
 
-func (nai NodeActionIndividual) Actionable() bool {
-	return !(nai.Action == ActionOk || nai.Action == ActionSkip)
+func (sai StepActionIndividual) Actionable() bool {
+	return !(sai.Action == ActionOk || sai.Action == ActionSkip)
 }
 
-// NodeActionMerged is a NodeAction which contains multiple merged ResourceDefinition.
-type NodeActionMerged struct {
+func (sai StepActionIndividual) StateResourceDefinitions() []ResourceDefinition {
+	if sai.Action.SaveState() {
+		return []ResourceDefinition{sai.ResourceDefinition}
+	} else {
+		return []ResourceDefinition{}
+	}
+}
+
+// StepActionMerged is a StepAction which contains multiple merged ResourceDefinition.
+type StepActionMerged struct {
 	ActionResourceDefinitions map[Action][]ResourceDefinition
 }
 
 // MustMergeableManageableResources returns MergeableManageableResources common to all
 // ResourceDefinition or panics.
-func (nam NodeActionMerged) MustMergeableManageableResources() MergeableManageableResources {
+func (sam StepActionMerged) MustMergeableManageableResources() MergeableManageableResources {
 	var mergeableManageableResources MergeableManageableResources
-	for _, resourceDefinitions := range nam.ActionResourceDefinitions {
+	for _, resourceDefinitions := range sam.ActionResourceDefinitions {
 		for _, resourceDefinition := range resourceDefinitions {
 			if mergeableManageableResources != nil &&
 				mergeableManageableResources != resourceDefinition.MustMergeableManageableResources() {
-				panic(fmt.Errorf("%s: mixed resource types", nam))
+				panic(fmt.Errorf("%s: mixed resource types", sam))
 			}
 			mergeableManageableResources = resourceDefinition.MustMergeableManageableResources()
 		}
 	}
 	if mergeableManageableResources == nil {
-		panic(fmt.Errorf("%s is empty", nam))
+		panic(fmt.Errorf("%s is empty", sam))
 	}
 	return mergeableManageableResources
 }
 
-func (nam NodeActionMerged) Actionable() bool {
-	hasAction := false
-	for action := range nam.ActionResourceDefinitions {
-		if action == ActionOk || action == ActionSkip {
-			continue
-		}
-		hasAction = true
-		break
-	}
-	return hasAction
-}
-
 // Execute the required Action for each ResourceDefinition.
-func (nam NodeActionMerged) Execute(ctx context.Context, hst host.Host) error {
+func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 	logger := log.GetLogger(ctx)
 	nestedCtx := log.IndentLogger(ctx)
 
-	if !nam.Actionable() {
-		logger.Debugf("%s", nam)
+	if !sam.Actionable() {
+		logger.Debugf("%s", sam)
 		return nil
 	}
-	logger.Infof("%s", nam)
+	logger.Infof("%s", sam)
 
 	checkResourceDefinitions := []ResourceDefinition{}
 	configureActionDefinition := map[Action]Definitions{}
 	refreshNames := []Name{}
-	for action, resourceDefinitions := range nam.ActionResourceDefinitions {
+	for action, resourceDefinitions := range sam.ActionResourceDefinitions {
 		for _, resourceDefinition := range resourceDefinitions {
 			if action == ActionRefresh {
-				refreshNames = append(refreshNames, resourceDefinition.Name)
+				refreshNames = append(refreshNames, resourceDefinition.Name())
 			} else {
 				if configureActionDefinition[action] == nil {
 					configureActionDefinition[action] = Definitions{}
 				}
-				configureActionDefinition[action][resourceDefinition.Name] = resourceDefinition.Parameters
+				configureActionDefinition[action][resourceDefinition.Name()] = resourceDefinition.Parameters
 			}
 			if action != ActionDestroy {
 				checkResourceDefinitions = append(checkResourceDefinitions, resourceDefinition)
@@ -585,15 +595,15 @@ func (nam NodeActionMerged) Execute(ctx context.Context, hst host.Host) error {
 		}
 	}
 
-	if err := nam.MustMergeableManageableResources().ConfigureAll(
+	if err := sam.MustMergeableManageableResources().ConfigureAll(
 		nestedCtx, hst, configureActionDefinition,
 	); err != nil {
 		return err
 	}
 
 	for _, resourceDefinition := range checkResourceDefinitions {
-		checkResult, err := nam.MustMergeableManageableResources().Check(
-			nestedCtx, hst, resourceDefinition.Name, resourceDefinition.Parameters,
+		checkResult, err := sam.MustMergeableManageableResources().Check(
+			nestedCtx, hst, resourceDefinition.Name(), resourceDefinition.Parameters,
 		)
 		if err != nil {
 			return err
@@ -604,7 +614,7 @@ func (nam NodeActionMerged) Execute(ctx context.Context, hst host.Host) error {
 	}
 
 	for _, name := range refreshNames {
-		refreshableManageableResource, ok := nam.MustMergeableManageableResources().(RefreshableManageableResource)
+		refreshableManageableResource, ok := sam.MustMergeableManageableResources().(RefreshableManageableResource)
 		if ok {
 			return refreshableManageableResource.Refresh(nestedCtx, hst, name)
 		}
@@ -613,118 +623,119 @@ func (nam NodeActionMerged) Execute(ctx context.Context, hst host.Host) error {
 	return nil
 }
 
-func (nam NodeActionMerged) String() string {
+func (sam StepActionMerged) String() string {
 	var tpe Type
 	names := []string{}
-	for action, resourceDefinitions := range nam.ActionResourceDefinitions {
+	for action, resourceDefinitions := range sam.ActionResourceDefinitions {
 		for _, resourceDefinition := range resourceDefinitions {
 			tpe = resourceDefinition.Type()
-			names = append(names, fmt.Sprintf("%s %s", action.Emoji(), string(resourceDefinition.Name)))
+			names = append(names, fmt.Sprintf("%s %s", action.Emoji(), string(resourceDefinition.Name())))
 		}
 	}
 	sort.Strings(names)
 	return fmt.Sprintf("%s[%s]", tpe, strings.Join(names, ", "))
 }
 
-// Node that's used at a Plan
-type Node struct {
-	NodeAction      NodeAction
-	PrerequisiteFor []*Node
+func (sam StepActionMerged) Actionable() bool {
+	hasAction := false
+	for action := range sam.ActionResourceDefinitions {
+		if action == ActionOk || action == ActionSkip {
+			continue
+		}
+		hasAction = true
+		break
+	}
+	return hasAction
 }
 
-func (n Node) String() string {
-	return n.NodeAction.String()
+func (sam StepActionMerged) StateResourceDefinitions() []ResourceDefinition {
+	resourceDefinitions := []ResourceDefinition{}
+	for action, rd := range sam.ActionResourceDefinitions {
+		if !action.SaveState() {
+			continue
+		}
+		resourceDefinitions = append(resourceDefinitions, rd...)
+	}
+	return resourceDefinitions
 }
 
-// Execute NodeAction
-func (n Node) Execute(ctx context.Context, hst host.Host) error {
-	return n.NodeAction.Execute(ctx, hst)
+// Step that's used at a Plan
+type Step struct {
+	StepAction      StepAction
+	prerequisiteFor []*Step
+}
+
+func (s Step) Actionable() bool {
+	return s.StepAction.Actionable()
+}
+
+func (s Step) String() string {
+	return s.StepAction.String()
+}
+
+// Execute StepAction
+func (s Step) Execute(ctx context.Context, hst host.Host) error {
+	return s.StepAction.Execute(ctx, hst)
+}
+
+func (s Step) StateResourceDefinitions() []ResourceDefinition {
+	return s.StepAction.StateResourceDefinitions()
 }
 
 // Plan is a directed graph which contains the plan for applying resources to a host.
-type Plan []*Node
+type Plan []*Step
 
 // Graphviz returns a DOT directed graph containing the apply plan.
 func (p Plan) Graphviz() string {
 	var buff bytes.Buffer
 	fmt.Fprint(&buff, "digraph resonance {\n")
-	for _, node := range p {
-		fmt.Fprintf(&buff, "  node [shape=rectanble] \"%s\"\n", node)
+	for _, step := range p {
+		fmt.Fprintf(&buff, "  node [shape=rectanble] \"%s\"\n", step)
 	}
-	for _, node := range p {
-		for _, dependantNode := range node.PrerequisiteFor {
-			fmt.Fprintf(&buff, "  \"%s\" -> \"%s\"\n", node.String(), dependantNode.String())
+	for _, step := range p {
+		for _, dependantStep := range step.prerequisiteFor {
+			fmt.Fprintf(&buff, "  \"%s\" -> \"%s\"\n", step.String(), dependantStep.String())
 		}
 	}
 	fmt.Fprint(&buff, "}\n")
 	return buff.String()
 }
 
-// Execute all Node at the Plan.
-func (p Plan) Execute(ctx context.Context, hst host.Host) error {
+// Execute every Step from the Plan.
+func (p Plan) Execute(ctx context.Context, hst host.Host) (HostState, error) {
 	logger := log.GetLogger(ctx)
-	logger.Info("🛠️  Executing changes")
 	nestedCtx := log.IndentLogger(ctx)
-	for _, node := range p {
-		err := node.Execute(nestedCtx, hst)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
+	nestedLogger := log.GetLogger(nestedCtx)
+	logger.Info("🛠️  Executing changes")
 
-// topologicalSort sorts the nodes based on their prerequisites. If the graph has cycles, it returns
-// error.
-func (p Plan) topologicalSort() (Plan, error) {
-	// Thanks ChatGPT :-D
+	hostState := HostState{
+		Version: version.GetVersion(),
+	}
 
-	// 1. Create a map to store the in-degree of each node
-	inDegree := make(map[*Node]int)
-	for _, node := range p {
-		inDegree[node] = 0
-	}
-	// 2. Calculate the in-degree of each node
-	for _, node := range p {
-		for _, prereq := range node.PrerequisiteFor {
-			inDegree[prereq]++
-		}
-	}
-	// 3. Create a queue to store nodes with in-degree 0
-	queue := make([]*Node, 0)
-	for _, node := range p {
-		if inDegree[node] == 0 {
-			queue = append(queue, node)
-		}
-	}
-	// 4. Initialize the result slice
-	result := make(Plan, 0)
-	// 5. Process nodes in the queue
-	for len(queue) > 0 {
-		// 5.1. Dequeue a node from the queue
-		node := queue[0]
-		queue = queue[1:]
-		// 5.2. Add the node to the result
-		result = append(result, node)
-		// 5.3. Decrease the in-degree of each of its neighbors
-		for _, neighbor := range node.PrerequisiteFor {
-			inDegree[neighbor]--
-			// 5.4. If the neighbor's in-degree is 0, add it to the queue
-			if inDegree[neighbor] == 0 {
-				queue = append(queue, neighbor)
+	if p.Actionable() {
+		for _, node := range p {
+			err := node.Execute(nestedCtx, hst)
+			if err != nil {
+				return hostState, err
 			}
 		}
+	} else {
+		nestedLogger.Infof("👌 Nothing to do")
 	}
-	// 6. Check if all nodes were visited
-	if len(result) != len(p) {
-		return nil, errors.New("the graph has cycles")
+
+	for _, step := range p {
+		hostState.ResourceDefinitions = append(
+			hostState.ResourceDefinitions,
+			step.StateResourceDefinitions()...,
+		)
 	}
-	return result, nil
+
+	return hostState, nil
 }
 
 func (p Plan) Actionable() bool {
-	for _, node := range p {
-		if node.NodeAction.Actionable() {
+	for _, step := range p {
+		if step.StepAction.Actionable() {
 			return true
 		}
 	}
@@ -738,25 +749,16 @@ func (p Plan) Print(ctx context.Context) {
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 
-	var legendBuff bytes.Buffer
-	first := true
-	for action := Action(0); action < ActionCount; action++ {
-		if action == ActionOk || action == ActionSkip {
-			continue
-		}
-		if !first {
-			fmt.Fprint(&legendBuff, ", ")
-		}
-		fmt.Fprintf(&legendBuff, "%s = %s", action.Emoji(), action.String())
-		first = false
+	if !p.Actionable() {
+		nestedLogger.Infof("👌 Nothing to do")
+		return
 	}
-	nestedLogger.Infof("%s", legendBuff.String())
 
-	for _, node := range p {
-		if node.NodeAction.Actionable() {
-			nestedLogger.Infof("%s", node)
+	for _, step := range p {
+		if step.Actionable() {
+			nestedLogger.Infof("%s", step)
 		} else {
-			nestedLogger.Debugf("%s", node)
+			nestedLogger.Debugf("%s", step)
 		}
 	}
 
@@ -766,7 +768,7 @@ func (p Plan) Print(ctx context.Context) {
 func checkResourcesState(
 	ctx context.Context,
 	hst host.Host,
-	savedHostState HostState,
+	savedHostState *HostState,
 	resourceBundles ResourceBundles,
 ) (CheckResults, error) {
 	logger := log.GetLogger(ctx)
@@ -775,16 +777,18 @@ func checkResourcesState(
 
 	logger.Info("🔎 Checking state")
 	checkResults := CheckResults{}
-	for _, resourceDefinition := range savedHostState.ResourceDefinitions {
-		checkResult, err := resourceDefinition.Check(nestedCtx, hst)
-		if err != nil {
-			return nil, err
+	if savedHostState != nil {
+		for _, resourceDefinition := range savedHostState.ResourceDefinitions {
+			checkResult, err := resourceDefinition.Check(nestedCtx, hst)
+			if err != nil {
+				return nil, err
+			}
+			nestedLogger.Infof("%s %s", checkResult, resourceDefinition)
+			if !checkResult {
+				return nil, fmt.Errorf("resource previously applied now failing check; this usually means that the resource was changed externally")
+			}
+			checkResults[resourceDefinition.ResourceDefinitionKey()] = checkResult
 		}
-		nestedLogger.Infof("%s %s", checkResult, resourceDefinition)
-		if !checkResult {
-			return nil, fmt.Errorf("resource previously applied now failing check; this usually means that the resource was changed externally")
-		}
-		checkResults[resourceDefinition.ResourceDefinitionKey()] = checkResult
 	}
 	for _, resourceBundle := range resourceBundles {
 		for _, resourceDefinition := range resourceBundle {
@@ -809,23 +813,21 @@ func buildApplyRefreshPlan(
 ) (Plan, error) {
 	logger := log.GetLogger(ctx)
 
-	// Build unsorted digraph
 	logger.Info("👷 Building apply/refresh plan")
-	unsortedPlan := Plan{}
+	plan := Plan{}
 
-	mergedNodes := map[Type]*Node{}
-	var lastBundleLastNode *Node
+	var lastBundleLastStep *Step
 	for _, resourceBundle := range resourceBundles {
-		resourceBundleNodes := []*Node{}
+		resourceBundleSteps := []*Step{}
 		refresh := false
-		var node *Node
+		var step *Step
 		for i, resourceDefinition := range resourceBundle {
-			node = &Node{}
-			unsortedPlan = append(unsortedPlan, node)
+			step = &Step{}
+			plan = append(plan, step)
 
 			// Dependant on previous bundle
-			if i == 0 && lastBundleLastNode != nil {
-				lastBundleLastNode.PrerequisiteFor = append(lastBundleLastNode.PrerequisiteFor, node)
+			if i == 0 && lastBundleLastStep != nil {
+				lastBundleLastStep.prerequisiteFor = append(lastBundleLastStep.prerequisiteFor, step)
 			}
 
 			// Result
@@ -847,63 +849,32 @@ func buildApplyRefreshPlan(
 			}
 
 			// Prerequisites
-			resourceBundleNodes = append(resourceBundleNodes, node)
+			resourceBundleSteps = append(resourceBundleSteps, step)
 			if i > 0 {
-				dependantNode := resourceBundleNodes[i-1]
-				dependantNode.PrerequisiteFor = append(dependantNode.PrerequisiteFor, node)
+				dependantStep := resourceBundleSteps[i-1]
+				dependantStep.prerequisiteFor = append(dependantStep.prerequisiteFor, step)
 			}
 
-			// NodeAction
-			nodeAction := NodeActionIndividual{
+			// StepAction
+			step.StepAction = StepActionIndividual{
 				ResourceDefinition: resourceDefinition,
+				Action:             action,
 			}
-			if resourceDefinition.IsIndividuallyManageableResource() {
-				nodeAction.Action = action
-			} else if resourceDefinition.IsMergeableManageableResources() {
-				nodeAction.Action = ActionSkip
-
-				// Merged node
-				mergedNode, ok := mergedNodes[resourceDefinition.Type()]
-				if !ok {
-					mergedNode = &Node{NodeAction: NodeActionMerged{
-						ActionResourceDefinitions: map[Action][]ResourceDefinition{},
-					}}
-					unsortedPlan = append(unsortedPlan, mergedNode)
-					mergedNodes[resourceDefinition.Type()] = mergedNode
-				}
-				nodeActionMerged, ok := mergedNode.NodeAction.(NodeActionMerged)
-				if !ok {
-					panic(fmt.Errorf("%v NodeAction not NodeActionMerged", mergedNode))
-				}
-				nodeActionMerged.ActionResourceDefinitions[action] = append(
-					nodeActionMerged.ActionResourceDefinitions[action], resourceDefinition,
-				)
-				mergedNode.PrerequisiteFor = append(mergedNode.PrerequisiteFor, node)
-			} else {
-				panic(fmt.Errorf("%s: unknown managed resource", resourceDefinition))
-			}
-			node.NodeAction = nodeAction
 
 			// Refresh
 			if action == ActionApply {
 				refresh = true
 			}
 		}
-		lastBundleLastNode = node
-	}
-
-	// Sort
-	plan, err := unsortedPlan.topologicalSort()
-	if err != nil {
-		return nil, err
+		lastBundleLastStep = step
 	}
 
 	return plan, nil
 }
 
-func appendDestroyNodes(
+func appendDestroySteps(
 	ctx context.Context,
-	savedHostState HostState,
+	savedHostState *HostState,
 	resourceBundles ResourceBundles,
 	plan Plan,
 ) Plan {
@@ -912,28 +883,113 @@ func appendDestroyNodes(
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 	for _, resourceDefinition := range savedHostState.ResourceDefinitions {
-		if resourceBundles.HasResourceDefinition(resourceDefinition) ||
-			resourceDefinition.MustIndividuallyManageableResource() == nil {
+		if resourceBundles.HasResourceDefinition(resourceDefinition) {
 			continue
 		}
-		node := &Node{
-			NodeAction: NodeActionIndividual{
+		step := &Step{
+			StepAction: StepActionIndividual{
 				ResourceDefinition: resourceDefinition,
 				Action:             ActionDestroy,
 			},
-			PrerequisiteFor: []*Node{plan[0]},
+			prerequisiteFor: []*Step{plan[0]},
 		}
-		nestedLogger.Infof("%s", node)
-		plan = append(Plan{node}, plan...)
+		nestedLogger.Infof("%s", step)
+		plan = append(Plan{step}, plan...)
 	}
+
 	return plan
+}
+
+func mergeSteps(ctx context.Context, plan Plan) Plan {
+	logger := log.GetLogger(ctx)
+	logger.Info("📦 Merging resources")
+	nestedCtx := log.IndentLogger(ctx)
+	nestedLogger := log.GetLogger(nestedCtx)
+
+	newPlan := Plan{}
+
+	mergedSteps := map[Type]*Step{}
+	for _, step := range plan {
+		stepActionIndividual := step.StepAction.(StepActionIndividual)
+		if !stepActionIndividual.ResourceDefinition.IsMergeableManageableResources() {
+			newPlan = append(newPlan, step)
+			continue
+		}
+
+		stepType := stepActionIndividual.ResourceDefinition.Type()
+		mergedStep, ok := mergedSteps[stepType]
+		if !ok {
+			mergedStep = &Step{
+				StepAction: StepActionMerged{
+					ActionResourceDefinitions: map[Action][]ResourceDefinition{},
+				},
+			}
+			newPlan = append(newPlan, mergedStep)
+			mergedSteps[stepType] = mergedStep
+		}
+		stepActionMerged := mergedStep.StepAction.(StepActionMerged)
+		stepActionMerged.ActionResourceDefinitions[stepActionIndividual.Action] = append(
+			stepActionMerged.ActionResourceDefinitions[stepActionIndividual.Action],
+			stepActionIndividual.ResourceDefinition,
+		)
+		mergedStep.prerequisiteFor = append(mergedStep.prerequisiteFor, step)
+		stepActionIndividual.Action = ActionSkip
+		step.StepAction = stepActionIndividual
+		newPlan = append(newPlan, step)
+	}
+
+	for _, step := range mergedSteps {
+		nestedLogger.Infof("Merged %s", step)
+	}
+
+	return newPlan
+}
+
+// topologicalSort sorts the steps based on their prerequisites. If the graph has cycles, it returns
+// error.
+func topologicalSort(ctx context.Context, plan Plan) (Plan, error) {
+	dependantCount := map[*Step]int{}
+	for _, step := range plan {
+		if _, ok := dependantCount[step]; !ok {
+			dependantCount[step] = 0
+		}
+		for _, prereq := range step.prerequisiteFor {
+			dependantCount[prereq]++
+		}
+	}
+
+	noDependantsSteps := []*Step{}
+	for _, step := range plan {
+		if dependantCount[step] == 0 {
+			noDependantsSteps = append(noDependantsSteps, step)
+		}
+	}
+
+	sortedPlan := Plan{}
+	for len(noDependantsSteps) > 0 {
+		step := noDependantsSteps[0]
+		noDependantsSteps = noDependantsSteps[1:]
+		sortedPlan = append(sortedPlan, step)
+		for _, dependantStep := range step.prerequisiteFor {
+			dependantCount[dependantStep]--
+			if dependantCount[dependantStep] == 0 {
+				noDependantsSteps = append(noDependantsSteps, dependantStep)
+			}
+		}
+	}
+
+	if len(sortedPlan) != len(plan) {
+		return nil, errors.New("unable to sort plan: it has cycles")
+	}
+
+	return sortedPlan, nil
 }
 
 // NewPlan calculates the plan and returns it in the form of a Plan
 func NewPlan(
 	ctx context.Context,
 	hst host.Host,
-	savedHostState HostState,
+	savedHostState *HostState,
 	resourceBundles ResourceBundles,
 ) (Plan, error) {
 	logger := log.GetLogger(ctx)
@@ -952,8 +1008,19 @@ func NewPlan(
 		return nil, err
 	}
 
-	// Append destroy nodes
-	plan = appendDestroyNodes(nestedCtx, savedHostState, resourceBundles, plan)
+	// Append destroy steps
+	if savedHostState != nil {
+		plan = appendDestroySteps(nestedCtx, savedHostState, resourceBundles, plan)
+	}
+
+	// Merge steps
+	plan = mergeSteps(nestedCtx, plan)
+
+	// Sort
+	plan, err = topologicalSort(nestedCtx, plan)
+	if err != nil {
+		return nil, err
+	}
 
 	return plan, nil
 }

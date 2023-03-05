@@ -22,18 +22,37 @@ type PersistantState interface {
 	String() string
 }
 
+func SaveHostState(ctx context.Context, hostState resource.HostState, persistantState PersistantState) error {
+	logger := log.GetLogger(ctx)
+	nestedCtx := log.IndentLogger(ctx)
+
+	logger.Infof("💾 Saving new host state to %s", persistantState)
+
+	bytes, err := yaml.Marshal(&hostState)
+	if err != nil {
+		panic(fmt.Errorf("failed to yaml.Marshal state: %w", err))
+	}
+	if err := persistantState.Save(nestedCtx, bytes); err != nil {
+		return err
+	}
+	return nil
+}
+
 // LoadHostState loads a ResourceBundle saved after it was applied to a host.
-func LoadHostState(ctx context.Context, persistantState PersistantState) (resource.HostState, error) {
+func LoadHostState(ctx context.Context, persistantState PersistantState) (*resource.HostState, error) {
 	logger := log.GetLogger(ctx)
 	nestedCtx := log.IndentLogger(ctx)
 
 	var hostState resource.HostState
 
-	logger.Infof("📂 Loading saved state from %s", persistantState)
+	logger.Infof("📂 Loading saved host state from %s", persistantState)
 
 	savedBytes, err := persistantState.Load(nestedCtx)
 	if err != nil {
-		return hostState, err
+		return &hostState, err
+	}
+	if savedBytes == nil {
+		return nil, nil
 	}
 
 	decoder := yaml.NewDecoder(bytes.NewReader(*savedBytes))
@@ -44,13 +63,13 @@ func LoadHostState(ctx context.Context, persistantState PersistantState) (resour
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return hostState, fmt.Errorf("failed to load: %w", err)
+			return &hostState, fmt.Errorf("failed to load: %w", err)
 		}
 		if hasMultipleDocuments {
-			return hostState, fmt.Errorf("saved state has multiple documents")
+			return &hostState, fmt.Errorf("saved state has multiple documents")
 		}
 		hasMultipleDocuments = true
 	}
 
-	return hostState, nil
+	return &hostState, nil
 }

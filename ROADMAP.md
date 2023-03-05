@@ -111,7 +111,6 @@
         - 💡Manage entries.
     - `resource.go`
         - `Plan.Execute`
-            - 🧪On success, save `ResourceBundles` to `PersistantState`.
             - 🧪At the end check again, fail if changes detected (bug in implementation).
             - 🧪Auto-rollback saved state on failures.
             - Parallelise check.
