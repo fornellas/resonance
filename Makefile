@@ -23,7 +23,7 @@ GOTEST_VERSION ?= v0.0.6
 
 RRB_VERSION ?= latest
 RRB_DEBOUNCE ?= 500ms
-RRB_PATTERN ?= '**/*.{go}'
+RRB_PATTERN ?= '**/*.{go,yaml}'
 RRB_EXTRA_CMD ?= true
 
 ##

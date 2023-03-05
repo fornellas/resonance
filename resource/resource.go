@@ -236,6 +236,7 @@ func (tn TypeName) Validate() error {
 
 func (tn *TypeName) UnmarshalYAML(node *yaml.Node) error {
 	var typeNameStr string
+	node.KnownFields(true)
 	if err := node.Decode(&typeNameStr); err != nil {
 		return err
 	}
@@ -285,6 +286,7 @@ type ResourceDefinition struct {
 
 func (rd *ResourceDefinition) UnmarshalYAML(node *yaml.Node) error {
 	var resourceDefinitionSchema ResourceDefinitionSchema
+	node.KnownFields(true)
 	if err := node.Decode(&resourceDefinitionSchema); err != nil {
 		return err
 	}

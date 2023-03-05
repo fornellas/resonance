@@ -49,6 +49,7 @@ func (fp *FileParams) Validate() error {
 func (fp *FileParams) UnmarshalYAML(node *yaml.Node) error {
 	type FileParamsDecode FileParams
 	var fileParamsDecode FileParamsDecode
+	node.KnownFields(true)
 	if err := node.Decode(&fileParamsDecode); err != nil {
 		return err
 	}
