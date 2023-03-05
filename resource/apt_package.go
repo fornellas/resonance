@@ -18,6 +18,31 @@ type APTPackageParams struct {
 	Version string
 }
 
+func (app *APTPackageParams) Validate() error {
+	if strings.HasSuffix(app.Version, "+") {
+		return fmt.Errorf("version can't end in +: %s", app.Version)
+	}
+	if strings.HasSuffix(app.Version, "-") {
+		return fmt.Errorf("version can't end in -: %s", app.Version)
+	}
+	return nil
+}
+
+func (app *APTPackageParams) UnmarshalYAML(node *yaml.Node) error {
+	type APTPackageParamsDecode APTPackageParams
+	var aptPackageParamsDecode APTPackageParamsDecode
+	node.KnownFields(true)
+	if err := node.Decode(&aptPackageParamsDecode); err != nil {
+		return err
+	}
+	aptPackageParams := APTPackageParams(aptPackageParamsDecode)
+	if err := aptPackageParams.Validate(); err != nil {
+		return err
+	}
+	*app = aptPackageParams
+	return nil
+}
+
 // APTPackage resource manages files.
 type APTPackage struct{}
 
