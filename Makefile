@@ -15,7 +15,7 @@ STATICCHECK_CACHE ?= $(HOME)/.cache/staticcheck
 
 GOCYCLO ?= gocyclo
 GOCYCLO_VERSION = v0.6.0
-GOCYCLO_OVER ?= 16
+GOCYCLO_OVER ?= 14
 
 GO_TEST ?= gotest
 GO_TEST_FLAGS ?= -v -race -cover -count=1

@@ -939,7 +939,7 @@ func mergeSteps(ctx context.Context, plan Plan) Plan {
 	}
 
 	for _, step := range mergedSteps {
-		nestedLogger.Infof("Merged %s", step)
+		nestedLogger.Infof("%s", step)
 	}
 
 	return newPlan
