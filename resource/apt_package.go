@@ -51,7 +51,7 @@ func (ap APTPackage) Check(ctx context.Context, hst host.Host, name Name, parame
 	if !waitStatus.Success() {
 		if waitStatus.Exited && waitStatus.ExitCode == 1 && strings.Contains(stderr, "not installed") {
 			logger.Debugf("Package not installed")
-			checkResult = false
+			return false, nil
 		} else {
 			return false, fmt.Errorf("failed to call '%s': %s\nstdout:\n%s\nstderr:\n%s", hostCmd.String(), waitStatus.String(), stdout, stderr)
 		}
