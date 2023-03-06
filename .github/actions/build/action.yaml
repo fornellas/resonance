@@ -69,3 +69,7 @@ runs:
     - name: Build
       run: make ci
       shell: bash
+    # Git Status
+    - name: git status
+      run: GIT_STATUS="$(git status --porcelain)" && [ -n "$GIT_STATUS" ] && { echo git status ; echo "$GIT_STATUS" ; echo git diff ; git diff ; exit 1 ; } || true
+      shell: bash
