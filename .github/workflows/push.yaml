@@ -34,17 +34,18 @@ jobs:
         id: binary_name
         run: |
           set -e
-          echo "value=resonance.${{ steps.goos.outputs.value }}-${{ steps.goarch.outputs.value }}" >> $GITHUB_OUTPUT
+          echo "value=resonance.${{ steps.goos.outputs.value }}.${{ steps.goarch.outputs.value }}" >> $GITHUB_OUTPUT
         shell: bash
         if: startsWith(github.ref, 'refs/tags/')
-      - name: Rename binary
+      - name: Prepare binary
         run: |
           set -e
           mv resonance ${{ steps.binary_name.outputs.value }}
+          gzip ${{ steps.binary_name.outputs.value }}
         shell: bash
         if: startsWith(github.ref, 'refs/tags/')
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: ${{ steps.binary_name.outputs.value }}
+          files: ${{ steps.binary_name.outputs.value }}.gz
