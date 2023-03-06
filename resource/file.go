@@ -3,9 +3,7 @@ package resource
 import (
 	"context"
 	"crypto/md5"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -116,7 +114,7 @@ func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters Pa
 	pathtHash := md5.New()
 	content, err := hst.ReadFile(ctx, path)
 	if err != nil {
-		if !errors.Is(err, fs.ErrNotExist) {
+		if !os.IsNotExist(err) {
 			return false, err
 		}
 		logger.Debug("File not found")
@@ -228,7 +226,11 @@ func (f File) Apply(ctx context.Context, hst host.Host, name Name, parameters Pa
 func (f File) Destroy(ctx context.Context, hst host.Host, name Name) error {
 	nestedCtx := log.IndentLogger(ctx)
 	path := string(name)
-	return hst.Remove(nestedCtx, path)
+	err := hst.Remove(nestedCtx, path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	return err
 }
 
 func init() {

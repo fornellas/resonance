@@ -1163,3 +1163,64 @@ func NewPlanFromBundles(
 
 	return plan, nil
 }
+
+func buildDestroyPlan(
+	ctx context.Context,
+	hostState *HostState,
+) (Plan, error) {
+	logger := log.GetLogger(ctx)
+
+	logger.Info("👷 Building destroy plan")
+	plan := Plan{}
+
+	steps := []*Step{}
+	var step *Step
+	for i, resource := range hostState.Resources {
+		step = &Step{}
+		plan = append(plan, step)
+
+		// Prerequisites
+		steps = append(steps, step)
+		if i > 0 {
+			dependantStep := steps[i-1]
+			dependantStep.prerequisiteFor = append(dependantStep.prerequisiteFor, step)
+		}
+
+		// StepAction
+		step.StepAction = StepActionIndividual{
+			Resource: resource,
+			Action:   ActionDestroy,
+		}
+	}
+
+	return plan, nil
+}
+
+// NewDestroyPlanFromHostState calculates a Plan based on a saved HostState to destroy all existing
+// resources.
+func NewDestroyPlanFromHostState(
+	ctx context.Context,
+	hst host.Host,
+	savedHostState *HostState,
+) (Plan, error) {
+	logger := log.GetLogger(ctx)
+	logger.Info("📝 Planning changes")
+	nestedCtx := log.IndentLogger(ctx)
+
+	// Build unsorted digraph
+	plan, err := buildDestroyPlan(nestedCtx, savedHostState)
+	if err != nil {
+		return nil, err
+	}
+
+	// Merge steps
+	plan = mergeSteps(nestedCtx, plan)
+
+	// Sort
+	plan, err = topologicalSort(nestedCtx, plan)
+	if err != nil {
+		return nil, err
+	}
+
+	return plan, nil
+}

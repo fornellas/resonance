@@ -5,6 +5,7 @@ import (
 
 	"github.com/fornellas/resonance/cli/apply"
 	"github.com/fornellas/resonance/cli/check"
+	"github.com/fornellas/resonance/cli/destroy"
 	"github.com/fornellas/resonance/cli/plan"
 	"github.com/fornellas/resonance/cli/refresh"
 	"github.com/fornellas/resonance/log"
@@ -35,6 +36,7 @@ func init() {
 
 	Cmd.AddCommand(apply.Cmd)
 	Cmd.AddCommand(check.Cmd)
+	Cmd.AddCommand(destroy.Cmd)
 	Cmd.AddCommand(plan.Cmd)
 	Cmd.AddCommand(refresh.Cmd)
 }
