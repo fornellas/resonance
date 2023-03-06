@@ -18,6 +18,7 @@ jobs:
           set -e
           echo "value=$(go env GOOS)" >> $GITHUB_OUTPUT
         shell: bash
+        if: startsWith(github.ref, 'refs/tags/')
       - name: Get GOARCH
         id: goarch
         run: |
