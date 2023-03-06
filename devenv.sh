@@ -43,9 +43,17 @@ ln -s ${HOME}/resonance/.bashrc ${HOME}/.bashrc
 
 # Shell
 exec su --group ${GROUP} --pty ${USER} sh -c "
-export CACHE_DIR=${HOME}/.cache
-echo Available make targets: &&
-make help &&
-exec bash -i"
+  export CACHE_DIR=${HOME}/.cache
+  export BINDIR=\$(make BINDIR)
+  PATH=\$BINDIR:\$PATH
+  export GOBIN=\$(make GOBIN)
+  PATH=\$GOBIN:\$PATH
+  export GOCACHE=\$(make GOCACHE)
+  export GOMODCACHE=\$(make GOMODCACHE)
+  
+  echo
+  echo Available make targets:
+  make help
+  exec bash -i"
 EOF
 )"

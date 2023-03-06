@@ -5,32 +5,45 @@ SHELL := /bin/bash
 
 CACHE_DIR ?= $(MAKEFILE_DIR)/.cache
 BINDIR := $(CACHE_DIR)/bin
+BINDIR := $(BINDIR)
+.PHONY: BINDIR
+BINDIR:
+	@echo $(BINDIR)
 PATH := $(BINDIR):$(PATH)
 
-ARCH ?= amd64
+ARCH := amd64
 
-GO ?= go
+GO := go
 export GOBIN := $(BINDIR)
+.PHONY: GOBIN
+GOBIN:
+	@echo $(GOBIN)
 export GOCACHE := $(CACHE_DIR)/go-build
+.PHONY: GOCACHE
+GOCACHE:
+	@echo $(GOCACHE)
 export GOMODCACHE := $(CACHE_DIR)/go-mod
+.PHONY: GOMODCACHE
+GOMODCACHE:
+	@echo $(GOMODCACHE)
 
-GOIMPORTS_VERSION ?= 0.3.0
-GOIMPORTS ?= goimports
-GOIMPORTS_LOCAL ?= github.com/fornellas/resonance/
+GOIMPORTS_VERSION := 0.3.0
+GOIMPORTS := goimports
+GOIMPORTS_LOCAL := github.com/fornellas/resonance/
 
-STATICCHECK_VERSION ?= 2023.1
-STATICCHECK ?= staticcheck
-STATICCHECK_CACHE ?= $(CACHE_DIR)/staticcheck
+STATICCHECK_VERSION := 2023.1
+STATICCHECK := staticcheck
+STATICCHECK_CACHE := $(CACHE_DIR)/staticcheck
 
-GOCYCLO ?= gocyclo
-GOCYCLO_VERSION = v0.6.0
-GOCYCLO_OVER ?= 14
+GOCYCLO := gocyclo
+GOCYCLO_VERSION := v0.6.0
+GOCYCLO_OVER := 14
 
-GO_TEST ?= gotest
+GO_TEST := gotest
 GO_TEST_FLAGS ?= -v -race -cover -count=1
-GOTEST_VERSION ?= v0.0.6
+GOTEST_VERSION := v0.0.6
 
-RRB_VERSION ?= latest
+RRB_VERSION := latest
 RRB_DEBOUNCE ?= 500ms
 RRB_PATTERN ?= '**/*.{go}'
 RRB_EXTRA_CMD ?= true
