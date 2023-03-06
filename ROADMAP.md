@@ -113,7 +113,6 @@
             - 🧪Auto-rollback saved state on failures.
             - Parallelise check.
         - `LoadResourceBundles`
-            - 🧪Add check against duplicated resource `TypeName`.
             - 🧪Receive a single directory and load recursively from it.
             - Go templates
                 - 📄Before parsing yaml, Go template each resource bundle yaml.

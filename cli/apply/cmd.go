@@ -44,7 +44,10 @@ var Cmd = &cobra.Command{
 		}
 
 		// Load resources
-		resourceBundles := resource.LoadResourceBundles(ctx, args)
+		resourceBundles, err := resource.LoadResourceBundles(ctx, args)
+		if err != nil {
+			logger.Fatal(err)
+		}
 
 		// Load saved state
 		savedHostState, err := state.LoadHostState(ctx, localState)

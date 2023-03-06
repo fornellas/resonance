@@ -404,6 +404,17 @@ func (rd ResourceDefinition) MustMergeableManageableResources() MergeableManagea
 // ResourceBundle is the schema used to declare multiple resources at a single file.
 type ResourceBundle []ResourceDefinition
 
+func (rb ResourceBundle) Validate() error {
+	resourceDefinitionMap := map[TypeName]bool{}
+	for _, resourceDefinition := range rb {
+		if _, ok := resourceDefinitionMap[resourceDefinition.TypeName]; ok {
+			return fmt.Errorf("duplicate resource %s", resourceDefinition.TypeName)
+		}
+		resourceDefinitionMap[resourceDefinition.TypeName] = true
+	}
+	return nil
+}
+
 // LoadResourceBundle loads resource definitions from given Yaml file path.
 func LoadResourceBundle(ctx context.Context, path string) (ResourceBundle, error) {
 	f, err := os.Open(path)
@@ -425,6 +436,9 @@ func LoadResourceBundle(ctx context.Context, path string) (ResourceBundle, error
 			}
 			return ResourceBundle{}, fmt.Errorf("failed to load resource definitions: %s: %w", path, err)
 		}
+		if err := docResourceBundle.Validate(); err != nil {
+			return resourceBundle, err
+		}
 		resourceBundle = append(resourceBundle, docResourceBundle...)
 	}
 
@@ -433,6 +447,20 @@ func LoadResourceBundle(ctx context.Context, path string) (ResourceBundle, error
 
 // ResourceBundles holds all resources definitions for a host.
 type ResourceBundles []ResourceBundle
+
+func (rbs ResourceBundles) Validate() error {
+	resourceDefinitionMap := map[TypeName]bool{}
+
+	for _, resourceBundle := range rbs {
+		for _, resourceDefinition := range resourceBundle {
+			if _, ok := resourceDefinitionMap[resourceDefinition.TypeName]; ok {
+				return fmt.Errorf("duplicate resource %s", resourceDefinition.TypeName)
+			}
+			resourceDefinitionMap[resourceDefinition.TypeName] = true
+		}
+	}
+	return nil
+}
 
 // HasResourceDefinition returns true if ResourceDefinition is contained at ResourceBundles.
 func (rbs ResourceBundles) HasResourceDefinition(resourceDefinition ResourceDefinition) bool {
@@ -456,7 +484,7 @@ type HostState struct {
 
 // LoadResourceBundles loads resource definitions from all given Yaml file paths.
 // Each file must have the schema defined by ResourceBundle.
-func LoadResourceBundles(ctx context.Context, paths []string) ResourceBundles {
+func LoadResourceBundles(ctx context.Context, paths []string) (ResourceBundles, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("📂 Loading resources")
 
@@ -464,11 +492,16 @@ func LoadResourceBundles(ctx context.Context, paths []string) ResourceBundles {
 	for _, path := range paths {
 		resourceBundle, err := LoadResourceBundle(ctx, path)
 		if err != nil {
-			logger.Fatal(err)
+			return resourceBundles, err
 		}
 		resourceBundles = append(resourceBundles, resourceBundle)
 	}
-	return resourceBundles
+
+	if err := resourceBundles.Validate(); err != nil {
+		return resourceBundles, err
+	}
+
+	return resourceBundles, nil
 }
 
 // StepAction defines an interface for an action that can be executed from a Step.
