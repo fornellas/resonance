@@ -149,7 +149,6 @@
         - 🧪Manages https://www.freedesktop.org/software/systemd/man/systemd.unit.html
         - 🧪Calls `systemctl daemon-reload` on change.
         - 🧪On refresh, do `systemctl reload-or-restart $unit`.
-- 🧪Enable `KnownFields(true)` on all yaml decoders.
 - `cli/`
     - `**/cmd.go`
         - ✨^C cancel context
