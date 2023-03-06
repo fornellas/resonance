@@ -947,7 +947,7 @@ func checkResourcesState(
 			if err != nil {
 				return nil, err
 			}
-			nestedNestedLogger.Infof("%s %s (saved)", checkResult, resource)
+			nestedNestedLogger.Infof("%s %s", checkResult, resource)
 			if !checkResult {
 				return nil, fmt.Errorf("resource previously applied now failing check; this usually means that the resource was changed externally; inspect & fix things and try refreshing the state")
 			}
