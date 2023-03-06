@@ -110,7 +110,6 @@
         - 💡Manage entries.
     - `resource.go`
         - `Plan.Execute`
-            - 🧪At the end check again, fail if changes detected (bug in implementation).
             - 🧪Auto-rollback saved state on failures.
             - Parallelise check.
         - `LoadResourceBundles`

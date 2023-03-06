@@ -478,8 +478,8 @@ type StepAction interface {
 	String() string
 	// Actionable returns whether any action is different from ActionOk or ActionSkip
 	Actionable() bool
-	// StateResourceDefinitions returns all ResourceDefinition that should have its state saved.
-	StateResourceDefinitions() []ResourceDefinition
+	// ActionResourceDefinitions returns a map from Action to a slice of ResourceDefinition.
+	ActionResourceDefinitions() map[Action][]ResourceDefinition
 }
 
 // StepActionIndividual is a StepAction which can execute a single ResourceDefinition.
@@ -533,24 +533,18 @@ func (sai StepActionIndividual) Actionable() bool {
 	return !(sai.Action == ActionOk || sai.Action == ActionSkip)
 }
 
-func (sai StepActionIndividual) StateResourceDefinitions() []ResourceDefinition {
-	if sai.Action.SaveState() {
-		return []ResourceDefinition{sai.ResourceDefinition}
-	} else {
-		return []ResourceDefinition{}
-	}
+func (sai StepActionIndividual) ActionResourceDefinitions() map[Action][]ResourceDefinition {
+	return map[Action][]ResourceDefinition{sai.Action: []ResourceDefinition{sai.ResourceDefinition}}
 }
 
 // StepActionMerged is a StepAction which contains multiple merged ResourceDefinition.
-type StepActionMerged struct {
-	ActionResourceDefinitions map[Action][]ResourceDefinition
-}
+type StepActionMerged map[Action][]ResourceDefinition
 
 // MustMergeableManageableResources returns MergeableManageableResources common to all
 // ResourceDefinition or panics.
 func (sam StepActionMerged) MustMergeableManageableResources() MergeableManageableResources {
 	var mergeableManageableResources MergeableManageableResources
-	for _, resourceDefinitions := range sam.ActionResourceDefinitions {
+	for _, resourceDefinitions := range sam {
 		for _, resourceDefinition := range resourceDefinitions {
 			if mergeableManageableResources != nil &&
 				mergeableManageableResources != resourceDefinition.MustMergeableManageableResources() {
@@ -579,7 +573,7 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 	checkResourceDefinitions := []ResourceDefinition{}
 	configureActionDefinition := map[Action]Definitions{}
 	refreshNames := []Name{}
-	for action, resourceDefinitions := range sam.ActionResourceDefinitions {
+	for action, resourceDefinitions := range sam {
 		for _, resourceDefinition := range resourceDefinitions {
 			if action == ActionRefresh {
 				refreshNames = append(refreshNames, resourceDefinition.Name())
@@ -626,7 +620,7 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 func (sam StepActionMerged) String() string {
 	var tpe Type
 	names := []string{}
-	for action, resourceDefinitions := range sam.ActionResourceDefinitions {
+	for action, resourceDefinitions := range sam {
 		for _, resourceDefinition := range resourceDefinitions {
 			tpe = resourceDefinition.Type()
 			names = append(names, fmt.Sprintf("%s %s", action.Emoji(), string(resourceDefinition.Name())))
@@ -638,7 +632,7 @@ func (sam StepActionMerged) String() string {
 
 func (sam StepActionMerged) Actionable() bool {
 	hasAction := false
-	for action := range sam.ActionResourceDefinitions {
+	for action := range sam {
 		if action == ActionOk || action == ActionSkip {
 			continue
 		}
@@ -648,15 +642,8 @@ func (sam StepActionMerged) Actionable() bool {
 	return hasAction
 }
 
-func (sam StepActionMerged) StateResourceDefinitions() []ResourceDefinition {
-	resourceDefinitions := []ResourceDefinition{}
-	for action, rd := range sam.ActionResourceDefinitions {
-		if !action.SaveState() {
-			continue
-		}
-		resourceDefinitions = append(resourceDefinitions, rd...)
-	}
-	return resourceDefinitions
+func (sam StepActionMerged) ActionResourceDefinitions() map[Action][]ResourceDefinition {
+	return sam
 }
 
 // Step that's used at a Plan
@@ -678,8 +665,8 @@ func (s Step) Execute(ctx context.Context, hst host.Host) error {
 	return s.StepAction.Execute(ctx, hst)
 }
 
-func (s Step) StateResourceDefinitions() []ResourceDefinition {
-	return s.StepAction.StateResourceDefinitions()
+func (s Step) ActionResourceDefinitions() map[Action][]ResourceDefinition {
+	return s.StepAction.ActionResourceDefinitions()
 }
 
 // Plan is a directed graph which contains the plan for applying resources to a host.
@@ -701,33 +688,83 @@ func (p Plan) Graphviz() string {
 	return buff.String()
 }
 
-// Execute every Step from the Plan.
-func (p Plan) Execute(ctx context.Context, hst host.Host) (HostState, error) {
+func (p Plan) executeSteps(ctx context.Context, hst host.Host) error {
 	logger := log.GetLogger(ctx)
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
-	logger.Info("🛠️  Executing changes")
-
-	hostState := HostState{
-		Version: version.GetVersion(),
-	}
-
+	logger.Info("🛠️  Applying changes")
 	if p.Actionable() {
 		for _, node := range p {
 			err := node.Execute(nestedCtx, hst)
 			if err != nil {
-				return hostState, err
+				return err
 			}
 		}
 	} else {
 		nestedLogger.Infof("👌 Nothing to do")
 	}
+	return nil
+}
 
+func (p Plan) check(ctx context.Context, hst host.Host) error {
+	logger := log.GetLogger(ctx)
+	nestedCtx := log.IndentLogger(ctx)
+	nestedLogger := log.GetLogger(nestedCtx)
+	logger.Info("🔎 Checking state")
+
+	var retErr error
 	for _, step := range p {
-		hostState.ResourceDefinitions = append(
-			hostState.ResourceDefinitions,
-			step.StateResourceDefinitions()...,
-		)
+		for action, resourceDefinitions := range step.ActionResourceDefinitions() {
+			if action == ActionSkip || action == ActionDestroy {
+				continue
+			}
+			for _, resourceDefinition := range resourceDefinitions {
+				checkResult, err := resourceDefinition.Check(nestedCtx, hst)
+				if err != nil {
+					return err
+				}
+				if checkResult {
+					nestedLogger.Infof("%s %s", checkResult, resourceDefinition)
+				} else {
+					nestedLogger.Errorf("%s %s", checkResult, resourceDefinition)
+					retErr = errors.New("some resources failed to check immediately after apply, this means either something external changed the state or some resource implementation is broken")
+				}
+			}
+		}
+	}
+	return retErr
+}
+
+// Execute every Step from the Plan.
+func (p Plan) Execute(ctx context.Context, hst host.Host) (HostState, error) {
+	logger := log.GetLogger(ctx)
+	nestedCtx := log.IndentLogger(ctx)
+	logger.Info("⚙️  Executing plan")
+
+	hostState := HostState{
+		Version: version.GetVersion(),
+	}
+
+	// Execute all steps
+	if err := p.executeSteps(nestedCtx, hst); err != nil {
+		return hostState, err
+	}
+
+	// HostState
+	for _, step := range p {
+		for action, resourceDefinitions := range step.ActionResourceDefinitions() {
+			if !action.SaveState() {
+				continue
+			}
+			hostState.ResourceDefinitions = append(
+				hostState.ResourceDefinitions, resourceDefinitions...,
+			)
+		}
+	}
+
+	// Check
+	if err := p.check(nestedCtx, hst); err != nil {
+		return hostState, err
 	}
 
 	return hostState, nil
@@ -920,17 +957,14 @@ func mergeSteps(ctx context.Context, plan Plan) Plan {
 		mergedStep, ok := mergedSteps[stepType]
 		if !ok {
 			mergedStep = &Step{
-				StepAction: StepActionMerged{
-					ActionResourceDefinitions: map[Action][]ResourceDefinition{},
-				},
+				StepAction: StepActionMerged{},
 			}
 			newPlan = append(newPlan, mergedStep)
 			mergedSteps[stepType] = mergedStep
 		}
 		stepActionMerged := mergedStep.StepAction.(StepActionMerged)
-		stepActionMerged.ActionResourceDefinitions[stepActionIndividual.Action] = append(
-			stepActionMerged.ActionResourceDefinitions[stepActionIndividual.Action],
-			stepActionIndividual.ResourceDefinition,
+		stepActionMerged[stepActionIndividual.Action] = append(
+			stepActionMerged[stepActionIndividual.Action], stepActionIndividual.ResourceDefinition,
 		)
 		mergedStep.prerequisiteFor = append(mergedStep.prerequisiteFor, step)
 		stepActionIndividual.Action = ActionSkip
