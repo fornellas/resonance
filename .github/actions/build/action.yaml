@@ -26,7 +26,7 @@ runs:
     - uses: actions/cache@v3
       with:
         path: ${{ steps.gomodcache.outputs.path }}
-        key: ${{ runner.os }}-gocache-${{ hashFiles('**/go.sum') }}-${{ hahFiles('**/*.go') }}
+        key: ${{ runner.os }}-gocache-${{ hashFiles('**/go.sum') }}-${{ hashFiles('**/*.go') }}
         restore-keys: ${{ runner.os }}-gomodcache-
     # staticcheck
     - id: staticcheck
@@ -43,7 +43,7 @@ runs:
       with:
         path: |
           ${{ steps.staticcheck.outputs.path }}
-        key: ${{ runner.os }}-staticcheck-${{ hashFiles('**/go.sum') }}-${{ hahFiles('**/*.go') }}`
+        key: ${{ runner.os }}-staticcheck-${{ hashFiles('**/go.sum') }}-${{ hashFiles('**/*.go') }}
         restore-keys: ${{ runner.os }}-staticcheck-
     # Build
     - run: make ci
