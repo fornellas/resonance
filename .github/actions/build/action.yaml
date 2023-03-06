@@ -25,7 +25,7 @@ runs:
       shell: bash
     - uses: actions/cache@v3
       with:
-        path: ${{ steps.gomodcache.outputs.path }}
+        path: ${{ steps.gocache.outputs.path }}
         key: ${{ runner.os }}-gocache-${{ hashFiles('**/go.sum') }}-${{ hashFiles('**/*.go') }}
         restore-keys: ${{ runner.os }}-gocache-
     # staticcheck
