@@ -1019,8 +1019,8 @@ func topologicalSort(ctx context.Context, plan Plan) (Plan, error) {
 	return sortedPlan, nil
 }
 
-// NewPlan calculates the plan and returns it in the form of a Plan
-func NewPlan(
+// NewPlanFromResourceBundles calculates the Plan based on a saved HostState and ResourceBundles.
+func NewPlanFromResourceBundles(
 	ctx context.Context,
 	hst host.Host,
 	savedHostState *HostState,
