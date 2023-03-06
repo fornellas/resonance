@@ -153,7 +153,7 @@
     - `**/cmd.go`
         - ✨^C cancel context
     - `apply/cmd.go`
-        - 🧪Ask for confirmation before running plan; add `--yes` to bypass.
+        - ✨Ask for confirmation before running plan; add `--yes` to bypass.
     - `check/cmd.go`
         - 🧪implement: checks host state / resources against host.
     - `plan/cmd.go`:
