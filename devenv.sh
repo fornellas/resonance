@@ -36,6 +36,7 @@ docker run \
 set -e
 
 # User
+passwd -d root
 addgroup --gid ${GID} ${GROUP}
 useradd --home-dir ${HOME} --gid ${GID} --no-create-home --shell /bin/bash --uid ${UID} ${USER}
 ln -s ${HOME}/resonance/.bashrc ${HOME}/.bashrc
