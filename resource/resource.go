@@ -16,8 +16,6 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
 	"github.com/fornellas/resonance/version"
@@ -910,15 +908,13 @@ func (p Plan) Print(ctx context.Context) {
 			nestedLogger.Debugf("%s", step)
 		}
 	}
-
-	nestedLogger.WithFields(logrus.Fields{"Digraph": p.Graphviz()}).Debug("Graphviz")
 }
 
 func checkResourcesState(
 	ctx context.Context,
 	hst host.Host,
-	savedHostState *HostState,
 	bundles Bundles,
+	savedHostState *HostState,
 ) (CheckResults, error) {
 	logger := log.GetLogger(ctx)
 	nestedCtx := log.IndentLogger(ctx)
@@ -926,21 +922,20 @@ func checkResourcesState(
 
 	logger.Info("🔎 Checking state")
 	checkResults := CheckResults{}
-	if savedHostState != nil {
-		for _, resource := range savedHostState.Resources {
+
+	for _, bundle := range bundles {
+		for _, resource := range bundle {
 			checkResult, err := resource.Check(nestedCtx, hst)
 			if err != nil {
 				return nil, err
 			}
 			nestedLogger.Infof("%s %s", checkResult, resource)
-			if !checkResult {
-				return nil, fmt.Errorf("resource previously applied now failing check; this usually means that the resource was changed externally")
-			}
 			checkResults[resource.ResourceKey()] = checkResult
 		}
 	}
-	for _, bundle := range bundles {
-		for _, resource := range bundle {
+
+	if savedHostState != nil {
+		for _, resource := range savedHostState.Resources {
 			if _, ok := checkResults[resource.ResourceKey()]; ok {
 				continue
 			}
@@ -949,6 +944,9 @@ func checkResourcesState(
 				return nil, err
 			}
 			nestedLogger.Infof("%s %s", checkResult, resource)
+			if !checkResult {
+				return nil, fmt.Errorf("resource previously applied now failing check; this usually means that the resource was changed externally")
+			}
 			checkResults[resource.ResourceKey()] = checkResult
 		}
 	}
@@ -1146,7 +1144,7 @@ func NewPlanFromBundles(
 	nestedCtx := log.IndentLogger(ctx)
 
 	// Checking state
-	checkResults, err := checkResourcesState(nestedCtx, hst, savedHostState, bundles)
+	checkResults, err := checkResourcesState(nestedCtx, hst, bundles, savedHostState)
 	if err != nil {
 		return nil, err
 	}

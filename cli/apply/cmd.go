@@ -19,6 +19,8 @@ var Cmd = &cobra.Command{
 		ctx := cmd.Context()
 
 		logger := log.GetLogger(ctx)
+		nestedCtx := log.IndentLogger(ctx)
+		nestedLogger := log.GetLogger(nestedCtx)
 
 		// Host
 		hst, err := lib.GetHost()
@@ -52,9 +54,26 @@ var Cmd = &cobra.Command{
 		plan.Print(ctx)
 
 		// Execute plan
+		success := true
 		newHostState, err := plan.Execute(ctx, hst)
 		if err != nil {
-			logger.Fatal(err)
+			success = false
+			nestedLogger.Error(err)
+			nestedLogger.Warn("Failed to execute plan, rolling back to previously saved state.")
+
+			plan, err := resource.NewActionPlanFromHostState(nestedCtx, hst, savedHostState, resource.ActionApply)
+			if err != nil {
+				logger.Fatal(err)
+			}
+			plan.Print(nestedCtx)
+
+			// Execute plan
+			newHostState, err = plan.Execute(nestedCtx, hst)
+			if err != nil {
+				nestedLogger.Error(err)
+				logger.Fatal("Rollback failed!")
+			}
+			nestedLogger.Info("👌 Rollback successful.")
 		}
 
 		// Save host state
@@ -62,8 +81,12 @@ var Cmd = &cobra.Command{
 			logger.Fatal(err)
 		}
 
-		// Success
-		logger.Info("🎆 Success")
+		// Result
+		if success {
+			logger.Info("🎆 Success")
+		} else {
+			logger.Fatal("Failed to apply, rollback to previously saved state successful.")
+		}
 	},
 }
 

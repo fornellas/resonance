@@ -110,8 +110,7 @@
         - 💡Manage entries.
     - `resource.go`
         - `Plan.Execute`
-            - 🧪Auto-rollback saved state on failures.
-            - Parallelise check.
+            - ✨Parallelise check.
         - `LoadResourceBundles`
             - Go templates
                 - 📄Before parsing yaml, Go template each resource bundle yaml.
@@ -127,8 +126,8 @@
                                 - 📄`--allow-inventory-changes` have apply re-run when inventory changes at the end.
                                 - 📄Should put a limit (otherwise, inifinite loops can happen).
         - `PersistantState`
-            - Save history of states: enable to rollback to any previous state.
-            - Local state: save to `XDG_STATE_HOME/resonance/$target_hostname/`
+            - ✨Save history of states: enable to rollback to any previous state.
+            - 🧪Local state: save to `XDG_STATE_HOME/resonance/$target_hostname/`
         - `ResourceDefinition`
             - ✨Support `refreshed_by`, to enable resources to subscribe to others (eg: `SystemdUnit[nginx.service]` is `refreshed_by` `File[/etc/nginx/.+]`)
         - `ManageableResource`
