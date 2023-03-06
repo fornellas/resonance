@@ -2,6 +2,7 @@ package log
 
 import (
 	"context"
+	"os"
 
 	"github.com/sirupsen/logrus"
 )
@@ -14,6 +15,7 @@ var loggerKey = loggerKeyType("logger")
 func SetLoggerValue(ctx context.Context, logLevelStr string) context.Context {
 	logger := logrus.New()
 
+	logger.SetOutput(os.Stderr)
 	logger.SetFormatter(&ColorFormatter{})
 
 	var level *logrus.Level

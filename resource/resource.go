@@ -752,7 +752,7 @@ func (p Plan) Graphviz() string {
 	var buff bytes.Buffer
 	fmt.Fprint(&buff, "digraph resonance {\n")
 	for _, step := range p {
-		fmt.Fprintf(&buff, "  node [shape=rectanble] \"%s\"\n", step)
+		fmt.Fprintf(&buff, "  node [shape=box] \"%s\"\n", step)
 	}
 	for _, step := range p {
 		for _, dependantStep := range step.prerequisiteFor {
