@@ -484,6 +484,24 @@ type HostState struct {
 	Resources []Resource
 }
 
+func (hs HostState) Check(ctx context.Context, hst host.Host) (CheckResults, error) {
+	logger := log.GetLogger(ctx)
+	logger.Info("🔎 Checking state")
+	nestedCtx := log.IndentLogger(ctx)
+	nestedLogger := log.GetLogger(nestedCtx)
+
+	checkResults := CheckResults{}
+	for _, resource := range hs.Resources {
+		checkResult, err := resource.Check(nestedCtx, hst)
+		if err != nil {
+			return nil, err
+		}
+		checkResults[resource.ResourceKey()] = checkResult
+		nestedLogger.Infof("%s %s", checkResult, resource)
+	}
+	return checkResults, nil
+}
+
 // LoadBundles search for .yaml files at root, each having the Bundle schema,
 // loads and returns all of them.
 // Bundles is sorted by alphabetical order.

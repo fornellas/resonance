@@ -65,7 +65,7 @@
     - ✨Add https://github.com/gordonklaus/ineffassign
     - ✨Add https://github.com/client9/misspell
 - `host/`
-    - 🧪Add option to use sudo to run commands.
+    - ✨Add option to use sudo to run commands.
     - `local.go`
         - ✨Use [subreaper to wait on all children](https://github.com/fornellas/rrb/blob/main/runner/runner.go).
     - `ssh.go`
@@ -151,8 +151,6 @@
         - ✨^C cancel context
     - `apply/cmd.go`
         - ✨Ask for confirmation before running plan; add `--yes` to bypass.
-    - `check/cmd.go`
-        - 🧪implement: checks host state / resources against host.
     - `plan/cmd.go`:
         - 🧪implement: checks host state / resources and calculate plan against host.
         - 🧪Add `--graphviz` option
@@ -161,7 +159,7 @@
         - ✨Validate resource definitions
         - ✨Lint yaml (format & sort)
     - `refresh/cmd.go`
-        - 🧪Update state to match declared resources.
+        - 🧪Update state to match host.
     - `destroy/cmd.go`
         - 🧪Destroy all resources at state.
     - `restore/cmd.go`

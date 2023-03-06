@@ -11,9 +11,9 @@ import (
 )
 
 var Cmd = &cobra.Command{
-	Use:   "apply [flags] root_path",
+	Use:   "apply [flags] resources_root",
 	Short: "Applies configuration to a host.",
-	Long:  "Loads all resoures from .yaml files at root_path, the previous state, craft a plan and applies required changes to given host.",
+	Long:  "Loads all resoures from .yaml files at resources_root, the previous state, craft a plan and applies required changes to given host.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := cmd.Context()
