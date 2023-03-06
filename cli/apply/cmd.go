@@ -1,20 +1,14 @@
 package apply
 
 import (
-	"errors"
-
 	"github.com/spf13/cobra"
 
 	"github.com/fornellas/resonance/log"
 
-	"github.com/fornellas/resonance/host"
+	"github.com/fornellas/resonance/cli/lib"
 	"github.com/fornellas/resonance/resource"
 	"github.com/fornellas/resonance/state"
 )
-
-var localhost bool
-var hostname string
-var stateFile string
 
 var Cmd = &cobra.Command{
 	Use:   "apply [flags] root_path",
@@ -27,20 +21,15 @@ var Cmd = &cobra.Command{
 		logger := log.GetLogger(ctx)
 
 		// Host
-		var hst host.Host
-		if localhost {
-			hst = host.Local{}
-		} else if hostname != "" {
-			hst = host.Ssh{
-				Hostname: hostname,
-			}
-		} else {
-			logger.Fatal(errors.New("must provide either --localhost or --hostname"))
+		hst, err := lib.GetHost()
+		if err != nil {
+			logger.Fatal(err)
 		}
 
-		// Local state
-		localState := state.Local{
-			Path: stateFile,
+		// PersistantState
+		persistantState, err := lib.GetPersistantState()
+		if err != nil {
+			logger.Fatal(err)
 		}
 
 		// Load resources
@@ -50,7 +39,7 @@ var Cmd = &cobra.Command{
 		}
 
 		// Load saved state
-		savedHostState, err := state.LoadHostState(ctx, localState)
+		savedHostState, err := state.LoadHostState(ctx, persistantState)
 		if err != nil {
 			logger.Fatal(err)
 		}
@@ -69,7 +58,7 @@ var Cmd = &cobra.Command{
 		}
 
 		// Save host state
-		if err := state.SaveHostState(ctx, newHostState, localState); err != nil {
+		if err := state.SaveHostState(ctx, newHostState, persistantState); err != nil {
 			logger.Fatal(err)
 		}
 
@@ -79,21 +68,6 @@ var Cmd = &cobra.Command{
 }
 
 func init() {
-	Cmd.Flags().BoolVarP(
-		&localhost, "localhost", "", false,
-		"Applies configuration to the same machine running the command",
-	)
-
-	Cmd.Flags().StringVarP(
-		&hostname, "hostname", "", "",
-		"Applies configuration to given hostname using SSH",
-	)
-
-	Cmd.Flags().StringVarP(
-		&stateFile, "state-file", "", "",
-		"Path to a file to store state",
-	)
-	if err := Cmd.MarkFlagRequired("state-file"); err != nil {
-		panic(err)
-	}
+	lib.AddHostFlags(Cmd)
+	lib.AddPersistantStateFlags(Cmd)
 }
