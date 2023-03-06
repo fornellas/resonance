@@ -45,6 +45,17 @@ runs:
           ${{ steps.staticcheck.outputs.path }}
         key: ${{ runner.os }}-staticcheck-${{ hashFiles('**/go.sum') }}-${{ hashFiles('**/*.go') }}
         restore-keys: ${{ runner.os }}-staticcheck-
+    # BINDIR
+    - id: bindir
+      run: |
+        set -e
+        echo "path=$(make BINDIR)" >> $GITHUB_OUTPUT
+      shell: bash
+    - uses: actions/cache@v3
+      with:
+        path: ${{ steps.bindir.outputs.path }}
+        key: ${{ runner.os }}-bindir-${{ hashFiles('Makefile') }}
+        restore-keys: ${{ runner.os }}-bindir-
     # Build
     - run: make ci
       shell: bash
