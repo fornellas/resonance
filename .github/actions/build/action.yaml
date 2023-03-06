@@ -27,7 +27,7 @@ runs:
       with:
         path: ${{ steps.gomodcache.outputs.path }}
         key: ${{ runner.os }}-gocache-${{ hashFiles('**/go.sum') }}-${{ hashFiles('**/*.go') }}
-        restore-keys: ${{ runner.os }}-gomodcache-
+        restore-keys: ${{ runner.os }}-gocache-
     # staticcheck
     - id: staticcheck
       run: |
