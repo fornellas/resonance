@@ -1,4 +1,4 @@
-package check
+package refresh
 
 import (
 	"github.com/spf13/cobra"
@@ -10,9 +10,9 @@ import (
 )
 
 var Cmd = &cobra.Command{
-	Use:   "check [flags]",
-	Short: "Check host state.",
-	Long:  "Loads previous state and check whether it is clean or not.",
+	Use:   "refresh [flags]",
+	Short: "Refresh saved host state with current host state.",
+	Long:  "Loads previous state and remove from it resources which are not OK at the host.",
 	Args:  cobra.ExactArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := cmd.Context()
@@ -37,22 +37,19 @@ var Cmd = &cobra.Command{
 			logger.Fatal(err)
 		}
 
-		// Check
-		checkResults, err := savedHostState.Check(ctx, hst)
+		// Refresh
+		newHostState, err := savedHostState.Refresh(ctx, hst)
 		if err != nil {
 			logger.Fatal(err)
 		}
-		ok := true
-		for _, checkResult := range checkResults {
-			if !checkResult.Ok() {
-				ok = false
-			}
+
+		// Save state
+		if err := state.SaveHostState(ctx, newHostState, persistantState); err != nil {
+			logger.Fatal(err)
 		}
-		if ok {
-			logger.Info("🎆 State is OK")
-		} else {
-			logger.Fatal("State has changed!")
-		}
+
+		// Success
+		logger.Info("🎆 Success")
 	},
 }
 

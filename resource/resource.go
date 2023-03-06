@@ -39,6 +39,10 @@ func (cr CheckResult) String() string {
 	}
 }
 
+func (cr CheckResult) Ok() bool {
+	return bool(cr)
+}
+
 // Action to be executed for a resource.
 type Action int
 
@@ -500,6 +504,32 @@ func (hs HostState) Check(ctx context.Context, hst host.Host) (CheckResults, err
 		nestedLogger.Infof("%s %s", checkResult, resource)
 	}
 	return checkResults, nil
+}
+
+// Refresh updates HostState.Resources to only contain resources for which
+// its check passes.
+func (hs HostState) Refresh(ctx context.Context, hst host.Host) (HostState, error) {
+	logger := log.GetLogger(ctx)
+	logger.Info("🔁 Refreshing state")
+	nestedCtx := log.IndentLogger(ctx)
+	nestedLogger := log.GetLogger(nestedCtx)
+
+	newHostState := HostState{
+		Version: version.GetVersion(),
+	}
+
+	for _, resource := range hs.Resources {
+		checkResult, err := resource.Check(nestedCtx, hst)
+		if err != nil {
+			return newHostState, err
+		}
+		nestedLogger.Infof("%s %s", checkResult, resource)
+		if !checkResult.Ok() {
+			continue
+		}
+		newHostState.Resources = append(newHostState.Resources, resource)
+	}
+	return newHostState, nil
 }
 
 // LoadBundles search for .yaml files at root, each having the Bundle schema,
@@ -1094,7 +1124,7 @@ func topologicalSort(ctx context.Context, plan Plan) (Plan, error) {
 	return sortedPlan, nil
 }
 
-// NewPlanFromBundles calculates the Plan based on a saved HostState and Bundles.
+// NewPlanFromBundles calculates a Plan based on a saved HostState and Bundles.
 func NewPlanFromBundles(
 	ctx context.Context,
 	hst host.Host,

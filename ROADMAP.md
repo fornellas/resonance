@@ -154,8 +154,6 @@
     - `lint/cmd.go`: implement:
         - ✨Validate resource definitions
         - ✨Lint yaml (format & sort)
-    - `refresh/cmd.go`
-        - 🧪Update state to match host.
     - `destroy/cmd.go`
         - 🧪Destroy all resources at state.
     - `restore/cmd.go`
