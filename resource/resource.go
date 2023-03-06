@@ -47,8 +47,9 @@ func (cr CheckResult) Ok() bool {
 type Action int
 
 const (
+	ActionNone Action = iota
 	// ActionOk means state is as expected
-	ActionOk Action = iota
+	ActionOk
 	// ActionSkip denotes no action is required as the resource was merged.
 	ActionSkip
 	// ActionRefresh means that any in-memory state is to be refreshed (eg: restart a service, reload configuration from files etc).
@@ -480,6 +481,57 @@ func (rbs Bundles) HasResource(resource Resource) bool {
 	return false
 }
 
+// LoadBundles search for .yaml files at root, each having the Bundle schema,
+// loads and returns all of them.
+// Bundles is sorted by alphabetical order.
+func LoadBundles(ctx context.Context, root string) (Bundles, error) {
+	logger := log.GetLogger(ctx)
+	logger.Info("📂 Loading resources")
+	nestedCtx := log.IndentLogger(ctx)
+	nestedLogger := log.GetLogger(nestedCtx)
+
+	bundles := Bundles{}
+
+	paths := []string{}
+	nestedLogger.Debugf("Root %s", root)
+	if err := filepath.Walk(root, func(path string, fileInfo fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if fileInfo.IsDir() || !strings.HasSuffix(fileInfo.Name(), ".yaml") {
+			nestedLogger.Debugf("Skipping %s", path)
+			return nil
+		}
+		nestedLogger.Debugf("Adding %s", path)
+		paths = append(paths, path)
+		return nil
+	}); err != nil {
+		return bundles, err
+	}
+	sort.Strings(paths)
+
+	for _, path := range paths {
+		bundle, err := LoadBundle(ctx, path)
+		if err != nil {
+			return bundles, err
+		}
+		bundles = append(bundles, bundle)
+	}
+
+	if err := bundles.Validate(); err != nil {
+		return bundles, err
+	}
+
+	return bundles, nil
+}
+
+// NewBundlesFromHostState creates a single bundle from a HostState.
+func NewBundlesFromHostState(hostState *HostState) Bundles {
+	bundle := Bundle{}
+	bundle = append(bundle, hostState.Resources...)
+	return Bundles{bundle}
+}
+
 // HostState holds the state
 type HostState struct {
 	// Version of the binary used to put the host in this state.
@@ -530,50 +582,6 @@ func (hs HostState) Refresh(ctx context.Context, hst host.Host) (HostState, erro
 		newHostState.Resources = append(newHostState.Resources, resource)
 	}
 	return newHostState, nil
-}
-
-// LoadBundles search for .yaml files at root, each having the Bundle schema,
-// loads and returns all of them.
-// Bundles is sorted by alphabetical order.
-func LoadBundles(ctx context.Context, root string) (Bundles, error) {
-	logger := log.GetLogger(ctx)
-	logger.Info("📂 Loading resources")
-	nestedCtx := log.IndentLogger(ctx)
-	nestedLogger := log.GetLogger(nestedCtx)
-
-	bundles := Bundles{}
-
-	paths := []string{}
-	nestedLogger.Debugf("Root %s", root)
-	if err := filepath.Walk(root, func(path string, fileInfo fs.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if fileInfo.IsDir() || !strings.HasSuffix(fileInfo.Name(), ".yaml") {
-			nestedLogger.Debugf("Skipping %s", path)
-			return nil
-		}
-		nestedLogger.Debugf("Adding %s", path)
-		paths = append(paths, path)
-		return nil
-	}); err != nil {
-		return bundles, err
-	}
-	sort.Strings(paths)
-
-	for _, path := range paths {
-		bundle, err := LoadBundle(ctx, path)
-		if err != nil {
-			return bundles, err
-		}
-		bundles = append(bundles, bundle)
-	}
-
-	if err := bundles.Validate(); err != nil {
-		return bundles, err
-	}
-
-	return bundles, nil
 }
 
 // StepAction defines an interface for an action that can be executed from a Step.
@@ -947,14 +955,15 @@ func checkResourcesState(
 	return checkResults, nil
 }
 
-func buildApplyRefreshPlan(
+func buildPlan(
 	ctx context.Context,
 	bundles Bundles,
+	intentedAction Action,
 	checkResults CheckResults,
 ) (Plan, error) {
 	logger := log.GetLogger(ctx)
 
-	logger.Info("👷 Building apply/refresh plan")
+	logger.Info("👷 Building plan")
 	plan := Plan{}
 
 	var lastBundleLastStep *Step
@@ -978,15 +987,17 @@ func buildApplyRefreshPlan(
 			}
 
 			// Action
-			var action Action
-			if checkResult {
-				if refresh && resource.Refreshable() {
-					action = ActionRefresh
+			action := intentedAction
+			if action != ActionDestroy {
+				if checkResult {
+					if refresh && resource.Refreshable() {
+						action = ActionRefresh
+					} else {
+						action = ActionOk
+					}
 				} else {
-					action = ActionOk
+					action = ActionApply
 				}
-			} else {
-				action = ActionApply
 			}
 
 			// Prerequisites
@@ -1141,7 +1152,7 @@ func NewPlanFromBundles(
 	}
 
 	// Build unsorted digraph
-	plan, err := buildApplyRefreshPlan(nestedCtx, bundles, checkResults)
+	plan, err := buildPlan(nestedCtx, bundles, ActionNone, checkResults)
 	if err != nil {
 		return nil, err
 	}
@@ -1158,66 +1169,6 @@ func NewPlanFromBundles(
 	plan, err = topologicalSort(nestedCtx, plan)
 	if err != nil {
 		return nil, err
-	}
-
-	return plan, nil
-}
-
-func buildActionPlanFromHostState(
-	ctx context.Context,
-	hostState *HostState,
-	intentedAction Action,
-	checkResults CheckResults,
-) (Plan, error) {
-	logger := log.GetLogger(ctx)
-
-	logger.Info("👷 Building destroy plan")
-	plan := Plan{}
-
-	steps := []*Step{}
-	refresh := false
-	var step *Step
-	for i, resource := range hostState.Resources {
-		step = &Step{}
-		plan = append(plan, step)
-
-		// Result
-		checkResult, ok := checkResults[resource.ResourceKey()]
-		if !ok {
-			panic(fmt.Errorf("%v missing check result", resource))
-		}
-
-		// Action
-		action := intentedAction
-		if action != ActionDestroy {
-			if checkResult {
-				if refresh && resource.Refreshable() {
-					action = ActionRefresh
-				} else {
-					action = ActionOk
-				}
-			} else {
-				action = ActionApply
-			}
-		}
-
-		// Prerequisites
-		steps = append(steps, step)
-		if i > 0 {
-			dependantStep := steps[i-1]
-			dependantStep.prerequisiteFor = append(dependantStep.prerequisiteFor, step)
-		}
-
-		// StepAction
-		step.StepAction = StepActionIndividual{
-			Resource: resource,
-			Action:   action,
-		}
-
-		// Refresh
-		if action == ActionApply {
-			refresh = true
-		}
 	}
 
 	return plan, nil
@@ -1241,8 +1192,11 @@ func NewActionPlanFromHostState(
 		return nil, err
 	}
 
+	// Bundles
+	bundles := NewBundlesFromHostState(savedHostState)
+
 	// Build unsorted digraph
-	plan, err := buildActionPlanFromHostState(nestedCtx, savedHostState, action, checkResults)
+	plan, err := buildPlan(nestedCtx, bundles, action, checkResults)
 	if err != nil {
 		return nil, err
 	}
