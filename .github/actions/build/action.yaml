@@ -6,6 +6,7 @@ runs:
     - uses: actions/setup-go@v3
       with:
         go-version-file: go.mod
+    # GOMODCACHE
     - id: gomodcache
       run: |
         set -e
@@ -16,6 +17,7 @@ runs:
         path: ${{ steps.gomodcache.outputs.path }}
         key: ${{ runner.os }}-gomodcache-${{ hashFiles('**/go.sum') }}
         restore-keys: ${{ runner.os }}-gomodcache-
+    # GOCACHE
     - id: gocache
       run: |
         set -e
@@ -26,8 +28,8 @@ runs:
         path: ${{ steps.gomodcache.outputs.path }}
         key: ${{ runner.os }}-gocache-${{ hashFiles('**/go.sum') }}-${{ hahFiles('**/*.go') }}
         restore-keys: ${{ runner.os }}-gomodcache-
+    # staticcheck
     - id: staticcheck
-      shell: bash
       run: |
         set -e
         # https://github.com/dominikh/go-tools/blob/cc140e9b3719aadd3b628b7a7b00523681c8b34d/lintcmd/cache/default.go#L75
@@ -43,4 +45,6 @@ runs:
           ${{ steps.staticcheck.outputs.path }}
         key: ${{ runner.os }}-staticcheck-${{ hashFiles('**/go.sum') }}-${{ hahFiles('**/*.go') }}`
         restore-keys: ${{ runner.os }}-staticcheck-
+    # Build
     - run: make ci
+      shell: bash
