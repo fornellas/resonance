@@ -8,4 +8,5 @@ jobs:
   push:
     runs-on: ubuntu-22.04
     steps:
+      - run: ls && ls $HOME && echo $HOME
       - uses: ./.github/actions/build
