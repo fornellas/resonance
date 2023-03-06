@@ -9,7 +9,7 @@ concurrency: push
 jobs:
   push:
     runs-on: ubuntu-22.04
-    permissions: write-all
+    permissions:
       contents: write
     steps:
       - name: Checkout
