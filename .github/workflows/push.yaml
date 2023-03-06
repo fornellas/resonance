@@ -1,0 +1,11 @@
+name: push
+on:
+  push:
+    branches:
+      - 'master'
+concurrency: push
+jobs:
+  push:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: ./.github/actions/build
