@@ -34,8 +34,6 @@
         - 📈Publish GH Package: Container / Docker registry, so resonance can be used via `docker run`.
 - README.md
     - Add badges
-      - 🧪GH actions state
-      - 🧪Version
       - ✨Coverage
 - ✨Add TESTS!
 - `Makefile`
