@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"sort"
@@ -482,13 +484,35 @@ type HostState struct {
 	Resources []Resource
 }
 
-// LoadBundles loads resource from all given Yaml file paths.
-// Each file must have the schema defined by Bundle.
-func LoadBundles(ctx context.Context, paths []string) (Bundles, error) {
+// LoadBundles search for .yaml files at root, each having the Bundle schema,
+// loads and returns all of them.
+// Bundles is sorted by alphabetical order.
+func LoadBundles(ctx context.Context, root string) (Bundles, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("📂 Loading resources")
+	nestedCtx := log.IndentLogger(ctx)
+	nestedLogger := log.GetLogger(nestedCtx)
 
 	bundles := Bundles{}
+
+	paths := []string{}
+	nestedLogger.Debugf("Root %s", root)
+	if err := filepath.Walk(root, func(path string, fileInfo fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if fileInfo.IsDir() || !strings.HasSuffix(fileInfo.Name(), ".yaml") {
+			nestedLogger.Debugf("Skipping %s", path)
+			return nil
+		}
+		nestedLogger.Debugf("Adding %s", path)
+		paths = append(paths, path)
+		return nil
+	}); err != nil {
+		return bundles, err
+	}
+	sort.Strings(paths)
+
 	for _, path := range paths {
 		bundle, err := LoadBundle(ctx, path)
 		if err != nil {

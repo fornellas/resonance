@@ -14,13 +14,13 @@ import (
 
 var localhost bool
 var hostname string
-var stateYaml string
+var stateFile string
 
 var Cmd = &cobra.Command{
-	Use:   "apply [flags] yaml...",
+	Use:   "apply [flags] root_path",
 	Short: "Applies configuration to a host.",
-	Long:  "Applies configuration at yaml files to a host.\n\nA target host must be specified with either --localhost or --hostname.",
-	Args:  cobra.MinimumNArgs(1),
+	Long:  "Loads all resoures from .yaml files at root_path, the previous state, craft a plan and applies required changes to given host.",
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := cmd.Context()
 
@@ -40,11 +40,11 @@ var Cmd = &cobra.Command{
 
 		// Local state
 		localState := state.Local{
-			Path: stateYaml,
+			Path: stateFile,
 		}
 
 		// Load resources
-		resourceBundles, err := resource.LoadBundles(ctx, args)
+		resourceBundles, err := resource.LoadBundles(ctx, args[0])
 		if err != nil {
 			logger.Fatal(err)
 		}
@@ -90,10 +90,10 @@ func init() {
 	)
 
 	Cmd.Flags().StringVarP(
-		&stateYaml, "state-yaml", "", "",
-		"Path to a yaml file to store state",
+		&stateFile, "state-file", "", "",
+		"Path to a file to store state",
 	)
-	if err := Cmd.MarkFlagRequired("state-yaml"); err != nil {
+	if err := Cmd.MarkFlagRequired("state-file"); err != nil {
 		panic(err)
 	}
 }
