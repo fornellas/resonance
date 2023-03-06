@@ -113,8 +113,6 @@
             - 🧪At the end check again, fail if changes detected (bug in implementation).
             - 🧪Auto-rollback saved state on failures.
             - Parallelise check.
-        - `ResourceDefinition`
-            - Change yaml schema to `Type[name]:\n  foo: bar\nType[other_name]:\n  foo: foo`.
         - `LoadResourceBundles`
             - 🧪Add check against duplicated resource `TypeName`.
             - 🧪Receive a single directory and load recursively from it.
