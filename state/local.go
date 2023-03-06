@@ -3,8 +3,12 @@ package state
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
+
+	"github.com/fornellas/resonance/host"
 )
 
 type Local struct {
@@ -12,6 +16,10 @@ type Local struct {
 }
 
 func (l Local) Save(ctx context.Context, bytes []byte) error {
+	if err := os.MkdirAll(filepath.Dir(l.Path), 0700); err != nil {
+		return err
+	}
+
 	if err := os.WriteFile(l.Path, bytes, 0600); err != nil {
 		return err
 	}
@@ -31,4 +39,12 @@ func (l Local) Load(ctx context.Context) (*[]byte, error) {
 
 func (l Local) String() string {
 	return l.Path
+}
+
+// NewLocal creates a new Local instance with Path set as a function of the root directory
+// and the host.
+func NewLocal(root string, hst host.Host) Local {
+	return Local{
+		Path: filepath.Join(root, fmt.Sprintf("%s.yaml", hst.String())),
+	}
 }

@@ -3,6 +3,7 @@ module github.com/fornellas/resonance
 go 1.20
 
 require (
+	github.com/adrg/xdg v0.4.0
 	github.com/fatih/color v1.14.1
 	github.com/openconfig/goyang v1.2.0
 	github.com/sirupsen/logrus v1.9.0

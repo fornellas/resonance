@@ -127,8 +127,6 @@
                                 - 📄Should put a limit (otherwise, inifinite loops can happen).
         - `PersistantState`
             - ✨Save history of states: enable to rollback to any previous state.
-            - 🧪Local state: save to `XDG_STATE_HOME/resonance/$target_hostname/`
-        - `ResourceDefinition`
             - ✨Support `refreshed_by`, to enable resources to subscribe to others (eg: `SystemdUnit[nginx.service]` is `refreshed_by` `File[/etc/nginx/.+]`)
         - `ManageableResource`
             - ✨Support defining implicit dependencies (eg: `Group` before `User`)

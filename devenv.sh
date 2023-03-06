@@ -27,7 +27,6 @@ docker run \
 	--rm \
 	--tty \
 	--interactive \
-	--volume ${HOME} \
 	--volume ${GIT_ROOT}:${HOME}/resonance \
 	--volume ${GIT_ROOT}/.cache:${HOME}/.cache \
 	--volume ${HOME}/resonance/.cache \
@@ -40,20 +39,23 @@ set -e
 addgroup --gid ${GID} ${GROUP}
 useradd --home-dir ${HOME} --gid ${GID} --no-create-home --shell /bin/bash --uid ${UID} ${USER}
 ln -s ${HOME}/resonance/.bashrc ${HOME}/.bashrc
+chown ${UID}:${GID} ${HOME}
 
 # Shell
 exec su --group ${GROUP} --pty ${USER} sh -c "
-  export CACHE_DIR=${HOME}/.cache
-  export BINDIR=\\\$(make BINDIR)
-  PATH=\\\$BINDIR:\\\$PATH
-  export GOBIN=\\\$(make GOBIN)
-  PATH=\\\$GOBIN:\\\$PATH
-  export GOCACHE=\\\$(make GOCACHE)
-  export GOMODCACHE=\\\$(make GOMODCACHE)
+	set -e
+
+	export CACHE_DIR=${HOME}/.cache
+	export BINDIR=\\\$(make BINDIR)
+	PATH=\\\$BINDIR:\\\$PATH
+	export GOBIN=\\\$(make GOBIN)
+	PATH=\\\$GOBIN:\\\$PATH
+	export GOCACHE=\\\$(make GOCACHE)
+	export GOMODCACHE=\\\$(make GOMODCACHE)
   
-  echo
-  echo Available make targets:
-  make help
-  exec bash -i"
+	echo
+	echo Available make targets:
+	make help
+	exec bash -i"
 EOF
 )"

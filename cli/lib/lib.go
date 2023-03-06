@@ -2,7 +2,9 @@ package lib
 
 import (
 	"errors"
+	"path/filepath"
 
+	"github.com/adrg/xdg"
 	"github.com/spf13/cobra"
 
 	"github.com/fornellas/resonance/host"
@@ -38,20 +40,15 @@ func AddHostFlags(cmd *cobra.Command) {
 	)
 }
 
-var stateFile string
+var stateRoot string
 
-func GetPersistantState() (state.PersistantState, error) {
-	return state.Local{
-		Path: stateFile,
-	}, nil
+func GetPersistantState(hst host.Host) (state.PersistantState, error) {
+	return state.NewLocal(stateRoot, hst), nil
 }
 
 func AddPersistantStateFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(
-		&stateFile, "state-file", "", "",
-		"Path to a file to store state",
+		&stateRoot, "state-root", "", filepath.Join(xdg.StateHome, "resonance", "state"),
+		"Root path where to save host state to.",
 	)
-	if err := cmd.MarkFlagRequired("state-file"); err != nil {
-		panic(err)
-	}
 }

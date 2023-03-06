@@ -42,6 +42,7 @@ func SaveHostState(ctx context.Context, hostState resource.HostState, persistant
 func LoadHostState(ctx context.Context, persistantState PersistantState) (*resource.HostState, error) {
 	logger := log.GetLogger(ctx)
 	nestedCtx := log.IndentLogger(ctx)
+	nestedLogger := log.GetLogger(nestedCtx)
 
 	var hostState resource.HostState
 
@@ -52,6 +53,7 @@ func LoadHostState(ctx context.Context, persistantState PersistantState) (*resou
 		return &hostState, err
 	}
 	if savedBytes == nil {
+		nestedLogger.Infof("No previous state saved")
 		return nil, nil
 	}
 

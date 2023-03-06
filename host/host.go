@@ -134,5 +134,6 @@ type Host interface {
 	// WriteFile works similar to os.WriteFile.
 	WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error
 
+	// A string representation of the host which uniquely identifies it, eg, its FQDN.
 	String() string
 }

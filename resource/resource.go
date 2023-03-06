@@ -525,6 +525,9 @@ func LoadBundles(ctx context.Context, root string) (Bundles, error) {
 
 // NewBundlesFromHostState creates a single bundle from a HostState.
 func NewBundlesFromHostState(hostState *HostState) Bundles {
+	if hostState == nil {
+		return Bundles{}
+	}
 	bundle := Bundle{}
 	bundle = append(bundle, hostState.Resources...)
 	return Bundles{bundle}
@@ -1185,9 +1188,13 @@ func NewActionPlanFromHostState(
 	nestedCtx := log.IndentLogger(ctx)
 
 	// Checking state
-	checkResults, err := savedHostState.Check(nestedCtx, hst)
-	if err != nil {
-		return nil, err
+	var checkResults CheckResults
+	var err error
+	if savedHostState != nil {
+		checkResults, err = savedHostState.Check(nestedCtx, hst)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Bundles

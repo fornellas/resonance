@@ -27,7 +27,7 @@ var Cmd = &cobra.Command{
 		}
 
 		// PersistantState
-		persistantState, err := lib.GetPersistantState()
+		persistantState, err := lib.GetPersistantState(hst)
 		if err != nil {
 			logger.Fatal(err)
 		}
