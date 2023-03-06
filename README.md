@@ -26,3 +26,14 @@ A configuration management tool, somewhat similar to Ansible, Chef or Puppet, bu
 - Speed
   - All read-only checks are run in parallel.
   - All actions that can happen concurrently are done like so (eg: changing multiple files).
+
+## Install
+
+Pick the latest version with:
+
+```bash
+wget https://github.com/fornellas/resonance/releases/latest/download/resonance.$(uname).$(uname --machine).gz -O- | gunzip > resonance && chmod 755 resonance
+./resonance --help
+```
+
+Or check the [releases page](https://github.com/fornellas/resonance/releases).
