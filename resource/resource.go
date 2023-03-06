@@ -922,33 +922,37 @@ func checkResourcesState(
 	logger := log.GetLogger(ctx)
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
+	nestedNestedCtx := log.IndentLogger(nestedCtx)
+	nestedNestedLogger := log.GetLogger(nestedNestedCtx)
 
 	logger.Info("🔎 Checking state")
 	checkResults := CheckResults{}
 
+	nestedLogger.Info("Desired")
 	for _, bundle := range bundles {
 		for _, resource := range bundle {
-			checkResult, err := resource.Check(nestedCtx, hst)
+			checkResult, err := resource.Check(nestedNestedCtx, hst)
 			if err != nil {
 				return nil, err
 			}
-			nestedLogger.Infof("%s %s", checkResult, resource)
+			nestedNestedLogger.Infof("%s %s", checkResult, resource)
 			checkResults[resource.ResourceKey()] = checkResult
 		}
 	}
 
+	nestedLogger.Info("Saved")
 	if savedHostState != nil {
 		for _, resource := range savedHostState.Resources {
-			if _, ok := checkResults[resource.ResourceKey()]; ok {
-				continue
-			}
-			checkResult, err := resource.Check(nestedCtx, hst)
+			checkResult, err := resource.Check(nestedNestedCtx, hst)
 			if err != nil {
 				return nil, err
 			}
-			nestedLogger.Infof("%s %s", checkResult, resource)
+			nestedNestedLogger.Infof("%s %s (saved)", checkResult, resource)
 			if !checkResult {
-				return nil, fmt.Errorf("resource previously applied now failing check; this usually means that the resource was changed externally")
+				return nil, fmt.Errorf("resource previously applied now failing check; this usually means that the resource was changed externally; inspect & fix things and try refreshing the state")
+			}
+			if _, ok := checkResults[resource.ResourceKey()]; ok {
+				continue
 			}
 			checkResults[resource.ResourceKey()] = checkResult
 		}
