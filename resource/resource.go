@@ -893,7 +893,6 @@ func (p Plan) Print(ctx context.Context) {
 
 	if !p.Actionable() {
 		nestedLogger.Infof("👌 Nothing to do")
-		return
 	}
 
 	for _, step := range p {
@@ -1164,9 +1163,11 @@ func NewPlanFromBundles(
 	return plan, nil
 }
 
-func buildDestroyPlan(
+func buildActionPlanFromHostState(
 	ctx context.Context,
 	hostState *HostState,
+	intentedAction Action,
+	checkResults CheckResults,
 ) (Plan, error) {
 	logger := log.GetLogger(ctx)
 
@@ -1174,10 +1175,31 @@ func buildDestroyPlan(
 	plan := Plan{}
 
 	steps := []*Step{}
+	refresh := false
 	var step *Step
 	for i, resource := range hostState.Resources {
 		step = &Step{}
 		plan = append(plan, step)
+
+		// Result
+		checkResult, ok := checkResults[resource.ResourceKey()]
+		if !ok {
+			panic(fmt.Errorf("%v missing check result", resource))
+		}
+
+		// Action
+		action := intentedAction
+		if action != ActionDestroy {
+			if checkResult {
+				if refresh && resource.Refreshable() {
+					action = ActionRefresh
+				} else {
+					action = ActionOk
+				}
+			} else {
+				action = ActionApply
+			}
+		}
 
 		// Prerequisites
 		steps = append(steps, step)
@@ -1189,26 +1211,38 @@ func buildDestroyPlan(
 		// StepAction
 		step.StepAction = StepActionIndividual{
 			Resource: resource,
-			Action:   ActionDestroy,
+			Action:   action,
+		}
+
+		// Refresh
+		if action == ActionApply {
+			refresh = true
 		}
 	}
 
 	return plan, nil
 }
 
-// NewDestroyPlanFromHostState calculates a Plan based on a saved HostState to destroy all existing
-// resources.
-func NewDestroyPlanFromHostState(
+// NewActionPlanFromHostState calculates a Plan based on a saved HostState to execute given action
+// for all existing resources.
+func NewActionPlanFromHostState(
 	ctx context.Context,
 	hst host.Host,
 	savedHostState *HostState,
+	action Action,
 ) (Plan, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("📝 Planning changes")
 	nestedCtx := log.IndentLogger(ctx)
 
+	// Checking state
+	checkResults, err := savedHostState.Check(nestedCtx, hst)
+	if err != nil {
+		return nil, err
+	}
+
 	// Build unsorted digraph
-	plan, err := buildDestroyPlan(nestedCtx, savedHostState)
+	plan, err := buildActionPlanFromHostState(nestedCtx, savedHostState, action, checkResults)
 	if err != nil {
 		return nil, err
 	}

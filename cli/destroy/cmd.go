@@ -39,7 +39,7 @@ var Cmd = &cobra.Command{
 		}
 
 		// Plan
-		plan, err := resource.NewDestroyPlanFromHostState(ctx, hst, savedHostState)
+		plan, err := resource.NewActionPlanFromHostState(ctx, hst, savedHostState, resource.ActionDestroy)
 		if err != nil {
 			logger.Fatal(err)
 		}
