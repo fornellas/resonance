@@ -3,33 +3,39 @@ description: 'Run build'
 runs:
   using: 'composite'
   steps:
-    - uses: actions/setup-go@v3
+    - name: Setup Go
+      uses: actions/setup-go@v3
       with:
         go-version-file: go.mod
     # GOMODCACHE
-    - id: gomodcache
+    - name: Get GOMODCACHE path
+      id: gomodcache
       run: |
         set -e
         echo "path=$(make GOMODCACHE)" >> $GITHUB_OUTPUT
       shell: bash
-    - uses: actions/cache@v3
+    - name: Fetch GOMODCACHE cache
+      uses: actions/cache@v3
       with:
         path: ${{ steps.gomodcache.outputs.path }}
         key: ${{ runner.os }}-gomodcache-${{ hashFiles('**/go.sum') }}
         restore-keys: ${{ runner.os }}-gomodcache-
     # GOCACHE
-    - id: gocache
+    - name: Get GOCACHE path
+      id: gocache
       run: |
         set -e
         echo "path=$(make GOCACHE)" >> $GITHUB_OUTPUT
       shell: bash
-    - uses: actions/cache@v3
+    - name: Fetch GOCACHE cache
+      uses: actions/cache@v3
       with:
         path: ${{ steps.gocache.outputs.path }}
         key: ${{ runner.os }}-gocache-${{ hashFiles('**/go.sum') }}-${{ hashFiles('**/*.go') }}
         restore-keys: ${{ runner.os }}-gocache-
     # staticcheck
-    - id: staticcheck
+    - name: Get staticcheck cache path
+      id: staticcheck
       run: |
         set -e
         # https://github.com/dominikh/go-tools/blob/cc140e9b3719aadd3b628b7a7b00523681c8b34d/lintcmd/cache/default.go#L75
@@ -39,23 +45,27 @@ runs:
           echo "path=$HOME/.cache/staticcheck" >> $GITHUB_OUTPUT
         fi
       shell: bash
-    - uses: actions/cache@v3
+    - name: Fetch staticcheck cache
+      uses: actions/cache@v3
       with:
         path: |
           ${{ steps.staticcheck.outputs.path }}
         key: ${{ runner.os }}-staticcheck-${{ hashFiles('**/go.sum') }}-${{ hashFiles('**/*.go') }}
         restore-keys: ${{ runner.os }}-staticcheck-
     # BINDIR
-    - id: bindir
+    - name: Get BINDIR path
+      id: bindir
       run: |
         set -e
         echo "path=$(make BINDIR)" >> $GITHUB_OUTPUT
       shell: bash
-    - uses: actions/cache@v3
+    - name: Fetch BINDIR cache
+      uses: actions/cache@v3
       with:
         path: ${{ steps.bindir.outputs.path }}
         key: ${{ runner.os }}-bindir-${{ hashFiles('Makefile') }}
         restore-keys: ${{ runner.os }}-bindir-
     # Build
-    - run: make ci
+    - name: Build
+      run: make ci
       shell: bash
