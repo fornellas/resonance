@@ -401,12 +401,12 @@ func (r Resource) MustMergeableManageableResources() MergeableManageableResource
 	return mergeableManageableResources
 }
 
-// ResourceBundle is the schema used to declare multiple resources at a single file.
-type ResourceBundle []Resource
+// Bundle is the schema used to declare multiple resources at a single file.
+type Bundle []Resource
 
-func (rb ResourceBundle) Validate() error {
+func (b Bundle) Validate() error {
 	resourceMap := map[TypeName]bool{}
-	for _, resource := range rb {
+	for _, resource := range b {
 		if _, ok := resourceMap[resource.TypeName]; ok {
 			return fmt.Errorf("duplicate resource %s", resource.TypeName)
 		}
@@ -415,44 +415,44 @@ func (rb ResourceBundle) Validate() error {
 	return nil
 }
 
-// LoadResourceBundle loads resources from given Yaml file path.
-func LoadResourceBundle(ctx context.Context, path string) (ResourceBundle, error) {
+// LoadBundle loads resources from given Yaml file path.
+func LoadBundle(ctx context.Context, path string) (Bundle, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return ResourceBundle{}, fmt.Errorf("failed to load resource: %w", err)
+		return Bundle{}, fmt.Errorf("failed to load resource: %w", err)
 	}
 	defer f.Close()
 
 	decoder := yaml.NewDecoder(f)
 	decoder.KnownFields(true)
 
-	resourceBundle := ResourceBundle{}
+	bundle := Bundle{}
 
 	for {
-		docResourceBundle := ResourceBundle{}
-		if err := decoder.Decode(&docResourceBundle); err != nil {
+		docBundle := Bundle{}
+		if err := decoder.Decode(&docBundle); err != nil {
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return ResourceBundle{}, fmt.Errorf("failed to load resource: %s: %w", path, err)
+			return Bundle{}, fmt.Errorf("failed to load resource: %s: %w", path, err)
 		}
-		if err := docResourceBundle.Validate(); err != nil {
-			return resourceBundle, err
+		if err := docBundle.Validate(); err != nil {
+			return bundle, err
 		}
-		resourceBundle = append(resourceBundle, docResourceBundle...)
+		bundle = append(bundle, docBundle...)
 	}
 
-	return resourceBundle, nil
+	return bundle, nil
 }
 
-// ResourceBundles holds all resources for a host.
-type ResourceBundles []ResourceBundle
+// Bundles holds all resources for a host.
+type Bundles []Bundle
 
-func (rbs ResourceBundles) Validate() error {
+func (rbs Bundles) Validate() error {
 	resourceMap := map[TypeName]bool{}
 
-	for _, resourceBundle := range rbs {
-		for _, resource := range resourceBundle {
+	for _, bundle := range rbs {
+		for _, resource := range bundle {
 			if _, ok := resourceMap[resource.TypeName]; ok {
 				return fmt.Errorf("duplicate resource %s", resource.TypeName)
 			}
@@ -462,10 +462,10 @@ func (rbs ResourceBundles) Validate() error {
 	return nil
 }
 
-// HasResource returns true if Resource is contained at ResourceBundles.
-func (rbs ResourceBundles) HasResource(resource Resource) bool {
-	for _, resourceBundle := range rbs {
-		for _, rd := range resourceBundle {
+// HasResource returns true if Resource is contained at Bundles.
+func (rbs Bundles) HasResource(resource Resource) bool {
+	for _, bundle := range rbs {
+		for _, rd := range bundle {
 			if rd.ResourceKey() == resource.ResourceKey() {
 				return true
 			}
@@ -482,26 +482,26 @@ type HostState struct {
 	Resources []Resource
 }
 
-// LoadResourceBundles loads resource from all given Yaml file paths.
-// Each file must have the schema defined by ResourceBundle.
-func LoadResourceBundles(ctx context.Context, paths []string) (ResourceBundles, error) {
+// LoadBundles loads resource from all given Yaml file paths.
+// Each file must have the schema defined by Bundle.
+func LoadBundles(ctx context.Context, paths []string) (Bundles, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("📂 Loading resources")
 
-	resourceBundles := ResourceBundles{}
+	bundles := Bundles{}
 	for _, path := range paths {
-		resourceBundle, err := LoadResourceBundle(ctx, path)
+		bundle, err := LoadBundle(ctx, path)
 		if err != nil {
-			return resourceBundles, err
+			return bundles, err
 		}
-		resourceBundles = append(resourceBundles, resourceBundle)
+		bundles = append(bundles, bundle)
 	}
 
-	if err := resourceBundles.Validate(); err != nil {
-		return resourceBundles, err
+	if err := bundles.Validate(); err != nil {
+		return bundles, err
 	}
 
-	return resourceBundles, nil
+	return bundles, nil
 }
 
 // StepAction defines an interface for an action that can be executed from a Step.
@@ -839,7 +839,7 @@ func checkResourcesState(
 	ctx context.Context,
 	hst host.Host,
 	savedHostState *HostState,
-	resourceBundles ResourceBundles,
+	bundles Bundles,
 ) (CheckResults, error) {
 	logger := log.GetLogger(ctx)
 	nestedCtx := log.IndentLogger(ctx)
@@ -860,8 +860,8 @@ func checkResourcesState(
 			checkResults[resource.ResourceKey()] = checkResult
 		}
 	}
-	for _, resourceBundle := range resourceBundles {
-		for _, resource := range resourceBundle {
+	for _, bundle := range bundles {
+		for _, resource := range bundle {
 			if _, ok := checkResults[resource.ResourceKey()]; ok {
 				continue
 			}
@@ -878,7 +878,7 @@ func checkResourcesState(
 
 func buildApplyRefreshPlan(
 	ctx context.Context,
-	resourceBundles ResourceBundles,
+	bundles Bundles,
 	checkResults CheckResults,
 ) (Plan, error) {
 	logger := log.GetLogger(ctx)
@@ -887,11 +887,11 @@ func buildApplyRefreshPlan(
 	plan := Plan{}
 
 	var lastBundleLastStep *Step
-	for _, resourceBundle := range resourceBundles {
-		resourceBundleSteps := []*Step{}
+	for _, bundle := range bundles {
+		bundleSteps := []*Step{}
 		refresh := false
 		var step *Step
-		for i, resource := range resourceBundle {
+		for i, resource := range bundle {
 			step = &Step{}
 			plan = append(plan, step)
 
@@ -919,9 +919,9 @@ func buildApplyRefreshPlan(
 			}
 
 			// Prerequisites
-			resourceBundleSteps = append(resourceBundleSteps, step)
+			bundleSteps = append(bundleSteps, step)
 			if i > 0 {
-				dependantStep := resourceBundleSteps[i-1]
+				dependantStep := bundleSteps[i-1]
 				dependantStep.prerequisiteFor = append(dependantStep.prerequisiteFor, step)
 			}
 
@@ -945,7 +945,7 @@ func buildApplyRefreshPlan(
 func appendDestroySteps(
 	ctx context.Context,
 	savedHostState *HostState,
-	resourceBundles ResourceBundles,
+	bundles Bundles,
 	plan Plan,
 ) Plan {
 	logger := log.GetLogger(ctx)
@@ -953,7 +953,7 @@ func appendDestroySteps(
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 	for _, resource := range savedHostState.Resources {
-		if resourceBundles.HasResource(resource) {
+		if bundles.HasResource(resource) {
 			continue
 		}
 		step := &Step{
@@ -1052,32 +1052,32 @@ func topologicalSort(ctx context.Context, plan Plan) (Plan, error) {
 	return sortedPlan, nil
 }
 
-// NewPlanFromResourceBundles calculates the Plan based on a saved HostState and ResourceBundles.
-func NewPlanFromResourceBundles(
+// NewPlanFromBundles calculates the Plan based on a saved HostState and Bundles.
+func NewPlanFromBundles(
 	ctx context.Context,
 	hst host.Host,
 	savedHostState *HostState,
-	resourceBundles ResourceBundles,
+	bundles Bundles,
 ) (Plan, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("📝 Planning changes")
 	nestedCtx := log.IndentLogger(ctx)
 
 	// Checking state
-	checkResults, err := checkResourcesState(nestedCtx, hst, savedHostState, resourceBundles)
+	checkResults, err := checkResourcesState(nestedCtx, hst, savedHostState, bundles)
 	if err != nil {
 		return nil, err
 	}
 
 	// Build unsorted digraph
-	plan, err := buildApplyRefreshPlan(nestedCtx, resourceBundles, checkResults)
+	plan, err := buildApplyRefreshPlan(nestedCtx, bundles, checkResults)
 	if err != nil {
 		return nil, err
 	}
 
 	// Append destroy steps
 	if savedHostState != nil {
-		plan = appendDestroySteps(nestedCtx, savedHostState, resourceBundles, plan)
+		plan = appendDestroySteps(nestedCtx, savedHostState, bundles, plan)
 	}
 
 	// Merge steps

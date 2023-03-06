@@ -44,7 +44,7 @@ var Cmd = &cobra.Command{
 		}
 
 		// Load resources
-		resourceBundles, err := resource.LoadResourceBundles(ctx, args)
+		resourceBundles, err := resource.LoadBundles(ctx, args)
 		if err != nil {
 			logger.Fatal(err)
 		}
@@ -56,7 +56,7 @@ var Cmd = &cobra.Command{
 		}
 
 		// Plan
-		plan, err := resource.NewPlanFromResourceBundles(ctx, hst, savedHostState, resourceBundles)
+		plan, err := resource.NewPlanFromBundles(ctx, hst, savedHostState, resourceBundles)
 		if err != nil {
 			logger.Fatal(err)
 		}
