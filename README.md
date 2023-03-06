@@ -29,11 +29,9 @@ A configuration management tool, somewhat similar to Ansible, Chef or Puppet, bu
 
 ## Install
 
-Pick the latest version with:
+Pick the [latest release](https://github.com/fornellas/resonance/releases) with:
 
 ```bash
 wget https://github.com/fornellas/resonance/releases/latest/download/resonance.$(uname).$(uname --machine).gz -O- | gunzip > resonance && chmod 755 resonance
 ./resonance --help
 ```
-
-Or check the [releases page](https://github.com/fornellas/resonance/releases).
