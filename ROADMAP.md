@@ -33,7 +33,6 @@
 - ✨Add TESTS!
 - `Makefile`
     - ✨Add https://github.com/gordonklaus/ineffassign
-    - ✨Add https://github.com/client9/misspell
 - `host/`
     - ✨Add option to use sudo to run commands.
     - `local.go`

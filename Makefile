@@ -37,6 +37,9 @@ STATICCHECK_VERSION := 2023.1
 STATICCHECK := staticcheck
 STATICCHECK_CACHE := $(CACHE_DIR)/staticcheck
 
+MISSPELL_VERSION := v0.3.4
+MISSPELL := misspell
+
 GOCYCLO := gocyclo
 GOCYCLO_VERSION := v0.6.0
 GOCYCLO_OVER := 14
@@ -168,6 +171,31 @@ lint: staticcheck
 clean-staticcheck:
 	rm -rf $(HOME)/.cache/staticcheck/
 clean: clean-staticcheck
+
+# misspell
+
+.PHONY: install-deps-misspell
+install-deps-misspell: $(BINDIR)
+	@if test $(BINDIR)/misspell -ot $(MAKEFILE_PATH) ; then \
+		echo Installing misspell ; \
+		$(GO) install github.com/client9/misspell/cmd/misspell@$(MISSPELL_VERSION) ; \
+	fi
+install-deps: install-deps-misspell
+
+.PHONY: uninstall-deps-misspell
+uninstall-deps-misspell:
+	rm -f $(BINDIR)/misspell
+uninstall-deps: uninstall-deps-misspell
+
+.PHONY: misspell
+misspell: install-deps-misspell go-mod-tidy go-generate
+	$(MISSPELL) -error .
+lint: misspell
+
+.PHONY: clean-misspell
+clean-misspell:
+	rm -rf $(HOME)/.cache/misspell/
+clean: clean-misspell
 
 # gocyclo
 
