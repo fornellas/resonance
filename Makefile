@@ -1,11 +1,11 @@
 help:
 
 MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
-MAKEFILE_DIR := $(dir $(MAKEFILE_PATH))
 
 SHELL := /bin/bash
 
-CACHE_DIR ?= $(MAKEFILE_DIR)/.cache
+XDG_CACHE_HOME ?= $(HOME)/.cache
+CACHE_DIR ?= $(XDG_CACHE_HOME)/resonance/build-cache
 BINDIR := $(CACHE_DIR)/bin
 BINDIR := $(BINDIR)
 .PHONY: BINDIR
@@ -118,7 +118,7 @@ go-generate:
 
 .PHONY: install-deps-goimports
 install-deps-goimports: $(BINDIR)
-	@if test $(BINDIR)/goimports -ot $(MAKEFILE_PATH) ; then \
+	@if [ $(BINDIR)/goimports -ot $(MAKEFILE_PATH) ] ; then \
 		echo Installing goimports ; \
 		$(GO) install golang.org/x/tools/cmd/goimports@v$(GOIMPORTS_VERSION) ; \
 	fi
@@ -145,7 +145,7 @@ lint: go-mod-tidy
 
 .PHONY: install-deps-staticcheck
 install-deps-staticcheck: $(BINDIR)
-	@if test $(BINDIR)/staticcheck -ot $(MAKEFILE_PATH) ; then \
+	@if [ $(BINDIR)/staticcheck -ot $(MAKEFILE_PATH) ] ; then \
 		echo Installing staticcheck ; \
 		rm -rf $(BINDIR)/staticcheck $(BINDIR)/staticcheck.tmp && \
 			curl -sSfL  https://github.com/dominikh/go-tools/releases/download/$(STATICCHECK_VERSION)/staticcheck_linux_$(ARCH).tar.gz | \
@@ -176,7 +176,7 @@ clean: clean-staticcheck
 
 .PHONY: install-deps-misspell
 install-deps-misspell: $(BINDIR)
-	@if test $(BINDIR)/misspell -ot $(MAKEFILE_PATH) ; then \
+	@if [ $(BINDIR)/misspell -ot $(MAKEFILE_PATH) ] ; then \
 		echo Installing misspell ; \
 		$(GO) install github.com/client9/misspell/cmd/misspell@$(MISSPELL_VERSION) ; \
 	fi
@@ -201,7 +201,7 @@ clean: clean-misspell
 
 .PHONY: install-deps-gocyclo
 install-deps-gocyclo: $(BINDIR)
-	@if test $(BINDIR)/gocyclo -ot $(MAKEFILE_PATH) ; then \
+	@if [ $(BINDIR)/gocyclo -ot $(MAKEFILE_PATH) ] ; then \
 		echo Installing gocyclo ; \
 		$(GO) install github.com/fzipp/gocyclo/cmd/gocyclo@$(GOCYCLO_VERSION) ; \
 	fi
@@ -242,7 +242,7 @@ test:
 
 .PHONY: install-deps-gotest
 install-deps-gotest: $(BINDIR)
-	@if test $(BINDIR)/gotest -ot $(MAKEFILE_PATH) ; then \
+	@if [ $(BINDIR)/gotest -ot $(MAKEFILE_PATH) ] ; then \
 		echo Installing gotest ; \
 		$(GO) install github.com/rakyll/gotest@$(GOTEST_VERSION) ; \
 	fi
@@ -280,7 +280,7 @@ ci: install-deps ci-no-install-deps
 
 .PHONY: install-deps-rrb
 install-deps-rrb: $(BINDIR)
-	@if test $(BINDIR)/rrb -ot $(MAKEFILE_PATH) ; then \
+	@if [ $(BINDIR)/rrb -ot $(MAKEFILE_PATH) ] ; then \
 		echo Installing rrb ; \
 		$(GO) install github.com/fornellas/rrb@$(RRB_VERSION) ; \
 	fi

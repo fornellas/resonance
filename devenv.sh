@@ -46,7 +46,6 @@ chown ${UID}:${GID} ${HOME}
 exec su --group ${GROUP} --pty ${USER} sh -c "
 	set -e
 
-	export CACHE_DIR=${HOME}/.cache
 	export BINDIR=\\\$(make BINDIR)
 	PATH=\\\$BINDIR:\\\$PATH
 	export GOBIN=\\\$(make GOBIN)

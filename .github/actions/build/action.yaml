@@ -2,8 +2,6 @@ name: 'Build'
 description: 'Run build'
 runs:
   using: 'composite'
-  env:
-    CACHE_DIR: /tmp/build-cache
   steps:
     - name: Setup Go
       uses: actions/setup-go@v3
