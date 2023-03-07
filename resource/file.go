@@ -15,8 +15,8 @@ import (
 	"github.com/fornellas/resonance/log"
 )
 
-// FileParams for File
-type FileParams struct {
+// FileState for File
+type FileState struct {
 	// Contents of the file
 	Content string `yaml:"content"`
 	// File permissions
@@ -31,7 +31,7 @@ type FileParams struct {
 	Group string `yaml:"group"`
 }
 
-func (fp *FileParams) Validate() error {
+func (fp *FileState) Validate() error {
 	if fp.Perm == os.FileMode(0) {
 		return fmt.Errorf("missing 'perm'")
 	}
@@ -44,22 +44,22 @@ func (fp *FileParams) Validate() error {
 	return nil
 }
 
-func (fp *FileParams) UnmarshalYAML(node *yaml.Node) error {
-	type FileParamsDecode FileParams
-	var fileParamsDecode FileParamsDecode
+func (fp *FileState) UnmarshalYAML(node *yaml.Node) error {
+	type FileStateDecode FileState
+	var fileStateDecode FileStateDecode
 	node.KnownFields(true)
-	if err := node.Decode(&fileParamsDecode); err != nil {
+	if err := node.Decode(&fileStateDecode); err != nil {
 		return err
 	}
-	fileParams := FileParams(fileParamsDecode)
-	if err := fileParams.Validate(); err != nil {
+	fileState := FileState(fileStateDecode)
+	if err := fileState.Validate(); err != nil {
 		return fmt.Errorf("yaml line %d: validation error: %w", node.Line, err)
 	}
-	*fp = fileParams
+	*fp = fileState
 	return nil
 }
 
-func (fp FileParams) GetUid(ctx context.Context, hst host.Host) (uint32, error) {
+func (fp FileState) GetUid(ctx context.Context, hst host.Host) (uint32, error) {
 	if fp.User != "" {
 		usr, err := hst.Lookup(ctx, fp.User)
 		if err != nil {
@@ -74,7 +74,7 @@ func (fp FileParams) GetUid(ctx context.Context, hst host.Host) (uint32, error) 
 	return fp.Uid, nil
 }
 
-func (fp FileParams) GetGid(ctx context.Context, hst host.Host) (uint32, error) {
+func (fp FileState) GetGid(ctx context.Context, hst host.Host) (uint32, error) {
 	if fp.Group != "" {
 		group, err := hst.LookupGroup(ctx, fp.Group)
 		if err != nil {
@@ -100,13 +100,13 @@ func (f File) Validate(name Name) error {
 	return nil
 }
 
-func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters Parameters) (CheckResult, error) {
+func (f File) Check(ctx context.Context, hst host.Host, name Name, state State) (CheckResult, error) {
 	logger := log.GetLogger(ctx)
 
 	path := string(name)
 
-	// FileParams
-	fileParams := parameters.(*FileParams)
+	// FileState
+	fileState := state.(*FileState)
 
 	checkResult := CheckResult(true)
 
@@ -130,17 +130,17 @@ func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters Pa
 	}
 
 	// Instance Hash
-	fileParamsHash := md5.New()
-	n, err := fileParamsHash.Write([]byte(fileParams.Content))
+	fileStateHash := md5.New()
+	n, err := fileStateHash.Write([]byte(fileState.Content))
 	if err != nil {
 		return false, err
 	}
-	if n != len(fileParams.Content) {
-		return false, fmt.Errorf("unexpected write length when generating md5: expected %d, got %d", len(fileParams.Content), n)
+	if n != len(fileState.Content) {
+		return false, fmt.Errorf("unexpected write length when generating md5: expected %d, got %d", len(fileState.Content), n)
 	}
 
 	// Compare Hash
-	if fmt.Sprintf("%v", pathtHash.Sum(nil)) != fmt.Sprintf("%v", fileParamsHash.Sum(nil)) {
+	if fmt.Sprintf("%v", pathtHash.Sum(nil)) != fmt.Sprintf("%v", fileStateHash.Sum(nil)) {
 		logger.Debug("Content differs")
 		checkResult = false
 	}
@@ -153,13 +153,13 @@ func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters Pa
 	stat_t := fileInfo.Sys().(*syscall.Stat_t)
 
 	// Perm
-	if fileInfo.Mode() != fileParams.Perm {
-		logger.Debugf("Expected permission 0%o, got 0%o", fileParams.Perm, fileInfo.Mode())
+	if fileInfo.Mode() != fileState.Perm {
+		logger.Debugf("Expected permission 0%o, got 0%o", fileState.Perm, fileInfo.Mode())
 		checkResult = false
 	}
 
 	// Uid / User
-	uid, err := fileParams.GetUid(ctx, hst)
+	uid, err := fileState.GetUid(ctx, hst)
 	if err != nil {
 		return false, err
 	}
@@ -169,7 +169,7 @@ func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters Pa
 	}
 
 	// Gid
-	gid, err := fileParams.GetGid(ctx, hst)
+	gid, err := fileState.GetGid(ctx, hst)
 	if err != nil {
 		return false, err
 	}
@@ -181,20 +181,20 @@ func (f File) Check(ctx context.Context, hst host.Host, name Name, parameters Pa
 	return checkResult, nil
 }
 
-func (f File) Apply(ctx context.Context, hst host.Host, name Name, parameters Parameters) error {
+func (f File) Apply(ctx context.Context, hst host.Host, name Name, state State) error {
 	nestedCtx := log.IndentLogger(ctx)
 	path := string(name)
 
-	// FileParams
-	fileParams := parameters.(*FileParams)
+	// FileState
+	fileState := state.(*FileState)
 
 	// Content
-	if err := hst.WriteFile(nestedCtx, path, []byte(fileParams.Content), fileParams.Perm); err != nil {
+	if err := hst.WriteFile(nestedCtx, path, []byte(fileState.Content), fileState.Perm); err != nil {
 		return err
 	}
 
 	// Perm
-	if err := hst.Chmod(nestedCtx, path, fileParams.Perm); err != nil {
+	if err := hst.Chmod(nestedCtx, path, fileState.Perm); err != nil {
 		return err
 	}
 
@@ -206,16 +206,16 @@ func (f File) Apply(ctx context.Context, hst host.Host, name Name, parameters Pa
 	stat_t := fileInfo.Sys().(*syscall.Stat_t)
 
 	// Uid / Gid
-	uid, err := fileParams.GetUid(ctx, hst)
+	uid, err := fileState.GetUid(ctx, hst)
 	if err != nil {
 		return err
 	}
-	gid, err := fileParams.GetGid(ctx, hst)
+	gid, err := fileState.GetGid(ctx, hst)
 	if err != nil {
 		return err
 	}
 	if stat_t.Uid != uid || stat_t.Gid != gid {
-		if err := hst.Chown(ctx, path, int(fileParams.Uid), int(fileParams.Gid)); err != nil {
+		if err := hst.Chown(ctx, path, int(fileState.Uid), int(fileState.Gid)); err != nil {
 			return err
 		}
 	}
@@ -235,5 +235,5 @@ func (f File) Destroy(ctx context.Context, hst host.Host, name Name) error {
 
 func init() {
 	IndividuallyManageableResourceTypeMap["File"] = File{}
-	ManageableResourcesParametersMap["File"] = FileParams{}
+	ManageableResourcesStateMap["File"] = FileState{}
 }

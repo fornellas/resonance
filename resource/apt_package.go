@@ -12,13 +12,13 @@ import (
 	"github.com/fornellas/resonance/log"
 )
 
-// APTPackageParams for APTPackage
-type APTPackageParams struct {
+// APTPackageState for APTPackage
+type APTPackageState struct {
 	// Package version
 	Version string
 }
 
-func (app *APTPackageParams) Validate() error {
+func (app *APTPackageState) Validate() error {
 	if strings.HasSuffix(app.Version, "+") {
 		return fmt.Errorf("version can't end in +: %s", app.Version)
 	}
@@ -28,18 +28,18 @@ func (app *APTPackageParams) Validate() error {
 	return nil
 }
 
-func (app *APTPackageParams) UnmarshalYAML(node *yaml.Node) error {
-	type APTPackageParamsDecode APTPackageParams
-	var aptPackageParamsDecode APTPackageParamsDecode
+func (app *APTPackageState) UnmarshalYAML(node *yaml.Node) error {
+	type APTPackageStateDecode APTPackageState
+	var aptPackageStateDecode APTPackageStateDecode
 	node.KnownFields(true)
-	if err := node.Decode(&aptPackageParamsDecode); err != nil {
+	if err := node.Decode(&aptPackageStateDecode); err != nil {
 		return err
 	}
-	aptPackageParams := APTPackageParams(aptPackageParamsDecode)
-	if err := aptPackageParams.Validate(); err != nil {
+	aptPackageState := APTPackageState(aptPackageStateDecode)
+	if err := aptPackageState.Validate(); err != nil {
 		return fmt.Errorf("line %d: validation error: %w", node.Line, err)
 	}
-	*app = aptPackageParams
+	*app = aptPackageState
 	return nil
 }
 
@@ -53,11 +53,11 @@ func (ap APTPackage) Validate(name Name) error {
 	return nil
 }
 
-func (ap APTPackage) Check(ctx context.Context, hst host.Host, name Name, parameters Parameters) (CheckResult, error) {
+func (ap APTPackage) Check(ctx context.Context, hst host.Host, name Name, state State) (CheckResult, error) {
 	logger := log.GetLogger(ctx)
 
-	// APTPackageParams
-	aptPackageParams := parameters.(*APTPackageParams)
+	// APTPackageState
+	aptPackageState := state.(*APTPackageState)
 
 	checkResult := CheckResult(true)
 
@@ -101,15 +101,19 @@ func (ap APTPackage) Check(ctx context.Context, hst host.Host, name Name, parame
 		logger.Debugf("Expected status '%s', got '%s'", expectedStatus, status)
 		checkResult = false
 	}
-	if aptPackageParams.Version != "" && aptPackageParams.Version != version {
-		logger.Debugf("Expected version %s, got %s", aptPackageParams.Version, version)
+	if aptPackageState.Version != "" && aptPackageState.Version != version {
+		logger.Debugf("Expected version %s, got %s", aptPackageState.Version, version)
 		checkResult = false
 	}
 
 	return checkResult, nil
 }
 
-func (ap APTPackage) ConfigureAll(ctx context.Context, hst host.Host, actionDefinitions map[Action]Definitions) error {
+func (ap APTPackage) ConfigureAll(
+	ctx context.Context,
+	hst host.Host,
+	actionDefinitions map[Action]Definitions,
+) error {
 	nestedCtx := log.IndentLogger(ctx)
 
 	// Package arguments
@@ -125,11 +129,11 @@ func (ap APTPackage) ConfigureAll(ctx context.Context, hst host.Host, actionDefi
 		default:
 			return fmt.Errorf("unexpected action %s", action)
 		}
-		for name, parameters := range definitions {
-			aptPackageParams := parameters.(*APTPackageParams)
+		for name, state := range definitions {
+			aptPackageState := state.(*APTPackageState)
 			var version string
-			if aptPackageParams.Version != "" {
-				version = fmt.Sprintf("=%s", aptPackageParams.Version)
+			if aptPackageState.Version != "" {
+				version = fmt.Sprintf("=%s", aptPackageState.Version)
 			}
 			pkgs = append(pkgs, fmt.Sprintf("%s%s%s", string(name), version, pkgAction))
 		}
@@ -156,5 +160,5 @@ func (ap APTPackage) ConfigureAll(ctx context.Context, hst host.Host, actionDefi
 
 func init() {
 	MergeableManageableResourcesTypeMap["APTPackage"] = APTPackage{}
-	ManageableResourcesParametersMap["APTPackage"] = APTPackageParams{}
+	ManageableResourcesStateMap["APTPackage"] = APTPackageState{}
 }

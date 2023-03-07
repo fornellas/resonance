@@ -26,7 +26,7 @@ import (
 type Name string
 
 // CheckResult is what's returned when a resource is checked. true means resource state is as
-// parameterized, false means changes are pending.
+// expected, false means changes are pending.
 type CheckResult bool
 
 func (cr CheckResult) String() string {
@@ -102,11 +102,11 @@ func (a Action) SaveState() bool {
 	return true
 }
 
-// Parameters is a Type specific interface for defining resource parameters.
-type Parameters interface{}
+// State is a Type specific interface for defining resource state.
+type State interface{}
 
 // Definitions describe a set of resource declarations.
-type Definitions map[Name]Parameters
+type Definitions map[Name]State
 
 // ManageableResource defines a common interface for managing resource state.
 type ManageableResource interface {
@@ -116,7 +116,7 @@ type ManageableResource interface {
 	// Check host for the state of instatnce. If changes are required, returns true,
 	// otherwise, returns false.
 	// No side-effects are to happen when this function is called, which may happen concurrently.
-	Check(ctx context.Context, hst host.Host, name Name, parameters Parameters) (CheckResult, error)
+	Check(ctx context.Context, hst host.Host, name Name, state State) (CheckResult, error)
 }
 
 // RefreshableManageableResource defines an interface for resources that can be refreshed.
@@ -139,7 +139,7 @@ type IndividuallyManageableResource interface {
 
 	// Apply configures the resource definition at host.
 	// Must be idempotent.
-	Apply(ctx context.Context, hst host.Host, name Name, parameters Parameters) error
+	Apply(ctx context.Context, hst host.Host, name Name, state State) error
 
 	// Destroy a configured resource at given host.
 	// Must be idempotent.
@@ -168,8 +168,8 @@ var IndividuallyManageableResourceTypeMap = map[Type]IndividuallyManageableResou
 // MergeableManageableResourcesTypeMap maps Type to MergeableManageableResources.
 var MergeableManageableResourcesTypeMap = map[Type]MergeableManageableResources{}
 
-// ManageableResourcesParametersMap maps Type to its Parameters interface
-var ManageableResourcesParametersMap = map[Type]Parameters{}
+// ManageableResourcesStateMap maps Type to its State interface
+var ManageableResourcesStateMap = map[Type]State{}
 
 // Validate whether type is known.
 func (t Type) Validate() error {
@@ -302,13 +302,13 @@ type CheckResults map[ResourceKey]CheckResult
 // Resource holds a single resource.
 type Resource struct {
 	TypeName           TypeName           `yaml:"resource"`
-	Parameters         Parameters         `yaml:"parameters"`
+	State              State              `yaml:"state"`
 	ManageableResource ManageableResource `yaml:"-"`
 }
 
 type resourceUnmarshalSchema struct {
-	TypeName   TypeName  `yaml:"resource"`
-	Parameters yaml.Node `yaml:"parameters"`
+	TypeName TypeName  `yaml:"resource"`
+	State    yaml.Node `yaml:"state"`
 }
 
 func (r *Resource) UnmarshalYAML(node *yaml.Node) error {
@@ -325,13 +325,13 @@ func (r *Resource) UnmarshalYAML(node *yaml.Node) error {
 		return err
 	}
 
-	parametersInterface, ok := ManageableResourcesParametersMap[tpe]
+	state, ok := ManageableResourcesStateMap[tpe]
 	if !ok {
-		panic(fmt.Errorf("Type %s missing from ManageableResourcesParametersMap", tpe))
+		panic(fmt.Errorf("Type %s missing from ManageableResourcesStateMap", tpe))
 	}
-	parametersType := reflect.ValueOf(parametersInterface).Type()
-	parametersValue := reflect.New(parametersType)
-	err := unmarshalSchema.Parameters.Decode(parametersValue.Interface())
+	stateType := reflect.ValueOf(state).Type()
+	stateValue := reflect.New(stateType)
+	err := unmarshalSchema.State.Decode(stateValue.Interface())
 	if err != nil {
 		return err
 	}
@@ -339,7 +339,7 @@ func (r *Resource) UnmarshalYAML(node *yaml.Node) error {
 	*r = Resource{
 		TypeName:           unmarshalSchema.TypeName,
 		ManageableResource: manageableResource,
-		Parameters:         parametersValue.Interface(),
+		State:              stateValue.Interface(),
 	}
 	return nil
 }
@@ -365,7 +365,7 @@ func (r Resource) Check(ctx context.Context, hst host.Host) (CheckResult, error)
 	logger := log.GetLogger(ctx)
 
 	logger.Debugf("Checking %v", r)
-	return r.ManageableResource.Check(log.IndentLogger(ctx), hst, r.Name(), r.Parameters)
+	return r.ManageableResource.Check(log.IndentLogger(ctx), hst, r.Name(), r.State)
 }
 
 // Refreshable returns whether the resource is refreshable or not.
@@ -613,7 +613,7 @@ func (sai StepActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 	nestedCtx := log.IndentLogger(ctx)
 	individuallyManageableResource := sai.Resource.MustIndividuallyManageableResource()
 	name := sai.Resource.Name()
-	parameters := sai.Resource.Parameters
+	state := sai.Resource.State
 	switch sai.Action {
 	case ActionRefresh:
 		refreshableManageableResource, ok := individuallyManageableResource.(RefreshableManageableResource)
@@ -621,10 +621,10 @@ func (sai StepActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 			return refreshableManageableResource.Refresh(nestedCtx, hst, name)
 		}
 	case ActionApply:
-		if err := individuallyManageableResource.Apply(nestedCtx, hst, name, parameters); err != nil {
+		if err := individuallyManageableResource.Apply(nestedCtx, hst, name, state); err != nil {
 			return err
 		}
-		checkResult, err := individuallyManageableResource.Check(nestedCtx, hst, name, parameters)
+		checkResult, err := individuallyManageableResource.Check(nestedCtx, hst, name, state)
 		if err != nil {
 			return err
 		}
@@ -695,7 +695,7 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 				if configureActionDefinition[action] == nil {
 					configureActionDefinition[action] = Definitions{}
 				}
-				configureActionDefinition[action][resource.Name()] = resource.Parameters
+				configureActionDefinition[action][resource.Name()] = resource.State
 			}
 			if action != ActionDestroy {
 				checkResources = append(checkResources, resource)
@@ -711,7 +711,7 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 
 	for _, resource := range checkResources {
 		checkResult, err := sam.MustMergeableManageableResources().Check(
-			nestedCtx, hst, resource.Name(), resource.Parameters,
+			nestedCtx, hst, resource.Name(), resource.State,
 		)
 		if err != nil {
 			return err

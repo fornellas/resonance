@@ -12,11 +12,11 @@ import (
 	"github.com/fornellas/resonance/log"
 )
 
-// SystemdUnitParams for SystemdUnit.
-// It has the same attributes as FileParams, but if Content is empty,
+// SystemdUnitState for SystemdUnit.
+// It has the same attributes as FileState, but if Content is empty,
 // then it is assumed the unit file was added by another resource (eg:
 // a package) and it gonna be left as is.
-type SystemdUnitParams FileParams
+type SystemdUnitState FileState
 
 // SystemdUnit resource manages Systemd Units.
 // These units are enabled and reload-or-restart on apply or refresh.
@@ -34,13 +34,13 @@ func checkUnitFile(
 	ctx context.Context,
 	hst host.Host,
 	name Name,
-	parameters Parameters,
+	state State,
 	path,
 	job string,
-	systemdUnitParams *SystemdUnitParams,
+	systemdUnitState *SystemdUnitState,
 ) (CheckResult, error) {
 	// Pre-existing unit file
-	if systemdUnitParams.Content == "" {
+	if systemdUnitState.Content == "" {
 		// It must exist
 		_, err := hst.Lstat(ctx, path)
 		if err != nil {
@@ -64,7 +64,7 @@ func checkUnitFile(
 		// Must create unit file
 	} else {
 		file := IndividuallyManageableResourceTypeMap["File"]
-		checkResult, err := file.Check(ctx, hst, name, (*FileParams)(systemdUnitParams))
+		checkResult, err := file.Check(ctx, hst, name, (*FileState)(systemdUnitState))
 		if err != nil {
 			return false, err
 		}
@@ -101,16 +101,17 @@ func getSystemdUnitProperties(ctx context.Context, hst host.Host, job string) (m
 	return properties, nil
 }
 
-func (su SystemdUnit) Check(ctx context.Context, hst host.Host, name Name, parameters Parameters) (CheckResult, error) {
+func (su SystemdUnit) Check(ctx context.Context, hst host.Host, name Name, state State) (CheckResult, error) {
 	logger := log.GetLogger(ctx)
 
 	path := string(name)
 	job := filepath.Base(path)
 
-	// SystemdUnitParams
-	systemdUnitParams := parameters.(*SystemdUnitParams)
+	// SystemdUnitState
+	systemdUnitState := state.(*SystemdUnitState)
 
-	checkResult, err := checkUnitFile(ctx, hst, name, parameters, path, job, systemdUnitParams)
+	// Unit file
+	checkResult, err := checkUnitFile(ctx, hst, name, state, path, job, systemdUnitState)
 	if err != nil {
 		return false, err
 	}
@@ -154,19 +155,46 @@ func (su SystemdUnit) Check(ctx context.Context, hst host.Host, name Name, param
 	return true, nil
 }
 
-func (su SystemdUnit) Apply(ctx context.Context, hst host.Host, name Name, parameters Parameters) error {
+func (su SystemdUnit) Apply(ctx context.Context, hst host.Host, name Name, state State) error {
+	// logger := log.GetLogger(ctx)
+
+	// path := string(name)
+	// job := filepath.Base(path)
+
+	// // SystemdUnitState
+	// systemdUnitState := state.(*SystemdUnitState)
+
+	// // Create unit file
+	// if systemdUnitState.Content != "" {
+	// 	file := IndividuallyManageableResourceTypeMap["File"]
+	// 	err := file.Apply(ctx, hst, name, (*FileState)(systemdUnitState))
+	// 	if err != nil {
+	// 		return false, err
+	// 	}
+	// }
+
+	// Enable
+	// systemctl enable job
+
+	// Activate
+
+	// systemctl daemon-reload
+
 	return errors.New("TODO SystemdUnit.Apply")
 }
 
 func (su SystemdUnit) Refresh(ctx context.Context, hst host.Host, name Name) error {
+	// systemctl reload-or-restart $unit
 	return errors.New("TODO SystemdUnit.Refresh")
 }
 
 func (su SystemdUnit) Destroy(ctx context.Context, hst host.Host, name Name) error {
+
+	// systemctl daemon-reload
 	return errors.New("TODO SystemdUnit.Destroy")
 }
 
 func init() {
 	IndividuallyManageableResourceTypeMap["SystemdUnit"] = SystemdUnit{}
-	ManageableResourcesParametersMap["SystemdUnit"] = SystemdUnitParams{}
+	ManageableResourcesStateMap["SystemdUnit"] = SystemdUnitState{}
 }
