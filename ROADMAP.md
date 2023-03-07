@@ -40,6 +40,7 @@
         - ✨Use [subreaper to wait on all children](https://github.com/fornellas/rrb/blob/main/runner/runner.go).
     - `ssh.go`
         - 📈Implement using Go Ssh libraries.
+    - ✨Ensure execution environment is always the same.
 - `resource/`
     - `alternatives.go`
         - Implement with `update-alternatives`.
