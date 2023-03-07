@@ -75,7 +75,7 @@ func (ap APTPackage) Check(ctx context.Context, hst host.Host, name Name, parame
 			logger.Debugf("Package not installed")
 			return false, nil
 		} else {
-			return false, fmt.Errorf("failed to call '%s': %s\nstdout:\n%s\nstderr:\n%s", hostCmd.String(), waitStatus.String(), stdout, stderr)
+			return false, fmt.Errorf("failed to run '%s': %s\nstdout:\n%s\nstderr:\n%s", hostCmd.String(), waitStatus.String(), stdout, stderr)
 		}
 	}
 
