@@ -105,8 +105,8 @@ func (a Action) SaveState() bool {
 // State is a Type specific interface for defining resource state.
 type State interface{}
 
-// Definitions describe a set of resource declarations.
-type Definitions map[Name]State
+// Parameters for ManageableResource.
+type Parameters map[Name]State
 
 // ManageableResource defines a common interface for managing resource state.
 type ManageableResource interface {
@@ -137,7 +137,7 @@ type RefreshableManageableResource interface {
 type IndividuallyManageableResource interface {
 	ManageableResource
 
-	// Apply configures the resource definition at host.
+	// Apply configures the resource to given State.
 	// Must be idempotent.
 	Apply(ctx context.Context, hst host.Host, name Name, state State) error
 
@@ -154,9 +154,9 @@ type IndividuallyManageableResource interface {
 type MergeableManageableResources interface {
 	ManageableResource
 
-	// ConfigureAll configures all resource definitions at host.
+	// ConfigureAll configures all resource to given State.
 	// Must be idempotent.
-	ConfigureAll(ctx context.Context, hst host.Host, actionDefinitions map[Action]Definitions) error
+	ConfigureAll(ctx context.Context, hst host.Host, actionParameters map[Action]Parameters) error
 }
 
 // Type is the name of the resource type.
@@ -685,17 +685,17 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 	logger.Infof("%s", sam)
 
 	checkResources := []Resource{}
-	configureActionDefinition := map[Action]Definitions{}
+	configureActionParameters := map[Action]Parameters{}
 	refreshNames := []Name{}
 	for action, resources := range sam {
 		for _, resource := range resources {
 			if action == ActionRefresh {
 				refreshNames = append(refreshNames, resource.Name())
 			} else {
-				if configureActionDefinition[action] == nil {
-					configureActionDefinition[action] = Definitions{}
+				if configureActionParameters[action] == nil {
+					configureActionParameters[action] = Parameters{}
 				}
-				configureActionDefinition[action][resource.Name()] = resource.State
+				configureActionParameters[action][resource.Name()] = resource.State
 			}
 			if action != ActionDestroy {
 				checkResources = append(checkResources, resource)
@@ -704,7 +704,7 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 	}
 
 	if err := sam.MustMergeableManageableResources().ConfigureAll(
-		nestedCtx, hst, configureActionDefinition,
+		nestedCtx, hst, configureActionParameters,
 	); err != nil {
 		return err
 	}

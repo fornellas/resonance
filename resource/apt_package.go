@@ -112,13 +112,13 @@ func (ap APTPackage) Check(ctx context.Context, hst host.Host, name Name, state 
 func (ap APTPackage) ConfigureAll(
 	ctx context.Context,
 	hst host.Host,
-	actionDefinitions map[Action]Definitions,
+	actionParameters map[Action]Parameters,
 ) error {
 	nestedCtx := log.IndentLogger(ctx)
 
 	// Package arguments
 	pkgs := []string{}
-	for action, definitions := range actionDefinitions {
+	for action, parameters := range actionParameters {
 		var pkgAction string
 		switch action {
 		case ActionOk:
@@ -129,7 +129,7 @@ func (ap APTPackage) ConfigureAll(
 		default:
 			return fmt.Errorf("unexpected action %s", action)
 		}
-		for name, state := range definitions {
+		for name, state := range parameters {
 			aptPackageState := state.(*APTPackageState)
 			var version string
 			if aptPackageState.Version != "" {
