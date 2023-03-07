@@ -2,6 +2,8 @@ name: 'Build'
 description: 'Run build'
 runs:
   using: 'composite'
+  env:
+    CACHE_DIR=/tmp/build-cache
   steps:
     - name: Setup Go
       uses: actions/setup-go@v3
@@ -67,7 +69,7 @@ runs:
         restore-keys: ${{ runner.os }}-bindir-
     # Build
     - name: Build
-      run: make ci CACHE_DIR=/tmp/build-cache
+      run: make ci
       shell: bash
     # Git Status
     - name: git status
