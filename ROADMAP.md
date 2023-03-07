@@ -31,8 +31,6 @@
     - Add badges
       - ✨Coverage
 - ✨Add TESTS!
-- `Makefile`
-    - ✨Add https://github.com/gordonklaus/ineffassign
 - `host/`
     - ✨Add option to use sudo to run commands.
     - `local.go`
