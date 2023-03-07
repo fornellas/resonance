@@ -92,7 +92,7 @@ func (fp FileState) GetGid(ctx context.Context, hst host.Host) (uint32, error) {
 // File resource manages files.
 type File struct{}
 
-func (f File) Validate(name Name) error {
+func (f File) ValidateName(name Name) error {
 	path := string(name)
 	if !filepath.IsAbs(path) {
 		return fmt.Errorf("path must be absolute: %s", path)

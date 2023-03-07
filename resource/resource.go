@@ -110,8 +110,8 @@ type Parameters map[Name]State
 
 // ManageableResource defines a common interface for managing resource state.
 type ManageableResource interface {
-	// Validate the name of the resource
-	Validate(name Name) error
+	// ValidateName validates the name of the resource
+	ValidateName(name Name) error
 
 	// Check host for the state of instatnce. If changes are required, returns true,
 	// otherwise, returns false.
@@ -321,7 +321,7 @@ func (r *Resource) UnmarshalYAML(node *yaml.Node) error {
 	manageableResource := unmarshalSchema.TypeName.ManageableResource()
 	tpe := unmarshalSchema.TypeName.Type()
 	name := unmarshalSchema.TypeName.Name()
-	if err := manageableResource.Validate(name); err != nil {
+	if err := manageableResource.ValidateName(name); err != nil {
 		return err
 	}
 

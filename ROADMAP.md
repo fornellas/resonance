@@ -50,8 +50,10 @@
     - `apt_repository.go`:
         - 📈Use `add-apt-repository` to add at `/etc/apt/sources.list.d`
     - `apt_package.go`
-        - 📈upport directly passing `.deb` packages.
-        - Enforce after `File[/etc/apt/preferences.d/.+]`.
+        - ✨Improve `APTPackageState.ValidateName`
+        - ✨Improve `APTPackage.ValidateName`
+        - ✨Enforce after `File[/etc/apt/preferences.d/.+]`.
+        - 📈 Support directly passing `.deb` packages.
     - `file.go`
         - ✨Type: regular, link, dir, char device, block device, pipe, socket.
         - `Check`

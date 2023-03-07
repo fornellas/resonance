@@ -19,6 +19,7 @@ type APTPackageState struct {
 }
 
 func (app *APTPackageState) Validate() error {
+	// https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
 	if strings.HasSuffix(app.Version, "+") {
 		return fmt.Errorf("version can't end in +: %s", app.Version)
 	}
@@ -49,7 +50,8 @@ type APTPackage struct{}
 var aptPackageRegexpStatus = regexp.MustCompile(`^Status: (.+)$`)
 var aptPackageRegexpVersion = regexp.MustCompile(`^Version: (.+)$`)
 
-func (ap APTPackage) Validate(name Name) error {
+func (ap APTPackage) ValidateName(name Name) error {
+	// https://www.debian.org/doc/debian-policy/ch-controlfields.html#source
 	return nil
 }
 

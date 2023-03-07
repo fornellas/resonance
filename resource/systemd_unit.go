@@ -22,7 +22,7 @@ type SystemdUnitState FileState
 // These units are enabled and reload-or-restart on apply or refresh.
 type SystemdUnit struct{}
 
-func (su SystemdUnit) Validate(name Name) error {
+func (su SystemdUnit) ValidateName(name Name) error {
 	path := string(name)
 	if !filepath.IsAbs(path) {
 		return fmt.Errorf("path must be absolute: %s", path)
