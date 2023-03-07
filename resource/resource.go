@@ -965,7 +965,7 @@ func buildPlan(
 	bundles Bundles,
 	intentedAction Action,
 	checkResults CheckResults,
-) (Plan, error) {
+) Plan {
 	logger := log.GetLogger(ctx)
 
 	logger.Info("👷 Building plan")
@@ -1026,7 +1026,7 @@ func buildPlan(
 		lastBundleLastStep = step
 	}
 
-	return plan, nil
+	return plan
 }
 
 func appendDestroySteps(
@@ -1157,10 +1157,7 @@ func NewPlanFromBundles(
 	}
 
 	// Build unsorted digraph
-	plan, err := buildPlan(nestedCtx, bundles, ActionNone, checkResults)
-	if err != nil {
-		return nil, err
-	}
+	plan := buildPlan(nestedCtx, bundles, ActionNone, checkResults)
 
 	// Append destroy steps
 	if savedHostState != nil {
@@ -1205,10 +1202,7 @@ func NewActionPlanFromHostState(
 	bundles := NewBundlesFromHostState(savedHostState)
 
 	// Build unsorted digraph
-	plan, err := buildPlan(nestedCtx, bundles, action, checkResults)
-	if err != nil {
-		return nil, err
-	}
+	plan := buildPlan(nestedCtx, bundles, action, checkResults)
 
 	// Merge steps
 	plan = mergeSteps(nestedCtx, plan)
