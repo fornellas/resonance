@@ -20,8 +20,6 @@ if ! test -d "$GIT_ROOT"/.cache ; then
 	mkdir "$GIT_ROOT"/.cache
 fi
 
-set -x
-
 docker run \
 	--platform ${DOCKER_PLATFORM} \
 	--rm \
@@ -36,8 +34,8 @@ docker run \
 set -e
 
 # User
-passwd -d root
-addgroup --gid ${GID} ${GROUP}
+passwd -d root > /dev/null
+addgroup --gid ${GID} ${GROUP} > /dev/null
 useradd --home-dir ${HOME} --gid ${GID} --no-create-home --shell /bin/bash --uid ${UID} ${USER}
 ln -s ${HOME}/resonance/.bashrc ${HOME}/.bashrc
 chown ${UID}:${GID} ${HOME}
@@ -53,7 +51,6 @@ exec su --group ${GROUP} --pty ${USER} sh -c "
 	export GOCACHE=\\\$(make GOCACHE)
 	export GOMODCACHE=\\\$(make GOMODCACHE)
   
-	echo
 	echo Available make targets:
 	make help
 	exec bash -i"
