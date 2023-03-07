@@ -40,7 +40,7 @@
     - ✨Ensure execution environment is always the same.
 - `resource/`
     - `alternatives.go`
-        - Implement with `update-alternatives`.
+        - 💡Implement with `update-alternatives`.
     - `apt_update.go`
         - 📈Calls `apt-get update`.
         - 📈There should be a single resource declaration
