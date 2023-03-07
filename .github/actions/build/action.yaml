@@ -67,7 +67,7 @@ runs:
         restore-keys: ${{ runner.os }}-bindir-
     # Build
     - name: Build
-      run: make ci
+      run: make ci CACHE_DIR=/tmp/build-cache
       shell: bash
     # Git Status
     - name: git status
