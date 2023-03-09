@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/fornellas/resonance/host"
+	"github.com/fornellas/resonance/log"
 )
 
 type Local struct {
@@ -27,9 +28,11 @@ func (l Local) Save(ctx context.Context, bytes []byte) error {
 }
 
 func (l Local) Load(ctx context.Context) (*[]byte, error) {
+	logger := log.GetLogger(ctx)
 	bytes, err := os.ReadFile(l.Path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
+			logger.Debugf("File does not exist: %s", l.Path)
 			return nil, nil
 		}
 		return nil, err

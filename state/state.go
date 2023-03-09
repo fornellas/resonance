@@ -91,6 +91,7 @@ func LoadUpdateHostState(
 		return false, resource.HostState{}, err
 	}
 	if savedHostState != nil {
+		nestedLogger.WithField("state", savedHostState).Debugf("Loaded state")
 		return true, *savedHostState, nil
 	}
 
@@ -99,6 +100,7 @@ func LoadUpdateHostState(
 	if err != nil {
 		return false, hostState, err
 	}
+	nestedLogger.WithField("state", hostState).Debugf("Read state")
 
 	if err := SaveHostState(ctx, hostState, persistantState); err != nil {
 		return false, hostState, err

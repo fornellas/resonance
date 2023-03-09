@@ -76,13 +76,7 @@ func (cf *ColorFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 		if color.NoColor {
 			fmt.Fprintf(buff, "%s", dataBuff.String())
 		} else {
-			reset := color.New(color.Reset)
-			reset.Fprintf(buff, "")
-
-			faint := color.New(color.Faint)
-			faint.Fprintf(buff, "%s", dataBuff.String())
-
-			reset.Fprintf(buff, "")
+			fmt.Fprintf(buff, "%s", dataBuff.String())
 			fmt.Fprintf(buff, "\n")
 		}
 	}

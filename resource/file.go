@@ -7,16 +7,16 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-
-	"gopkg.in/yaml.v3"
+	"syscall"
 
 	"github.com/sergi/go-diff/diffmatchpatch"
 
 	"github.com/fornellas/resonance/host"
+	"github.com/fornellas/resonance/log"
 )
 
-// FileDesiredState for File
-type FileDesiredState struct {
+// FileStateParameters for File
+type FileStateParameters struct {
 	// Contents of the file
 	Content string `yaml:"content"`
 	// File permissions
@@ -31,7 +31,7 @@ type FileDesiredState struct {
 	Group string `yaml:"group"`
 }
 
-func (fds *FileDesiredState) Validate() error {
+func (fds FileStateParameters) Validate() error {
 	if fds.Perm == os.FileMode(0) {
 		return fmt.Errorf("missing 'perm'")
 	}
@@ -44,22 +44,7 @@ func (fds *FileDesiredState) Validate() error {
 	return nil
 }
 
-func (fds *FileDesiredState) UnmarshalYAML(node *yaml.Node) error {
-	type FileDesiredStateDecode FileDesiredState
-	var fileStateDecode FileDesiredStateDecode
-	node.KnownFields(true)
-	if err := node.Decode(&fileStateDecode); err != nil {
-		return err
-	}
-	fileState := FileDesiredState(fileStateDecode)
-	if err := fileState.Validate(); err != nil {
-		return fmt.Errorf("yaml line %d: validation error: %w", node.Line, err)
-	}
-	*fds = fileState
-	return nil
-}
-
-func (fds FileDesiredState) GetUid(ctx context.Context, hst host.Host) (uint32, error) {
+func (fds FileStateParameters) GetUid(ctx context.Context, hst host.Host) (uint32, error) {
 	if fds.User != "" {
 		usr, err := hst.Lookup(ctx, fds.User)
 		if err != nil {
@@ -74,7 +59,7 @@ func (fds FileDesiredState) GetUid(ctx context.Context, hst host.Host) (uint32, 
 	return fds.Uid, nil
 }
 
-func (fds FileDesiredState) GetGid(ctx context.Context, hst host.Host) (uint32, error) {
+func (fds FileStateParameters) GetGid(ctx context.Context, hst host.Host) (uint32, error) {
 	if fds.Group != "" {
 		group, err := hst.LookupGroup(ctx, fds.Group)
 		if err != nil {
@@ -91,6 +76,8 @@ func (fds FileDesiredState) GetGid(ctx context.Context, hst host.Host) (uint32, 
 
 // FileInternalState is InternalState for File
 type FileInternalState struct {
+	// Whether the file exists or not
+	Exists bool
 }
 
 // File resource manages files.
@@ -105,14 +92,83 @@ func (f File) ValidateName(name Name) error {
 }
 
 func (f File) GetFullState(ctx context.Context, hst host.Host, name Name) (FullState, error) {
-	return FullState{}, errors.New("File.GetFullState")
+	logger := log.GetLogger(ctx)
+
+	path := string(name)
+
+	stateParameters := FileStateParameters{}
+	internalState := FileInternalState{}
+	fullState := FullState{
+		StateParameters: stateParameters,
+		InternalState:   internalState,
+	}
+
+	// Content
+	content, err := hst.ReadFile(ctx, path)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			logger.Debug("File not found")
+			return fullState, nil
+		}
+		return FullState{}, err
+	}
+	stateParameters.Content = string(content)
+
+	// FileInfo
+	fileInfo, err := hst.Lstat(ctx, path)
+	if err != nil {
+		return FullState{}, err
+	}
+	stat_t := fileInfo.Sys().(*syscall.Stat_t)
+
+	// Perm
+	stateParameters.Perm = fileInfo.Mode()
+
+	// Uid
+	stateParameters.Uid = stat_t.Uid
+
+	// Gid
+	stateParameters.Gid = stat_t.Gid
+
+	return fullState, nil
 }
 
-func (f File) DiffStates(desired DesiredState, current FullState) []diffmatchpatch.Diff {
-	panic(errors.New("File.CheckState"))
+func (f File) DiffStates(
+	desiredStateParameters StateParameters, currentFullState FullState,
+) []diffmatchpatch.Diff {
+
+	// // Path Hash
+	// pathtHash := md5.New()
+	// n, err := pathtHash.Write(content)
+	// if err != nil {
+	// 	return false, err
+	// }
+	// if n != len(content) {
+	// 	return false, fmt.Errorf("unexpected write length when generating md5: expected %d, got %d", len(content), n)
+	// }
+
+	// // Instance Hash
+	// fileStateHash := md5.New()
+	// n, err := fileStateHash.Write([]byte(fileState.Content))
+	// if err != nil {
+	// 	return false, err
+	// }
+	// if n != len(fileState.Content) {
+	// 	return false, fmt.Errorf("unexpected write length when generating md5: expected %d, got %d", len(fileState.Content), n)
+	// }
+
+	// // Compare Hash
+	// if fmt.Sprintf("%v", pathtHash.Sum(nil)) != fmt.Sprintf("%v", fileStateHash.Sum(nil)) {
+	// 	logger.Debug("Content differs")
+	// 	checkResult = false
+	// }
+
+	panic(errors.New("File.DiffStates"))
 }
 
-func (f File) Apply(ctx context.Context, hst host.Host, name Name, desired DesiredState) error {
+func (f File) Apply(
+	ctx context.Context, hst host.Host, name Name, stateParameters StateParameters,
+) error {
 	return errors.New("File.Apply")
 }
 func (f File) Destroy(ctx context.Context, hst host.Host, name Name) error {
@@ -121,97 +177,16 @@ func (f File) Destroy(ctx context.Context, hst host.Host, name Name) error {
 
 func init() {
 	IndividuallyManageableResourceTypeMap["File"] = File{}
-	ManageableResourcesDesiredStateMap["File"] = FileDesiredState{}
+	ManageableResourcesStateParametersMap["File"] = FileStateParameters{}
 	ManageableResourcesInternalStateMap["File"] = FileInternalState{}
 }
-
-// func (f File) Check(ctx context.Context, hst host.Host, name Name, state State) (CheckResult, error) {
-// 	logger := log.GetLogger(ctx)
-
-// 	path := string(name)
-
-// 	// FileDesiredState
-// 	fileState := state.(*FileDesiredState)
-
-// 	checkResult := CheckResult(true)
-
-// 	// Path Hash
-// 	pathtHash := md5.New()
-// 	content, err := hst.ReadFile(ctx, path)
-// 	if err != nil {
-// 		if !os.IsNotExist(err) {
-// 			return false, err
-// 		}
-// 		logger.Debug("File not found")
-// 		return false, nil
-// 	} else {
-// 		n, err := pathtHash.Write(content)
-// 		if err != nil {
-// 			return false, err
-// 		}
-// 		if n != len(content) {
-// 			return false, fmt.Errorf("unexpected write length when generating md5: expected %d, got %d", len(content), n)
-// 		}
-// 	}
-
-// 	// Instance Hash
-// 	fileStateHash := md5.New()
-// 	n, err := fileStateHash.Write([]byte(fileState.Content))
-// 	if err != nil {
-// 		return false, err
-// 	}
-// 	if n != len(fileState.Content) {
-// 		return false, fmt.Errorf("unexpected write length when generating md5: expected %d, got %d", len(fileState.Content), n)
-// 	}
-
-// 	// Compare Hash
-// 	if fmt.Sprintf("%v", pathtHash.Sum(nil)) != fmt.Sprintf("%v", fileStateHash.Sum(nil)) {
-// 		logger.Debug("Content differs")
-// 		checkResult = false
-// 	}
-
-// 	// FileInfo
-// 	fileInfo, err := hst.Lstat(ctx, path)
-// 	if err != nil {
-// 		return false, err
-// 	}
-// 	stat_t := fileInfo.Sys().(*syscall.Stat_t)
-
-// 	// Perm
-// 	if fileInfo.Mode() != fileState.Perm {
-// 		logger.Debugf("Expected permission 0%o, got 0%o", fileState.Perm, fileInfo.Mode())
-// 		checkResult = false
-// 	}
-
-// 	// Uid / User
-// 	uid, err := fileState.GetUid(ctx, hst)
-// 	if err != nil {
-// 		return false, err
-// 	}
-// 	if stat_t.Uid != uid {
-// 		logger.Debugf("Expected UID %d, got %d", uid, stat_t.Uid)
-// 		checkResult = false
-// 	}
-
-// 	// Gid
-// 	gid, err := fileState.GetGid(ctx, hst)
-// 	if err != nil {
-// 		return false, err
-// 	}
-// 	if stat_t.Gid != gid {
-// 		logger.Debugf("Expected GID %d, got %d", gid, stat_t.Gid)
-// 		checkResult = false
-// 	}
-
-// 	return checkResult, nil
-// }
 
 // func (f File) Apply(ctx context.Context, hst host.Host, name Name, state State) error {
 // 	nestedCtx := log.IndentLogger(ctx)
 // 	path := string(name)
 
-// 	// FileDesiredState
-// 	fileState := state.(*FileDesiredState)
+// 	// FileStateParameters
+// 	fileState := state.(*FileStateParameters)
 
 // 	// Content
 // 	if err := hst.WriteFile(nestedCtx, path, []byte(fileState.Content), fileState.Perm); err != nil {

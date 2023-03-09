@@ -11,11 +11,15 @@ import (
 	"github.com/fornellas/resonance/host"
 )
 
-// SystemdUnitDesiredState for SystemdUnit.
-// It has the same attributes as FileDesiredState, but if Content is empty,
+// SystemdUnitStateParameters for SystemdUnit.
+// It has the same attributes as FileStateParameters, but if Content is empty,
 // then it is assumed the unit file was added by another resource (eg:
 // a package) and it gonna be left as is.
-type SystemdUnitDesiredState FileDesiredState
+type SystemdUnitStateParameters FileStateParameters
+
+func (susp SystemdUnitStateParameters) Validate() error {
+	return nil
+}
 
 // SystemdUnitInternalState is InternalState for SystemdUnit
 type SystemdUnitInternalState struct {
@@ -37,21 +41,25 @@ func (su SystemdUnit) GetFullState(ctx context.Context, hst host.Host, name Name
 	return FullState{}, errors.New("SystemdUnit.GetFullState")
 }
 
-func (su SystemdUnit) DiffStates(desired DesiredState, current FullState) []diffmatchpatch.Diff {
-	panic(errors.New("SystemdUnit.CheckState"))
+func (su SystemdUnit) DiffStates(
+	desiredStateParameters StateParameters, currentFullState FullState,
+) []diffmatchpatch.Diff {
+	panic(errors.New("SystemdUnit.DiffStates"))
 }
 
 func (su SystemdUnit) Refresh(ctx context.Context, hst host.Host, name Name) error {
 	return errors.New("SystemdUnit.Refresh")
 }
 
-func (su SystemdUnit) ConfigureAll(ctx context.Context, hst host.Host, actionParameters map[Action]Parameters) error {
+func (su SystemdUnit) ConfigureAll(
+	ctx context.Context, hst host.Host, actionParameters map[Action]Parameters,
+) error {
 	return errors.New("SystemdUnit.ConfigureAll")
 }
 
 func init() {
 	MergeableManageableResourcesTypeMap["SystemdUnit"] = SystemdUnit{}
-	ManageableResourcesDesiredStateMap["SystemdUnit"] = SystemdUnitDesiredState{}
+	ManageableResourcesStateParametersMap["SystemdUnit"] = SystemdUnitStateParameters{}
 	ManageableResourcesInternalStateMap["SystemdUnit"] = SystemdUnitInternalState{}
 }
 
@@ -62,7 +70,7 @@ func init() {
 // 	state State,
 // 	path,
 // 	job string,
-// 	systemdUnitState *SystemdUnitDesiredState,
+// 	systemdUnitState *SystemdUnitStateParameters,
 // ) (CheckResult, error) {
 // 	// Pre-existing unit file
 // 	if systemdUnitState.Content == "" {
@@ -132,8 +140,8 @@ func init() {
 // 	path := string(name)
 // 	job := filepath.Base(path)
 
-// 	// SystemdUnitDesiredState
-// 	systemdUnitState := state.(*SystemdUnitDesiredState)
+// 	// SystemdUnitStateParameters
+// 	systemdUnitState := state.(*SystemdUnitStateParameters)
 
 // 	// Unit file
 // 	checkResult, err := checkUnitFile(ctx, hst, name, state, path, job, systemdUnitState)
@@ -186,8 +194,8 @@ func init() {
 // 	// path := string(name)
 // 	// job := filepath.Base(path)
 
-// 	// // SystemdUnitDesiredState
-// 	// systemdUnitState := state.(*SystemdUnitDesiredState)
+// 	// // SystemdUnitStateParameters
+// 	// systemdUnitState := state.(*SystemdUnitStateParameters)
 
 // 	// // Create unit file
 // 	// if systemdUnitState.Content != "" {
