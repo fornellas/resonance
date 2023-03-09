@@ -41,13 +41,25 @@ var Cmd = &cobra.Command{
 		}
 
 		// Load saved state
-		savedHostState, err := state.LoadHostState(ctx, persistantState)
+		logger.Info("📋 Assessing host state")
+		hasPreviousHostState, initialHostState, err := state.LoadUpdateHostState(
+			nestedCtx, persistantState, resourceBundles, hst,
+		)
 		if err != nil {
 			logger.Fatal(err)
 		}
+		if hasPreviousHostState {
+			if err := initialHostState.Validate(nestedCtx, hst); err != nil {
+				logger.Fatal(err)
+			}
+		}
 
 		// Plan
-		plan, err := resource.NewPlanFromBundles(ctx, hst, savedHostState, resourceBundles)
+		var previousHostState *resource.HostState
+		if hasPreviousHostState {
+			previousHostState = &initialHostState
+		}
+		plan, err := resource.NewPlanFromBundles(ctx, hst, previousHostState, resourceBundles)
 		if err != nil {
 			logger.Fatal(err)
 		}
@@ -61,7 +73,9 @@ var Cmd = &cobra.Command{
 			nestedLogger.Error(err)
 			nestedLogger.Warn("Failed to execute plan, rolling back to previously saved state.")
 
-			plan, err := resource.NewActionPlanFromHostState(nestedCtx, hst, savedHostState, resource.ActionApply)
+			plan, err := resource.NewActionPlanFromHostState(
+				nestedCtx, hst, &initialHostState, resource.ActionApply,
+			)
 			if err != nil {
 				logger.Fatal(err)
 			}

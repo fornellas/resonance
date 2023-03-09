@@ -32,26 +32,17 @@ var Cmd = &cobra.Command{
 		}
 
 		// Load saved state
-		savedHostState, err := state.LoadHostState(ctx, persistantState)
+		previousHostState, err := state.LoadHostState(ctx, persistantState)
 		if err != nil {
 			logger.Fatal(err)
 		}
-
-		// Check
-		checkResults, err := savedHostState.Check(ctx, hst)
-		if err != nil {
-			logger.Fatal(err)
-		}
-		ok := true
-		for _, checkResult := range checkResults {
-			if !checkResult.Ok() {
-				ok = false
+		if previousHostState != nil {
+			if err := previousHostState.Validate(ctx, hst); err != nil {
+				logger.Fatal(err)
 			}
-		}
-		if ok {
 			logger.Info("🎆 State is OK")
 		} else {
-			logger.Fatal("State has changed!")
+			logger.Fatal("No previously saved state available!")
 		}
 	},
 }

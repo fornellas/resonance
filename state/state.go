@@ -9,6 +9,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
 	"github.com/fornellas/resonance/resource"
 )
@@ -38,11 +39,11 @@ func SaveHostState(ctx context.Context, hostState resource.HostState, persistant
 	return nil
 }
 
-// LoadHostState loads a ResourceBundle saved after it was applied to a host.
-func LoadHostState(ctx context.Context, persistantState PersistantState) (*resource.HostState, error) {
+func LoadHostState(
+	ctx context.Context, persistantState PersistantState,
+) (*resource.HostState, error) {
 	logger := log.GetLogger(ctx)
 	nestedCtx := log.IndentLogger(ctx)
-	nestedLogger := log.GetLogger(nestedCtx)
 
 	var hostState resource.HostState
 
@@ -53,7 +54,6 @@ func LoadHostState(ctx context.Context, persistantState PersistantState) (*resou
 		return &hostState, err
 	}
 	if savedBytes == nil {
-		nestedLogger.Infof("No previous state saved")
 		return nil, nil
 	}
 
@@ -74,4 +74,35 @@ func LoadHostState(ctx context.Context, persistantState PersistantState) (*resou
 	}
 
 	return &hostState, nil
+}
+
+// LoadUpdateHostState attempts to load a previously saved HostState.
+// If it succeeds, it returns true and the HostState.
+// If it can't find a saved HostState, then it updates the saved HostState for
+// Bundles and returns false and the just saved HostState.
+func LoadUpdateHostState(
+	ctx context.Context, persistantState PersistantState, bundles resource.Bundles, hst host.Host,
+) (bool, resource.HostState, error) {
+	nestedCtx := log.IndentLogger(ctx)
+	nestedLogger := log.GetLogger(nestedCtx)
+
+	savedHostState, err := LoadHostState(ctx, persistantState)
+	if err != nil {
+		return false, resource.HostState{}, err
+	}
+	if savedHostState != nil {
+		return true, *savedHostState, nil
+	}
+
+	nestedLogger.Warnf("No previously state saved, loading current state")
+	hostState, err := bundles.GetHostState(ctx, hst)
+	if err != nil {
+		return false, hostState, err
+	}
+
+	if err := SaveHostState(ctx, hostState, persistantState); err != nil {
+		return false, hostState, err
+	}
+
+	return false, hostState, nil
 }

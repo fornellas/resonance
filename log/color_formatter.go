@@ -31,7 +31,7 @@ var logEmojiMap = map[logrus.Level]string{
 	logrus.PanicLevel: "😨 ",
 	logrus.FatalLevel: "💥  ",
 	logrus.ErrorLevel: "❌ ",
-	logrus.WarnLevel:  "⚠️ ",
+	logrus.WarnLevel:  "❗ ",
 	logrus.InfoLevel:  "",
 	logrus.DebugLevel: "",
 	logrus.TraceLevel: "",

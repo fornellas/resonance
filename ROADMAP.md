@@ -39,6 +39,7 @@
         - 📈Implement using Go Ssh libraries.
     - ✨Ensure execution environment is always the same.
 - `resource/`
+    - 💡Merge `Resource` and `ManageableResource`.
     - `alternatives.go`
         - 💡Implement with `update-alternatives`.
     - `apt_update.go`
