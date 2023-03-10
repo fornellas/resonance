@@ -15,7 +15,11 @@ import (
 // It has the same attributes as FileStateParameters, but if Content is empty,
 // then it is assumed the unit file was added by another resource (eg:
 // a package) and it gonna be left as is.
-type SystemdUnitStateParameters FileStateParameters
+type SystemdUnitStateParameters struct {
+	// ActiveState
+	// UnitFileState
+	FileStateParameters `yaml:"inline"`
+}
 
 func (susp SystemdUnitStateParameters) Validate() error {
 	return nil

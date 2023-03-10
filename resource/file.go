@@ -111,7 +111,7 @@ func (f File) GetFullState(ctx context.Context, hst host.Host, name Name) (FullS
 	// Content
 	content, err := hst.ReadFile(ctx, path)
 	if err != nil {
-		if !os.IsNotExist(err) {
+		if os.IsNotExist(err) {
 			logger.Debug("File not found")
 			stateParameters.Remove = true
 			return fullState, nil
