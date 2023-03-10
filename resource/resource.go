@@ -112,11 +112,6 @@ func (fs FullState) String() string {
 	return string(bytes)
 }
 
-type fullStateUnmarshalSchema struct {
-	NodeStateParameters yaml.Node `yaml:"parameters"`
-	NodeInternalState   yaml.Node `yaml:"internal"`
-}
-
 // Parameters for ManageableResource.
 type Parameters map[Name]StateParameters
 
@@ -471,8 +466,8 @@ func (r *Resource) UnmarshalYAML(node *yaml.Node) error {
 
 	*r = Resource{
 		TypeName:           unmarshalSchema.TypeName,
-		ManageableResource: manageableResource,
 		StateParameters:    stateParameters,
+		ManageableResource: manageableResource,
 	}
 	return nil
 }
@@ -531,6 +526,14 @@ func (r Resource) MustMergeableManageableResources() MergeableManageableResource
 	return mergeableManageableResources
 }
 
+func MustNewResource(typeName TypeName, stateParameters StateParameters) Resource {
+	return Resource{
+		TypeName:           typeName,
+		StateParameters:    stateParameters,
+		ManageableResource: typeName.MustManageableResource(),
+	}
+}
+
 // Bundle is the schema used to declare multiple resources at a single file.
 type Bundle []Resource
 
@@ -587,8 +590,8 @@ func (bs Bundles) GetHostState(ctx context.Context, hst host.Host) (HostState, e
 	nestedLogger := log.GetLogger(nestedCtx)
 	nestedNestedCtx := log.IndentLogger(nestedCtx)
 	hostState := HostState{
-		Version:                 version.GetVersion(),
-		ResourceKeyFullStateMap: map[ResourceKey]FullState{},
+		Version:            version.GetVersion(),
+		ResourceFullStates: []ResourceFullState{},
 	}
 	for _, bundle := range bs {
 		for _, resource := range bundle {
@@ -599,7 +602,11 @@ func (bs Bundles) GetHostState(ctx context.Context, hst host.Host) (HostState, e
 			if err != nil {
 				return hostState, err
 			}
-			hostState.ResourceKeyFullStateMap[resource.ResourceKey()] = fullState
+			resourceFullState := ResourceFullState{
+				Resource:      MustNewResource(resource.TypeName, fullState.StateParameters),
+				InternalState: fullState.InternalState,
+			}
+			hostState.ResourceFullStates = append(hostState.ResourceFullStates, resourceFullState)
 		}
 	}
 	return hostState, nil
@@ -680,22 +687,57 @@ func NewBundlesFromHostState(hostState *HostState) Bundles {
 		return Bundles{}
 	}
 	bundle := Bundle{}
-	for resourceKey, fullState := range hostState.ResourceKeyFullStateMap {
-		bundle = append(bundle, Resource{
-			TypeName:           resourceKey.MustTypeName(),
-			ManageableResource: resourceKey.MustManageableResource(),
-			StateParameters:    fullState.StateParameters,
-		})
+	for _, resourceFullState := range hostState.ResourceFullStates {
+		bundle = append(bundle, resourceFullState.Resource)
 	}
 	return Bundles{bundle}
+}
+
+type ResourceFullState struct {
+	Resource      Resource      `yaml:"resource"`
+	InternalState InternalState `yaml:"internal_state"`
+}
+
+type resourceFullStateUnmarshalSchema struct {
+	Resource      Resource  `yaml:"resource"`
+	InternalState yaml.Node `yaml:"internal_state"`
+}
+
+func (rfs *ResourceFullState) UnmarshalYAML(node *yaml.Node) error {
+	var resourceFullStateSchema resourceFullStateUnmarshalSchema
+	node.KnownFields(true)
+	if err := node.Decode(&resourceFullStateSchema); err != nil {
+		return err
+	}
+
+	tpe := resourceFullStateSchema.Resource.MustType()
+
+	// InternalState
+	internalState, ok := ManageableResourcesInternalStateMap[tpe]
+	if !ok {
+		panic(fmt.Errorf("Type %s missing from ManageableResourcesInternalStateMap", tpe))
+	}
+	internalStateType := reflect.ValueOf(internalState).Type()
+	internalStateValue := reflect.New(internalStateType)
+	internalState = internalStateValue.Interface().(InternalState)
+	if err := resourceFullStateSchema.InternalState.Decode(internalState); err != nil {
+		return err
+	}
+
+	// ResourceFullState
+	*rfs = ResourceFullState{
+		Resource:      resourceFullStateSchema.Resource,
+		InternalState: internalState,
+	}
+
+	return nil
 }
 
 // HostState holds the state
 type HostState struct {
 	// Version of the binary used to put the host in this state.
-	Version version.Version `yaml:"version"`
-	// ResourceKeyFullStateMap holds for each resource its full state.
-	ResourceKeyFullStateMap map[ResourceKey]FullState `yaml:"state"`
+	Version            version.Version     `yaml:"version"`
+	ResourceFullStates []ResourceFullState `yaml:"states"`
 }
 
 func (hs HostState) String() string {
@@ -704,69 +746,6 @@ func (hs HostState) String() string {
 		panic(err)
 	}
 	return string(bytes)
-}
-
-type hostStateUnmarshalSchema struct {
-	Version                 version.Version                          `yaml:"version"`
-	ResourceKeyFullStateMap map[ResourceKey]fullStateUnmarshalSchema `yaml:"state"`
-}
-
-// FIXME should not panic
-func (hs *HostState) UnmarshalYAML(node *yaml.Node) error {
-	var hostStateSchema hostStateUnmarshalSchema
-	node.KnownFields(true)
-	if err := node.Decode(&hostStateSchema); err != nil {
-		return err
-	}
-
-	hostState := HostState{
-		Version:                 hostStateSchema.Version,
-		ResourceKeyFullStateMap: map[ResourceKey]FullState{},
-	}
-
-	for resourceKey, fullStateSchema := range hostStateSchema.ResourceKeyFullStateMap {
-		// Validate name
-		manageableResource := resourceKey.MustManageableResource()
-		if err := manageableResource.ValidateName(resourceKey.MustName()); err != nil {
-			return err
-		}
-
-		tpe := resourceKey.MustType()
-
-		// StateParameters
-		stateParameters, ok := ManageableResourcesStateParametersMap[tpe]
-		if !ok {
-			panic(fmt.Errorf("Type %s missing from ManageableResourcesStateParametersMap", tpe))
-		}
-		stateParametersType := reflect.ValueOf(stateParameters).Type()
-		stateParametersValue := reflect.New(stateParametersType)
-		stateParameters = stateParametersValue.Interface().(StateParameters)
-		if err := fullStateSchema.NodeStateParameters.Decode(stateParameters); err != nil {
-			return err
-		}
-
-		// InternalState
-		internalState, ok := ManageableResourcesInternalStateMap[tpe]
-		if !ok {
-			panic(fmt.Errorf("Type %s missing from ManageableResourcesInternalStateMap", tpe))
-		}
-		internalStateType := reflect.ValueOf(internalState).Type()
-		internalStateValue := reflect.New(internalStateType)
-		internalState = internalStateValue.Interface().(InternalState)
-		if err := fullStateSchema.NodeInternalState.Decode(internalState); err != nil {
-			return err
-		}
-
-		// FullState
-		hostState.ResourceKeyFullStateMap[resourceKey] = FullState{
-			StateParameters: stateParameters,
-			InternalState:   internalState,
-		}
-	}
-
-	*hs = hostState
-
-	return nil
 }
 
 // Validate whether current host state matches HostState.
@@ -780,13 +759,13 @@ func (hs HostState) Validate(
 
 	fail := false
 
-	for resourceKey, fullState := range hs.ResourceKeyFullStateMap {
+	for _, resourceFullState := range hs.ResourceFullStates {
 		diffHasChanges, _, _, err := ValidateManageableResourceState(
 			nestedCtx,
-			resourceKey.MustManageableResource(),
+			resourceFullState.Resource.ManageableResource,
 			hst,
-			resourceKey.MustName(),
-			fullState.StateParameters,
+			resourceFullState.Resource.MustName(),
+			resourceFullState.Resource.StateParameters,
 		)
 		if err != nil {
 			return err
@@ -811,17 +790,17 @@ func (hs HostState) Refresh(ctx context.Context, hst host.Host) (HostState, erro
 	nestedCtx := log.IndentLogger(ctx)
 
 	newHostState := HostState{
-		Version:                 version.GetVersion(),
-		ResourceKeyFullStateMap: map[ResourceKey]FullState{},
+		Version:            version.GetVersion(),
+		ResourceFullStates: []ResourceFullState{},
 	}
 
-	for resourceKey, fullState := range hs.ResourceKeyFullStateMap {
+	for _, resourceFullState := range hs.ResourceFullStates {
 		diffHasChanges, _, _, err := ValidateManageableResourceState(
 			nestedCtx,
-			resourceKey.MustManageableResource(),
+			resourceFullState.Resource.ManageableResource,
 			hst,
-			resourceKey.MustName(),
-			fullState.StateParameters,
+			resourceFullState.Resource.MustName(),
+			resourceFullState.Resource.StateParameters,
 		)
 		if err != nil {
 			return HostState{}, err
@@ -829,10 +808,23 @@ func (hs HostState) Refresh(ctx context.Context, hst host.Host) (HostState, erro
 		if diffHasChanges {
 			continue
 		}
-		newHostState.ResourceKeyFullStateMap[resourceKey] = fullState
+
+		newHostState.ResourceFullStates = append(newHostState.ResourceFullStates, resourceFullState)
 	}
 
 	return newHostState, nil
+}
+
+func (hs HostState) GetFullState(resourceKey ResourceKey) *FullState {
+	for _, resourceFullState := range hs.ResourceFullStates {
+		if resourceFullState.Resource.ResourceKey() == resourceKey {
+			return &FullState{
+				StateParameters: resourceFullState.Resource.StateParameters,
+				InternalState:   resourceFullState.InternalState,
+			}
+		}
+	}
+	return nil
 }
 
 // StepAction defines an interface for an action that can be executed from a Step.
@@ -1116,8 +1108,8 @@ func (p Plan) validate(ctx context.Context, hst host.Host) (HostState, error) {
 	nestedNestedCtx := log.IndentLogger(nestedCtx)
 
 	hostState := HostState{
-		Version:                 version.GetVersion(),
-		ResourceKeyFullStateMap: map[ResourceKey]FullState{},
+		Version:            version.GetVersion(),
+		ResourceFullStates: []ResourceFullState{},
 	}
 	for _, step := range p {
 		for action, resources := range step.ActionResources() {
@@ -1139,7 +1131,13 @@ func (p Plan) validate(ctx context.Context, hst host.Host) (HostState, error) {
 				if diffHasChanges {
 					return hostState, errors.New("host state was dirty at the end, likely meaning there's a bug in the implementationm of one of the resources")
 				}
-				hostState.ResourceKeyFullStateMap[resource.ResourceKey()] = fullState
+				hostState.ResourceFullStates = append(
+					hostState.ResourceFullStates,
+					ResourceFullState{
+						Resource:      MustNewResource(resource.TypeName, fullState.StateParameters),
+						InternalState: fullState.InternalState,
+					},
+				)
 			}
 		}
 	}
@@ -1211,8 +1209,8 @@ func getStateCleanMap(
 			var currentFullState FullState
 			getFullState := true
 			if previousHostState != nil {
-				var ok bool
-				if currentFullState, ok = previousHostState.ResourceKeyFullStateMap[resource.ResourceKey()]; ok {
+				if fullState := previousHostState.GetFullState(resource.ResourceKey()); fullState != nil {
+					currentFullState = *fullState
 					getFullState = false
 				}
 			}
@@ -1327,16 +1325,16 @@ func appendPreviousStateDestroySteps(
 	logger.Info("💀 Determining resources to destroy")
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
-	for resourceKey, fullState := range previousHostState.ResourceKeyFullStateMap {
-		if bundles.HasResourceKey(resourceKey) {
+	for _, resourceFullState := range previousHostState.ResourceFullStates {
+		if bundles.HasResourceKey(resourceFullState.Resource.ResourceKey()) {
 			continue
 		}
 		step := &Step{
 			StepAction: StepActionIndividual{
 				Resource: Resource{
-					TypeName:           resourceKey.MustTypeName(),
-					ManageableResource: resourceKey.MustManageableResource(),
-					StateParameters:    fullState.StateParameters,
+					TypeName:           resourceFullState.Resource.TypeName,
+					ManageableResource: resourceFullState.Resource.ManageableResource,
+					StateParameters:    resourceFullState.Resource.StateParameters,
 				},
 				Action: ActionDestroy,
 			},
@@ -1480,7 +1478,7 @@ func appendPreviousBundleDestroySteps(
 
 	for _, bundle := range destroyBundles {
 		for _, resource := range bundle {
-			if _, ok := hostState.ResourceKeyFullStateMap[resource.ResourceKey()]; ok {
+			if fullState := hostState.GetFullState(resource.ResourceKey()); fullState != nil {
 				continue
 			}
 			step := &Step{
@@ -1541,4 +1539,18 @@ func NewActionPlanFromHostState(
 	}
 
 	return plan, nil
+}
+
+func NewRollbackPlan(
+	ctx context.Context,
+	hst host.Host,
+	hasPreviousHostState bool,
+	initialHostState HostState,
+	plan Plan,
+) (Plan, error) {
+	logger := log.GetLogger(ctx)
+	logger.Info("📝 Planning rollback")
+	// nestedCtx := log.IndentLogger(ctx)
+
+	panic("NewRollbackPlan")
 }
