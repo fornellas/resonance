@@ -187,18 +187,21 @@ func ValidateManageableResourceState(
 ) (bool, []diffmatchpatch.Diff, FullState, error) {
 	logger := log.GetLogger(ctx)
 
+	typeName := MustNewTypeNameFromManageableResourceName(manageableResource, name)
+
 	fullState, err := manageableResource.GetFullState(ctx, hst, name)
 	if err != nil {
+		logger.Errorf("💥%s", typeName)
 		return false, []diffmatchpatch.Diff{}, FullState{}, err
 	}
 	diffHasChanges, diffs, err := DiffManageableResourceState(
 		ctx, hst, manageableResource, stateParameters, fullState,
 	)
 	if err != nil {
+		logger.Errorf("💥%s", typeName)
 		return false, []diffmatchpatch.Diff{}, FullState{}, err
 	}
 
-	typeName := MustNewTypeNameFromManageableResourceName(manageableResource, name)
 	if diffHasChanges {
 		diffMatchPatch := diffmatchpatch.New()
 		logger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).
@@ -852,12 +855,11 @@ type StepActionIndividual struct {
 // Execute Action for the Resource.
 func (sai StepActionIndividual) Execute(ctx context.Context, hst host.Host) error {
 	logger := log.GetLogger(ctx)
+
 	if sai.Action == ActionOk || sai.Action == ActionSkip {
 		logger.Debugf("%s", sai)
 		return nil
 	}
-	logger.Infof("%s", sai)
-	nestedCtx := log.IndentLogger(ctx)
 	individuallyManageableResource := sai.Resource.MustIndividuallyManageableResource()
 	name := sai.Resource.MustName()
 	stateParameters := sai.Resource.StateParameters
@@ -865,25 +867,36 @@ func (sai StepActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 	case ActionRefresh:
 		refreshableManageableResource, ok := individuallyManageableResource.(RefreshableManageableResource)
 		if ok {
-			return refreshableManageableResource.Refresh(nestedCtx, hst, name)
+			err := refreshableManageableResource.Refresh(ctx, hst, name)
+			if err != nil {
+				logger.Errorf("💥%s", sai.Resource)
+			}
+			return err
 		}
 	case ActionApply:
-		if err := individuallyManageableResource.Apply(nestedCtx, hst, name, stateParameters); err != nil {
+		if err := individuallyManageableResource.Apply(ctx, hst, name, stateParameters); err != nil {
+			logger.Errorf("💥%s", sai.Resource)
 			return err
 		}
 		diffHasChanges, _, _, err := ValidateManageableResourceState(
-			nestedCtx, individuallyManageableResource, hst, name, stateParameters,
+			ctx, individuallyManageableResource, hst, name, stateParameters,
 		)
 		if err != nil {
+			logger.Errorf("💥%s", sai.Resource)
 			return err
 		}
 		if diffHasChanges {
+			logger.Errorf("💥%s", sai.Resource)
 			return errors.New(
 				"likely bug in resource implementationm as state was dirty immediately after applying",
 			)
 		}
 	case ActionDestroy:
-		return individuallyManageableResource.Destroy(nestedCtx, hst, name)
+		err := individuallyManageableResource.Destroy(ctx, hst, name)
+		if err != nil {
+			logger.Errorf("💥%s", sai.Resource)
+		}
+		return err
 	default:
 		panic(fmt.Errorf("unexpected action %v", sai.Action))
 	}
@@ -927,13 +940,11 @@ func (sam StepActionMerged) MustMergeableManageableResources() MergeableManageab
 // Execute the required Action for each Resource.
 func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 	logger := log.GetLogger(ctx)
-	nestedCtx := log.IndentLogger(ctx)
 
 	if !sam.Actionable() {
 		logger.Debugf("%s", sam)
 		return nil
 	}
-	logger.Infof("%s", sam)
 
 	checkResources := []Resource{}
 	configureActionParameters := map[Action]Parameters{}
@@ -955,23 +966,26 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 	}
 
 	if err := sam.MustMergeableManageableResources().ConfigureAll(
-		nestedCtx, hst, configureActionParameters,
+		ctx, hst, configureActionParameters,
 	); err != nil {
+		logger.Errorf("💥%s", sam.StringNoAction())
 		return err
 	}
 
 	for _, resource := range checkResources {
 		diffHasChanges, _, _, err := ValidateManageableResourceState(
-			nestedCtx,
+			ctx,
 			sam.MustMergeableManageableResources(),
 			hst,
 			resource.MustName(),
 			resource.StateParameters,
 		)
 		if err != nil {
+			logger.Errorf("💥%s", sam.StringNoAction())
 			return err
 		}
 		if diffHasChanges {
+			logger.Errorf("💥%s", sam.StringNoAction())
 			return errors.New(
 				"likely bug in resource implementationm as state was dirty immediately after applying",
 			)
@@ -981,7 +995,11 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 	for _, name := range refreshNames {
 		refreshableManageableResource, ok := sam.MustMergeableManageableResources().(RefreshableManageableResource)
 		if ok {
-			return refreshableManageableResource.Refresh(nestedCtx, hst, name)
+			err := refreshableManageableResource.Refresh(ctx, hst, name)
+			if err != nil {
+				logger.Errorf("💥%s", sam.StringNoAction())
+			}
+			return err
 		}
 	}
 
@@ -995,6 +1013,19 @@ func (sam StepActionMerged) String() string {
 		for _, resource := range resources {
 			tpe = resource.MustType()
 			names = append(names, fmt.Sprintf("%s %s", action.Emoji(), string(resource.MustName())))
+		}
+	}
+	sort.Strings(names)
+	return fmt.Sprintf("%s[%s]", tpe, strings.Join(names, ", "))
+}
+
+func (sam StepActionMerged) StringNoAction() string {
+	var tpe Type
+	names := []string{}
+	for _, resources := range sam {
+		for _, resource := range resources {
+			tpe = resource.MustType()
+			names = append(names, string(resource.MustName()))
 		}
 	}
 	sort.Strings(names)

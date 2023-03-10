@@ -18,7 +18,7 @@ import (
 // FileStateParameters for File
 type FileStateParameters struct {
 	// Whether to remove the file
-	Remove bool
+	Absent bool
 	// Contents of the file
 	Content string `yaml:"content"`
 	// File permissions
@@ -34,7 +34,7 @@ type FileStateParameters struct {
 }
 
 func (fds FileStateParameters) Validate() error {
-	if fds.Remove {
+	if fds.Absent {
 		if fds.Content != "" || fds.Perm != 0 || fds.Uid != 0 || fds.User != "" || fds.Gid != 0 || fds.Group != "" {
 			return fmt.Errorf("version can't be set with remove: true")
 		}
@@ -113,7 +113,7 @@ func (f File) GetFullState(ctx context.Context, hst host.Host, name Name) (FullS
 	if err != nil {
 		if os.IsNotExist(err) {
 			logger.Debug("File not found")
-			stateParameters.Remove = true
+			stateParameters.Absent = true
 			return fullState, nil
 		}
 		return FullState{}, err
@@ -147,9 +147,9 @@ func (f File) DiffStates(
 	desiredFileStateParameters := desiredStateParameters.(*FileStateParameters)
 	currentFileStateParameters := currentFullState.StateParameters.(*FileStateParameters)
 
-	if desiredFileStateParameters.Remove {
+	if desiredFileStateParameters.Absent {
 		diffs = append(diffs, Diff(currentFileStateParameters, FileStateParameters{
-			Remove: true,
+			Absent: true,
 		})...)
 	} else {
 		uid, err := desiredFileStateParameters.GetUid(ctx, hst)
@@ -228,7 +228,7 @@ func init() {
 // func (f File) Destroy(ctx context.Context, hst host.Host, name Name) error {
 // 	nestedCtx := log.IndentLogger(ctx)
 // 	path := string(name)
-// 	err := hst.Remove(nestedCtx, path)
+// 	err := hst.Absent(nestedCtx, path)
 // 	if os.IsNotExist(err) {
 // 		return nil
 // 	}
