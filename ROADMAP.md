@@ -80,6 +80,7 @@
     - `hosts.go`
         - 💡Manage entries.
     - `resource.go`
+        - Drop `ResourceKey` and use `TypeName` insteaad.
         - `Plan.Execute`
             - ✨Parallelise check.
         - `LoadResourceBundles`

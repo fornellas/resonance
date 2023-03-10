@@ -41,8 +41,8 @@ func (su SystemdUnit) ValidateName(name Name) error {
 	return nil
 }
 
-func (su SystemdUnit) GetFullState(ctx context.Context, hst host.Host, name Name) (FullState, error) {
-	return FullState{}, errors.New("SystemdUnit.GetFullState")
+func (su SystemdUnit) GetFullState(ctx context.Context, hst host.Host, name Name) (*FullState, error) {
+	return nil, errors.New("SystemdUnit.GetFullState")
 }
 
 func (su SystemdUnit) DiffStates(

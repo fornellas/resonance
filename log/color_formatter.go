@@ -81,16 +81,13 @@ func (cf *ColorFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 			if len(k) > 0 {
 				fmt.Fprintf(dataBuff, " ")
 			}
-			fmt.Fprintf(dataBuff, "%s", data)
+			fmt.Fprintf(dataBuff, "  %s", data)
 		}
 	}
 	if len(keys) > 0 {
-		if color.NoColor {
-			fmt.Fprintf(buff, "%s", dataBuff.String())
-		} else {
-			fmt.Fprintf(buff, "%s", dataBuff.String())
-			fmt.Fprintf(buff, "\n")
-		}
+		// FIXME if no color, remove color escape sequences from dataBuff
+		fmt.Fprintf(buff, "%s", dataBuff.String())
+		fmt.Fprintf(buff, "\n")
 	}
 
 	return indent.Bytes([]byte(strings.Repeat("  ", cf.Indent)), buff.Bytes()), nil

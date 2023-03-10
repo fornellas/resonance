@@ -9,7 +9,6 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
 	"github.com/fornellas/resonance/resource"
 )
@@ -74,37 +73,4 @@ func LoadHostState(
 	}
 
 	return &hostState, nil
-}
-
-// LoadUpdateHostState attempts to load a previously saved HostState.
-// If it succeeds, it returns true and the HostState.
-// If it can't find a saved HostState, then it updates the saved HostState for
-// Bundles and returns false and the just saved HostState.
-func LoadUpdateHostState(
-	ctx context.Context, persistantState PersistantState, bundles resource.Bundles, hst host.Host,
-) (bool, resource.HostState, error) {
-	nestedCtx := log.IndentLogger(ctx)
-	nestedLogger := log.GetLogger(nestedCtx)
-
-	savedHostState, err := LoadHostState(ctx, persistantState)
-	if err != nil {
-		return false, resource.HostState{}, err
-	}
-	if savedHostState != nil {
-		nestedLogger.WithField("state", savedHostState).Debugf("Loaded state")
-		return true, *savedHostState, nil
-	}
-
-	nestedLogger.Warnf("No previously state saved, loading current state")
-	hostState, err := bundles.GetHostState(ctx, hst)
-	if err != nil {
-		return false, hostState, err
-	}
-	nestedLogger.WithField("state", hostState).Debugf("Read state")
-
-	if err := SaveHostState(ctx, hostState, persistantState); err != nil {
-		return false, hostState, err
-	}
-
-	return false, hostState, nil
 }

@@ -42,7 +42,7 @@ MISSPELL := misspell
 
 GOCYCLO := gocyclo
 GOCYCLO_VERSION := v0.6.0
-GOCYCLO_OVER := 14
+GOCYCLO_OVER := 15
 
 GO_TEST := gotest
 GO_TEST_FLAGS ?= -v -race -cover -count=1

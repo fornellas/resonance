@@ -104,6 +104,11 @@ type FullState struct {
 	InternalState   InternalState   `yaml:"internal"`
 }
 
+type fullStateUnmarshalSchema struct {
+	StateParameters yaml.Node `yaml:"parameters"`
+	InternalState   yaml.Node `yaml:"internal"`
+}
+
 func (fs FullState) String() string {
 	bytes, err := yaml.Marshal(&fs)
 	if err != nil {
@@ -130,8 +135,9 @@ type ManageableResource interface {
 	// ValidateName validates the name of the resource
 	ValidateName(name Name) error
 
-	// GetFullState gets the full state from Host.
-	GetFullState(ctx context.Context, hst host.Host, name Name) (FullState, error)
+	// GetFullState gets the full state of the resource.
+	// If resource is not present, then returns nil.
+	GetFullState(ctx context.Context, hst host.Host, name Name) (*FullState, error)
 
 	// DiffStates compares the desired StateParameters against current FullState.
 	// If StateParameters is met by FullState, return an empty slice; otherwise,
@@ -171,15 +177,15 @@ func Diff(a, b interface{}) []diffmatchpatch.Diff {
 	return diffmatchpatch.New().DiffMain(aStr, bStr, false)
 }
 
-// ValidateManageableResourceState whether the resource is at the desired state.
+// ManageableResourceStateHasPendingChanges whether the resource is at the desired state.
 // When changes are pending returns true, otherwise false.
-func ValidateManageableResourceState(
+func ManageableResourceStateHasPendingChanges(
 	ctx context.Context,
 	manageableResource ManageableResource,
 	hst host.Host,
 	name Name,
-	stateParameters StateParameters,
-) (bool, []diffmatchpatch.Diff, FullState, error) {
+	stateParameters *StateParameters,
+) (bool, []diffmatchpatch.Diff, *FullState, error) {
 	logger := log.GetLogger(ctx)
 
 	typeName := MustNewTypeNameFromManageableResourceName(manageableResource, name)
@@ -187,14 +193,25 @@ func ValidateManageableResourceState(
 	fullState, err := manageableResource.GetFullState(ctx, hst, name)
 	if err != nil {
 		logger.Errorf("💥%s", typeName)
-		return false, []diffmatchpatch.Diff{}, FullState{}, err
+		return false, []diffmatchpatch.Diff{}, nil, err
+	}
+	if fullState == nil {
+		if stateParameters != nil {
+			return true, Diff(nil, stateParameters), nil, nil
+		} else {
+			return false, []diffmatchpatch.Diff{}, nil, nil
+		}
+	}
+
+	if stateParameters == nil {
+		return true, Diff(fullState, nil), nil, nil
 	}
 	diffHasChanges, diffs, err := DiffManageableResourceState(
-		ctx, hst, manageableResource, stateParameters, fullState,
+		ctx, hst, manageableResource, *stateParameters, *fullState,
 	)
 	if err != nil {
 		logger.Errorf("💥%s", typeName)
-		return false, []diffmatchpatch.Diff{}, FullState{}, err
+		return false, []diffmatchpatch.Diff{}, nil, err
 	}
 
 	if diffHasChanges {
@@ -424,8 +441,9 @@ func (rk ResourceKey) MustType() Type {
 
 // Resource holds a single resource.
 type Resource struct {
-	TypeName           TypeName           `yaml:"resource"`
-	StateParameters    StateParameters    `yaml:"state"`
+	TypeName TypeName `yaml:"resource"`
+	// When nil, means resource is to be destroyed
+	StateParameters    *StateParameters   `yaml:"state"`
 	ManageableResource ManageableResource `yaml:"-"`
 }
 
@@ -456,6 +474,7 @@ func (r *Resource) UnmarshalYAML(node *yaml.Node) error {
 	stateParametersType := reflect.ValueOf(stateParameters).Type()
 	stateParametersValue := reflect.New(stateParametersType)
 	stateParameters = stateParametersValue.Interface().(StateParameters)
+	var stateParametersPtr *StateParameters
 	err := unmarshalSchema.NodeStateParameters.Decode(stateParameters)
 	if err != nil {
 		return err
@@ -463,20 +482,21 @@ func (r *Resource) UnmarshalYAML(node *yaml.Node) error {
 	if err := stateParameters.Validate(); err != nil {
 		return err
 	}
+	stateParametersPtr = &stateParameters
 
 	*r = Resource{
 		TypeName:           unmarshalSchema.TypeName,
-		StateParameters:    stateParameters,
+		StateParameters:    stateParametersPtr,
 		ManageableResource: manageableResource,
 	}
 	return nil
 }
 
-func (r *Resource) MustType() Type {
+func (r Resource) MustType() Type {
 	return r.TypeName.MustType()
 }
 
-func (r *Resource) MustName() Name {
+func (r Resource) MustName() Name {
 	return r.TypeName.MustName()
 }
 
@@ -526,7 +546,7 @@ func (r Resource) MustMergeableManageableResources() MergeableManageableResource
 	return mergeableManageableResources
 }
 
-func MustNewResource(typeName TypeName, stateParameters StateParameters) Resource {
+func MustNewResource(typeName TypeName, stateParameters *StateParameters) Resource {
 	return Resource{
 		TypeName:           typeName,
 		StateParameters:    stateParameters,
@@ -554,7 +574,7 @@ func LoadBundle(ctx context.Context, path string) (Bundle, error) {
 	logger.Infof("%s", path)
 	f, err := os.Open(path)
 	if err != nil {
-		return Bundle{}, fmt.Errorf("failed to load resource: %w", err)
+		return Bundle{}, fmt.Errorf("failed to load resource file: %w", err)
 	}
 	defer f.Close()
 
@@ -569,10 +589,10 @@ func LoadBundle(ctx context.Context, path string) (Bundle, error) {
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return Bundle{}, fmt.Errorf("failed to load resource: %s: %w", path, err)
+			return Bundle{}, fmt.Errorf("failed to load resource file: %s: %w", path, err)
 		}
 		if err := docBundle.Validate(); err != nil {
-			return bundle, fmt.Errorf("validation failed: %s: %w", path, err)
+			return bundle, fmt.Errorf("resource file validation failed: %s: %w", path, err)
 		}
 		bundle = append(bundle, docBundle...)
 	}
@@ -583,7 +603,76 @@ func LoadBundle(ctx context.Context, path string) (Bundle, error) {
 // Bundles holds all resources for a host.
 type Bundles []Bundle
 
-func (bs Bundles) GetHostState(ctx context.Context, hst host.Host) (HostState, error) {
+// GetCleanStateMap returns a map of whether resources have a clean state or not.
+func (bs Bundles) GetCleanStateMap(
+	ctx context.Context,
+	hst host.Host,
+) (map[ResourceKey]bool, error) {
+	logger := log.GetLogger(ctx)
+	logger.Info("🔎 Reading host state")
+	nestedCtx := log.IndentLogger(ctx)
+	nestedLogger := log.GetLogger(nestedCtx)
+
+	cleanStateMap := map[ResourceKey]bool{}
+
+	for _, bundle := range bs {
+		for _, resource := range bundle {
+			currentFullState, err := resource.ManageableResource.GetFullState(
+				nestedCtx, hst, resource.MustName(),
+			)
+			if err != nil {
+				return nil, err
+			}
+
+			cleanState := false
+			if currentFullState != nil {
+				if resource.StateParameters == nil {
+					nestedLogger.WithField("", "Resource to be destroyed").
+						Infof("%s %s", ActionDestroy.Emoji(), resource)
+				} else {
+					diffHasChanges, diffs, err := DiffManageableResourceState(
+						nestedCtx,
+						hst,
+						resource.ManageableResource,
+						*resource.StateParameters,
+						*currentFullState,
+					)
+					if err != nil {
+						return nil, err
+					}
+					cleanState = !diffHasChanges
+					if diffHasChanges {
+						diffMatchPatch := diffmatchpatch.New()
+						nestedLogger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).
+							Infof("%s %s", ActionApply.Emoji(), resource)
+					}
+				}
+
+			} else {
+				if resource.StateParameters == nil {
+					cleanState = true
+				} else {
+					diffMatchPatch := diffmatchpatch.New()
+					nestedLogger.WithField("", diffMatchPatch.DiffPrettyText(Diff("", resource.StateParameters))).
+						Infof("%s %s", ActionApply.Emoji(), resource)
+
+				}
+			}
+
+			if cleanState {
+				nestedLogger.Infof("%s %s", ActionOk.Emoji(), resource)
+			}
+
+			cleanStateMap[resource.ResourceKey()] = cleanState
+		}
+	}
+
+	return cleanStateMap, nil
+}
+
+func (bs Bundles) GetHostState(
+	ctx context.Context, hst host.Host, excludeResourceKeys []ResourceKey,
+) (HostState, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("🔎 Reading host state")
 	nestedCtx := log.IndentLogger(ctx)
@@ -595,6 +684,11 @@ func (bs Bundles) GetHostState(ctx context.Context, hst host.Host) (HostState, e
 	}
 	for _, bundle := range bs {
 		for _, resource := range bundle {
+			for _, excludeResourceKey := range excludeResourceKeys {
+				if excludeResourceKey == resource.ResourceKey() {
+					continue
+				}
+			}
 			nestedLogger.Infof("%s", resource)
 			fullState, err := resource.ManageableResource.GetFullState(
 				nestedNestedCtx, hst, resource.MustName(),
@@ -602,11 +696,10 @@ func (bs Bundles) GetHostState(ctx context.Context, hst host.Host) (HostState, e
 			if err != nil {
 				return hostState, err
 			}
-			resourceFullState := ResourceFullState{
-				Resource:      MustNewResource(resource.TypeName, fullState.StateParameters),
-				InternalState: fullState.InternalState,
-			}
-			hostState.ResourceFullStates = append(hostState.ResourceFullStates, resourceFullState)
+			hostState.ResourceFullStates = append(hostState.ResourceFullStates, ResourceFullState{
+				ResourceKey: resource.ResourceKey(),
+				FullState:   fullState,
+			})
 		}
 	}
 	return hostState, nil
@@ -688,19 +781,26 @@ func NewBundlesFromHostState(hostState *HostState) Bundles {
 	}
 	bundle := Bundle{}
 	for _, resourceFullState := range hostState.ResourceFullStates {
-		bundle = append(bundle, resourceFullState.Resource)
+		var stateParameters *StateParameters
+		if resourceFullState.FullState != nil {
+			stateParameters = &resourceFullState.FullState.StateParameters
+		}
+		bundle = append(bundle, MustNewResource(
+			resourceFullState.ResourceKey.MustTypeName(),
+			stateParameters,
+		))
 	}
 	return Bundles{bundle}
 }
 
 type ResourceFullState struct {
-	Resource      Resource      `yaml:"resource"`
-	InternalState InternalState `yaml:"internal_state"`
+	ResourceKey ResourceKey `yaml:"resource"`
+	FullState   *FullState  `yaml:"full_state"`
 }
 
 type resourceFullStateUnmarshalSchema struct {
-	Resource      Resource  `yaml:"resource"`
-	InternalState yaml.Node `yaml:"internal_state"`
+	ResourceKey ResourceKey               `yaml:"resource"`
+	FullState   *fullStateUnmarshalSchema `yaml:"full_state"`
 }
 
 func (rfs *ResourceFullState) UnmarshalYAML(node *yaml.Node) error {
@@ -710,27 +810,54 @@ func (rfs *ResourceFullState) UnmarshalYAML(node *yaml.Node) error {
 		return err
 	}
 
-	tpe := resourceFullStateSchema.Resource.MustType()
+	resourceKey := resourceFullStateSchema.ResourceKey
 
-	// InternalState
-	internalState, ok := ManageableResourcesInternalStateMap[tpe]
-	if !ok {
-		panic(fmt.Errorf("Type %s missing from ManageableResourcesInternalStateMap", tpe))
-	}
-	internalStateType := reflect.ValueOf(internalState).Type()
-	internalStateValue := reflect.New(internalStateType)
-	internalState = internalStateValue.Interface().(InternalState)
-	if err := resourceFullStateSchema.InternalState.Decode(internalState); err != nil {
-		return err
+	var fullState *FullState
+
+	if resourceFullStateSchema.FullState != nil {
+		tpe := resourceKey.MustType()
+
+		// StateParameters
+		stateParameters, ok := ManageableResourcesStateParametersMap[tpe]
+		if !ok {
+			panic(fmt.Errorf("Type %s missing from ManageableResourcesInternalStateMap", tpe))
+		}
+		stateParametersType := reflect.ValueOf(stateParameters).Type()
+		stateParametersValue := reflect.New(stateParametersType)
+		stateParameters = stateParametersValue.Interface().(StateParameters)
+		if err := resourceFullStateSchema.FullState.StateParameters.Decode(stateParameters); err != nil {
+			return err
+		}
+
+		// InternalState
+		internalState, ok := ManageableResourcesInternalStateMap[tpe]
+		if !ok {
+			panic(fmt.Errorf("Type %s missing from ManageableResourcesInternalStateMap", tpe))
+		}
+		internalStateType := reflect.ValueOf(internalState).Type()
+		internalStateValue := reflect.New(internalStateType)
+		internalState = internalStateValue.Interface().(InternalState)
+		if err := resourceFullStateSchema.FullState.InternalState.Decode(internalState); err != nil {
+			return err
+		}
+
+		fullState = &FullState{
+			StateParameters: stateParameters,
+			InternalState:   internalState,
+		}
 	}
 
 	// ResourceFullState
 	*rfs = ResourceFullState{
-		Resource:      resourceFullStateSchema.Resource,
-		InternalState: internalState,
+		ResourceKey: resourceKey,
+		FullState:   fullState,
 	}
 
 	return nil
+}
+
+func (rfs *ResourceFullState) MustResource() Resource {
+	return MustNewResource(rfs.ResourceKey.MustTypeName(), &rfs.FullState.StateParameters)
 }
 
 // HostState holds the state
@@ -740,12 +867,40 @@ type HostState struct {
 	ResourceFullStates []ResourceFullState `yaml:"states"`
 }
 
+func (hs HostState) Merge(hostState HostState) HostState {
+	resourceFullStates := append([]ResourceFullState{}, hs.ResourceFullStates...)
+
+	for _, resourceFullState := range hostState.ResourceFullStates {
+		for _, rfs := range hs.ResourceFullStates {
+			if rfs.ResourceKey == resourceFullState.ResourceKey {
+				continue
+			}
+			resourceFullStates = append(resourceFullStates, resourceFullState)
+		}
+	}
+
+	return HostState{
+		Version:            hs.Version,
+		ResourceFullStates: resourceFullStates,
+	}
+}
+
 func (hs HostState) String() string {
 	bytes, err := yaml.Marshal(&hs)
 	if err != nil {
 		panic(err)
 	}
 	return string(bytes)
+}
+
+func (hs HostState) ResourceKeys() []ResourceKey {
+	resourceKeys := []ResourceKey{}
+
+	for _, resourceFullState := range hs.ResourceFullStates {
+		resourceKeys = append(resourceKeys, resourceFullState.ResourceKey)
+	}
+
+	return resourceKeys
 }
 
 // Validate whether current host state matches HostState.
@@ -760,12 +915,12 @@ func (hs HostState) Validate(
 	fail := false
 
 	for _, resourceFullState := range hs.ResourceFullStates {
-		diffHasChanges, _, _, err := ValidateManageableResourceState(
+		diffHasChanges, _, _, err := ManageableResourceStateHasPendingChanges(
 			nestedCtx,
-			resourceFullState.Resource.ManageableResource,
+			resourceFullState.MustResource().ManageableResource,
 			hst,
-			resourceFullState.Resource.MustName(),
-			resourceFullState.Resource.StateParameters,
+			resourceFullState.MustResource().MustName(),
+			resourceFullState.MustResource().StateParameters,
 		)
 		if err != nil {
 			return err
@@ -795,12 +950,12 @@ func (hs HostState) Refresh(ctx context.Context, hst host.Host) (HostState, erro
 	}
 
 	for _, resourceFullState := range hs.ResourceFullStates {
-		diffHasChanges, _, _, err := ValidateManageableResourceState(
+		diffHasChanges, _, _, err := ManageableResourceStateHasPendingChanges(
 			nestedCtx,
-			resourceFullState.Resource.ManageableResource,
+			resourceFullState.MustResource().ManageableResource,
 			hst,
-			resourceFullState.Resource.MustName(),
-			resourceFullState.Resource.StateParameters,
+			resourceFullState.MustResource().MustName(),
+			resourceFullState.MustResource().StateParameters,
 		)
 		if err != nil {
 			return HostState{}, err
@@ -817,11 +972,8 @@ func (hs HostState) Refresh(ctx context.Context, hst host.Host) (HostState, erro
 
 func (hs HostState) GetFullState(resourceKey ResourceKey) *FullState {
 	for _, resourceFullState := range hs.ResourceFullStates {
-		if resourceFullState.Resource.ResourceKey() == resourceKey {
-			return &FullState{
-				StateParameters: resourceFullState.Resource.StateParameters,
-				InternalState:   resourceFullState.InternalState,
-			}
+		if resourceFullState.ResourceKey == resourceKey {
+			return resourceFullState.FullState
 		}
 	}
 	return nil
@@ -866,11 +1018,13 @@ func (sai StepActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 			return err
 		}
 	case ActionApply:
-		if err := individuallyManageableResource.Apply(ctx, hst, name, stateParameters); err != nil {
+		if err := individuallyManageableResource.Apply(
+			ctx, hst, name, *stateParameters,
+		); err != nil {
 			logger.Errorf("💥%s", sai.Resource)
 			return err
 		}
-		diffHasChanges, _, _, err := ValidateManageableResourceState(
+		diffHasChanges, _, _, err := ManageableResourceStateHasPendingChanges(
 			ctx, individuallyManageableResource, hst, name, stateParameters,
 		)
 		if err != nil {
@@ -949,7 +1103,11 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 				if configureActionParameters[action] == nil {
 					configureActionParameters[action] = Parameters{}
 				}
-				configureActionParameters[action][resource.MustName()] = resource.StateParameters
+				if resource.StateParameters != nil {
+					configureActionParameters[action][resource.MustName()] = *resource.StateParameters
+				} else {
+					configureActionParameters[action][resource.MustName()] = nil
+				}
 			}
 			if action != ActionDestroy {
 				checkResources = append(checkResources, resource)
@@ -965,7 +1123,7 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 	}
 
 	for _, resource := range checkResources {
-		diffHasChanges, _, _, err := ValidateManageableResourceState(
+		diffHasChanges, _, _, err := ManageableResourceStateHasPendingChanges(
 			ctx,
 			sam.MustMergeableManageableResources(),
 			hst,
@@ -1118,7 +1276,7 @@ func (p Plan) validate(ctx context.Context, hst host.Host) (HostState, error) {
 					continue
 				}
 				nestedLogger.Infof("%s", resource)
-				diffHasChanges, _, fullState, err := ValidateManageableResourceState(
+				diffHasChanges, _, fullState, err := ManageableResourceStateHasPendingChanges(
 					nestedNestedCtx,
 					resource.ManageableResource,
 					hst,
@@ -1134,8 +1292,8 @@ func (p Plan) validate(ctx context.Context, hst host.Host) (HostState, error) {
 				hostState.ResourceFullStates = append(
 					hostState.ResourceFullStates,
 					ResourceFullState{
-						Resource:      MustNewResource(resource.TypeName, fullState.StateParameters),
-						InternalState: fullState.InternalState,
+						ResourceKey: resource.ResourceKey(),
+						FullState:   fullState,
 					},
 				)
 			}
@@ -1191,66 +1349,24 @@ func (p Plan) Print(ctx context.Context) {
 	}
 }
 
-func getStateCleanMap(
-	ctx context.Context,
-	hst host.Host,
-	previousHostState *HostState,
-	bundles Bundles,
-) (map[ResourceKey]bool, error) {
-	logger := log.GetLogger(ctx)
-	logger.Info("🔎 Reading host state")
-	nestedCtx := log.IndentLogger(ctx)
-	nestedLogger := log.GetLogger(nestedCtx)
-
-	stateCleanMap := map[ResourceKey]bool{}
-
-	for _, bundle := range bundles {
-		for _, resource := range bundle {
-			var currentFullState FullState
-			getFullState := true
-			if previousHostState != nil {
-				if fullState := previousHostState.GetFullState(resource.ResourceKey()); fullState != nil {
-					currentFullState = *fullState
-					getFullState = false
+func (p Plan) HasResourceKey(resourceKey ResourceKey) bool {
+	for _, step := range p {
+		for _, resources := range step.StepAction.ActionResources() {
+			for _, resource := range resources {
+				if resource.ResourceKey() == resourceKey {
+					return true
 				}
 			}
-			if getFullState {
-				var err error
-				currentFullState, err = resource.ManageableResource.GetFullState(nestedCtx, hst, resource.MustName())
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			diffHasChanges, diffs, err := DiffManageableResourceState(
-				nestedCtx,
-				hst,
-				resource.ManageableResource,
-				resource.StateParameters,
-				currentFullState,
-			)
-			if err != nil {
-				return nil, err
-			}
-			if diffHasChanges {
-				diffMatchPatch := diffmatchpatch.New()
-				nestedLogger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).
-					Infof("%s%s", ActionApply.Emoji(), resource)
-			} else {
-				nestedLogger.Infof("%s%s", ActionOk.Emoji(), resource)
-			}
-			stateCleanMap[resource.ResourceKey()] = !diffHasChanges
 		}
 	}
-
-	return stateCleanMap, nil
+	return false
 }
 
 func newPartialPlanFromBundles(
 	ctx context.Context,
 	bundles Bundles,
-	intentedAction Action,
-	stateCleanMap map[ResourceKey]bool,
+	cleanStateMap map[ResourceKey]bool,
+	intendedAction Action,
 ) Plan {
 	logger := log.GetLogger(ctx)
 
@@ -1271,16 +1387,17 @@ func newPartialPlanFromBundles(
 				lastBundleLastStep.prerequisiteFor = append(lastBundleLastStep.prerequisiteFor, step)
 			}
 
-			// Result
-			stateClean, ok := stateCleanMap[resource.ResourceKey()]
-			if !ok {
-				panic(fmt.Errorf("%v missing check result", resource))
-			}
-
 			// Action
-			action := intentedAction
+			action := intendedAction
+			if resource.StateParameters == nil {
+				action = ActionDestroy
+			}
 			if action != ActionDestroy {
-				if stateClean {
+				cleanState, ok := cleanStateMap[resource.ResourceKey()]
+				if !ok {
+					panic(fmt.Errorf("%v missing check result", resource))
+				}
+				if cleanState {
 					if refresh && resource.Refreshable() {
 						action = ActionRefresh
 					} else {
@@ -1315,30 +1432,34 @@ func newPartialPlanFromBundles(
 	return plan
 }
 
-func appendPreviousStateDestroySteps(
+func prependDestroyStepsToPlan(
 	ctx context.Context,
-	previousHostState *HostState,
-	bundles Bundles,
 	plan Plan,
+	bundles Bundles,
+	savedHostState HostState,
 ) Plan {
 	logger := log.GetLogger(ctx)
 	logger.Info("💀 Determining resources to destroy")
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
-	for _, resourceFullState := range previousHostState.ResourceFullStates {
-		if bundles.HasResourceKey(resourceFullState.Resource.ResourceKey()) {
+	for _, resourceFullState := range savedHostState.ResourceFullStates {
+		if bundles.HasResourceKey(resourceFullState.ResourceKey) {
 			continue
+		}
+		prerequisiteFor := []*Step{}
+		if len(plan) > 0 {
+			prerequisiteFor = append(prerequisiteFor, plan[0])
 		}
 		step := &Step{
 			StepAction: StepActionIndividual{
 				Resource: Resource{
-					TypeName:           resourceFullState.Resource.TypeName,
-					ManageableResource: resourceFullState.Resource.ManageableResource,
-					StateParameters:    resourceFullState.Resource.StateParameters,
+					TypeName:           resourceFullState.MustResource().TypeName,
+					ManageableResource: resourceFullState.MustResource().ManageableResource,
+					StateParameters:    resourceFullState.MustResource().StateParameters,
 				},
 				Action: ActionDestroy,
 			},
-			prerequisiteFor: []*Step{plan[0]},
+			prerequisiteFor: prerequisiteFor,
 		}
 		nestedLogger.Infof("%s", step)
 		plan = append(Plan{step}, plan...)
@@ -1346,7 +1467,7 @@ func appendPreviousStateDestroySteps(
 	return plan
 }
 
-func mergeSteps(ctx context.Context, plan Plan) Plan {
+func mergePlanSteps(ctx context.Context, plan Plan) Plan {
 	logger := log.GetLogger(ctx)
 	logger.Info("📦 Merging resources")
 	nestedCtx := log.IndentLogger(ctx)
@@ -1388,9 +1509,7 @@ func mergeSteps(ctx context.Context, plan Plan) Plan {
 	return newPlan
 }
 
-// topologicalSort sorts the steps based on their prerequisites. If the graph has cycles, it returns
-// error.
-func topologicalSort(ctx context.Context, plan Plan) (Plan, error) {
+func topologicalSortPlan(ctx context.Context, plan Plan) (Plan, error) {
 	dependantCount := map[*Step]int{}
 	for _, step := range plan {
 		if _, ok := dependantCount[step]; !ok {
@@ -1428,36 +1547,32 @@ func topologicalSort(ctx context.Context, plan Plan) (Plan, error) {
 	return sortedPlan, nil
 }
 
-// NewPlanFromBundles calculates a Plan based on a saved HostState and Bundles.
-func NewPlanFromBundles(
-	ctx context.Context,
-	hst host.Host,
-	previousHostState *HostState,
-	bundles Bundles,
+func NewPlanFromSavedStateAndBundles(
+	ctx context.Context, hst host.Host, bundles Bundles, savedHostState *HostState,
 ) (Plan, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("📝 Planning changes")
 	nestedCtx := log.IndentLogger(ctx)
 
 	// State
-	stateCleanMap, err := getStateCleanMap(nestedCtx, hst, previousHostState, bundles)
+	cleanStateMap, err := bundles.GetCleanStateMap(nestedCtx, hst)
 	if err != nil {
-		return nil, err
+		return Plan{}, err
 	}
 
-	// Build unsorted digraph
-	plan := newPartialPlanFromBundles(nestedCtx, bundles, ActionNone, stateCleanMap)
+	// Add Bundles
+	plan := newPartialPlanFromBundles(nestedCtx, bundles, cleanStateMap, ActionNone)
 
-	// Append destroy steps
-	if previousHostState != nil {
-		plan = appendPreviousStateDestroySteps(nestedCtx, previousHostState, bundles, plan)
+	// Prepend destroy steps
+	if savedHostState != nil {
+		plan = prependDestroyStepsToPlan(nestedCtx, plan, bundles, *savedHostState)
 	}
 
 	// Merge steps
-	plan = mergeSteps(nestedCtx, plan)
+	plan = mergePlanSteps(nestedCtx, plan)
 
 	// Sort
-	plan, err = topologicalSort(nestedCtx, plan)
+	plan, err = topologicalSortPlan(nestedCtx, plan)
 	if err != nil {
 		return nil, err
 	}
@@ -1465,92 +1580,75 @@ func NewPlanFromBundles(
 	return plan, nil
 }
 
-func appendPreviousBundleDestroySteps(
+func prependDestroyStepsFromPlanBundlesToPlan(
 	ctx context.Context,
-	hostState *HostState,
-	destroyBundles Bundles,
 	plan Plan,
+	bundles, planBundles Bundles,
 ) Plan {
 	logger := log.GetLogger(ctx)
 	logger.Info("💀 Determining resources to destroy")
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
-
-	for _, bundle := range destroyBundles {
-		for _, resource := range bundle {
-			if fullState := hostState.GetFullState(resource.ResourceKey()); fullState != nil {
+	for _, planBundle := range planBundles {
+		for _, resource := range planBundle {
+			if bundles.HasResourceKey(resource.ResourceKey()) {
 				continue
+			}
+			prerequisiteFor := []*Step{}
+			if len(plan) > 0 {
+				prerequisiteFor = append(prerequisiteFor, plan[0])
 			}
 			step := &Step{
 				StepAction: StepActionIndividual{
 					Resource: Resource{
-						TypeName:           resource.ResourceKey().MustTypeName(),
-						ManageableResource: resource.ResourceKey().MustManageableResource(),
+						TypeName:           resource.TypeName,
+						ManageableResource: resource.ManageableResource,
 						StateParameters:    resource.StateParameters,
 					},
 					Action: ActionDestroy,
 				},
-				prerequisiteFor: []*Step{plan[0]},
+				prerequisiteFor: prerequisiteFor,
 			}
 			nestedLogger.Infof("%s", step)
 			plan = append(Plan{step}, plan...)
 		}
 	}
-
 	return plan
-}
-
-// NewActionPlanFromHostState calculates a Plan based on HostState to execute given action
-// for all existing resources.
-// Resources present at Bundles and not at HostState will be destroyed.
-func NewActionPlanFromHostState(
-	ctx context.Context,
-	hst host.Host,
-	hostState HostState,
-	destroyBundles Bundles,
-	action Action,
-) (Plan, error) {
-	logger := log.GetLogger(ctx)
-	logger.Info("📝 Planning changes")
-	nestedCtx := log.IndentLogger(ctx)
-
-	// Bundles
-	bundles := NewBundlesFromHostState(&hostState)
-
-	// State
-	stateCleanMap, err := getStateCleanMap(nestedCtx, hst, &hostState, bundles)
-	if err != nil {
-		return nil, err
-	}
-
-	// Build unsorted digraph
-	plan := newPartialPlanFromBundles(nestedCtx, bundles, action, stateCleanMap)
-
-	// Append destroy steps
-	plan = appendPreviousBundleDestroySteps(nestedCtx, &hostState, destroyBundles, plan)
-
-	// Merge steps
-	plan = mergeSteps(nestedCtx, plan)
-
-	// Sort
-	plan, err = topologicalSort(nestedCtx, plan)
-	if err != nil {
-		return nil, err
-	}
-
-	return plan, nil
 }
 
 func NewRollbackPlan(
 	ctx context.Context,
 	hst host.Host,
-	hasPreviousHostState bool,
+	bundles Bundles,
+	savedHostState *HostState,
 	initialHostState HostState,
-	plan Plan,
 ) (Plan, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("📝 Planning rollback")
-	// nestedCtx := log.IndentLogger(ctx)
+	nestedCtx := log.IndentLogger(ctx)
 
-	panic("NewRollbackPlan")
+	rollbackBundles := NewBundlesFromHostState(&initialHostState)
+
+	// State
+	cleanStateMap, err := rollbackBundles.GetCleanStateMap(nestedCtx, hst)
+	if err != nil {
+		return Plan{}, err
+	}
+
+	// Add Bundles
+	plan := newPartialPlanFromBundles(nestedCtx, rollbackBundles, cleanStateMap, ActionNone)
+
+	// Prepend destroy steps
+	plan = prependDestroyStepsFromPlanBundlesToPlan(nestedCtx, plan, rollbackBundles, bundles)
+
+	// Merge steps
+	plan = mergePlanSteps(nestedCtx, plan)
+
+	// Sort
+	plan, err = topologicalSortPlan(nestedCtx, plan)
+	if err != nil {
+		return nil, err
+	}
+
+	return plan, nil
 }

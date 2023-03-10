@@ -14,19 +14,11 @@ import (
 
 // APTPackageStateParameters is StateParameters for APTPackage
 type APTPackageStateParameters struct {
-	// Whether to remove the package
-	Remove bool `yaml:"remove"`
 	// Package version
 	Version string `yaml:"version"`
 }
 
 func (apsp APTPackageStateParameters) Validate() error {
-	if apsp.Remove {
-		if apsp.Version != "" {
-			return fmt.Errorf("version can't be set with remove: true")
-		}
-		return nil
-	}
 	// https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
 	if strings.HasSuffix(apsp.Version, "+") {
 		return fmt.Errorf("version can't end in +: %s", apsp.Version)
@@ -53,7 +45,9 @@ func (ap APTPackage) ValidateName(name Name) error {
 	return nil
 }
 
-func (ap APTPackage) GetFullState(ctx context.Context, hst host.Host, name Name) (FullState, error) {
+func (ap APTPackage) GetFullState(ctx context.Context, hst host.Host, name Name) (*FullState, error) {
+	logger := log.GetLogger(ctx)
+
 	stateParameters := APTPackageStateParameters{}
 	internalState := APTPackageInternalState{}
 
@@ -61,14 +55,14 @@ func (ap APTPackage) GetFullState(ctx context.Context, hst host.Host, name Name)
 	hostCmd := host.Cmd{Path: "dpkg", Args: []string{"-s", string(name)}}
 	waitStatus, stdout, stderr, err := hst.Run(ctx, hostCmd)
 	if err != nil {
-		return FullState{}, err
+		return nil, err
 	}
 	if !waitStatus.Success() {
 		if waitStatus.Exited && waitStatus.ExitCode == 1 && strings.Contains(stderr, "not installed") {
-			stateParameters.Remove = true
-			internalState.Status = "not installed"
+			logger.Debug("Not installed")
+			return nil, nil
 		} else {
-			return FullState{}, fmt.Errorf("failed to run '%s': %s\nstdout:\n%s\nstderr:\n%s", hostCmd.String(), waitStatus.String(), stdout, stderr)
+			return nil, fmt.Errorf("failed to run '%s': %s\nstdout:\n%s\nstderr:\n%s", hostCmd.String(), waitStatus.String(), stdout, stderr)
 		}
 	}
 
@@ -85,12 +79,12 @@ func (ap APTPackage) GetFullState(ctx context.Context, hst host.Host, name Name)
 		}
 	}
 	if status == "" || version == "" {
-		return FullState{}, fmt.Errorf("failed to parse state from '%s': %s\nstdout:\n%s\nstderr:\n%s", hostCmd.String(), waitStatus.String(), stdout, stderr)
+		return nil, fmt.Errorf("failed to parse state from '%s': %s\nstdout:\n%s\nstderr:\n%s", hostCmd.String(), waitStatus.String(), stdout, stderr)
 	}
 	stateParameters.Version = version
 	internalState.Status = status
 
-	return FullState{
+	return &FullState{
 		StateParameters: &stateParameters,
 		InternalState:   &internalState,
 	}, nil
@@ -106,15 +100,9 @@ func (ap APTPackage) DiffStates(
 	currentAPTPackageInternalState := currentFullState.InternalState.(*APTPackageInternalState)
 
 	diffs = append(diffs, Diff(currentAPTPackageStateParameters, desiredAPTPackageStateParameters)...)
-	if desiredAPTPackageStateParameters.Remove {
-		diffs = append(diffs, Diff(currentAPTPackageInternalState, APTPackageInternalState{
-			Status: "not installed",
-		})...)
-	} else {
-		diffs = append(diffs, Diff(currentAPTPackageInternalState, APTPackageInternalState{
-			Status: "install ok installed",
-		})...)
-	}
+	diffs = append(diffs, Diff(currentAPTPackageInternalState, APTPackageInternalState{
+		Status: "install ok installed",
+	})...)
 
 	return diffs, nil
 }
@@ -137,11 +125,13 @@ func (ap APTPackage) ConfigureAll(
 		default:
 			return fmt.Errorf("unexpected action %s", action)
 		}
-		for name, state := range parameters {
-			aptPackageState := state.(*APTPackageStateParameters)
+		for name, stateParameters := range parameters {
 			var version string
-			if aptPackageState.Version != "" {
-				version = fmt.Sprintf("=%s", aptPackageState.Version)
+			if stateParameters != nil {
+				aptPackageState := stateParameters.(*APTPackageStateParameters)
+				if aptPackageState.Version != "" {
+					version = fmt.Sprintf("=%s", aptPackageState.Version)
+				}
 			}
 			pkgs = append(pkgs, fmt.Sprintf("%s%s%s", string(name), version, pkgAction))
 		}

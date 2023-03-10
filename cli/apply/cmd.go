@@ -35,31 +35,41 @@ var Cmd = &cobra.Command{
 		}
 
 		// Load resources
-		resourceBundles, err := resource.LoadBundles(ctx, args[0])
+		root := args[0]
+		bundles, err := resource.LoadBundles(ctx, root)
 		if err != nil {
 			logger.Fatal(err)
 		}
 
 		// Load saved state
-		logger.Info("📋 Assessing host state")
-		hasPreviousHostState, initialHostState, err := state.LoadUpdateHostState(
-			nestedCtx, persistantState, resourceBundles, hst,
-		)
+		savedHostState, err := state.LoadHostState(ctx, persistantState)
 		if err != nil {
 			logger.Fatal(err)
 		}
-		if hasPreviousHostState {
-			if err := initialHostState.Validate(nestedCtx, hst); err != nil {
+		if savedHostState != nil {
+			if err := savedHostState.Validate(ctx, hst); err != nil {
 				logger.Fatal(err)
 			}
 		}
 
-		// Plan
-		var previousHostState *resource.HostState
-		if hasPreviousHostState {
-			previousHostState = &initialHostState
+		// Read bundle state
+		var excludeResourceKeys []resource.ResourceKey
+		if savedHostState != nil {
+			excludeResourceKeys = savedHostState.ResourceKeys()
 		}
-		plan, err := resource.NewPlanFromBundles(ctx, hst, previousHostState, resourceBundles)
+		bundlesHostState, err := bundles.GetHostState(ctx, hst, excludeResourceKeys)
+		if err != nil {
+			logger.Fatal(err)
+		}
+
+		// Initial state
+		initialHostState := bundlesHostState
+		if savedHostState != nil {
+			initialHostState = bundlesHostState.Merge(*savedHostState)
+		}
+
+		// Plan
+		plan, err := resource.NewPlanFromSavedStateAndBundles(ctx, hst, bundles, savedHostState)
 		if err != nil {
 			logger.Fatal(err)
 		}
@@ -67,22 +77,22 @@ var Cmd = &cobra.Command{
 
 		// Execute plan
 		success := true
-		newHostState, err := plan.Execute(ctx, hst)
+		planHostState, err := plan.Execute(ctx, hst)
 		if err != nil {
+			// Rollback
 			success = false
 			nestedLogger.Error(err)
 			nestedLogger.Warn("Failed to execute plan, rolling back to previously saved state.")
 
 			rollbackPlan, err := resource.NewRollbackPlan(
-				nestedCtx, hst, hasPreviousHostState, initialHostState, plan,
+				nestedCtx, hst, bundles, savedHostState, initialHostState,
 			)
 			if err != nil {
 				logger.Fatal(err)
 			}
 			rollbackPlan.Print(nestedCtx)
 
-			// Execute rollbackPlan
-			newHostState, err = rollbackPlan.Execute(nestedCtx, hst)
+			planHostState, err = rollbackPlan.Execute(nestedCtx, hst)
 			if err != nil {
 				nestedLogger.Error(err)
 				logger.Fatal("Rollback failed!")
@@ -91,7 +101,7 @@ var Cmd = &cobra.Command{
 		}
 
 		// Save host state
-		if err := state.SaveHostState(ctx, newHostState, persistantState); err != nil {
+		if err := state.SaveHostState(ctx, planHostState, persistantState); err != nil {
 			logger.Fatal(err)
 		}
 
