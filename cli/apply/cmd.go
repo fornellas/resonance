@@ -74,7 +74,7 @@ var Cmd = &cobra.Command{
 			nestedLogger.Warn("Failed to execute plan, rolling back to previously saved state.")
 
 			plan, err := resource.NewActionPlanFromHostState(
-				nestedCtx, hst, &initialHostState, resource.ActionApply,
+				nestedCtx, hst, initialHostState, resourceBundles, resource.ActionApply,
 			)
 			if err != nil {
 				logger.Fatal(err)

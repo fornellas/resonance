@@ -156,8 +156,7 @@ func DiffManageableResourceState(
 	stateParameters StateParameters,
 	fullState FullState,
 ) (bool, []diffmatchpatch.Diff, error) {
-	nestedCtx := log.IndentLogger(ctx)
-	diffs, err := manageableResource.DiffStates(nestedCtx, hst, stateParameters, fullState)
+	diffs, err := manageableResource.DiffStates(ctx, hst, stateParameters, fullState)
 	return DiffsHasChanges(diffs), diffs, err
 }
 
@@ -187,14 +186,13 @@ func ValidateManageableResourceState(
 	stateParameters StateParameters,
 ) (bool, []diffmatchpatch.Diff, FullState, error) {
 	logger := log.GetLogger(ctx)
-	nestedCtx := log.IndentLogger(ctx)
 
-	fullState, err := manageableResource.GetFullState(nestedCtx, hst, name)
+	fullState, err := manageableResource.GetFullState(ctx, hst, name)
 	if err != nil {
 		return false, []diffmatchpatch.Diff{}, FullState{}, err
 	}
 	diffHasChanges, diffs, err := DiffManageableResourceState(
-		nestedCtx, hst, manageableResource, stateParameters, fullState,
+		ctx, hst, manageableResource, stateParameters, fullState,
 	)
 	if err != nil {
 		return false, []diffmatchpatch.Diff{}, FullState{}, err
@@ -635,14 +633,13 @@ func (bs Bundles) HasResourceKey(resourceKey ResourceKey) bool {
 // Bundles is sorted by alphabetical order.
 func LoadBundles(ctx context.Context, root string) (Bundles, error) {
 	logger := log.GetLogger(ctx)
-	logger.Info("📂 Loading resources")
+	logger.Infof("📂 Loading resources from %s", root)
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 
 	bundles := Bundles{}
 
 	paths := []string{}
-	nestedLogger.Debugf("Root %s", root)
 	if err := filepath.Walk(root, func(path string, fileInfo fs.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -651,7 +648,7 @@ func LoadBundles(ctx context.Context, root string) (Bundles, error) {
 			nestedLogger.Debugf("Skipping %s", path)
 			return nil
 		}
-		nestedLogger.Debugf("Adding %s", path)
+		nestedLogger.Debugf("Found resources file %s", path)
 		paths = append(paths, path)
 		return nil
 	}); err != nil {
@@ -1068,8 +1065,8 @@ func (p Plan) executeSteps(ctx context.Context, hst host.Host) error {
 	nestedLogger := log.GetLogger(nestedCtx)
 	logger.Info("🛠️  Applying changes")
 	if p.Actionable() {
-		for _, node := range p {
-			err := node.Execute(nestedCtx, hst)
+		for _, step := range p {
+			err := step.Execute(nestedCtx, hst)
 			if err != nil {
 				return err
 			}
@@ -1180,19 +1177,28 @@ func getStateCleanMap(
 
 	for _, bundle := range bundles {
 		for _, resource := range bundle {
-			var fullState FullState
+			var currentFullState FullState
+			getFullState := true
 			if previousHostState != nil {
 				var ok bool
-				if fullState, ok = previousHostState.ResourceKeyFullStateMap[resource.ResourceKey()]; !ok {
-					var err error
-					fullState, err = resource.ManageableResource.GetFullState(nestedCtx, hst, resource.MustName())
-					if err != nil {
-						return nil, err
-					}
+				if currentFullState, ok = previousHostState.ResourceKeyFullStateMap[resource.ResourceKey()]; ok {
+					getFullState = false
 				}
 			}
+			if getFullState {
+				var err error
+				currentFullState, err = resource.ManageableResource.GetFullState(nestedCtx, hst, resource.MustName())
+				if err != nil {
+					return nil, err
+				}
+			}
+
 			diffHasChanges, diffs, err := DiffManageableResourceState(
-				ctx, hst, resource.ManageableResource, resource.StateParameters, fullState,
+				nestedCtx,
+				hst,
+				resource.ManageableResource,
+				resource.StateParameters,
+				currentFullState,
 			)
 			if err != nil {
 				return nil, err
@@ -1280,7 +1286,7 @@ func newPartialPlanFromBundles(
 	return plan
 }
 
-func appendDestroySteps(
+func appendPreviousStateDestroySteps(
 	ctx context.Context,
 	previousHostState *HostState,
 	bundles Bundles,
@@ -1415,7 +1421,7 @@ func NewPlanFromBundles(
 
 	// Append destroy steps
 	if previousHostState != nil {
-		plan = appendDestroySteps(nestedCtx, previousHostState, bundles, plan)
+		plan = appendPreviousStateDestroySteps(nestedCtx, previousHostState, bundles, plan)
 	}
 
 	// Merge steps
@@ -1430,12 +1436,49 @@ func NewPlanFromBundles(
 	return plan, nil
 }
 
-// NewActionPlanFromHostState calculates a Plan based on a saved HostState to execute given action
+func appendPreviousBundleDestroySteps(
+	ctx context.Context,
+	hostState *HostState,
+	destroyBundles Bundles,
+	plan Plan,
+) Plan {
+	logger := log.GetLogger(ctx)
+	logger.Info("💀 Determining resources to destroy")
+	nestedCtx := log.IndentLogger(ctx)
+	nestedLogger := log.GetLogger(nestedCtx)
+
+	for _, bundle := range destroyBundles {
+		for _, resource := range bundle {
+			if _, ok := hostState.ResourceKeyFullStateMap[resource.ResourceKey()]; ok {
+				continue
+			}
+			step := &Step{
+				StepAction: StepActionIndividual{
+					Resource: Resource{
+						TypeName:           resource.ResourceKey().MustTypeName(),
+						ManageableResource: resource.ResourceKey().MustManageableResource(),
+						StateParameters:    resource.StateParameters,
+					},
+					Action: ActionDestroy,
+				},
+				prerequisiteFor: []*Step{plan[0]},
+			}
+			nestedLogger.Infof("%s", step)
+			plan = append(Plan{step}, plan...)
+		}
+	}
+
+	return plan
+}
+
+// NewActionPlanFromHostState calculates a Plan based on HostState to execute given action
 // for all existing resources.
+// Resources present at Bundles and not at HostState will be destroyed.
 func NewActionPlanFromHostState(
 	ctx context.Context,
 	hst host.Host,
-	previousHostState *HostState,
+	hostState HostState,
+	destroyBundles Bundles,
 	action Action,
 ) (Plan, error) {
 	logger := log.GetLogger(ctx)
@@ -1443,16 +1486,19 @@ func NewActionPlanFromHostState(
 	nestedCtx := log.IndentLogger(ctx)
 
 	// Bundles
-	bundles := NewBundlesFromHostState(previousHostState)
+	bundles := NewBundlesFromHostState(&hostState)
 
 	// State
-	stateCleanMap, err := getStateCleanMap(nestedCtx, hst, previousHostState, bundles)
+	stateCleanMap, err := getStateCleanMap(nestedCtx, hst, &hostState, bundles)
 	if err != nil {
 		return nil, err
 	}
 
 	// Build unsorted digraph
 	plan := newPartialPlanFromBundles(nestedCtx, bundles, action, stateCleanMap)
+
+	// Append destroy steps
+	plan = appendPreviousBundleDestroySteps(nestedCtx, &hostState, destroyBundles, plan)
 
 	// Merge steps
 	plan = mergeSteps(nestedCtx, plan)

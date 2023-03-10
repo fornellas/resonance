@@ -2,7 +2,6 @@ package resource
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -10,6 +9,7 @@ import (
 	"github.com/sergi/go-diff/diffmatchpatch"
 
 	"github.com/fornellas/resonance/host"
+	"github.com/fornellas/resonance/log"
 )
 
 // APTPackageStateParameters is StateParameters for APTPackage
@@ -122,7 +122,48 @@ func (ap APTPackage) DiffStates(
 func (ap APTPackage) ConfigureAll(
 	ctx context.Context, hst host.Host, actionParameters map[Action]Parameters,
 ) error {
-	return errors.New("APTPackage.ConfigureAll")
+	nestedCtx := log.IndentLogger(ctx)
+
+	// Package arguments
+	pkgs := []string{}
+	for action, parameters := range actionParameters {
+		var pkgAction string
+		switch action {
+		case ActionOk:
+		case ActionApply:
+			pkgAction = "+"
+		case ActionDestroy:
+			pkgAction = "-"
+		default:
+			return fmt.Errorf("unexpected action %s", action)
+		}
+		for name, state := range parameters {
+			aptPackageState := state.(*APTPackageStateParameters)
+			var version string
+			if aptPackageState.Version != "" {
+				version = fmt.Sprintf("=%s", aptPackageState.Version)
+			}
+			pkgs = append(pkgs, fmt.Sprintf("%s%s%s", string(name), version, pkgAction))
+		}
+	}
+
+	// Run apt
+	cmd := host.Cmd{
+		Path: "apt-get",
+		Args: append([]string{"install"}, pkgs...),
+	}
+	waitStatus, stdout, stderr, err := hst.Run(nestedCtx, cmd)
+	if err != nil {
+		return fmt.Errorf("failed to run '%s': %s", cmd, err)
+	}
+	if !waitStatus.Success() {
+		return fmt.Errorf(
+			"failed to run '%v': %s:\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
+		)
+	}
+
+	return nil
 }
 
 func init() {
@@ -130,52 +171,3 @@ func init() {
 	ManageableResourcesStateParametersMap["APTPackage"] = APTPackageStateParameters{}
 	ManageableResourcesInternalStateMap["APTPackage"] = APTPackageInternalState{}
 }
-
-// func (ap APTPackage) ConfigureAll(
-// 	ctx context.Context,
-// 	hst host.Host,
-// 	actionParameters map[Action]Parameters,
-// ) error {
-// 	nestedCtx := log.IndentLogger(ctx)
-
-// 	// Package arguments
-// 	pkgs := []string{}
-// 	for action, parameters := range actionParameters {
-// 		var pkgAction string
-// 		switch action {
-// 		case ActionOk:
-// 		case ActionApply:
-// 			pkgAction = "+"
-// 		case ActionDestroy:
-// 			pkgAction = "-"
-// 		default:
-// 			return fmt.Errorf("unexpected action %s", action)
-// 		}
-// 		for name, state := range parameters {
-// 			aptPackageState := state.(*APTPackageStateParameters)
-// 			var version string
-// 			if aptPackageState.Version != "" {
-// 				version = fmt.Sprintf("=%s", aptPackageState.Version)
-// 			}
-// 			pkgs = append(pkgs, fmt.Sprintf("%s%s%s", string(name), version, pkgAction))
-// 		}
-// 	}
-
-// 	// Run apt
-// 	cmd := host.Cmd{
-// 		Path: "apt-get",
-// 		Args: append([]string{"install"}, pkgs...),
-// 	}
-// 	waitStatus, stdout, stderr, err := hst.Run(nestedCtx, cmd)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to run '%s': %s", cmd, err)
-// 	}
-// 	if !waitStatus.Success() {
-// 		return fmt.Errorf(
-// 			"failed to run '%v': %s:\nstdout:\n%s\nstderr:\n%s",
-// 			cmd, waitStatus.String(), stdout, stderr,
-// 		)
-// 	}
-
-// 	return nil
-// }

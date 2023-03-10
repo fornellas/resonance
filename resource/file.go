@@ -175,7 +175,44 @@ func (f File) DiffStates(
 func (f File) Apply(
 	ctx context.Context, hst host.Host, name Name, stateParameters StateParameters,
 ) error {
-	return errors.New("File.Apply")
+	path := string(name)
+
+	// FileStateParameters
+	fileState := stateParameters.(*FileStateParameters)
+
+	// Content
+	if err := hst.WriteFile(ctx, path, []byte(fileState.Content), fileState.Perm); err != nil {
+		return err
+	}
+
+	// Perm
+	if err := hst.Chmod(ctx, path, fileState.Perm); err != nil {
+		return err
+	}
+
+	// FileInfo
+	fileInfo, err := hst.Lstat(ctx, path)
+	if err != nil {
+		return err
+	}
+	stat_t := fileInfo.Sys().(*syscall.Stat_t)
+
+	// Uid / Gid
+	uid, err := fileState.GetUid(ctx, hst)
+	if err != nil {
+		return err
+	}
+	gid, err := fileState.GetGid(ctx, hst)
+	if err != nil {
+		return err
+	}
+	if stat_t.Uid != uid || stat_t.Gid != gid {
+		if err := hst.Chown(ctx, path, int(fileState.Uid), int(fileState.Gid)); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (f File) Destroy(ctx context.Context, hst host.Host, name Name) error {
@@ -187,48 +224,6 @@ func init() {
 	ManageableResourcesStateParametersMap["File"] = FileStateParameters{}
 	ManageableResourcesInternalStateMap["File"] = FileInternalState{}
 }
-
-// func (f File) Apply(ctx context.Context, hst host.Host, name Name, state State) error {
-// 	nestedCtx := log.IndentLogger(ctx)
-// 	path := string(name)
-
-// 	// FileStateParameters
-// 	fileState := state.(*FileStateParameters)
-
-// 	// Content
-// 	if err := hst.WriteFile(nestedCtx, path, []byte(fileState.Content), fileState.Perm); err != nil {
-// 		return err
-// 	}
-
-// 	// Perm
-// 	if err := hst.Chmod(nestedCtx, path, fileState.Perm); err != nil {
-// 		return err
-// 	}
-
-// 	// FileInfo
-// 	fileInfo, err := hst.Lstat(ctx, path)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	stat_t := fileInfo.Sys().(*syscall.Stat_t)
-
-// 	// Uid / Gid
-// 	uid, err := fileState.GetUid(ctx, hst)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	gid, err := fileState.GetGid(ctx, hst)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	if stat_t.Uid != uid || stat_t.Gid != gid {
-// 		if err := hst.Chown(ctx, path, int(fileState.Uid), int(fileState.Gid)); err != nil {
-// 			return err
-// 		}
-// 	}
-
-// 	return nil
-// }
 
 // func (f File) Destroy(ctx context.Context, hst host.Host, name Name) error {
 // 	nestedCtx := log.IndentLogger(ctx)
