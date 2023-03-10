@@ -142,20 +142,39 @@ type ManageableResource interface {
 	// If StateParameters is met by FullState, return an empty slice; otherwise,
 	// return Diff's from FullState to StateParameters showing what needs change.
 	DiffStates(
+		ctx context.Context, hst host.Host,
 		desiredStateParameters StateParameters, currentFullState FullState,
-	) []diffmatchpatch.Diff
+	) ([]diffmatchpatch.Diff, error)
 }
 
 // DiffManageableResourceState diffs whether the resource is at the desired state.
 // When changes are pending returns true, otherwise false.
 func DiffManageableResourceState(
 	ctx context.Context,
+	hst host.Host,
 	manageableResource ManageableResource,
 	stateParameters StateParameters,
 	fullState FullState,
-) (bool, []diffmatchpatch.Diff) {
-	diffs := manageableResource.DiffStates(stateParameters, fullState)
-	return DiffsHasChanges(diffs), diffs
+) (bool, []diffmatchpatch.Diff, error) {
+	nestedCtx := log.IndentLogger(ctx)
+	diffs, err := manageableResource.DiffStates(nestedCtx, hst, stateParameters, fullState)
+	return DiffsHasChanges(diffs), diffs, err
+}
+
+func Diff(a, b interface{}) []diffmatchpatch.Diff {
+	aBytes, err := yaml.Marshal(a)
+	if err != nil {
+		panic(err)
+	}
+	aStr := string(aBytes)
+
+	bBytes, err := yaml.Marshal(b)
+	if err != nil {
+		panic(err)
+	}
+	bStr := string(bBytes)
+
+	return diffmatchpatch.New().DiffMain(aStr, bStr, false)
 }
 
 // ValidateManageableResourceState whether the resource is at the desired state.
@@ -174,15 +193,17 @@ func ValidateManageableResourceState(
 	if err != nil {
 		return false, []diffmatchpatch.Diff{}, FullState{}, err
 	}
-	// panic: interface conversion: resource.StateParameters is resource.APTPackageStateParameters, not *resource.APTPackageStateParameters
-	diffHasChanges, diffs := DiffManageableResourceState(
-		nestedCtx, manageableResource, stateParameters, fullState,
+	diffHasChanges, diffs, err := DiffManageableResourceState(
+		nestedCtx, hst, manageableResource, stateParameters, fullState,
 	)
+	if err != nil {
+		return false, []diffmatchpatch.Diff{}, FullState{}, err
+	}
 
 	typeName := MustNewTypeNameFromManageableResourceName(manageableResource, name)
 	if diffHasChanges {
 		diffMatchPatch := diffmatchpatch.New()
-		logger.WithField("diff", diffMatchPatch.DiffPrettyText(diffs)).
+		logger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).
 			Errorf("%s", typeName)
 		return true, diffs, fullState, nil
 	} else {
@@ -1170,16 +1191,18 @@ func getStateCleanMap(
 					}
 				}
 			}
-			// panic: interface conversion: resource.StateParameters is *resource.APTPackageStateParameters, not resource.APTPackageStateParameters
-			diffHasChanges, diffs := DiffManageableResourceState(
-				ctx, resource.ManageableResource, resource.StateParameters, fullState,
+			diffHasChanges, diffs, err := DiffManageableResourceState(
+				ctx, hst, resource.ManageableResource, resource.StateParameters, fullState,
 			)
+			if err != nil {
+				return nil, err
+			}
 			if diffHasChanges {
 				diffMatchPatch := diffmatchpatch.New()
-				nestedLogger.WithField("diff", diffMatchPatch.DiffPrettyText(diffs)).
-					Infof("❗%s", resource)
+				nestedLogger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).
+					Infof("%s%s", ActionApply.Emoji(), resource)
 			} else {
-				nestedLogger.Infof("✅%s", resource)
+				nestedLogger.Infof("%s%s", ActionOk.Emoji(), resource)
 			}
 			stateCleanMap[resource.ResourceKey()] = !diffHasChanges
 		}

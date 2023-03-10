@@ -42,8 +42,9 @@ func (su SystemdUnit) GetFullState(ctx context.Context, hst host.Host, name Name
 }
 
 func (su SystemdUnit) DiffStates(
+	ctx context.Context, hst host.Host,
 	desiredStateParameters StateParameters, currentFullState FullState,
-) []diffmatchpatch.Diff {
+) ([]diffmatchpatch.Diff, error) {
 	panic(errors.New("SystemdUnit.DiffStates"))
 }
 

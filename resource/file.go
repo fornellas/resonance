@@ -17,6 +17,8 @@ import (
 
 // FileStateParameters for File
 type FileStateParameters struct {
+	// Whether to remove the file
+	Remove bool
 	// Contents of the file
 	Content string `yaml:"content"`
 	// File permissions
@@ -32,6 +34,12 @@ type FileStateParameters struct {
 }
 
 func (fds FileStateParameters) Validate() error {
+	if fds.Remove {
+		if fds.Content != "" || fds.Perm != 0 || fds.Uid != 0 || fds.User != "" || fds.Gid != 0 || fds.Group != "" {
+			return fmt.Errorf("version can't be set with remove: true")
+		}
+		return nil
+	}
 	if fds.Perm == os.FileMode(0) {
 		return fmt.Errorf("missing 'perm'")
 	}
@@ -75,10 +83,7 @@ func (fds FileStateParameters) GetGid(ctx context.Context, hst host.Host) (uint3
 }
 
 // FileInternalState is InternalState for File
-type FileInternalState struct {
-	// Whether the file exists or not
-	Exists bool
-}
+type FileInternalState struct{}
 
 // File resource manages files.
 type File struct{}
@@ -99,8 +104,8 @@ func (f File) GetFullState(ctx context.Context, hst host.Host, name Name) (FullS
 	stateParameters := FileStateParameters{}
 	internalState := FileInternalState{}
 	fullState := FullState{
-		StateParameters: stateParameters,
-		InternalState:   internalState,
+		StateParameters: &stateParameters,
+		InternalState:   &internalState,
 	}
 
 	// Content
@@ -108,6 +113,7 @@ func (f File) GetFullState(ctx context.Context, hst host.Host, name Name) (FullS
 	if err != nil {
 		if !os.IsNotExist(err) {
 			logger.Debug("File not found")
+			stateParameters.Remove = true
 			return fullState, nil
 		}
 		return FullState{}, err
@@ -134,36 +140,36 @@ func (f File) GetFullState(ctx context.Context, hst host.Host, name Name) (FullS
 }
 
 func (f File) DiffStates(
+	ctx context.Context, hst host.Host,
 	desiredStateParameters StateParameters, currentFullState FullState,
-) []diffmatchpatch.Diff {
+) ([]diffmatchpatch.Diff, error) {
+	diffs := []diffmatchpatch.Diff{}
+	desiredFileStateParameters := desiredStateParameters.(*FileStateParameters)
+	currentFileStateParameters := currentFullState.StateParameters.(*FileStateParameters)
 
-	// // Path Hash
-	// pathtHash := md5.New()
-	// n, err := pathtHash.Write(content)
-	// if err != nil {
-	// 	return false, err
-	// }
-	// if n != len(content) {
-	// 	return false, fmt.Errorf("unexpected write length when generating md5: expected %d, got %d", len(content), n)
-	// }
+	if desiredFileStateParameters.Remove {
+		diffs = append(diffs, Diff(currentFileStateParameters, FileStateParameters{
+			Remove: true,
+		})...)
+	} else {
+		uid, err := desiredFileStateParameters.GetUid(ctx, hst)
+		if err != nil {
+			return nil, err
+		}
+		gid, err := desiredFileStateParameters.GetGid(ctx, hst)
+		if err != nil {
+			return nil, err
+		}
+		diffs = append(diffs, Diff(currentFileStateParameters, FileStateParameters{
+			Content: desiredFileStateParameters.Content,
+			Perm:    desiredFileStateParameters.Perm,
+			Uid:     uid,
+			Gid:     gid,
+		})...)
 
-	// // Instance Hash
-	// fileStateHash := md5.New()
-	// n, err := fileStateHash.Write([]byte(fileState.Content))
-	// if err != nil {
-	// 	return false, err
-	// }
-	// if n != len(fileState.Content) {
-	// 	return false, fmt.Errorf("unexpected write length when generating md5: expected %d, got %d", len(fileState.Content), n)
-	// }
+	}
 
-	// // Compare Hash
-	// if fmt.Sprintf("%v", pathtHash.Sum(nil)) != fmt.Sprintf("%v", fileStateHash.Sum(nil)) {
-	// 	logger.Debug("Content differs")
-	// 	checkResult = false
-	// }
-
-	panic(errors.New("File.DiffStates"))
+	return diffs, nil
 }
 
 func (f File) Apply(
@@ -171,6 +177,7 @@ func (f File) Apply(
 ) error {
 	return errors.New("File.Apply")
 }
+
 func (f File) Destroy(ctx context.Context, hst host.Host, name Name) error {
 	return errors.New("File.Destroy")
 }

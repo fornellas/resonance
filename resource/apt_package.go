@@ -14,11 +14,19 @@ import (
 
 // APTPackageStateParameters is StateParameters for APTPackage
 type APTPackageStateParameters struct {
+	// Whether to remove the package
+	Remove bool `yaml:"remove"`
 	// Package version
-	Version string
+	Version string `yaml:"version"`
 }
 
 func (apsp APTPackageStateParameters) Validate() error {
+	if apsp.Remove {
+		if apsp.Version != "" {
+			return fmt.Errorf("version can't be set with remove: true")
+		}
+		return nil
+	}
 	// https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
 	if strings.HasSuffix(apsp.Version, "+") {
 		return fmt.Errorf("version can't end in +: %s", apsp.Version)
@@ -57,6 +65,7 @@ func (ap APTPackage) GetFullState(ctx context.Context, hst host.Host, name Name)
 	}
 	if !waitStatus.Success() {
 		if waitStatus.Exited && waitStatus.ExitCode == 1 && strings.Contains(stderr, "not installed") {
+			stateParameters.Remove = true
 			internalState.Status = "not installed"
 		} else {
 			return FullState{}, fmt.Errorf("failed to run '%s': %s\nstdout:\n%s\nstderr:\n%s", hostCmd.String(), waitStatus.String(), stdout, stderr)
@@ -88,52 +97,26 @@ func (ap APTPackage) GetFullState(ctx context.Context, hst host.Host, name Name)
 }
 
 func (ap APTPackage) DiffStates(
+	ctx context.Context, hst host.Host,
 	desiredStateParameters StateParameters, currentFullState FullState,
-) []diffmatchpatch.Diff {
+) ([]diffmatchpatch.Diff, error) {
 	diffs := []diffmatchpatch.Diff{}
 	desiredAPTPackageStateParameters := desiredStateParameters.(*APTPackageStateParameters)
 	currentAPTPackageStateParameters := currentFullState.StateParameters.(*APTPackageStateParameters)
 	currentAPTPackageInternalState := currentFullState.InternalState.(*APTPackageInternalState)
 
-	// Version
-	diffs = append(diffs, diffmatchpatch.Diff{Type: diffmatchpatch.DiffEqual, Text: "version: "})
-	if desiredAPTPackageStateParameters.Version != currentAPTPackageStateParameters.Version {
-		diffs = append(diffs, diffmatchpatch.Diff{
-			Type: diffmatchpatch.DiffDelete,
-			Text: currentAPTPackageStateParameters.Version,
-		})
-		diffs = append(diffs, diffmatchpatch.Diff{
-			Type: diffmatchpatch.DiffInsert,
-			Text: desiredAPTPackageStateParameters.Version,
-		})
+	diffs = append(diffs, Diff(currentAPTPackageStateParameters, desiredAPTPackageStateParameters)...)
+	if desiredAPTPackageStateParameters.Remove {
+		diffs = append(diffs, Diff(currentAPTPackageInternalState, APTPackageInternalState{
+			Status: "not installed",
+		})...)
 	} else {
-		diffs = append(diffs, diffmatchpatch.Diff{
-			Type: diffmatchpatch.DiffEqual,
-			Text: currentAPTPackageStateParameters.Version,
-		})
-	}
-	diffs = append(diffs, diffmatchpatch.Diff{Type: diffmatchpatch.DiffEqual, Text: "\n"})
-
-	// Status
-	diffs = append(diffs, diffmatchpatch.Diff{Type: diffmatchpatch.DiffEqual, Text: "status: "})
-	expectedStatus := "install ok installed"
-	if currentAPTPackageInternalState.Status != expectedStatus {
-		diffs = append(diffs, diffmatchpatch.Diff{
-			Type: diffmatchpatch.DiffDelete,
-			Text: currentAPTPackageInternalState.Status,
-		})
-		diffs = append(diffs, diffmatchpatch.Diff{
-			Type: diffmatchpatch.DiffInsert,
-			Text: expectedStatus,
-		})
-	} else {
-		diffs = append(diffs, diffmatchpatch.Diff{
-			Type: diffmatchpatch.DiffEqual,
-			Text: currentAPTPackageInternalState.Status,
-		})
+		diffs = append(diffs, Diff(currentAPTPackageInternalState, APTPackageInternalState{
+			Status: "install ok installed",
+		})...)
 	}
 
-	return diffs
+	return diffs, nil
 }
 
 func (ap APTPackage) ConfigureAll(
