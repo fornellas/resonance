@@ -9,6 +9,7 @@ import (
 	"github.com/fornellas/resonance/cli/plan"
 	"github.com/fornellas/resonance/cli/refresh"
 	"github.com/fornellas/resonance/cli/restore"
+	"github.com/fornellas/resonance/cli/version"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -41,4 +42,5 @@ func init() {
 	Cmd.AddCommand(plan.Cmd)
 	Cmd.AddCommand(refresh.Cmd)
 	Cmd.AddCommand(restore.Cmd)
+	Cmd.AddCommand(version.Cmd)
 }

@@ -80,6 +80,7 @@
     - `hosts.go`
         - 💡Manage entries.
     - `resource.go`
+        - Swap diff for https://pkg.go.dev/github.com/kylelemons/godebug/diff.
         - Drop `ResourceKey` and use `TypeName` insteaad.
         - `Plan.Execute`
             - ✨Parallelise check.
