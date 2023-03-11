@@ -63,25 +63,26 @@ func (cf *ColorFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	}
 	dataBuff := &bytes.Buffer{}
 	sort.Strings(keys)
-	for _, k := range keys {
+	for _, key := range keys {
 		var i string
-		if len(k) > 0 {
-			fmt.Fprintf(dataBuff, "  %s:", k)
+		if len(key) > 0 {
+			fmt.Fprintf(dataBuff, "  %s:", key)
 			i = "  "
 		} else {
 			i = ""
 		}
-		data := strings.TrimSuffix(fmt.Sprintf("%v", entry.Data[k]), "\n")
-		if strings.Contains(data, "\n") {
-			if len(k) > 0 {
+		// FIXME detect new lines with "\n\x1b[0m" at the end
+		dataStr := strings.TrimSuffix(fmt.Sprintf("%v", entry.Data[key]), "\n")
+		if strings.Contains(dataStr, "\n") {
+			if len(key) > 0 {
 				fmt.Fprintf(dataBuff, "\n")
 			}
-			fmt.Fprintf(dataBuff, "%s", indent.String(fmt.Sprintf("%s  ", i), data))
+			fmt.Fprintf(dataBuff, "%s", indent.String(fmt.Sprintf("%s  ", i), dataStr))
 		} else {
-			if len(k) > 0 {
+			if len(key) > 0 {
 				fmt.Fprintf(dataBuff, " ")
 			}
-			fmt.Fprintf(dataBuff, "  %s", data)
+			fmt.Fprintf(dataBuff, "  %s", dataStr)
 		}
 	}
 	if len(keys) > 0 {
@@ -90,5 +91,8 @@ func (cf *ColorFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 		fmt.Fprintf(buff, "\n")
 	}
 
-	return indent.Bytes([]byte(strings.Repeat("  ", cf.Indent)), buff.Bytes()), nil
+	return []byte(indent.String(
+		strings.Repeat("  ", cf.Indent),
+		buff.String(),
+	)), nil
 }

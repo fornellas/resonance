@@ -162,17 +162,23 @@ func DiffManageableResourceState(
 }
 
 func Diff(a, b interface{}) []diffmatchpatch.Diff {
-	aBytes, err := yaml.Marshal(a)
-	if err != nil {
-		panic(err)
+	var aStr string
+	if a != nil {
+		aBytes, err := yaml.Marshal(a)
+		if err != nil {
+			panic(err)
+		}
+		aStr = string(aBytes)
 	}
-	aStr := string(aBytes)
 
-	bBytes, err := yaml.Marshal(b)
-	if err != nil {
-		panic(err)
+	var bStr string
+	if b != nil {
+		bBytes, err := yaml.Marshal(b)
+		if err != nil {
+			panic(err)
+		}
+		bStr = string(bBytes)
 	}
-	bStr := string(bBytes)
 
 	return diffmatchpatch.New().DiffMain(aStr, bStr, false)
 }
@@ -653,7 +659,7 @@ func (bs Bundles) GetCleanStateMap(
 					cleanState = true
 				} else {
 					diffMatchPatch := diffmatchpatch.New()
-					nestedLogger.WithField("", diffMatchPatch.DiffPrettyText(Diff("", resource.StateParameters))).
+					nestedLogger.WithField("", diffMatchPatch.DiffPrettyText(Diff(nil, resource.StateParameters))).
 						Infof("%s %s", ActionApply.Emoji(), resource)
 
 				}
@@ -1262,8 +1268,6 @@ func (p Plan) validate(ctx context.Context, hst host.Host) (HostState, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("🕵️ Validating")
 	nestedCtx := log.IndentLogger(ctx)
-	nestedLogger := log.GetLogger(nestedCtx)
-	nestedNestedCtx := log.IndentLogger(nestedCtx)
 
 	hostState := HostState{
 		Version:            version.GetVersion(),
@@ -1275,9 +1279,8 @@ func (p Plan) validate(ctx context.Context, hst host.Host) (HostState, error) {
 				if !action.SaveState() {
 					continue
 				}
-				nestedLogger.Infof("%s", resource)
 				diffHasChanges, _, fullState, err := ManageableResourceStateHasPendingChanges(
-					nestedNestedCtx,
+					nestedCtx,
 					resource.ManageableResource,
 					hst,
 					resource.MustName(),
