@@ -1023,7 +1023,7 @@ func (sai StepActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 		if ok {
 			err := refreshableManageableResource.Refresh(ctx, hst, name)
 			if err != nil {
-				logger.Errorf("💥%s", sai.Resource)
+				logger.Errorf("💥 %s", sai.Resource)
 			}
 			return err
 		}
@@ -1031,18 +1031,18 @@ func (sai StepActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 		if err := individuallyManageableResource.Apply(
 			ctx, hst, name, *stateParameters,
 		); err != nil {
-			logger.Errorf("💥%s", sai.Resource)
+			logger.Errorf("💥 %s", sai.Resource)
 			return err
 		}
 		diffHasChanges, _, _, err := ManageableResourceStateHasPendingChanges(
 			ctx, individuallyManageableResource, hst, name, stateParameters,
 		)
 		if err != nil {
-			logger.Errorf("💥%s", sai.Resource)
+			logger.Errorf("💥 %s", sai.Resource)
 			return err
 		}
 		if diffHasChanges {
-			logger.Errorf("💥%s", sai.Resource)
+			logger.Errorf("💥 %s", sai.Resource)
 			return errors.New(
 				"likely bug in resource implementationm as state was dirty immediately after applying",
 			)
@@ -1050,7 +1050,7 @@ func (sai StepActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 	case ActionDestroy:
 		err := individuallyManageableResource.Destroy(ctx, hst, name)
 		if err != nil {
-			logger.Errorf("💥%s", sai.Resource)
+			logger.Errorf("💥 %s", sai.Resource)
 		}
 		return err
 	default:
@@ -1257,10 +1257,14 @@ func (p Plan) executeSteps(ctx context.Context, hst host.Host) error {
 	logger.Info("🛠️  Applying changes")
 	if p.Actionable() {
 		for _, step := range p {
+			if !step.Actionable() {
+				continue
+			}
 			err := step.Execute(nestedCtx, hst)
 			if err != nil {
 				return err
 			}
+			nestedLogger.Infof("%s", step)
 		}
 	} else {
 		nestedLogger.Infof("👌 Nothing to do")
