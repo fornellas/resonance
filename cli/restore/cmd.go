@@ -4,6 +4,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/fornellas/resonance/cli/lib"
+	"github.com/fornellas/resonance/log"
+	"github.com/fornellas/resonance/resource"
+	"github.com/fornellas/resonance/state"
 )
 
 var Cmd = &cobra.Command{
@@ -12,51 +15,64 @@ var Cmd = &cobra.Command{
 	Long:  "Loads previous state from host and applies all of them.",
 	Args:  cobra.ExactArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
-		panic("restore")
-		// ctx := cmd.Context()
+		ctx := cmd.Context()
 
-		// logger := log.GetLogger(ctx)
+		logger := log.GetLogger(ctx)
 
-		// // Host
-		// hst, err := lib.GetHost()
-		// if err != nil {
-		// 	logger.Fatal(err)
-		// }
+		// Host
+		hst, err := lib.GetHost()
+		if err != nil {
+			logger.Fatal(err)
+		}
 
-		// // PersistantState
-		// persistantState, err := lib.GetPersistantState(hst)
-		// if err != nil {
-		// 	logger.Fatal(err)
-		// }
+		// PersistantState
+		persistantState, err := lib.GetPersistantState(hst)
+		if err != nil {
+			logger.Fatal(err)
+		}
 
-		// // Load saved state
-		// savedHostState, err := state.LoadHostState(ctx, persistantState)
-		// if err != nil {
-		// 	logger.Fatal(err)
-		// }
+		// Load resources
+		root := args[0]
+		bundles, err := resource.LoadBundles(ctx, root)
+		if err != nil {
+			logger.Fatal(err)
+		}
 
-		// // Plan
-		// plan, err := resource.NewActionPlanFromHostState(
-		// 	ctx, hst, *savedHostState, resource.Bundles{}, resource.ActionApply,
-		// )
-		// if err != nil {
-		// 	logger.Fatal(err)
-		// }
-		// plan.Print(ctx)
+		// Load saved state
+		savedHostState, err := state.LoadHostState(ctx, persistantState)
+		if err != nil {
+			logger.Fatal(err)
+		}
+		if savedHostState != nil {
+			if err := savedHostState.Validate(ctx, hst); err != nil {
+				logger.Fatal(err)
+			}
+		} else {
+			logger.Fatal("No previously saved state to restore from")
+		}
 
-		// // Execute plan
-		// newHostState, err := plan.Execute(ctx, hst)
-		// if err != nil {
-		// 	logger.Fatal(err)
-		// }
+		// Plan
+		rollbackPlan, err := resource.NewRollbackPlan(
+			ctx, hst, bundles, savedHostState, *savedHostState,
+		)
+		if err != nil {
+			logger.Fatal(err)
+		}
+		rollbackPlan.Print(ctx)
 
-		// // Save state
-		// if err := state.SaveHostState(ctx, newHostState, persistantState); err != nil {
-		// 	logger.Fatal(err)
-		// }
+		// Execute
+		planHostState, err := rollbackPlan.Execute(ctx, hst)
+		if err != nil {
+			logger.Fatal(err)
+		}
 
-		// // Success
-		// logger.Info("🎆 Success")
+		// Save host state
+		if err := state.SaveHostState(ctx, planHostState, persistantState); err != nil {
+			logger.Fatal(err)
+		}
+
+		// Result
+		logger.Info("🎆 Success")
 	},
 }
 

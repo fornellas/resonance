@@ -1548,7 +1548,11 @@ func topologicalSortPlan(ctx context.Context, plan Plan) (Plan, error) {
 }
 
 func NewPlanFromSavedStateAndBundles(
-	ctx context.Context, hst host.Host, bundles Bundles, savedHostState *HostState,
+	ctx context.Context,
+	hst host.Host,
+	bundles Bundles,
+	savedHostState *HostState,
+	intendedAction Action,
 ) (Plan, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("📝 Planning changes")
@@ -1561,7 +1565,7 @@ func NewPlanFromSavedStateAndBundles(
 	}
 
 	// Add Bundles
-	plan := newPartialPlanFromBundles(nestedCtx, bundles, cleanStateMap, ActionNone)
+	plan := newPartialPlanFromBundles(nestedCtx, bundles, cleanStateMap, intendedAction)
 
 	// Prepend destroy steps
 	if savedHostState != nil {

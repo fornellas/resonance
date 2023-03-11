@@ -69,7 +69,9 @@ var Cmd = &cobra.Command{
 		}
 
 		// Plan
-		plan, err := resource.NewPlanFromSavedStateAndBundles(ctx, hst, bundles, savedHostState)
+		plan, err := resource.NewPlanFromSavedStateAndBundles(
+			ctx, hst, bundles, savedHostState, resource.ActionNone,
+		)
 		if err != nil {
 			logger.Fatal(err)
 		}
