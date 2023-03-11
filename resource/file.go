@@ -2,7 +2,6 @@ package resource
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -199,7 +198,13 @@ func (f File) Apply(
 }
 
 func (f File) Destroy(ctx context.Context, hst host.Host, name Name) error {
-	return errors.New("File.Destroy")
+	nestedCtx := log.IndentLogger(ctx)
+	path := string(name)
+	err := hst.Remove(nestedCtx, path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	return err
 }
 
 func init() {
@@ -207,13 +212,3 @@ func init() {
 	ManageableResourcesStateParametersMap["File"] = FileStateParameters{}
 	ManageableResourcesInternalStateMap["File"] = FileInternalState{}
 }
-
-// func (f File) Destroy(ctx context.Context, hst host.Host, name Name) error {
-// 	nestedCtx := log.IndentLogger(ctx)
-// 	path := string(name)
-// 	err := hst.Absent(nestedCtx, path)
-// 	if os.IsNotExist(err) {
-// 		return nil
-// 	}
-// 	return err
-// }
