@@ -458,7 +458,6 @@ type resourceUnmarshalSchema struct {
 	NodeStateParameters yaml.Node `yaml:"state"`
 }
 
-// FIXME should not panic
 func (r *Resource) UnmarshalYAML(node *yaml.Node) error {
 	var unmarshalSchema resourceUnmarshalSchema
 	node.KnownFields(true)
