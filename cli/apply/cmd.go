@@ -105,7 +105,7 @@ var Cmd = &cobra.Command{
 			planHostState, err = rollbackPlan.Execute(nestedCtx, hst)
 			if err != nil {
 				nestedLogger.Error(err)
-				logger.Fatal("Rollback failed!")
+				logger.Fatal("Rollback failed! You may try the restore command and / or fix things manually.")
 			}
 			nestedLogger.Info("👌 Rollback successful.")
 		}
