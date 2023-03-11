@@ -877,10 +877,14 @@ func (hs HostState) Merge(hostState HostState) HostState {
 	resourceFullStates := append([]ResourceFullState{}, hs.ResourceFullStates...)
 
 	for _, resourceFullState := range hostState.ResourceFullStates {
+		duplicate := false
 		for _, rfs := range hs.ResourceFullStates {
-			if rfs.ResourceKey == resourceFullState.ResourceKey {
+			if resourceFullState.ResourceKey == rfs.ResourceKey {
+				duplicate = true
 				continue
 			}
+		}
+		if !duplicate {
 			resourceFullStates = append(resourceFullStates, resourceFullState)
 		}
 	}
@@ -1627,7 +1631,6 @@ func NewRollbackPlan(
 	ctx context.Context,
 	hst host.Host,
 	bundles Bundles,
-	savedHostState *HostState,
 	initialHostState HostState,
 ) (Plan, error) {
 	logger := log.GetLogger(ctx)

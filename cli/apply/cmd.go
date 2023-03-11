@@ -80,14 +80,15 @@ var Cmd = &cobra.Command{
 		// Execute plan
 		success := true
 		planHostState, err := plan.Execute(ctx, hst)
+
+		// Rollback
 		if err != nil {
-			// Rollback
 			success = false
 			nestedLogger.Error(err)
 			nestedLogger.Warn("Failed to execute plan, rolling back to previously saved state.")
 
 			rollbackPlan, err := resource.NewRollbackPlan(
-				nestedCtx, hst, bundles, savedHostState, initialHostState,
+				nestedCtx, hst, bundles, initialHostState,
 			)
 			if err != nil {
 				logger.Fatal(err)
