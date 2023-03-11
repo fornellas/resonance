@@ -70,6 +70,11 @@ var Cmd = &cobra.Command{
 			initialHostState = bundlesHostState.Merge(*savedHostState)
 		}
 
+		// Save initial state
+		if err := state.SaveHostState(ctx, initialHostState, persistantState); err != nil {
+			logger.Fatal(err)
+		}
+
 		// Plan
 		plan, err := resource.NewPlanFromSavedStateAndBundles(
 			ctx, hst, bundles, savedHostState, resource.ActionNone,
@@ -105,7 +110,7 @@ var Cmd = &cobra.Command{
 			nestedLogger.Info("👌 Rollback successful.")
 		}
 
-		// Save host state
+		// Save plan state
 		if err := state.SaveHostState(ctx, planHostState, persistantState); err != nil {
 			logger.Fatal(err)
 		}
