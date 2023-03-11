@@ -50,6 +50,8 @@ var Cmd = &cobra.Command{
 			if err := savedHostState.Validate(ctx, hst); err != nil {
 				logger.Fatal(err)
 			}
+		} else {
+			nestedLogger.Warn("No previously saved state available.")
 		}
 
 		// Read bundle state

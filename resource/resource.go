@@ -919,7 +919,7 @@ func (hs HostState) Validate(
 	hst host.Host,
 ) error {
 	logger := log.GetLogger(ctx)
-	logger.Info("🔎 Validating host state")
+	logger.Info("🕵️ Validating host state")
 	nestedCtx := log.IndentLogger(ctx)
 
 	fail := false

@@ -31,29 +31,18 @@ var Cmd = &cobra.Command{
 			logger.Fatal(err)
 		}
 
-		// Load resources
-		root := args[0]
-		bundles, err := resource.LoadBundles(ctx, root)
-		if err != nil {
-			logger.Fatal(err)
-		}
-
 		// Load saved state
 		savedHostState, err := state.LoadHostState(ctx, persistantState)
 		if err != nil {
 			logger.Fatal(err)
 		}
-		if savedHostState != nil {
-			if err := savedHostState.Validate(ctx, hst); err != nil {
-				logger.Fatal(err)
-			}
-		} else {
+		if savedHostState == nil {
 			logger.Fatal("No previously saved state to restore from")
 		}
 
 		// Plan
 		rollbackPlan, err := resource.NewRollbackPlan(
-			ctx, hst, bundles, *savedHostState,
+			ctx, hst, resource.Bundles{}, *savedHostState,
 		)
 		if err != nil {
 			logger.Fatal(err)
