@@ -32,6 +32,6 @@ A configuration management tool, somewhat similar to Ansible, Chef or Puppet, bu
 Pick the [latest release](https://github.com/fornellas/resonance/releases) with:
 
 ```bash
-wget https://github.com/fornellas/resonance/releases/latest/download/resonance.$(uname).$(uname --machine).gz -O- | gunzip > resonance && chmod 755 resonance
+GOARCH=$(case $(uname -m) in i[23456]86) echo 386;; x86_64) echo amd64;; armv6l|armv7l) echo arm;; aarch64) echo arm64;; *) echo Unknown machine $(uname -m) 1>&2 ; exit 1 ;; esac) && wget -O- https://github.com/fornellas/resonance/releases/latest/download/resonance.linux.$GOARCH.gz | gunzip > resonance && chmod 755 resonance
 ./resonance --help
 ```
