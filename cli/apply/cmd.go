@@ -55,11 +55,11 @@ var Cmd = &cobra.Command{
 		}
 
 		// Read bundle state
-		var excludeResourceKeys []resource.ResourceKey
+		var excludeTypeNames []resource.TypeName
 		if savedHostState != nil {
-			excludeResourceKeys = savedHostState.ResourceKeys()
+			excludeTypeNames = savedHostState.TypeNames()
 		}
-		bundlesHostState, err := bundles.GetHostState(ctx, hst, excludeResourceKeys)
+		bundlesHostState, err := bundles.GetHostState(ctx, hst, excludeTypeNames)
 		if err != nil {
 			logger.Fatal(err)
 		}
@@ -67,7 +67,7 @@ var Cmd = &cobra.Command{
 		// Initial state
 		initialHostState := bundlesHostState
 		if savedHostState != nil {
-			initialHostState = bundlesHostState.Merge(*savedHostState)
+			initialHostState = bundlesHostState.Append(*savedHostState)
 		}
 
 		// Save initial state

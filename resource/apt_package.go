@@ -12,26 +12,21 @@ import (
 	"github.com/fornellas/resonance/log"
 )
 
-// APTPackageStateParameters is StateParameters for APTPackage
-type APTPackageStateParameters struct {
+// APTPackageState is State for APTPackage
+type APTPackageState struct {
 	// Package version
 	Version string `yaml:"version"`
 }
 
-func (apsp APTPackageStateParameters) Validate() error {
+func (aps APTPackageState) Validate() error {
 	// https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
-	if strings.HasSuffix(apsp.Version, "+") {
-		return fmt.Errorf("version can't end in +: %s", apsp.Version)
+	if strings.HasSuffix(aps.Version, "+") {
+		return fmt.Errorf("version can't end in +: %s", aps.Version)
 	}
-	if strings.HasSuffix(apsp.Version, "-") {
-		return fmt.Errorf("version can't end in -: %s", apsp.Version)
+	if strings.HasSuffix(aps.Version, "-") {
+		return fmt.Errorf("version can't end in -: %s", aps.Version)
 	}
 	return nil
-}
-
-// APTPackageInternalState is InternalState for APTPackage
-type APTPackageInternalState struct {
-	Status string
 }
 
 // APTPackage resource manages files.
@@ -45,11 +40,8 @@ func (ap APTPackage) ValidateName(name Name) error {
 	return nil
 }
 
-func (ap APTPackage) GetFullState(ctx context.Context, hst host.Host, name Name) (*FullState, error) {
+func (ap APTPackage) GetState(ctx context.Context, hst host.Host, name Name) (State, error) {
 	logger := log.GetLogger(ctx)
-
-	stateParameters := APTPackageStateParameters{}
-	internalState := APTPackageInternalState{}
 
 	// Get package state
 	hostCmd := host.Cmd{Path: "dpkg", Args: []string{"-s", string(name)}}
@@ -81,28 +73,21 @@ func (ap APTPackage) GetFullState(ctx context.Context, hst host.Host, name Name)
 	if status == "" || version == "" {
 		return nil, fmt.Errorf("failed to parse state from '%s': %s\nstdout:\n%s\nstderr:\n%s", hostCmd.String(), waitStatus.String(), stdout, stderr)
 	}
-	stateParameters.Version = version
-	internalState.Status = status
 
-	return &FullState{
-		StateParameters: &stateParameters,
-		InternalState:   &internalState,
+	return &APTPackageState{
+		Version: version,
 	}, nil
 }
 
 func (ap APTPackage) DiffStates(
 	ctx context.Context, hst host.Host,
-	desiredStateParameters StateParameters, currentFullState FullState,
+	desiredState State, currentState State,
 ) ([]diffmatchpatch.Diff, error) {
 	diffs := []diffmatchpatch.Diff{}
-	desiredAPTPackageStateParameters := desiredStateParameters.(*APTPackageStateParameters)
-	currentAPTPackageStateParameters := currentFullState.StateParameters.(*APTPackageStateParameters)
-	currentAPTPackageInternalState := currentFullState.InternalState.(*APTPackageInternalState)
+	desiredAPTPackageState := desiredState.(*APTPackageState)
+	currentAPTPackageState := currentState.(*APTPackageState)
 
-	diffs = append(diffs, Diff(currentAPTPackageStateParameters, desiredAPTPackageStateParameters)...)
-	diffs = append(diffs, Diff(currentAPTPackageInternalState, APTPackageInternalState{
-		Status: "install ok installed",
-	})...)
+	diffs = append(diffs, Diff(currentAPTPackageState, desiredAPTPackageState)...)
 
 	return diffs, nil
 }
@@ -125,10 +110,10 @@ func (ap APTPackage) ConfigureAll(
 		default:
 			return fmt.Errorf("unexpected action %s", action)
 		}
-		for name, stateParameters := range parameters {
+		for name, state := range parameters {
 			var version string
-			if stateParameters != nil {
-				aptPackageState := stateParameters.(*APTPackageStateParameters)
+			if state != nil {
+				aptPackageState := state.(*APTPackageState)
 				if aptPackageState.Version != "" {
 					version = fmt.Sprintf("=%s", aptPackageState.Version)
 				}
@@ -158,6 +143,5 @@ func (ap APTPackage) ConfigureAll(
 
 func init() {
 	MergeableManageableResourcesTypeMap["APTPackage"] = APTPackage{}
-	ManageableResourcesStateParametersMap["APTPackage"] = APTPackageStateParameters{}
-	ManageableResourcesInternalStateMap["APTPackage"] = APTPackageInternalState{}
+	ManageableResourcesStateMap["APTPackage"] = APTPackageState{}
 }

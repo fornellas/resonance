@@ -14,8 +14,8 @@ import (
 	"github.com/fornellas/resonance/log"
 )
 
-// FileStateParameters for File
-type FileStateParameters struct {
+// FileState for File
+type FileState struct {
 	// Contents of the file
 	Content string `yaml:"content"`
 	// File permissions
@@ -30,7 +30,7 @@ type FileStateParameters struct {
 	Group string `yaml:"group"`
 }
 
-func (fds FileStateParameters) Validate() error {
+func (fds FileState) Validate() error {
 	if fds.Perm == os.FileMode(0) {
 		return fmt.Errorf("missing 'perm'")
 	}
@@ -43,7 +43,7 @@ func (fds FileStateParameters) Validate() error {
 	return nil
 }
 
-func (fds FileStateParameters) GetUid(ctx context.Context, hst host.Host) (uint32, error) {
+func (fds FileState) GetUid(ctx context.Context, hst host.Host) (uint32, error) {
 	if fds.User != "" {
 		usr, err := hst.Lookup(ctx, fds.User)
 		if err != nil {
@@ -58,7 +58,7 @@ func (fds FileStateParameters) GetUid(ctx context.Context, hst host.Host) (uint3
 	return fds.Uid, nil
 }
 
-func (fds FileStateParameters) GetGid(ctx context.Context, hst host.Host) (uint32, error) {
+func (fds FileState) GetGid(ctx context.Context, hst host.Host) (uint32, error) {
 	if fds.Group != "" {
 		group, err := hst.LookupGroup(ctx, fds.Group)
 		if err != nil {
@@ -73,9 +73,6 @@ func (fds FileStateParameters) GetGid(ctx context.Context, hst host.Host) (uint3
 	return fds.Uid, nil
 }
 
-// FileInternalState is InternalState for File
-type FileInternalState struct{}
-
 // File resource manages files.
 type File struct{}
 
@@ -87,13 +84,12 @@ func (f File) ValidateName(name Name) error {
 	return nil
 }
 
-func (f File) GetFullState(ctx context.Context, hst host.Host, name Name) (*FullState, error) {
+func (f File) GetState(ctx context.Context, hst host.Host, name Name) (State, error) {
 	logger := log.GetLogger(ctx)
 
 	path := string(name)
 
-	stateParameters := FileStateParameters{}
-	internalState := FileInternalState{}
+	fileState := FileState{}
 
 	// Content
 	content, err := hst.ReadFile(ctx, path)
@@ -104,7 +100,7 @@ func (f File) GetFullState(ctx context.Context, hst host.Host, name Name) (*Full
 		}
 		return nil, err
 	}
-	stateParameters.Content = string(content)
+	fileState.Content = string(content)
 
 	// FileInfo
 	fileInfo, err := hst.Lstat(ctx, path)
@@ -114,39 +110,36 @@ func (f File) GetFullState(ctx context.Context, hst host.Host, name Name) (*Full
 	stat_t := fileInfo.Sys().(*syscall.Stat_t)
 
 	// Perm
-	stateParameters.Perm = fileInfo.Mode()
+	fileState.Perm = fileInfo.Mode()
 
 	// Uid
-	stateParameters.Uid = stat_t.Uid
+	fileState.Uid = stat_t.Uid
 
 	// Gid
-	stateParameters.Gid = stat_t.Gid
+	fileState.Gid = stat_t.Gid
 
-	return &FullState{
-		StateParameters: &stateParameters,
-		InternalState:   &internalState,
-	}, nil
+	return &fileState, nil
 }
 
 func (f File) DiffStates(
 	ctx context.Context, hst host.Host,
-	desiredStateParameters StateParameters, currentFullState FullState,
+	desiredState State, currentState State,
 ) ([]diffmatchpatch.Diff, error) {
 	diffs := []diffmatchpatch.Diff{}
-	desiredFileStateParameters := desiredStateParameters.(*FileStateParameters)
-	currentFileStateParameters := currentFullState.StateParameters.(*FileStateParameters)
+	desiredFileState := desiredState.(*FileState)
+	currentFileState := currentState.(*FileState)
 
-	uid, err := desiredFileStateParameters.GetUid(ctx, hst)
+	uid, err := desiredFileState.GetUid(ctx, hst)
 	if err != nil {
 		return nil, err
 	}
-	gid, err := desiredFileStateParameters.GetGid(ctx, hst)
+	gid, err := desiredFileState.GetGid(ctx, hst)
 	if err != nil {
 		return nil, err
 	}
-	diffs = append(diffs, Diff(currentFileStateParameters, FileStateParameters{
-		Content: desiredFileStateParameters.Content,
-		Perm:    desiredFileStateParameters.Perm,
+	diffs = append(diffs, Diff(currentFileState, FileState{
+		Content: desiredFileState.Content,
+		Perm:    desiredFileState.Perm,
 		Uid:     uid,
 		Gid:     gid,
 	})...)
@@ -155,12 +148,12 @@ func (f File) DiffStates(
 }
 
 func (f File) Apply(
-	ctx context.Context, hst host.Host, name Name, stateParameters StateParameters,
+	ctx context.Context, hst host.Host, name Name, state State,
 ) error {
 	path := string(name)
 
-	// FileStateParameters
-	fileState := stateParameters.(*FileStateParameters)
+	// FileState
+	fileState := state.(*FileState)
 
 	// Content
 	if err := hst.WriteFile(ctx, path, []byte(fileState.Content), fileState.Perm); err != nil {
@@ -209,6 +202,5 @@ func (f File) Destroy(ctx context.Context, hst host.Host, name Name) error {
 
 func init() {
 	IndividuallyManageableResourceTypeMap["File"] = File{}
-	ManageableResourcesStateParametersMap["File"] = FileStateParameters{}
-	ManageableResourcesInternalStateMap["File"] = FileInternalState{}
+	ManageableResourcesStateMap["File"] = FileState{}
 }

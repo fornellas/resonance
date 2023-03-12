@@ -11,22 +11,18 @@ import (
 	"github.com/fornellas/resonance/host"
 )
 
-// SystemdUnitStateParameters for SystemdUnit.
-// It has the same attributes as FileStateParameters, but if Content is empty,
+// SystemdUnitState for SystemdUnit.
+// It has the same attributes as FileState, but if Content is empty,
 // then it is assumed the unit file was added by another resource (eg:
 // a package) and it gonna be left as is.
-type SystemdUnitStateParameters struct {
+type SystemdUnitState struct {
 	// ActiveState
 	// UnitFileState
-	FileStateParameters `yaml:"inline"`
+	FileState `yaml:"inline"`
 }
 
-func (susp SystemdUnitStateParameters) Validate() error {
+func (susp SystemdUnitState) Validate() error {
 	return nil
-}
-
-// SystemdUnitInternalState is InternalState for SystemdUnit
-type SystemdUnitInternalState struct {
 }
 
 // SystemdUnit resource manages Systemd Units.
@@ -41,13 +37,13 @@ func (su SystemdUnit) ValidateName(name Name) error {
 	return nil
 }
 
-func (su SystemdUnit) GetFullState(ctx context.Context, hst host.Host, name Name) (*FullState, error) {
+func (su SystemdUnit) GetState(ctx context.Context, hst host.Host, name Name) (State, error) {
 	return nil, errors.New("SystemdUnit.GetFullState")
 }
 
 func (su SystemdUnit) DiffStates(
 	ctx context.Context, hst host.Host,
-	desiredStateParameters StateParameters, currentFullState FullState,
+	desiredState State, currentState State,
 ) ([]diffmatchpatch.Diff, error) {
 	panic(errors.New("SystemdUnit.DiffStates"))
 }
@@ -64,8 +60,7 @@ func (su SystemdUnit) ConfigureAll(
 
 func init() {
 	MergeableManageableResourcesTypeMap["SystemdUnit"] = SystemdUnit{}
-	ManageableResourcesStateParametersMap["SystemdUnit"] = SystemdUnitStateParameters{}
-	ManageableResourcesInternalStateMap["SystemdUnit"] = SystemdUnitInternalState{}
+	ManageableResourcesStateMap["SystemdUnit"] = SystemdUnitState{}
 }
 
 // func checkUnitFile(
@@ -75,7 +70,7 @@ func init() {
 // 	state State,
 // 	path,
 // 	job string,
-// 	systemdUnitState *SystemdUnitStateParameters,
+// 	systemdUnitState *SystemdUnitState,
 // ) (CheckResult, error) {
 // 	// Pre-existing unit file
 // 	if systemdUnitState.Content == "" {
@@ -145,8 +140,8 @@ func init() {
 // 	path := string(name)
 // 	job := filepath.Base(path)
 
-// 	// SystemdUnitStateParameters
-// 	systemdUnitState := state.(*SystemdUnitStateParameters)
+// 	// SystemdUnitState
+// 	systemdUnitState := state.(*SystemdUnitState)
 
 // 	// Unit file
 // 	checkResult, err := checkUnitFile(ctx, hst, name, state, path, job, systemdUnitState)
@@ -199,8 +194,8 @@ func init() {
 // 	// path := string(name)
 // 	// job := filepath.Base(path)
 
-// 	// // SystemdUnitStateParameters
-// 	// systemdUnitState := state.(*SystemdUnitStateParameters)
+// 	// // SystemdUnitState
+// 	// systemdUnitState := state.(*SystemdUnitState)
 
 // 	// // Create unit file
 // 	// if systemdUnitState.Content != "" {
