@@ -27,6 +27,7 @@
 - GitHub Action
     - `.github/actions/build.yaml`
         - ✨Add check for test code coverage (integrate with badge).
+        - ✨Fix cache for tools at `bin/` not working
 - README.md
     - Add badges
       - ✨Coverage
