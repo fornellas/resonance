@@ -120,6 +120,8 @@
     - `**/cmd.go`
         - ✨^C cancel context
     - `apply/cmd.go`
+        - 🧪When `apply` runs, `initialHostState` should keep both previous `savedHostState` and `bundlesHostState` to be saved before apply is attepmted.
+          - 🧪If apply fails, this dirty state must be detected by subsequent `LoadHostState` calls, and if dirty, suggest running `restore`.
         - ✨Ask for confirmation before running plan; add `--yes` to bypass.
     - `lint/cmd.go`: implement:
         - ✨Validate resource definitions
