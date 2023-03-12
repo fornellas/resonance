@@ -18,6 +18,7 @@
     - Generate resources with Go template.
     - "High level" resources can declare "primitive" resources.
 - 🌎v1.0 Core features complete
+    - Add help command with information on all resource types.
 - 💡v? TBD
     - Support different Linux Distributions (eg: some resources may require slightly different implementations).
     - Manage multiple hosts: do in parallel, all or nothnig for the whole group.
@@ -123,3 +124,6 @@
     - `lint/cmd.go`: implement:
         - ✨Validate resource definitions
         - ✨Lint yaml (format & sort)
+    - `help/cmd.go`
+        - 🌎Show help on schema for resource files.
+        - 🌎Show help on each resource type and its configuration parameters
