@@ -29,6 +29,7 @@ jobs:
             gzip resonance.$(go env GOOS).$GOARCH
             echo resonance.$(go env GOOS).${GOARCH}.gz >> $GITHUB_OUTPUT
           done
+          echo EOF >> $GITHUB_OUTPUT
         shell: bash
       - name: Release
         if: startsWith(github.ref, 'refs/tags/')
