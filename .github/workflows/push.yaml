@@ -26,8 +26,8 @@ jobs:
           do
             GOARCH=$GOARCH make build
             mv resonance resonance.$(go env GOOS).$GOARCH
-            gzip resonance.$(go env GOOS)).$GOARCH
-            echo resonance.$(go env GOOS)).${GOARCH}.gz >> $GITHUB_OUTPUT
+            gzip resonance.$(go env GOOS).$GOARCH
+            echo resonance.$(go env GOOS).${GOARCH}.gz >> $GITHUB_OUTPUT
           done
         shell: bash
       - name: Release
