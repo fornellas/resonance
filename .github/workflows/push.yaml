@@ -37,3 +37,10 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: ${{ steps.compile.outputs.files }}
+      - name: Add to pkg.go.dev
+        if: startsWith(github.ref, 'refs/tags/')
+        # https://pkg.go.dev/about#adding-a-package
+        run: |
+          set -e
+          curl -v https://proxy.golang.org/github.com/fornellas/resonance/@v/$(git describe --tags).info
+        shell: bash
