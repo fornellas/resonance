@@ -94,9 +94,6 @@ type State interface {
 	Validate() error
 }
 
-// Parameters for ManageableResource.
-type Parameters map[Name]State
-
 // DiffsHasChanges return true when the diff contains no changes.
 func DiffsHasChanges(diffs []diffmatchpatch.Diff) bool {
 	for _, diff := range diffs {
@@ -232,7 +229,7 @@ type MergeableManageableResources interface {
 
 	// ConfigureAll configures all resource to given state.
 	// Must be idempotent.
-	ConfigureAll(ctx context.Context, hst host.Host, actionParameters map[Action]Parameters) error
+	ConfigureAll(ctx context.Context, hst host.Host, actionParameters map[Action]map[Name]State) error
 }
 
 // Type is the name of the resource type.
@@ -965,7 +962,7 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 	}
 
 	checkResources := []Resource{}
-	configureActionParameters := map[Action]Parameters{}
+	configureActionParameters := map[Action]map[Name]State{}
 	refreshNames := []Name{}
 	for action, resources := range sam {
 		for _, resource := range resources {
@@ -973,7 +970,7 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 				refreshNames = append(refreshNames, resource.MustName())
 			} else {
 				if configureActionParameters[action] == nil {
-					configureActionParameters[action] = Parameters{}
+					configureActionParameters[action] = map[Name]State{}
 				}
 				if !resource.Destroy {
 					configureActionParameters[action][resource.MustName()] = resource.State

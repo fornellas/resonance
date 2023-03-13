@@ -93,13 +93,13 @@ func (ap APTPackage) DiffStates(
 }
 
 func (ap APTPackage) ConfigureAll(
-	ctx context.Context, hst host.Host, actionParameters map[Action]Parameters,
+	ctx context.Context, hst host.Host, actionNameStateMap map[Action]map[Name]State,
 ) error {
 	nestedCtx := log.IndentLogger(ctx)
 
 	// Package arguments
 	pkgs := []string{}
-	for action, parameters := range actionParameters {
+	for action, nameStateMap := range actionNameStateMap {
 		var pkgAction string
 		switch action {
 		case ActionOk:
@@ -110,7 +110,7 @@ func (ap APTPackage) ConfigureAll(
 		default:
 			return fmt.Errorf("unexpected action %s", action)
 		}
-		for name, state := range parameters {
+		for name, state := range nameStateMap {
 			var version string
 			if state != nil {
 				aptPackageState := state.(*APTPackageState)

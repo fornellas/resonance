@@ -53,7 +53,7 @@ func (su SystemdUnit) Refresh(ctx context.Context, hst host.Host, name Name) err
 }
 
 func (su SystemdUnit) ConfigureAll(
-	ctx context.Context, hst host.Host, actionParameters map[Action]Parameters,
+	ctx context.Context, hst host.Host, actionNameStateMap map[Action]map[Name]State,
 ) error {
 	return errors.New("SystemdUnit.ConfigureAll")
 }
