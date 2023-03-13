@@ -12,7 +12,7 @@ import (
 var Cmd = &cobra.Command{
 	Use:   "refresh [flags]",
 	Short: "Refresh saved host state with current host state.",
-	Long:  "Loads previous state and remove from it resources which are not OK at the host.",
+	Long:  "Loads previous host state and updates each resource state to the current state",
 	Args:  cobra.ExactArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := cmd.Context()

@@ -702,7 +702,7 @@ func NewBundlesFromHostState(hostState HostState) Bundles {
 	return Bundles{bundle}
 }
 
-// HostState holds the state
+// HostState holds the state for a host
 type HostState struct {
 	// Version of the binary used to put the host in this state.
 	Version   version.Version `yaml:"version"`
@@ -777,8 +777,8 @@ func (hs HostState) Validate(
 	return nil
 }
 
-// Refresh updates HostState.Resources to only contain resources for which
-// its check passes.
+// Refresh updates each resource from HostState.Resources to the current state and return
+// the new HostState
 func (hs HostState) Refresh(ctx context.Context, hst host.Host) (HostState, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("🔁 Refreshing state")
@@ -790,15 +790,16 @@ func (hs HostState) Refresh(ctx context.Context, hst host.Host) (HostState, erro
 	}
 
 	for _, resource := range hs.Resources {
-		diffHasChanges, _, _, err := resource.CheckState(nestedCtx, hst)
+		currentState, err := resource.ManageableResource().GetState(
+			nestedCtx, hst, resource.TypeName.Name(),
+		)
 		if err != nil {
 			return HostState{}, err
 		}
-		if diffHasChanges {
-			continue
-		}
 
-		newHostState.Resources = append(newHostState.Resources, resource)
+		newHostState.Resources = append(newHostState.Resources, NewResource(
+			resource.TypeName, currentState, resource.Destroy,
+		))
 	}
 
 	return newHostState, nil
