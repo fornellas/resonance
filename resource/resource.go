@@ -624,7 +624,7 @@ func (bs Bundles) GetHostState(
 	return hostState, nil
 }
 
-func (bs Bundles) Validate() error {
+func (bs Bundles) validate() error {
 	resourceMap := map[TypeName]bool{}
 
 	for _, bundle := range bs {
@@ -686,7 +686,7 @@ func LoadBundles(ctx context.Context, root string) (Bundles, error) {
 		bundles = append(bundles, bundle)
 	}
 
-	if err := bundles.Validate(); err != nil {
+	if err := bundles.validate(); err != nil {
 		return bundles, err
 	}
 
@@ -694,10 +694,7 @@ func LoadBundles(ctx context.Context, root string) (Bundles, error) {
 }
 
 // NewBundlesFromHostState creates a single bundle from a HostState.
-func NewBundlesFromHostState(hostState *HostState) Bundles {
-	if hostState == nil {
-		return Bundles{}
-	}
+func NewBundlesFromHostState(hostState HostState) Bundles {
 	bundle := Bundle{}
 	for _, resource := range hostState.Resources {
 		bundle = append(bundle, resource)
@@ -1443,7 +1440,7 @@ func NewRollbackPlan(
 	logger.Info("📝 Planning rollback")
 	nestedCtx := log.IndentLogger(ctx)
 
-	rollbackBundles := NewBundlesFromHostState(&initialHostState)
+	rollbackBundles := NewBundlesFromHostState(initialHostState)
 
 	// State
 	cleanStateMap, err := rollbackBundles.GetCleanStateMap(nestedCtx, hst)

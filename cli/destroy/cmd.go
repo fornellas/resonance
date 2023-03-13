@@ -36,9 +36,12 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			logger.Fatal(err)
 		}
+		if savedHostState == nil {
+			logger.Fatal("No previously saved state to destroy")
+		}
 
 		// Plan
-		bundles := resource.NewBundlesFromHostState(savedHostState)
+		bundles := resource.NewBundlesFromHostState(*savedHostState)
 		plan, err := resource.NewPlanFromSavedStateAndBundles(
 			ctx, hst, bundles, nil, resource.ActionDestroy,
 		)
