@@ -94,16 +94,6 @@ type State interface {
 	Validate() error
 }
 
-// DiffsHasChanges return true when the diff contains no changes.
-func DiffsHasChanges(diffs []diffmatchpatch.Diff) bool {
-	for _, diff := range diffs {
-		if diff.Type != diffmatchpatch.DiffEqual {
-			return true
-		}
-	}
-	return false
-}
-
 // ManageableResource defines a common interface for managing resource state.
 type ManageableResource interface {
 	// ValidateName validates the name of the resource
@@ -142,6 +132,16 @@ func Diff(a, b interface{}) []diffmatchpatch.Diff {
 	}
 
 	return diffmatchpatch.New().DiffMain(aStr, bStr, false)
+}
+
+// DiffsHasChanges return true when the diff contains no changes.
+func DiffsHasChanges(diffs []diffmatchpatch.Diff) bool {
+	for _, diff := range diffs {
+		if diff.Type != diffmatchpatch.DiffEqual {
+			return true
+		}
+	}
+	return false
 }
 
 // ManageableResourceStateHasPendingChanges whether the resource is at the desired State.
@@ -229,23 +229,15 @@ type MergeableManageableResources interface {
 
 	// ConfigureAll configures all resource to given state.
 	// Must be idempotent.
-	ConfigureAll(ctx context.Context, hst host.Host, actionParameters map[Action]map[Name]State) error
+	ConfigureAll(
+		ctx context.Context, hst host.Host, actionNameStateMap map[Action]map[Name]State,
+	) error
 }
 
 // Type is the name of the resource type.
 type Type string
 
-// IndividuallyManageableResourceTypeMap maps Type to IndividuallyManageableResource.
-var IndividuallyManageableResourceTypeMap = map[Type]IndividuallyManageableResource{}
-
-// MergeableManageableResourcesTypeMap maps Type to MergeableManageableResources.
-var MergeableManageableResourcesTypeMap = map[Type]MergeableManageableResources{}
-
-// ManageableResourcesStateMap maps Type to its State.
-var ManageableResourcesStateMap = map[Type]State{}
-
-// Validate whether type is known.
-func (t Type) Validate() error {
+func (t Type) validate() error {
 	individuallyManageableResource, ok := IndividuallyManageableResourceTypeMap[t]
 	if ok {
 		rType := reflect.TypeOf(individuallyManageableResource)
@@ -257,7 +249,6 @@ func (t Type) Validate() error {
 		}
 		return nil
 	}
-
 	mergeableManageableResources, ok := MergeableManageableResourcesTypeMap[t]
 	if ok {
 		rType := reflect.TypeOf(mergeableManageableResources)
@@ -269,16 +260,25 @@ func (t Type) Validate() error {
 		}
 		return nil
 	}
-
 	return fmt.Errorf("unknown resource type '%s'", t)
 }
 
-// Mustvalidate panics if it validation fails
-func (t Type) MustValidate() {
-	if err := t.Validate(); err != nil {
-		panic(err)
+func NewTypeFromStr(tpeStr string) (Type, error) {
+	tpe := Type(tpeStr)
+	if err := tpe.validate(); err != nil {
+		return Type(""), err
 	}
+	return tpe, nil
 }
+
+// IndividuallyManageableResourceTypeMap maps Type to IndividuallyManageableResource.
+var IndividuallyManageableResourceTypeMap = map[Type]IndividuallyManageableResource{}
+
+// MergeableManageableResourcesTypeMap maps Type to MergeableManageableResources.
+var MergeableManageableResourcesTypeMap = map[Type]MergeableManageableResources{}
+
+// ManageableResourcesStateMap maps Type to its State.
+var ManageableResourcesStateMap = map[Type]State{}
 
 // ManageableResource returns an instance for the resource type.
 func (t Type) ManageableResource() ManageableResource {
@@ -312,22 +312,12 @@ func (tn TypeName) typeName() (Type, Name, error) {
 	if len(matches) != 3 {
 		return tpe, name, fmt.Errorf("%#v does not match Type[Name] format", tn)
 	}
-	tpe = Type(matches[1])
+	tpe, err := NewTypeFromStr(matches[1])
+	if err != nil {
+		return Type(""), Name(""), err
+	}
 	name = Name(matches[2])
 	return tpe, name, nil
-}
-
-// Validate whether format and type are valid.
-func (tn TypeName) Validate() error {
-	var tpe Type
-	var err error
-	if tpe, _, err = tn.typeName(); err != nil {
-		return err
-	}
-	if err := tpe.Validate(); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (tn *TypeName) UnmarshalYAML(node *yaml.Node) error {
@@ -336,8 +326,8 @@ func (tn *TypeName) UnmarshalYAML(node *yaml.Node) error {
 	if err := node.Decode(&typeNameStr); err != nil {
 		return err
 	}
-	typeName := TypeName(typeNameStr)
-	if err := typeName.Validate(); err != nil {
+	typeName, err := NewTypeNameFromStr(typeNameStr)
+	if err != nil {
 		return err
 	}
 	*tn = typeName
@@ -369,9 +359,18 @@ func (tn TypeName) ManageableResource() ManageableResource {
 	return tpe.ManageableResource()
 }
 
-func MustNewTypeNameFromStr(typeNameStr string) TypeName {
+func NewTypeNameFromStr(typeNameStr string) (TypeName, error) {
 	typeName := TypeName(typeNameStr)
-	if err := typeName.Validate(); err != nil {
+	_, _, err := typeName.typeName()
+	if err != nil {
+		return TypeName(""), err
+	}
+	return typeName, nil
+}
+
+func MustNewTypeNameFromStr(typeNameStr string) TypeName {
+	typeName, err := NewTypeNameFromStr(typeNameStr)
+	if err != nil {
 		panic(err)
 	}
 	return typeName
