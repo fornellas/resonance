@@ -144,54 +144,6 @@ func DiffsHasChanges(diffs []diffmatchpatch.Diff) bool {
 	return false
 }
 
-// ManageableResourceStateHasPendingChanges whether the resource is at the desired State.
-// When changes are pending returns true, otherwise false.
-// Diff is always returned (with or without changes).
-// The current State is always returned.
-func ManageableResourceStateHasPendingChanges(
-	ctx context.Context,
-	manageableResource ManageableResource,
-	hst host.Host,
-	name Name,
-	desiredState State,
-) (bool, []diffmatchpatch.Diff, State, error) {
-	logger := log.GetLogger(ctx)
-
-	typeName := MustNewTypeNameFromManageableResourceName(manageableResource, name)
-
-	currentState, err := manageableResource.GetState(ctx, hst, name)
-	if err != nil {
-		logger.Errorf("💥%s", typeName)
-		return false, []diffmatchpatch.Diff{}, nil, err
-	}
-	if currentState == nil {
-		if desiredState != nil {
-			return true, Diff(nil, desiredState), nil, nil
-		} else {
-			return false, []diffmatchpatch.Diff{}, nil, nil
-		}
-	}
-
-	if desiredState == nil {
-		return true, Diff(currentState, nil), nil, nil
-	}
-	diffs, err := manageableResource.DiffStates(ctx, hst, desiredState, currentState)
-	if err != nil {
-		logger.Errorf("💥%s", typeName)
-		return false, []diffmatchpatch.Diff{}, nil, err
-	}
-
-	if DiffsHasChanges(diffs) {
-		diffMatchPatch := diffmatchpatch.New()
-		logger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).
-			Errorf("%s", typeName)
-		return true, diffs, currentState, nil
-	} else {
-		logger.Infof("✅%s", typeName)
-		return false, diffs, currentState, nil
-	}
-}
-
 // RefreshableManageableResource defines an interface for resources that can be refreshed.
 // Refresh means updating in-memory state as a function of file changes (eg: restarting a service,
 // loading iptables rules to the kernel etc.)
@@ -368,20 +320,6 @@ func NewTypeNameFromStr(typeNameStr string) (TypeName, error) {
 	return typeName, nil
 }
 
-func MustNewTypeNameFromStr(typeNameStr string) TypeName {
-	typeName, err := NewTypeNameFromStr(typeNameStr)
-	if err != nil {
-		panic(err)
-	}
-	return typeName
-}
-
-func MustNewTypeNameFromManageableResourceName(manageableResource ManageableResource, name Name) TypeName {
-	return MustNewTypeNameFromStr(
-		fmt.Sprintf("%s[%s]", NewTypeFromManageableResource(manageableResource), name),
-	)
-}
-
 // Resource holds a single resource.
 type Resource struct {
 	TypeName TypeName `yaml:"resource"`
@@ -487,6 +425,49 @@ func (r Resource) MustMergeableManageableResources() MergeableManageableResource
 		panic(fmt.Errorf("%s is not MergeableManageableResources", r))
 	}
 	return mergeableManageableResources
+}
+
+// CheckState checks whether the resource is at the desired State.
+// When changes are pending returns true, otherwise false.
+// Diff is always returned (with or without changes).
+// The current State is always returned.
+func (r Resource) CheckState(
+	ctx context.Context,
+	hst host.Host,
+) (bool, []diffmatchpatch.Diff, State, error) {
+	logger := log.GetLogger(ctx)
+
+	currentState, err := r.ManageableResource().GetState(ctx, hst, r.TypeName.Name())
+	if err != nil {
+		logger.Errorf("💥%s", r)
+		return false, []diffmatchpatch.Diff{}, nil, err
+	}
+	if currentState == nil {
+		if r.State != nil {
+			return true, Diff(nil, r.State), nil, nil
+		} else {
+			return false, []diffmatchpatch.Diff{}, nil, nil
+		}
+	}
+
+	if r.State == nil {
+		return true, Diff(currentState, nil), nil, nil
+	}
+	diffs, err := r.ManageableResource().DiffStates(ctx, hst, r.State, currentState)
+	if err != nil {
+		logger.Errorf("💥%s", r)
+		return false, []diffmatchpatch.Diff{}, nil, err
+	}
+
+	if DiffsHasChanges(diffs) {
+		diffMatchPatch := diffmatchpatch.New()
+		logger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).
+			Errorf("%s", r)
+		return true, diffs, currentState, nil
+	} else {
+		logger.Infof("✅%s", r)
+		return false, diffs, currentState, nil
+	}
 }
 
 func NewResource(typeName TypeName, state State, destroy bool) Resource {
@@ -783,13 +764,7 @@ func (hs HostState) Validate(
 	fail := false
 
 	for _, resource := range hs.Resources {
-		diffHasChanges, _, _, err := ManageableResourceStateHasPendingChanges(
-			nestedCtx,
-			resource.ManageableResource(),
-			hst,
-			resource.MustName(),
-			resource.State,
-		)
+		diffHasChanges, _, _, err := resource.CheckState(nestedCtx, hst)
 		if err != nil {
 			return err
 		}
@@ -818,13 +793,7 @@ func (hs HostState) Refresh(ctx context.Context, hst host.Host) (HostState, erro
 	}
 
 	for _, resource := range hs.Resources {
-		diffHasChanges, _, _, err := ManageableResourceStateHasPendingChanges(
-			nestedCtx,
-			resource.ManageableResource(),
-			hst,
-			resource.MustName(),
-			resource.State,
-		)
+		diffHasChanges, _, _, err := resource.CheckState(nestedCtx, hst)
 		if err != nil {
 			return HostState{}, err
 		}
@@ -892,9 +861,7 @@ func (sai StepActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 			logger.Errorf("💥 %s", sai.Resource)
 			return err
 		}
-		diffHasChanges, _, _, err := ManageableResourceStateHasPendingChanges(
-			ctx, individuallyManageableResource, hst, name, state,
-		)
+		diffHasChanges, _, _, err := sai.Resource.CheckState(ctx, hst)
 		if err != nil {
 			logger.Errorf("💥 %s", sai.Resource)
 			return err
@@ -991,13 +958,7 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 	}
 
 	for _, resource := range checkResources {
-		diffHasChanges, _, _, err := ManageableResourceStateHasPendingChanges(
-			ctx,
-			sam.MustMergeableManageableResources(),
-			hst,
-			resource.MustName(),
-			resource.State,
-		)
+		diffHasChanges, _, _, err := resource.CheckState(ctx, hst)
 		if err != nil {
 			logger.Errorf("💥%s", sam.StringNoAction())
 			return err
@@ -1145,13 +1106,7 @@ func (p Plan) validate(ctx context.Context, hst host.Host) (HostState, error) {
 				if !action.SaveState() {
 					continue
 				}
-				diffHasChanges, _, state, err := ManageableResourceStateHasPendingChanges(
-					nestedCtx,
-					resource.ManageableResource(),
-					hst,
-					resource.MustName(),
-					resource.State,
-				)
+				diffHasChanges, _, state, err := resource.CheckState(nestedCtx, hst)
 				if err != nil {
 					return HostState{}, err
 				}
