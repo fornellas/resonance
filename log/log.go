@@ -2,7 +2,7 @@ package log
 
 import (
 	"context"
-	"os"
+	"io"
 
 	"github.com/sirupsen/logrus"
 )
@@ -12,10 +12,10 @@ type loggerKeyType string
 var loggerKey = loggerKeyType("logger")
 
 // SetLoggerValue returns a copy of the context with a logger value set.
-func SetLoggerValue(ctx context.Context, logLevelStr string) context.Context {
+func SetLoggerValue(ctx context.Context, output io.Writer, logLevelStr string) context.Context {
 	logger := logrus.New()
 
-	logger.SetOutput(os.Stderr)
+	logger.SetOutput(output)
 	logger.SetFormatter(&ColorFormatter{})
 
 	var level *logrus.Level
@@ -47,6 +47,7 @@ func GetLogger(ctx context.Context) *logrus.Logger {
 func IndentLogger(ctx context.Context) context.Context {
 	oldLogger := GetLogger(ctx)
 	newLogger := logrus.New()
+	newLogger.SetOutput(oldLogger.Out)
 	newLogger.SetFormatter(&ColorFormatter{
 		Indent: oldLogger.Formatter.(*ColorFormatter).Indent + 1,
 	})

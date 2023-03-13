@@ -20,7 +20,7 @@ var Cmd = &cobra.Command{
 	Short: "Resonance is a configuration management tool.",
 	Args:  cobra.NoArgs,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		cmd.SetContext(log.SetLoggerValue(cmd.Context(), logLevelStr))
+		cmd.SetContext(log.SetLoggerValue(cmd.Context(), cmd.OutOrStderr(), logLevelStr))
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		logger := log.GetLogger(cmd.Context())
