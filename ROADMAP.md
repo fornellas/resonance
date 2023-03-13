@@ -80,7 +80,6 @@
     - `hosts.go`
         - 💡Manage entries.
     - `resource.go`
-        - 🧪Add common interface at `Resource` to request a resource to be destroyed.
         - 🧪Swap diff for https://pkg.go.dev/github.com/kylelemons/godebug/diff.
         - `Plan.Execute`
             - ✨Parallelise check.
