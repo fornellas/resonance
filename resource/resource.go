@@ -410,7 +410,7 @@ func (r *Resource) UnmarshalYAML(node *yaml.Node) error {
 	tpe := unmarshalSchema.TypeName.Type()
 	name := unmarshalSchema.TypeName.Name()
 	if err := manageableResource.ValidateName(name); err != nil {
-		return err
+		return fmt.Errorf("line %d: %w", node.Line, err)
 	}
 
 	state, ok := ManageableResourcesStateMap[tpe]
@@ -420,19 +420,22 @@ func (r *Resource) UnmarshalYAML(node *yaml.Node) error {
 	stateType := reflect.ValueOf(state).Type()
 	stateValue := reflect.New(stateType)
 	state = stateValue.Interface().(State)
-	err := unmarshalSchema.StateNode.Decode(state)
-	if err != nil {
-		return err
-	}
-	if err := state.Validate(); err != nil {
-		return err
+
+	if unmarshalSchema.Destroy {
+		if unmarshalSchema.StateNode.Content != nil {
+			return fmt.Errorf("line %d: can not set state when destroy is set", node.Line)
+		}
+	} else {
+		err := unmarshalSchema.StateNode.Decode(state)
+		if err != nil {
+			return fmt.Errorf("line %d: %w", unmarshalSchema.StateNode.Line, err)
+		}
+		if err := state.Validate(); err != nil {
+			return fmt.Errorf("line %d: %w", unmarshalSchema.StateNode.Line, err)
+		}
 	}
 
-	*r = Resource{
-		TypeName: unmarshalSchema.TypeName,
-		State:    state,
-		Destroy:  unmarshalSchema.Destroy,
-	}
+	*r = NewResource(unmarshalSchema.TypeName, state, unmarshalSchema.Destroy)
 	return nil
 }
 
