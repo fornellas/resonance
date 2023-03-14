@@ -45,7 +45,7 @@ GOCYCLO_VERSION := v0.6.0
 GOCYCLO_OVER := 15
 
 GO_TEST := gotest
-GO_TEST_FLAGS ?= -v -race -count=1
+GO_TEST_FLAGS ?= -v -race -cover -coverprofile cover.out -count=1
 GOTEST_VERSION := v0.0.6
 
 RRB_VERSION := latest
@@ -261,6 +261,7 @@ test: gotest
 .PHONY: clean-gotest
 clean-gotest:
 	$(GO) clean -r -testcache
+	rm -f cover.out
 clean: clean-gotest
 
 # ci
@@ -329,4 +330,5 @@ build: go-generate
 .PHONY: clean-build
 clean-build:
 	$(GO) clean -r -cache -modcache
+	rm -f version/.version
 clean: clean-build
