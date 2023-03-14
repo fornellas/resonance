@@ -192,7 +192,20 @@ func (t Test) Apply(
 }
 
 func (t Test) Destroy(ctx context.Context, hst host.Host, name Name) error {
-	panic("Test.Destroy")
+	funcCall := t.getFuncCall()
+	if funcCall == nil {
+		TestT.Fatalf("no more calls expected, got Destroy(%#v)", name)
+	}
+	if funcCall.Destroy == nil {
+		TestT.Fatalf("unexpected call: got Destroy(%#v), expected %#v", name, funcCall)
+	}
+	if funcCall.Destroy.Name != name {
+		TestT.Fatalf(
+			"unexpected arguments: got Destroy(%#v), expected Destroy(%#v)",
+			name, funcCall.Destroy.Name,
+		)
+	}
+	return funcCall.Destroy.ReturnError
 }
 
 func init() {
