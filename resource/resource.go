@@ -601,7 +601,7 @@ func (bs Bundles) GetHostState(
 	nestedNestedCtx := log.IndentLogger(nestedCtx)
 	hostState := HostState{
 		Version:   version.GetVersion(),
-		Resources: []Resource{},
+		Resources: Resources{},
 	}
 	for _, bundle := range bs {
 		for _, resource := range bundle {
@@ -700,21 +700,18 @@ func LoadBundles(ctx context.Context, root string) (Bundles, error) {
 // NewBundlesFromHostState creates a single bundle from a HostState.
 func NewBundlesFromHostState(hostState HostState) Bundles {
 	resources := Resources{}
-	for _, resource := range hostState.Resources {
-		resources = append(resources, resource)
-	}
-	return Bundles{resources}
+	return Bundles{append(resources, hostState.Resources...)}
 }
 
 // HostState holds the state for a host
 type HostState struct {
 	// Version of the binary used to put the host in this state.
 	Version   version.Version `yaml:"version"`
-	Resources []Resource      `yaml:"resources"`
+	Resources Resources       `yaml:"resources"`
 }
 
 func (hs HostState) Append(hostState HostState) HostState {
-	resources := append([]Resource{}, hs.Resources...)
+	resources := append(Resources{}, hs.Resources...)
 
 	for _, resource := range hostState.Resources {
 		duplicate := false
@@ -826,7 +823,7 @@ type StepAction interface {
 	// Actionable returns whether any action is different from ActionOk or ActionSkip
 	Actionable() bool
 	// ActionResources returns a map from Action to a slice of Resource.
-	ActionResources() map[Action][]Resource
+	ActionResources() map[Action]Resources
 }
 
 // StepActionIndividual is a StepAction which can execute a single Resource.
@@ -892,12 +889,12 @@ func (sai StepActionIndividual) Actionable() bool {
 	return !(sai.Action == ActionOk || sai.Action == ActionSkip)
 }
 
-func (sai StepActionIndividual) ActionResources() map[Action][]Resource {
-	return map[Action][]Resource{sai.Action: []Resource{sai.Resource}}
+func (sai StepActionIndividual) ActionResources() map[Action]Resources {
+	return map[Action]Resources{sai.Action: Resources{sai.Resource}}
 }
 
 // StepActionMerged is a StepAction which contains multiple merged Resource.
-type StepActionMerged map[Action][]Resource
+type StepActionMerged map[Action]Resources
 
 // MustMergeableManageableResources returns MergeableManageableResources common to all
 // Resource or panics.
@@ -927,7 +924,7 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 		return nil
 	}
 
-	checkResources := []Resource{}
+	checkResources := Resources{}
 	configureActionParameters := map[Action]map[Name]State{}
 	refreshNames := []Name{}
 	for action, resources := range sam {
@@ -1023,7 +1020,7 @@ func (sam StepActionMerged) Actionable() bool {
 	return hasAction
 }
 
-func (sam StepActionMerged) ActionResources() map[Action][]Resource {
+func (sam StepActionMerged) ActionResources() map[Action]Resources {
 	return sam
 }
 
@@ -1046,7 +1043,7 @@ func (s Step) Execute(ctx context.Context, hst host.Host) error {
 	return s.StepAction.Execute(ctx, hst)
 }
 
-func (s Step) ActionResources() map[Action][]Resource {
+func (s Step) ActionResources() map[Action]Resources {
 	return s.StepAction.ActionResources()
 }
 
@@ -1098,7 +1095,7 @@ func (p Plan) validate(ctx context.Context, hst host.Host) (HostState, error) {
 
 	hostState := HostState{
 		Version:   version.GetVersion(),
-		Resources: []Resource{},
+		Resources: Resources{},
 	}
 	for _, step := range p {
 		for action, resources := range step.ActionResources() {
