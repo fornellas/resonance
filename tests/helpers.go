@@ -105,6 +105,7 @@ func runCommand(t *testing.T, cmd Cmd) {
 	var output io.Writer
 	if testing.Verbose() {
 		output = io.MultiWriter(&outputBuffer, os.Stdout)
+		t.Logf("%s", cmd)
 	} else {
 		output = &outputBuffer
 	}
