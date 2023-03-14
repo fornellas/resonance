@@ -65,17 +65,9 @@ func (c Cmd) String() string {
 
 func runCommand(t *testing.T, cmd Cmd) {
 	var outputBuffer bytes.Buffer
-	logged := false
 	logCmd := func() {
-		logged = true
 		t.Logf("%s\n%s", cmd, outputBuffer.String())
 	}
-	t.Cleanup(func() {
-		if !logged && t.Failed() {
-			logCmd()
-		}
-	})
-
 	type expectedExit struct{}
 
 	cli.ExitFunc = func(code int) {
@@ -95,6 +87,7 @@ func runCommand(t *testing.T, cmd Cmd) {
 			}
 		case expectedExit{}:
 		default:
+			logCmd()
 			panic(p)
 		}
 		if cmd.ExpectedOutput != "" {
