@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
 	"github.com/fornellas/resonance/cli/apply"
@@ -15,6 +16,7 @@ import (
 
 var ExitFunc func(int)
 
+var forceColor bool
 var logLevelStr string
 
 var Cmd = &cobra.Command{
@@ -22,6 +24,7 @@ var Cmd = &cobra.Command{
 	Short: "Resonance is a configuration management tool.",
 	Args:  cobra.NoArgs,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		color.NoColor = !forceColor
 		cmd.SetContext(log.SetLoggerValue(
 			cmd.Context(), cmd.OutOrStderr(), logLevelStr, ExitFunc,
 		))
@@ -38,6 +41,10 @@ func init() {
 	Cmd.PersistentFlags().StringVarP(
 		&logLevelStr, "log-level", "l", "info",
 		"Logging level",
+	)
+	Cmd.PersistentFlags().BoolVarP(
+		&forceColor, "force-color", "", false,
+		"Force colored output",
 	)
 
 	Cmd.AddCommand(apply.Cmd)

@@ -71,7 +71,6 @@ func runCommand(t *testing.T, cmd Cmd) {
 	type expectedExit struct{}
 
 	cli.ExitFunc = func(code int) {
-		t.Logf("ExitFunc(%d)", code)
 		if cmd.ExpectedCode != code {
 			logCmdOutput()
 			t.Fatalf("expected exit code %d: got %d", cmd.ExpectedCode, code)

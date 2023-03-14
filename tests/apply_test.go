@@ -9,7 +9,14 @@ import (
 func TestApplyNoYamlResourceFiles(t *testing.T) {
 	stateRoot, resourcesRoot := setupDirs(t)
 	runCommand(t, Cmd{
-		Args:           []string{"apply", "--localhost", "--state-root", stateRoot, resourcesRoot},
+		Args: []string{
+			"apply",
+			"--log-level=debug",
+			"--force-color",
+			"--localhost",
+			"--state-root", stateRoot,
+			resourcesRoot,
+		},
 		ExpectedCode:   1,
 		ExpectedOutput: "no .yaml resource files found",
 	})
@@ -47,7 +54,7 @@ func TestApplySuccess(t *testing.T) {
 			{ValidateName: &resource.TestFuncValidateName{
 				Name: "bar",
 			}},
-			// Plan
+			// Reading Host State
 			{GetState: &resource.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: nil,
@@ -56,6 +63,7 @@ func TestApplySuccess(t *testing.T) {
 				Name:        "bar",
 				ReturnState: nil,
 			}},
+			// Planning changes
 			{GetState: &resource.TestFuncGetState{ // FIXME should not do double call here
 				Name:        "foo",
 				ReturnState: nil,
@@ -64,7 +72,7 @@ func TestApplySuccess(t *testing.T) {
 				Name:        "bar",
 				ReturnState: nil,
 			}},
-			// Apply
+			// Executing plan
 			{Apply: &resource.TestFuncApply{
 				Name:  "foo",
 				State: fooDesiredState,
@@ -89,7 +97,7 @@ func TestApplySuccess(t *testing.T) {
 				DesiredState: barDesiredState,
 				CurrentState: barDesiredState,
 			}},
-			// TODO make this check optional
+			// Validating
 			{GetState: &resource.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: fooDesiredState,
@@ -108,12 +116,104 @@ func TestApplySuccess(t *testing.T) {
 			}},
 		})
 		runCommand(t, Cmd{
-			Args:           []string{"apply", "--localhost", "--state-root", stateRoot, resourcesRoot},
+			Args: []string{"apply",
+				"--log-level=debug",
+				"--force-color",
+				"--localhost",
+				"--state-root", stateRoot,
+				resourcesRoot,
+			},
 			ExpectedOutput: "Success",
 		})
 	})
 
-	// t.Run("Idempotent apply", func(t *testing.T) {})
+	t.Run("Idempotent apply", func(t *testing.T) {
+		setupTestType(t, []resource.TestFuncCall{
+			// Load
+			{ValidateName: &resource.TestFuncValidateName{
+				Name: "foo",
+			}},
+			{ValidateName: &resource.TestFuncValidateName{
+				Name: "bar",
+			}},
+			{ValidateName: &resource.TestFuncValidateName{
+				Name: "foo",
+			}},
+			{ValidateName: &resource.TestFuncValidateName{
+				Name: "bar",
+			}},
+			// Validating host state
+			{GetState: &resource.TestFuncGetState{
+				Name:        "foo",
+				ReturnState: fooDesiredState,
+			}},
+			{DiffStates: &resource.TestFuncDiffStates{
+				DesiredState: fooDesiredState,
+				CurrentState: fooDesiredState,
+			}},
+			{GetState: &resource.TestFuncGetState{
+				Name:        "bar",
+				ReturnState: barDesiredState,
+			}},
+			{DiffStates: &resource.TestFuncDiffStates{
+				DesiredState: barDesiredState,
+				CurrentState: barDesiredState,
+			}},
+			// Reading host state
+			{GetState: &resource.TestFuncGetState{
+				Name:        "foo",
+				ReturnState: fooDesiredState,
+			}},
+			{GetState: &resource.TestFuncGetState{
+				Name:        "bar",
+				ReturnState: barDesiredState,
+			}},
+			// Planning changes
+			{GetState: &resource.TestFuncGetState{
+				Name:        "foo",
+				ReturnState: fooDesiredState,
+			}},
+			{DiffStates: &resource.TestFuncDiffStates{
+				DesiredState: fooDesiredState,
+				CurrentState: fooDesiredState,
+			}},
+			{GetState: &resource.TestFuncGetState{
+				Name:        "bar",
+				ReturnState: barDesiredState,
+			}},
+			{DiffStates: &resource.TestFuncDiffStates{
+				DesiredState: barDesiredState,
+				CurrentState: barDesiredState,
+			}},
+			// Validating
+			{GetState: &resource.TestFuncGetState{
+				Name:        "foo",
+				ReturnState: fooDesiredState,
+			}},
+			{DiffStates: &resource.TestFuncDiffStates{
+				DesiredState: fooDesiredState,
+				CurrentState: fooDesiredState,
+			}},
+			{GetState: &resource.TestFuncGetState{
+				Name:        "bar",
+				ReturnState: barDesiredState,
+			}},
+			{DiffStates: &resource.TestFuncDiffStates{
+				DesiredState: fooDesiredState,
+				CurrentState: fooDesiredState,
+			}},
+		})
+		runCommand(t, Cmd{
+			Args: []string{"apply",
+				"--log-level=debug",
+				"--force-color",
+				"--localhost",
+				"--state-root", stateRoot,
+				resourcesRoot,
+			},
+			ExpectedOutput: "Success",
+		})
+	})
 
 	// t.Run("Destroy old resources", func(t *testing.T) {})
 

@@ -10,6 +10,7 @@ import (
 	"github.com/sergi/go-diff/diffmatchpatch"
 
 	"github.com/fornellas/resonance/host"
+	"github.com/fornellas/resonance/log"
 )
 
 type TestState struct {
@@ -136,6 +137,8 @@ func (t Test) ValidateName(name Name) error {
 }
 
 func (t Test) GetState(ctx context.Context, hst host.Host, name Name) (State, error) {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("Test.GetState(%#v)", name)
 	funcCall := t.getFuncCall()
 	if funcCall == nil {
 		TestT.Fatalf("no more calls expected, got GetState(%#v)", name)
@@ -156,6 +159,8 @@ func (t Test) DiffStates(
 	ctx context.Context, hst host.Host,
 	desiredState State, currentState State,
 ) ([]diffmatchpatch.Diff, error) {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("Test.DiffStates(%#v, %#v)", desiredState, currentState)
 	funcCall := t.getFuncCall()
 	if funcCall == nil {
 		TestT.Fatalf("no more calls expected, got DiffStates(%#v, %#v)", desiredState, currentState)
@@ -175,6 +180,8 @@ func (t Test) DiffStates(
 func (t Test) Apply(
 	ctx context.Context, hst host.Host, name Name, state State,
 ) error {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("Test.Apply(%#v, %#v)", name, state)
 	funcCall := t.getFuncCall()
 	if funcCall == nil {
 		TestT.Fatalf("no more calls expected, got Apply(%#v, %#v)", name, state)
@@ -192,6 +199,8 @@ func (t Test) Apply(
 }
 
 func (t Test) Destroy(ctx context.Context, hst host.Host, name Name) error {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("Test.Destroy(%#v)", name)
 	funcCall := t.getFuncCall()
 	if funcCall == nil {
 		TestT.Fatalf("no more calls expected, got Destroy(%#v)", name)
