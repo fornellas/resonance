@@ -347,14 +347,11 @@ func (r *Resource) UnmarshalYAML(node *yaml.Node) error {
 		return fmt.Errorf("line %d: %w", node.Line, err)
 	}
 
-	state, ok := ManageableResourcesStateMap[tpe]
+	stateInstance, ok := ManageableResourcesStateMap[tpe]
 	if !ok {
 		panic(fmt.Errorf("Type %s missing from ManageableResourcesStateMap", tpe))
 	}
-	stateType := reflect.ValueOf(state).Type()
-	stateValue := reflect.New(stateType)
-	state = stateValue.Interface().(State)
-
+	state := reflect.New(reflect.TypeOf(stateInstance)).Interface().(State)
 	if unmarshalSchema.Destroy {
 		if unmarshalSchema.StateNode.Content != nil {
 			return fmt.Errorf("line %d: can not set state when destroy is set", node.Line)
@@ -369,7 +366,11 @@ func (r *Resource) UnmarshalYAML(node *yaml.Node) error {
 		}
 	}
 
-	*r = NewResource(unmarshalSchema.TypeName, state, unmarshalSchema.Destroy)
+	*r = NewResource(
+		unmarshalSchema.TypeName,
+		reflect.ValueOf(state).Elem().Interface().(State),
+		unmarshalSchema.Destroy,
+	)
 	return nil
 }
 
@@ -856,9 +857,7 @@ func (sai StepActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 			return err
 		}
 	case ActionApply:
-		if err := individuallyManageableResource.Apply(
-			ctx, hst, name, state,
-		); err != nil {
+		if err := individuallyManageableResource.Apply(ctx, hst, name, state); err != nil {
 			logger.Errorf("💥 %s", sai.Resource)
 			return err
 		}

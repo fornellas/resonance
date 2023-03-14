@@ -118,7 +118,7 @@ func (f File) GetState(ctx context.Context, hst host.Host, name Name) (State, er
 	// Gid
 	fileState.Gid = stat_t.Gid
 
-	return &fileState, nil
+	return fileState, nil
 }
 
 func (f File) DiffStates(

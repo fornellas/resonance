@@ -18,14 +18,15 @@ import (
 func TestApplySuccess(t *testing.T) {
 	stateRoot, resourcesRoot := setupDirs(t)
 
-	t.Run("First apply", func(t *testing.T) {
-		fooDesiredState := resource.TestState{
-			Value: "foo",
-		}
+	fooDesiredState := resource.TestState{
+		Value: "foo",
+	}
 
-		barDesiredState := resource.TestState{
-			Value: "foo",
-		}
+	barDesiredState := resource.TestState{
+		Value: "foo",
+	}
+
+	t.Run("First apply", func(t *testing.T) {
 
 		setupBundles(t, resourcesRoot, map[string]resource.Bundle{
 			"test.yaml": resource.Bundle{
@@ -40,7 +41,7 @@ func TestApplySuccess(t *testing.T) {
 			},
 		})
 
-		testTypeAssertion := setupTestType(t, []resource.TestFuncCall{
+		setupTestType(t, []resource.TestFuncCall{
 			// Planning
 			{ValidateName: &resource.TestFuncValidateName{
 				Name: "foo",
@@ -67,44 +68,44 @@ func TestApplySuccess(t *testing.T) {
 			// Apply
 			{Apply: &resource.TestFuncApply{
 				Name:  "foo",
-				State: &fooDesiredState,
+				State: fooDesiredState,
 			}},
 			{GetState: &resource.TestFuncGetState{
 				Name:        "foo",
-				ReturnState: &fooDesiredState,
+				ReturnState: fooDesiredState,
 			}},
 			{DiffStates: &resource.TestFuncDiffStates{
-				DesiredState: &fooDesiredState,
-				CurrentState: &fooDesiredState,
+				DesiredState: fooDesiredState,
+				CurrentState: fooDesiredState,
 			}},
 			{Apply: &resource.TestFuncApply{
 				Name:  "bar",
-				State: &barDesiredState,
+				State: barDesiredState,
 			}},
 			{GetState: &resource.TestFuncGetState{
 				Name:        "bar",
-				ReturnState: &barDesiredState,
+				ReturnState: barDesiredState,
 			}},
 			{DiffStates: &resource.TestFuncDiffStates{
-				DesiredState: &barDesiredState,
-				CurrentState: &barDesiredState,
+				DesiredState: barDesiredState,
+				CurrentState: barDesiredState,
 			}},
 			// TODO make this check optional
 			{GetState: &resource.TestFuncGetState{
 				Name:        "foo",
-				ReturnState: &fooDesiredState,
+				ReturnState: fooDesiredState,
 			}},
 			{DiffStates: &resource.TestFuncDiffStates{
-				DesiredState: &fooDesiredState,
-				CurrentState: &fooDesiredState,
+				DesiredState: fooDesiredState,
+				CurrentState: fooDesiredState,
 			}},
 			{GetState: &resource.TestFuncGetState{
 				Name:        "bar",
-				ReturnState: &barDesiredState,
+				ReturnState: barDesiredState,
 			}},
 			{DiffStates: &resource.TestFuncDiffStates{
-				DesiredState: &barDesiredState,
-				CurrentState: &barDesiredState,
+				DesiredState: barDesiredState,
+				CurrentState: barDesiredState,
 			}},
 		})
 
@@ -112,8 +113,6 @@ func TestApplySuccess(t *testing.T) {
 			Args:           []string{"apply", "--localhost", "--state-root", stateRoot, resourcesRoot},
 			ExpectedOutput: "Success",
 		})
-
-		testTypeAssertion()
 	})
 
 	// t.Run("Idempotent apply", func(t *testing.T) {})

@@ -74,7 +74,7 @@ func (ap APTPackage) GetState(ctx context.Context, hst host.Host, name Name) (St
 		return nil, fmt.Errorf("failed to parse state from '%s': %s\nstdout:\n%s\nstderr:\n%s", hostCmd.String(), waitStatus.String(), stdout, stderr)
 	}
 
-	return &APTPackageState{
+	return APTPackageState{
 		Version: version,
 	}, nil
 }

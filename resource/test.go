@@ -2,7 +2,9 @@ package resource
 
 import (
 	"context"
+	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/sergi/go-diff/diffmatchpatch"
@@ -23,10 +25,18 @@ type TestFuncValidateName struct {
 	ReturnError error
 }
 
+func (tfvn TestFuncValidateName) String() string {
+	return fmt.Sprintf("(%#v) %#v", tfvn.Name, tfvn.ReturnError)
+}
+
 type TestFuncGetState struct {
 	Name        Name
 	ReturnState State
 	ReturnError error
+}
+
+func (tfgs TestFuncGetState) String() string {
+	return fmt.Sprintf("(%#v) (%#v, %#v)", tfgs.Name, tfgs.ReturnState, tfgs.ReturnError)
 }
 
 type TestFuncDiffStates struct {
@@ -36,15 +46,30 @@ type TestFuncDiffStates struct {
 	ReturnError  error
 }
 
+func (tfds TestFuncDiffStates) String() string {
+	return fmt.Sprintf(
+		"(%#v, %#v) (%#v, %#v)",
+		tfds.DesiredState, tfds.CurrentState, tfds.ReturnDiffs, tfds.ReturnError,
+	)
+}
+
 type TestFuncApply struct {
 	Name        Name
 	State       State
 	ReturnError error
 }
 
+func (tfa TestFuncApply) String() string {
+	return fmt.Sprintf("(%#v, %#v) (%#v)", tfa.Name, tfa.State, tfa.ReturnError)
+}
+
 type TestFuncDestroy struct {
 	Name        Name
 	ReturnError error
+}
+
+func (tfd TestFuncDestroy) String() string {
+	return fmt.Sprintf("(%#v) (%#v)", tfd.Name, tfd.ReturnError)
 }
 
 type TestFuncCall struct {
@@ -55,8 +80,32 @@ type TestFuncCall struct {
 	Destroy      *TestFuncDestroy
 }
 
+func (tfc TestFuncCall) String() string {
+	tfcValue := reflect.ValueOf(tfc)
+	tfcType := tfcValue.Type()
+	for i := 0; i < tfcType.NumField(); i++ {
+		field := tfcType.Field(i)
+		name := field.Name
+		value := tfcValue.Field(i)
+		if !value.IsNil() {
+			return fmt.Sprintf("%s: %v\n", name, value.Interface())
+		}
+	}
+	panic("empty TestFuncCall")
+}
+
+type TestFuncCalls []TestFuncCall
+
+func (tfcs TestFuncCalls) String() string {
+	var s strings.Builder
+	for i, tfc := range tfcs {
+		fmt.Fprintf(&s, "%d: %v", i, tfc)
+	}
+	return s.String()
+}
+
 var TestT *testing.T
-var TestExpectedFuncCalls []TestFuncCall
+var TestExpectedFuncCalls TestFuncCalls
 
 type Test struct{}
 

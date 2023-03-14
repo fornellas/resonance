@@ -13,14 +13,14 @@ import (
 	"github.com/fornellas/resonance/resource"
 )
 
-func setupTestType(t *testing.T, testFuncCalls []resource.TestFuncCall) func() {
+func setupTestType(t *testing.T, testFuncCalls []resource.TestFuncCall) {
 	resource.TestT = t
 	resource.TestExpectedFuncCalls = testFuncCalls
-	return func() {
+	t.Cleanup(func() {
 		if len(resource.TestExpectedFuncCalls) > 0 {
-			t.Fatalf("expected calls pending: %v", resource.TestExpectedFuncCalls)
+			t.Errorf("expected calls pending:\n%v", resource.TestExpectedFuncCalls)
 		}
-	}
+	})
 }
 
 func setupDirs(t *testing.T) (string, string) {
@@ -65,9 +65,20 @@ func (c Cmd) String() string {
 
 func runCommand(t *testing.T, cmd Cmd) {
 	var outputBuffer bytes.Buffer
+	logged := false
+	logCmd := func() {
+		logged = true
+		t.Logf("%s\n%s", cmd, outputBuffer.String())
+	}
+	t.Cleanup(func() {
+		if !logged && t.Failed() {
+			logCmd()
+		}
+	})
+
 	cli.ExitFunc = func(code int) {
 		if cmd.ExpectedCode != code {
-			t.Logf("%s\n%s", cmd, outputBuffer.String())
+			logCmd()
 			t.Fatalf("expected exit code %d: got %d", cmd.ExpectedCode, code)
 		}
 	}
@@ -79,12 +90,12 @@ func runCommand(t *testing.T, cmd Cmd) {
 	}
 
 	if cmd.ExpectedCode != 0 {
-		t.Logf("%s\n%s", cmd, outputBuffer.String())
+		logCmd()
 		t.Fatalf("expected exit code %d: got %d", cmd.ExpectedCode, 0)
 	}
 	if cmd.ExpectedOutput != "" {
 		if !strings.Contains(outputBuffer.String(), cmd.ExpectedOutput) {
-			t.Logf("%s\n%s", cmd, outputBuffer.String())
+			logCmd()
 			t.Fatalf("output does not contain %#v", cmd.ExpectedOutput)
 		}
 	}
