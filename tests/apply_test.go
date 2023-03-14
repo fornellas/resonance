@@ -97,25 +97,41 @@ func TestApplyNoYamlResourceFiles(t *testing.T) {
 func TestApplySimple(t *testing.T) {
 	stateRoot, resourcesRoot := setupDirs(t)
 
-	desiredState := resource.TestState{
-		Value: "bar",
+	fooDesiredState := resource.TestState{
+		Value: "foo",
+	}
+
+	barDesiredState := resource.TestState{
+		Value: "foo",
 	}
 
 	setupBundles(t, resourcesRoot, map[string]resource.Bundle{
 		"test.yaml": resource.Bundle{
 			{
 				TypeName: "Test[foo]",
-				State:    desiredState,
+				State:    fooDesiredState,
+			},
+			{
+				TypeName: "Test[bar]",
+				State:    barDesiredState,
 			},
 		},
 	})
 
 	setupTestInstance(t, []resource.TestFuncCall{
+		// Planning
 		{ValidateName: &resource.TestFuncValidateName{
 			Name: "foo",
 		}},
+		{ValidateName: &resource.TestFuncValidateName{
+			Name: "bar",
+		}},
 		{GetState: &resource.TestFuncGetState{
 			Name:        "foo",
+			ReturnState: nil,
+		}},
+		{GetState: &resource.TestFuncGetState{
+			Name:        "bar",
 			ReturnState: nil,
 		}},
 		// FIXME should not do double call here
@@ -123,25 +139,51 @@ func TestApplySimple(t *testing.T) {
 			Name:        "foo",
 			ReturnState: nil,
 		}},
+		{GetState: &resource.TestFuncGetState{
+			Name:        "bar",
+			ReturnState: nil,
+		}},
+		// Apply
 		{Apply: &resource.TestFuncApply{
 			Name:  "foo",
-			State: &desiredState,
+			State: &fooDesiredState,
 		}},
 		{GetState: &resource.TestFuncGetState{
 			Name:        "foo",
-			ReturnState: &desiredState,
+			ReturnState: &fooDesiredState,
 		}},
 		{DiffStates: &resource.TestFuncDiffStates{
-			DesiredState: &desiredState,
-			CurrentState: &desiredState,
+			DesiredState: &fooDesiredState,
+			CurrentState: &fooDesiredState,
+		}},
+		{Apply: &resource.TestFuncApply{
+			Name:  "bar",
+			State: &barDesiredState,
 		}},
 		{GetState: &resource.TestFuncGetState{
-			Name:        "foo",
-			ReturnState: &desiredState,
+			Name:        "bar",
+			ReturnState: &barDesiredState,
 		}},
 		{DiffStates: &resource.TestFuncDiffStates{
-			DesiredState: &desiredState,
-			CurrentState: &desiredState,
+			DesiredState: &barDesiredState,
+			CurrentState: &barDesiredState,
+		}},
+		// TODO make this check optional
+		{GetState: &resource.TestFuncGetState{
+			Name:        "foo",
+			ReturnState: &fooDesiredState,
+		}},
+		{DiffStates: &resource.TestFuncDiffStates{
+			DesiredState: &fooDesiredState,
+			CurrentState: &fooDesiredState,
+		}},
+		{GetState: &resource.TestFuncGetState{
+			Name:        "bar",
+			ReturnState: &barDesiredState,
+		}},
+		{DiffStates: &resource.TestFuncDiffStates{
+			DesiredState: &barDesiredState,
+			CurrentState: &barDesiredState,
 		}},
 	})
 
