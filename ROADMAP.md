@@ -80,7 +80,9 @@
     - `hosts.go`
         - 💡Manage entries.
     - `resource.go`
-        - 🧪Swap diff for https://pkg.go.dev/github.com/kylelemons/godebug/diff.
+        - 🧪Move `GetState` to `IndividuallyManageableResource` and add `GetAllStates` to `MergeableManageableResources`.
+        - 🧪Improve diff output
+            - Use https://pkg.go.dev/github.com/kylelemons/godebug/diff?
         - `Plan.Execute`
             - ✨Parallelise check.
         - `LoadResourceBundles`
