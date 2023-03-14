@@ -541,7 +541,7 @@ func (bs Bundles) GetCleanStateMap(
 
 	for _, bundle := range bs {
 		for _, resource := range bundle {
-			currentFullState, err := resource.ManageableResource().GetState(
+			currentState, err := resource.ManageableResource().GetState(
 				nestedCtx, hst, resource.MustName(),
 			)
 			if err != nil {
@@ -549,13 +549,13 @@ func (bs Bundles) GetCleanStateMap(
 			}
 
 			cleanState := false
-			if currentFullState != nil {
+			if currentState != nil {
 				if resource.Destroy {
 					nestedLogger.WithField("", "Resource to be destroyed").
 						Infof("%s %s", ActionDestroy.Emoji(), resource)
 				} else {
 					diffs, err := resource.ManageableResource().DiffStates(
-						nestedCtx, hst, resource.State, currentFullState,
+						nestedCtx, hst, resource.State, currentState,
 					)
 					if err != nil {
 						return nil, err

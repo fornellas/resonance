@@ -71,9 +71,10 @@ var Cmd = &cobra.Command{
 		}
 
 		// Save initial state
-		if err := state.SaveHostState(ctx, initialHostState, persistantState); err != nil {
-			logger.Fatal(err)
-		}
+		// TODO requires marking (bundle - saved) state as "do not destroy"
+		// if err := state.SaveHostState(ctx, initialHostState, persistantState); err != nil {
+		// 	logger.Fatal(err)
+		// }
 
 		// Plan
 		plan, err := resource.NewPlanFromSavedStateAndBundles(

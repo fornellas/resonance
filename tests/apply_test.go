@@ -7,14 +7,20 @@ import (
 	"strings"
 	"testing"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/fornellas/resonance/cli"
 	"github.com/fornellas/resonance/resource"
 )
 
-func setupTestInstance(t *testing.T) {
-	resource.TestInstance.T = t
-	resource.TestInstance.ExpectedFuncCalls = []resource.TestFuncCall{}
-	t.Cleanup(func() { resource.TestInstance.FinalAssert() })
+func setupTestInstance(t *testing.T, testFuncCalls []resource.TestFuncCall) {
+	resource.TestT = t
+	resource.TestExpectedFuncCalls = testFuncCalls
+	t.Cleanup(func() {
+		if len(resource.TestExpectedFuncCalls) > 0 {
+			t.Fatalf("expected calls pending: %v", resource.TestExpectedFuncCalls)
+		}
+	})
 }
 
 func setupDirs(t *testing.T) (string, string) {
@@ -31,6 +37,20 @@ func setupDirs(t *testing.T) (string, string) {
 	}
 
 	return stateRoot, resourcesRoot
+}
+
+func setupBundles(t *testing.T, resourcesRoot string, bundleMap map[string]resource.Bundle) {
+	for name, bundle := range bundleMap {
+		bundleBytes, err := yaml.Marshal(bundle)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(
+			filepath.Join(resourcesRoot, name), bundleBytes, os.FileMode(0600),
+		); err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 type Cmd struct {
@@ -65,18 +85,68 @@ func runCommand(t *testing.T, cmd Cmd) {
 	}
 }
 
-func TestApply(t *testing.T) {
-	setupTestInstance(t)
+func TestApplyNoYamlResourceFiles(t *testing.T) {
+	stateRoot, resourcesRoot := setupDirs(t)
+	runCommand(t, Cmd{
+		Args:           []string{"apply", "--localhost", "--state-root", stateRoot, resourcesRoot},
+		ExpectedCode:   1,
+		ExpectedOutput: "no .yaml resource files found",
+	})
+}
 
+func TestApplySimple(t *testing.T) {
 	stateRoot, resourcesRoot := setupDirs(t)
 
-	runCommand(t, Cmd{
-		Args: []string{
-			"apply",
-			"--localhost",
-			"--state-root", stateRoot,
-			resourcesRoot,
+	desiredState := resource.TestState{
+		Value: "bar",
+	}
+
+	setupBundles(t, resourcesRoot, map[string]resource.Bundle{
+		"test.yaml": resource.Bundle{
+			{
+				TypeName: "Test[foo]",
+				State:    desiredState,
+			},
 		},
+	})
+
+	setupTestInstance(t, []resource.TestFuncCall{
+		{ValidateName: &resource.TestFuncValidateName{
+			Name: "foo",
+		}},
+		{GetState: &resource.TestFuncGetState{
+			Name:        "foo",
+			ReturnState: nil,
+		}},
+		// FIXME should not do double call here
+		{GetState: &resource.TestFuncGetState{
+			Name:        "foo",
+			ReturnState: nil,
+		}},
+		{Apply: &resource.TestFuncApply{
+			Name:  "foo",
+			State: &desiredState,
+		}},
+		{GetState: &resource.TestFuncGetState{
+			Name:        "foo",
+			ReturnState: &desiredState,
+		}},
+		{DiffStates: &resource.TestFuncDiffStates{
+			DesiredState: &desiredState,
+			CurrentState: &desiredState,
+		}},
+		{GetState: &resource.TestFuncGetState{
+			Name:        "foo",
+			ReturnState: &desiredState,
+		}},
+		{DiffStates: &resource.TestFuncDiffStates{
+			DesiredState: &desiredState,
+			CurrentState: &desiredState,
+		}},
+	})
+
+	runCommand(t, Cmd{
+		Args:           []string{"apply", "--localhost", "--state-root", stateRoot, resourcesRoot},
 		ExpectedCode:   1,
 		ExpectedOutput: "no .yaml resource files found",
 	})

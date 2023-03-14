@@ -2,6 +2,7 @@ package resource
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	"github.com/sergi/go-diff/diffmatchpatch"
@@ -10,6 +11,7 @@ import (
 )
 
 type TestState struct {
+	Value string
 }
 
 func (ts TestState) Validate() error {
@@ -53,31 +55,31 @@ type TestFuncCall struct {
 	Destroy      *TestFuncDestroy
 }
 
-type Test struct {
-	T                 *testing.T
-	ExpectedFuncCalls []TestFuncCall
-}
+var TestT *testing.T
+var TestExpectedFuncCalls []TestFuncCall
 
-func (t *Test) FinalAssert() {
-	if len(t.ExpectedFuncCalls) > 0 {
-		t.T.Fatalf("expected calls pending: %v", t.ExpectedFuncCalls)
-	}
-}
+type Test struct{}
 
-func (t *Test) getFuncCall() TestFuncCall {
-	if len(t.ExpectedFuncCalls) == 0 {
-		t.T.Fatalf("No more calls expected")
+func (t *Test) getFuncCall() *TestFuncCall {
+	if len(TestExpectedFuncCalls) == 0 {
+		return nil
 	}
-	testFuncCall, expectedFuncCalls := t.ExpectedFuncCalls[0], t.ExpectedFuncCalls[1:]
-	t.ExpectedFuncCalls = expectedFuncCalls
-	return testFuncCall
+	testFuncCall, expectedFuncCalls := TestExpectedFuncCalls[0], TestExpectedFuncCalls[1:]
+	TestExpectedFuncCalls = expectedFuncCalls
+	return &testFuncCall
 }
 
 func (t Test) ValidateName(name Name) error {
 	funcCall := t.getFuncCall()
+	if funcCall == nil {
+		TestT.Fatalf("no more calls expected, got ValidateName(%#v)", name)
+	}
+	if funcCall.ValidateName == nil {
+		TestT.Fatalf("unexpected call: got ValidateName(%#v), expected %#v", name, funcCall)
+	}
 	if funcCall.ValidateName.Name != name {
-		t.T.Fatalf(
-			"unexpected arguments: got ValidateName(%v), expected ValidateName(%v)",
+		TestT.Fatalf(
+			"unexpected arguments: got ValidateName(%#v), expected ValidateName(%#v)",
 			name, funcCall.ValidateName.Name,
 		)
 	}
@@ -85,29 +87,66 @@ func (t Test) ValidateName(name Name) error {
 }
 
 func (t Test) GetState(ctx context.Context, hst host.Host, name Name) (State, error) {
-	panic("Test.GetState")
+	funcCall := t.getFuncCall()
+	if funcCall == nil {
+		TestT.Fatalf("no more calls expected, got GetState(%#v)", name)
+	}
+	if funcCall.GetState == nil {
+		TestT.Fatalf("unexpected call: got GetState(%#v), expected %#v", name, funcCall)
+	}
+	if funcCall.GetState.Name != name {
+		TestT.Fatalf(
+			"unexpected arguments: got GetState(%#v), expected GetState(%#v)",
+			name, funcCall.GetState.Name,
+		)
+	}
+	return funcCall.GetState.ReturnState, funcCall.GetState.ReturnError
 }
 
 func (t Test) DiffStates(
 	ctx context.Context, hst host.Host,
 	desiredState State, currentState State,
 ) ([]diffmatchpatch.Diff, error) {
-	panic("Test.DiffStates")
+	funcCall := t.getFuncCall()
+	if funcCall == nil {
+		TestT.Fatalf("no more calls expected, got DiffStates(%#v, %#v)", desiredState, currentState)
+	}
+	if funcCall.DiffStates == nil {
+		TestT.Fatalf("unexpected call: got DiffStates(%#v, %#v), expected %#v", desiredState, currentState, funcCall)
+	}
+	if !reflect.DeepEqual(funcCall.DiffStates.DesiredState, desiredState) || !reflect.DeepEqual(funcCall.DiffStates.CurrentState, currentState) {
+		TestT.Fatalf(
+			"unexpected arguments: got DiffStates(%#v, %#v), expected DiffStates(%#v, %#v)",
+			desiredState, currentState, funcCall.DiffStates.DesiredState, funcCall.DiffStates.CurrentState,
+		)
+	}
+	return funcCall.DiffStates.ReturnDiffs, funcCall.DiffStates.ReturnError
 }
 
 func (t Test) Apply(
 	ctx context.Context, hst host.Host, name Name, state State,
 ) error {
-	panic("Test.Apply")
+	funcCall := t.getFuncCall()
+	if funcCall == nil {
+		TestT.Fatalf("no more calls expected, got Apply(%#v, %#v)", name, state)
+	}
+	if funcCall.Apply == nil {
+		TestT.Fatalf("unexpected call: got Apply(%#v, %#v), expected %#v", name, state, funcCall)
+	}
+	if funcCall.Apply.Name != name || !reflect.DeepEqual(funcCall.Apply.State, state) {
+		TestT.Fatalf(
+			"unexpected arguments: got Apply(%#v, %#v), expected Apply(%#v, %#v)",
+			name, state, funcCall.Apply.Name, funcCall.Apply.State,
+		)
+	}
+	return funcCall.Apply.ReturnError
 }
 
 func (t Test) Destroy(ctx context.Context, hst host.Host, name Name) error {
 	panic("Test.Destroy")
 }
 
-var TestInstance Test
-
 func init() {
-	IndividuallyManageableResourceTypeMap["Test"] = TestInstance
+	IndividuallyManageableResourceTypeMap["Test"] = Test{}
 	ManageableResourcesStateMap["Test"] = TestState{}
 }

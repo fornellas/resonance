@@ -38,7 +38,7 @@ func (su SystemdUnit) ValidateName(name Name) error {
 }
 
 func (su SystemdUnit) GetState(ctx context.Context, hst host.Host, name Name) (State, error) {
-	return nil, errors.New("SystemdUnit.GetFullState")
+	return nil, errors.New("SystemdUnit.GetState")
 }
 
 func (su SystemdUnit) DiffStates(
