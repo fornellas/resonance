@@ -525,11 +525,11 @@ func LoadResources(ctx context.Context, path string) (Resources, error) {
 	return resources, nil
 }
 
-// Bundles holds all resources for a host.
-type Bundles []Resources
+// Bundle holds all resources for a host.
+type Bundle []Resources
 
 // GetCleanStateMap returns a map of whether resources have a clean state or not.
-func (bs Bundles) GetCleanStateMap(
+func (b Bundle) GetCleanStateMap(
 	ctx context.Context,
 	hst host.Host,
 ) (map[TypeName]bool, error) {
@@ -540,8 +540,8 @@ func (bs Bundles) GetCleanStateMap(
 
 	cleanStateMap := map[TypeName]bool{}
 
-	for _, bundle := range bs {
-		for _, resource := range bundle {
+	for _, resources := range b {
+		for _, resource := range resources {
 			currentState, err := resource.ManageableResource().GetState(
 				nestedCtx, hst, resource.MustName(),
 			)
@@ -591,7 +591,7 @@ func (bs Bundles) GetCleanStateMap(
 	return cleanStateMap, nil
 }
 
-func (bs Bundles) GetHostState(
+func (b Bundle) GetHostState(
 	ctx context.Context, hst host.Host, excludeTypeNames []TypeName,
 ) (HostState, error) {
 	logger := log.GetLogger(ctx)
@@ -603,8 +603,8 @@ func (bs Bundles) GetHostState(
 		Version:   version.GetVersion(),
 		Resources: Resources{},
 	}
-	for _, bundle := range bs {
-		for _, resource := range bundle {
+	for _, resources := range b {
+		for _, resource := range resources {
 			for _, excludeResourceKey := range excludeTypeNames {
 				if excludeResourceKey == resource.TypeName {
 					continue
@@ -625,11 +625,11 @@ func (bs Bundles) GetHostState(
 	return hostState, nil
 }
 
-func (bs Bundles) validate() error {
+func (b Bundle) validate() error {
 	resourceMap := map[TypeName]bool{}
 
-	for _, bundle := range bs {
-		for _, resource := range bundle {
+	for _, resources := range b {
+		for _, resource := range resources {
 			if _, ok := resourceMap[resource.TypeName]; ok {
 				return fmt.Errorf("duplicate resource %s", resource.TypeName)
 			}
@@ -639,10 +639,10 @@ func (bs Bundles) validate() error {
 	return nil
 }
 
-// HasTypeName returns true if Resource is contained at Bundles.
-func (bs Bundles) HasTypeName(typeName TypeName) bool {
-	for _, bundle := range bs {
-		for _, resource := range bundle {
+// HasTypeName returns true if Resource is contained at Bundle.
+func (b Bundle) HasTypeName(typeName TypeName) bool {
+	for _, resources := range b {
+		for _, resource := range resources {
 			if resource.TypeName == typeName {
 				return true
 			}
@@ -651,16 +651,16 @@ func (bs Bundles) HasTypeName(typeName TypeName) bool {
 	return false
 }
 
-// LoadBundles search for .yaml files at root, each having the Bundle schema,
+// LoadBundle search for .yaml files at root, each having the Bundle schema,
 // loads and returns all of them.
-// Bundles is sorted by alphabetical order.
-func LoadBundles(ctx context.Context, root string) (Bundles, error) {
+// Bundle is sorted by alphabetical order.
+func LoadBundle(ctx context.Context, root string) (Bundle, error) {
 	logger := log.GetLogger(ctx)
 	logger.Infof("📂 Loading resources from %s", root)
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 
-	bundles := Bundles{}
+	bundle := Bundle{}
 
 	paths := []string{}
 	if err := filepath.Walk(root, func(path string, fileInfo fs.FileInfo, err error) error {
@@ -675,32 +675,32 @@ func LoadBundles(ctx context.Context, root string) (Bundles, error) {
 		paths = append(paths, path)
 		return nil
 	}); err != nil {
-		return bundles, err
+		return bundle, err
 	}
 	if len(paths) == 0 {
-		return Bundles{}, fmt.Errorf("no .yaml resource files found under %s", root)
+		return Bundle{}, fmt.Errorf("no .yaml resource files found under %s", root)
 	}
 	sort.Strings(paths)
 
 	for _, path := range paths {
 		resources, err := LoadResources(nestedCtx, path)
 		if err != nil {
-			return bundles, err
+			return bundle, err
 		}
-		bundles = append(bundles, resources)
+		bundle = append(bundle, resources)
 	}
 
-	if err := bundles.validate(); err != nil {
-		return bundles, err
+	if err := bundle.validate(); err != nil {
+		return bundle, err
 	}
 
-	return bundles, nil
+	return bundle, nil
 }
 
 // NewBundlesFromHostState creates a single bundle from a HostState.
-func NewBundlesFromHostState(hostState HostState) Bundles {
+func NewBundleFromHostState(hostState HostState) Bundle {
 	resources := Resources{}
-	return Bundles{append(resources, hostState.Resources...)}
+	return Bundle{append(resources, hostState.Resources...)}
 }
 
 // HostState holds the state for a host
@@ -1180,9 +1180,9 @@ func (p Plan) HasTypeName(typeName TypeName) bool {
 	return false
 }
 
-func newPartialPlanFromBundles(
+func newPartialPlanFromBundle(
 	ctx context.Context,
-	bundles Bundles,
+	bundle Bundle,
 	cleanStateMap map[TypeName]bool,
 	intendedAction Action,
 ) Plan {
@@ -1192,15 +1192,15 @@ func newPartialPlanFromBundles(
 	plan := Plan{}
 
 	var lastBundleLastStep *Step
-	for _, bundle := range bundles {
+	for _, resources := range bundle {
 		bundleSteps := []*Step{}
 		refresh := false
 		var step *Step
-		for i, resource := range bundle {
+		for i, resource := range resources {
 			step = &Step{}
 			plan = append(plan, step)
 
-			// Dependant on previous bundle
+			// Dependant on previous resources
 			if i == 0 && lastBundleLastStep != nil {
 				lastBundleLastStep.prerequisiteFor = append(lastBundleLastStep.prerequisiteFor, step)
 			}
@@ -1253,7 +1253,7 @@ func newPartialPlanFromBundles(
 func prependDestroyStepsToPlan(
 	ctx context.Context,
 	plan Plan,
-	bundles Bundles,
+	bundle Bundle,
 	savedHostState HostState,
 ) Plan {
 	logger := log.GetLogger(ctx)
@@ -1261,7 +1261,7 @@ func prependDestroyStepsToPlan(
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 	for _, resource := range savedHostState.Resources {
-		if bundles.HasTypeName(resource.TypeName) {
+		if bundle.HasTypeName(resource.TypeName) {
 			continue
 		}
 		prerequisiteFor := []*Step{}
@@ -1361,10 +1361,10 @@ func topologicalSortPlan(ctx context.Context, plan Plan) (Plan, error) {
 	return sortedPlan, nil
 }
 
-func NewPlanFromSavedStateAndBundles(
+func NewPlanFromSavedStateAndBundle(
 	ctx context.Context,
 	hst host.Host,
-	bundles Bundles,
+	bundle Bundle,
 	savedHostState *HostState,
 	intendedAction Action,
 ) (Plan, error) {
@@ -1373,17 +1373,17 @@ func NewPlanFromSavedStateAndBundles(
 	nestedCtx := log.IndentLogger(ctx)
 
 	// State
-	cleanStateMap, err := bundles.GetCleanStateMap(nestedCtx, hst)
+	cleanStateMap, err := bundle.GetCleanStateMap(nestedCtx, hst)
 	if err != nil {
 		return Plan{}, err
 	}
 
-	// Add Bundles
-	plan := newPartialPlanFromBundles(nestedCtx, bundles, cleanStateMap, intendedAction)
+	// Add Bundle
+	plan := newPartialPlanFromBundle(nestedCtx, bundle, cleanStateMap, intendedAction)
 
 	// Prepend destroy steps
 	if savedHostState != nil {
-		plan = prependDestroyStepsToPlan(nestedCtx, plan, bundles, *savedHostState)
+		plan = prependDestroyStepsToPlan(nestedCtx, plan, bundle, *savedHostState)
 	}
 
 	// Merge steps
@@ -1398,17 +1398,17 @@ func NewPlanFromSavedStateAndBundles(
 	return plan, nil
 }
 
-func prependDestroyStepsFromPlanBundlesToPlan(
+func prependDestroyStepsFromPlanBundleToPlan(
 	ctx context.Context,
 	plan Plan,
-	bundles, planBundles Bundles,
+	bundles, planBundle Bundle,
 ) Plan {
 	logger := log.GetLogger(ctx)
 	logger.Info("💀 Determining resources to destroy")
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
-	for _, planBundle := range planBundles {
-		for _, resource := range planBundle {
+	for _, planResources := range planBundle {
+		for _, resource := range planResources {
 			if bundles.HasTypeName(resource.TypeName) {
 				continue
 			}
@@ -1433,26 +1433,26 @@ func prependDestroyStepsFromPlanBundlesToPlan(
 func NewRollbackPlan(
 	ctx context.Context,
 	hst host.Host,
-	bundles Bundles,
+	bundle Bundle,
 	initialHostState HostState,
 ) (Plan, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("📝 Planning rollback")
 	nestedCtx := log.IndentLogger(ctx)
 
-	rollbackBundles := NewBundlesFromHostState(initialHostState)
+	rollbackBundle := NewBundleFromHostState(initialHostState)
 
 	// State
-	cleanStateMap, err := rollbackBundles.GetCleanStateMap(nestedCtx, hst)
+	cleanStateMap, err := rollbackBundle.GetCleanStateMap(nestedCtx, hst)
 	if err != nil {
 		return Plan{}, err
 	}
 
-	// Add Bundles
-	plan := newPartialPlanFromBundles(nestedCtx, rollbackBundles, cleanStateMap, ActionNone)
+	// Add Bundle
+	plan := newPartialPlanFromBundle(nestedCtx, rollbackBundle, cleanStateMap, ActionNone)
 
 	// Prepend destroy steps
-	plan = prependDestroyStepsFromPlanBundlesToPlan(nestedCtx, plan, rollbackBundles, bundles)
+	plan = prependDestroyStepsFromPlanBundleToPlan(nestedCtx, plan, rollbackBundle, bundle)
 
 	// Merge steps
 	plan = mergePlanSteps(nestedCtx, plan)

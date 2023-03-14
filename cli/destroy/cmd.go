@@ -41,9 +41,9 @@ var Cmd = &cobra.Command{
 		}
 
 		// Plan
-		bundles := resource.NewBundlesFromHostState(*savedHostState)
-		plan, err := resource.NewPlanFromSavedStateAndBundles(
-			ctx, hst, bundles, nil, resource.ActionDestroy,
+		bundle := resource.NewBundleFromHostState(*savedHostState)
+		plan, err := resource.NewPlanFromSavedStateAndBundle(
+			ctx, hst, bundle, nil, resource.ActionDestroy,
 		)
 		if err != nil {
 			logger.Fatal(err)
