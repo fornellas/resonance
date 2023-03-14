@@ -112,38 +112,6 @@ type ManageableResource interface {
 	) ([]diffmatchpatch.Diff, error)
 }
 
-func Diff(a, b interface{}) []diffmatchpatch.Diff {
-	var aStr string
-	if a != nil {
-		aBytes, err := yaml.Marshal(a)
-		if err != nil {
-			panic(err)
-		}
-		aStr = string(aBytes)
-	}
-
-	var bStr string
-	if b != nil {
-		bBytes, err := yaml.Marshal(b)
-		if err != nil {
-			panic(err)
-		}
-		bStr = string(bBytes)
-	}
-
-	return diffmatchpatch.New().DiffMain(aStr, bStr, false)
-}
-
-// DiffsHasChanges return true when the diff contains no changes.
-func DiffsHasChanges(diffs []diffmatchpatch.Diff) bool {
-	for _, diff := range diffs {
-		if diff.Type != diffmatchpatch.DiffEqual {
-			return true
-		}
-	}
-	return false
-}
-
 // RefreshableManageableResource defines an interface for resources that can be refreshed.
 // Refresh means updating in-memory state as a function of file changes (eg: restarting a service,
 // loading iptables rules to the kernel etc.)
@@ -184,6 +152,38 @@ type MergeableManageableResources interface {
 	ConfigureAll(
 		ctx context.Context, hst host.Host, actionNameStateMap map[Action]map[Name]State,
 	) error
+}
+
+func Diff(a, b interface{}) []diffmatchpatch.Diff {
+	var aStr string
+	if a != nil {
+		aBytes, err := yaml.Marshal(a)
+		if err != nil {
+			panic(err)
+		}
+		aStr = string(aBytes)
+	}
+
+	var bStr string
+	if b != nil {
+		bBytes, err := yaml.Marshal(b)
+		if err != nil {
+			panic(err)
+		}
+		bStr = string(bBytes)
+	}
+
+	return diffmatchpatch.New().DiffMain(aStr, bStr, false)
+}
+
+// DiffsHasChanges return true when the diff contains no changes.
+func DiffsHasChanges(diffs []diffmatchpatch.Diff) bool {
+	for _, diff := range diffs {
+		if diff.Type != diffmatchpatch.DiffEqual {
+			return true
+		}
+	}
+	return false
 }
 
 // Type is the name of the resource type.
@@ -651,7 +651,7 @@ func (b Bundle) HasTypeName(typeName TypeName) bool {
 	return false
 }
 
-// LoadBundle search for .yaml files at root, each having the Bundle schema,
+// LoadBundle search for .yaml files at root, each having the Resources schema,
 // loads and returns all of them.
 // Bundle is sorted by alphabetical order.
 func LoadBundle(ctx context.Context, root string) (Bundle, error) {
