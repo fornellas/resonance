@@ -45,7 +45,7 @@ GOCYCLO_VERSION := v0.6.0
 GOCYCLO_OVER := 15
 
 GO_TEST := gotest
-GO_TEST_FLAGS ?= -v -race -cover -count=1
+GO_TEST_FLAGS ?= -v -race -count=1
 GOTEST_VERSION := v0.0.6
 
 RRB_VERSION := latest

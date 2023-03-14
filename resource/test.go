@@ -9,7 +9,6 @@ import (
 	"github.com/fornellas/resonance/host"
 )
 
-// TestState for Test
 type TestState struct {
 }
 
@@ -54,38 +53,59 @@ type TestFuncCall struct {
 	Destroy      *TestFuncDestroy
 }
 
-// Test resource.
 type Test struct {
 	T                 *testing.T
 	ExpectedFuncCalls []TestFuncCall
 }
 
-var TestInstance Test
+func (t *Test) FinalAssert() {
+	if len(t.ExpectedFuncCalls) > 0 {
+		t.T.Fatalf("expected calls pending: %v", t.ExpectedFuncCalls)
+	}
+}
+
+func (t *Test) getFuncCall() TestFuncCall {
+	if len(t.ExpectedFuncCalls) == 0 {
+		t.T.Fatalf("No more calls expected")
+	}
+	testFuncCall, expectedFuncCalls := t.ExpectedFuncCalls[0], t.ExpectedFuncCalls[1:]
+	t.ExpectedFuncCalls = expectedFuncCalls
+	return testFuncCall
+}
 
 func (t Test) ValidateName(name Name) error {
-	return nil
+	funcCall := t.getFuncCall()
+	if funcCall.ValidateName.Name != name {
+		t.T.Fatalf(
+			"unexpected arguments: got ValidateName(%v), expected ValidateName(%v)",
+			name, funcCall.ValidateName.Name,
+		)
+	}
+	return funcCall.ValidateName.ReturnError
 }
 
 func (t Test) GetState(ctx context.Context, hst host.Host, name Name) (State, error) {
-	return &TestState{}, nil
+	panic("Test.GetState")
 }
 
 func (t Test) DiffStates(
 	ctx context.Context, hst host.Host,
 	desiredState State, currentState State,
 ) ([]diffmatchpatch.Diff, error) {
-	return []diffmatchpatch.Diff{}, nil
+	panic("Test.DiffStates")
 }
 
 func (t Test) Apply(
 	ctx context.Context, hst host.Host, name Name, state State,
 ) error {
-	return nil
+	panic("Test.Apply")
 }
 
 func (t Test) Destroy(ctx context.Context, hst host.Host, name Name) error {
-	return nil
+	panic("Test.Destroy")
 }
+
+var TestInstance Test
 
 func init() {
 	IndividuallyManageableResourceTypeMap["Test"] = TestInstance

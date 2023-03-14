@@ -676,6 +676,9 @@ func LoadBundles(ctx context.Context, root string) (Bundles, error) {
 	}); err != nil {
 		return bundles, err
 	}
+	if len(paths) == 0 {
+		return Bundles{}, fmt.Errorf("no .yaml resource files found under %s", root)
+	}
 	sort.Strings(paths)
 
 	for _, path := range paths {

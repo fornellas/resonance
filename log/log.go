@@ -12,11 +12,14 @@ type loggerKeyType string
 var loggerKey = loggerKeyType("logger")
 
 // SetLoggerValue returns a copy of the context with a logger value set.
-func SetLoggerValue(ctx context.Context, output io.Writer, logLevelStr string) context.Context {
+func SetLoggerValue(
+	ctx context.Context, output io.Writer, logLevelStr string, exitFunc func(int),
+) context.Context {
 	logger := logrus.New()
 
 	logger.SetOutput(output)
 	logger.SetFormatter(&ColorFormatter{})
+	logger.ExitFunc = exitFunc
 
 	var level *logrus.Level
 	for _, l := range logrus.AllLevels {
@@ -51,6 +54,7 @@ func IndentLogger(ctx context.Context) context.Context {
 	newLogger.SetFormatter(&ColorFormatter{
 		Indent: oldLogger.Formatter.(*ColorFormatter).Indent + 1,
 	})
+	newLogger.ExitFunc = oldLogger.ExitFunc
 	newLogger.SetLevel(oldLogger.Level)
 	return context.WithValue(ctx, loggerKey, newLogger)
 }

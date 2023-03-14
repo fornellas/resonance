@@ -13,6 +13,8 @@ import (
 	"github.com/fornellas/resonance/log"
 )
 
+var ExitFunc func(int)
+
 var logLevelStr string
 
 var Cmd = &cobra.Command{
@@ -20,7 +22,9 @@ var Cmd = &cobra.Command{
 	Short: "Resonance is a configuration management tool.",
 	Args:  cobra.NoArgs,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		cmd.SetContext(log.SetLoggerValue(cmd.Context(), cmd.OutOrStderr(), logLevelStr))
+		cmd.SetContext(log.SetLoggerValue(
+			cmd.Context(), cmd.OutOrStderr(), logLevelStr, ExitFunc,
+		))
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		logger := log.GetLogger(cmd.Context())
