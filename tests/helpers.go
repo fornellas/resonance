@@ -40,9 +40,9 @@ func setupDirs(t *testing.T) (string, string) {
 	return stateRoot, resourcesRoot
 }
 
-func setupBundles(t *testing.T, resourcesRoot string, bundleMap map[string]resource.Bundle) {
-	for name, bundle := range bundleMap {
-		bundleBytes, err := yaml.Marshal(bundle)
+func setupBundles(t *testing.T, resourcesRoot string, resourcesMap map[string]resource.Resources) {
+	for name, resources := range resourcesMap {
+		bundleBytes, err := yaml.Marshal(resources)
 		if err != nil {
 			t.Fatal(err)
 		}

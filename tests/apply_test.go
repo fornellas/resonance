@@ -34,8 +34,8 @@ func TestApplySuccess(t *testing.T) {
 	}
 
 	t.Run("First apply", func(t *testing.T) {
-		setupBundles(t, resourcesRoot, map[string]resource.Bundle{
-			"test.yaml": resource.Bundle{
+		setupBundles(t, resourcesRoot, map[string]resource.Resources{
+			"test.yaml": resource.Resources{
 				{
 					TypeName: "Test[foo]",
 					State:    fooDesiredState,

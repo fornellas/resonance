@@ -479,10 +479,10 @@ func NewResource(typeName TypeName, state State, destroy bool) Resource {
 	}
 }
 
-// Bundle is the schema used to declare multiple resources at a single file.
-type Bundle []Resource
+// Resources is the schema used to declare multiple resources at a single file.
+type Resources []Resource
 
-func (b Bundle) Validate() error {
+func (b Resources) Validate() error {
 	resourceMap := map[TypeName]bool{}
 	for _, resource := range b {
 		if _, ok := resourceMap[resource.TypeName]; ok {
@@ -494,39 +494,39 @@ func (b Bundle) Validate() error {
 }
 
 // LoadBundle loads resources from given Yaml file path.
-func LoadBundle(ctx context.Context, path string) (Bundle, error) {
+func LoadResources(ctx context.Context, path string) (Resources, error) {
 	logger := log.GetLogger(ctx)
 	logger.Infof("%s", path)
 	f, err := os.Open(path)
 	if err != nil {
-		return Bundle{}, fmt.Errorf("failed to load resource file: %w", err)
+		return Resources{}, fmt.Errorf("failed to load resource file: %w", err)
 	}
 	defer f.Close()
 
 	decoder := yaml.NewDecoder(f)
 	decoder.KnownFields(true)
 
-	bundle := Bundle{}
+	resources := Resources{}
 
 	for {
-		docBundle := Bundle{}
-		if err := decoder.Decode(&docBundle); err != nil {
+		docResources := Resources{}
+		if err := decoder.Decode(&docResources); err != nil {
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return Bundle{}, fmt.Errorf("failed to load resource file: %s: %w", path, err)
+			return Resources{}, fmt.Errorf("failed to load resource file: %s: %w", path, err)
 		}
-		if err := docBundle.Validate(); err != nil {
-			return bundle, fmt.Errorf("resource file validation failed: %s: %w", path, err)
+		if err := docResources.Validate(); err != nil {
+			return Resources{}, fmt.Errorf("resource file validation failed: %s: %w", path, err)
 		}
-		bundle = append(bundle, docBundle...)
+		resources = append(resources, docResources...)
 	}
 
-	return bundle, nil
+	return resources, nil
 }
 
 // Bundles holds all resources for a host.
-type Bundles []Bundle
+type Bundles []Resources
 
 // GetCleanStateMap returns a map of whether resources have a clean state or not.
 func (bs Bundles) GetCleanStateMap(
@@ -683,11 +683,11 @@ func LoadBundles(ctx context.Context, root string) (Bundles, error) {
 	sort.Strings(paths)
 
 	for _, path := range paths {
-		bundle, err := LoadBundle(nestedCtx, path)
+		resources, err := LoadResources(nestedCtx, path)
 		if err != nil {
 			return bundles, err
 		}
-		bundles = append(bundles, bundle)
+		bundles = append(bundles, resources)
 	}
 
 	if err := bundles.validate(); err != nil {
@@ -699,11 +699,11 @@ func LoadBundles(ctx context.Context, root string) (Bundles, error) {
 
 // NewBundlesFromHostState creates a single bundle from a HostState.
 func NewBundlesFromHostState(hostState HostState) Bundles {
-	bundle := Bundle{}
+	resources := Resources{}
 	for _, resource := range hostState.Resources {
-		bundle = append(bundle, resource)
+		resources = append(resources, resource)
 	}
-	return Bundles{bundle}
+	return Bundles{resources}
 }
 
 // HostState holds the state for a host
