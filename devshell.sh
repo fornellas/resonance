@@ -20,7 +20,16 @@ if ! test -d "$GIT_ROOT"/.cache ; then
 	mkdir "$GIT_ROOT"/.cache
 fi
 
+NAME="resonance-$$"
+
+function kill_container() {
+	docker kill --signal SIGKILL "${NAME}" &>/dev/null || true
+}
+
+trap kill_container EXIT
+
 docker run \
+	--name "${NAME}" \
 	--platform ${DOCKER_PLATFORM} \
 	--rm \
 	--tty \
