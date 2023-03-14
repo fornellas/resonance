@@ -65,7 +65,7 @@ func (c Cmd) String() string {
 
 func runCommand(t *testing.T, cmd Cmd) {
 	var outputBuffer bytes.Buffer
-	logCmd := func() {
+	logCmdOutput := func() {
 		t.Logf("%s\n%s", cmd, outputBuffer.String())
 	}
 	type expectedExit struct{}
@@ -73,7 +73,7 @@ func runCommand(t *testing.T, cmd Cmd) {
 	cli.ExitFunc = func(code int) {
 		t.Logf("ExitFunc(%d)", code)
 		if cmd.ExpectedCode != code {
-			logCmd()
+			logCmdOutput()
 			t.Fatalf("expected exit code %d: got %d", cmd.ExpectedCode, code)
 		}
 		panic(expectedExit{})
@@ -82,17 +82,17 @@ func runCommand(t *testing.T, cmd Cmd) {
 		switch p := recover(); p {
 		case nil:
 			if cmd.ExpectedCode != 0 {
-				logCmd()
+				logCmdOutput()
 				t.Fatalf("expected exit code %d: got %d", cmd.ExpectedCode, 0)
 			}
 		case expectedExit{}:
 		default:
-			logCmd()
+			logCmdOutput()
 			panic(p)
 		}
 		if cmd.ExpectedOutput != "" {
 			if !strings.Contains(outputBuffer.String(), cmd.ExpectedOutput) {
-				logCmd()
+				logCmdOutput()
 				t.Fatalf("output does not contain %#v", cmd.ExpectedOutput)
 			}
 		}
