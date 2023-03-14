@@ -93,7 +93,7 @@ func runCommand(t *testing.T, cmd Cmd) {
 				logCmd()
 				t.Fatalf("expected exit code %d: got %d", cmd.ExpectedCode, 0)
 			}
-		case expectedExit{}:
+		case nil, expectedExit{}:
 			if cmd.ExpectedOutput != "" {
 				if !strings.Contains(outputBuffer.String(), cmd.ExpectedOutput) {
 					logCmd()
