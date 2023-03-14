@@ -93,15 +93,15 @@ func runCommand(t *testing.T, cmd Cmd) {
 				logCmd()
 				t.Fatalf("expected exit code %d: got %d", cmd.ExpectedCode, 0)
 			}
-		case nil, expectedExit{}:
-			if cmd.ExpectedOutput != "" {
-				if !strings.Contains(outputBuffer.String(), cmd.ExpectedOutput) {
-					logCmd()
-					t.Fatalf("output does not contain %#v", cmd.ExpectedOutput)
-				}
-			}
+		case expectedExit{}:
 		default:
 			panic(p)
+		}
+		if cmd.ExpectedOutput != "" {
+			if !strings.Contains(outputBuffer.String(), cmd.ExpectedOutput) {
+				logCmd()
+				t.Fatalf("output does not contain %#v", cmd.ExpectedOutput)
+			}
 		}
 	}()
 	command := cli.Cmd
