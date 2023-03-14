@@ -76,27 +76,38 @@ func runCommand(t *testing.T, cmd Cmd) {
 		}
 	})
 
+	type expectedExit struct{}
+
 	cli.ExitFunc = func(code int) {
+		t.Logf("ExitFunc(%d)", code)
 		if cmd.ExpectedCode != code {
 			logCmd()
 			t.Fatalf("expected exit code %d: got %d", cmd.ExpectedCode, code)
 		}
+		panic(expectedExit{})
 	}
+	defer func() {
+		switch p := recover(); p {
+		case nil:
+			if cmd.ExpectedCode != 0 {
+				logCmd()
+				t.Fatalf("expected exit code %d: got %d", cmd.ExpectedCode, 0)
+			}
+		case expectedExit{}:
+			if cmd.ExpectedOutput != "" {
+				if !strings.Contains(outputBuffer.String(), cmd.ExpectedOutput) {
+					logCmd()
+					t.Fatalf("output does not contain %#v", cmd.ExpectedOutput)
+				}
+			}
+		default:
+			panic(p)
+		}
+	}()
 	command := cli.Cmd
 	command.SetArgs(cmd.Args)
 	command.SetOut(&outputBuffer)
 	if err := command.Execute(); err != nil {
 		t.Fatal(err)
-	}
-
-	if cmd.ExpectedCode != 0 {
-		logCmd()
-		t.Fatalf("expected exit code %d: got %d", cmd.ExpectedCode, 0)
-	}
-	if cmd.ExpectedOutput != "" {
-		if !strings.Contains(outputBuffer.String(), cmd.ExpectedOutput) {
-			logCmd()
-			t.Fatalf("output does not contain %#v", cmd.ExpectedOutput)
-		}
 	}
 }

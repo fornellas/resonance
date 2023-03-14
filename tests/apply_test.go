@@ -6,14 +6,14 @@ import (
 	"github.com/fornellas/resonance/resource"
 )
 
-// func TestApplyNoYamlResourceFiles(t *testing.T) {
-// 	stateRoot, resourcesRoot := setupDirs(t)
-// 	runCommand(t, Cmd{
-// 		Args:           []string{"apply", "--localhost", "--state-root", stateRoot, resourcesRoot},
-// 		ExpectedCode:   1,
-// 		ExpectedOutput: "no .yaml resource files found",
-// 	})
-// }
+func TestApplyNoYamlResourceFiles(t *testing.T) {
+	stateRoot, resourcesRoot := setupDirs(t)
+	runCommand(t, Cmd{
+		Args:           []string{"apply", "--localhost", "--state-root", stateRoot, resourcesRoot},
+		ExpectedCode:   1,
+		ExpectedOutput: "no .yaml resource files found",
+	})
+}
 
 func TestApplySuccess(t *testing.T) {
 	stateRoot, resourcesRoot := setupDirs(t)
@@ -27,7 +27,6 @@ func TestApplySuccess(t *testing.T) {
 	}
 
 	t.Run("First apply", func(t *testing.T) {
-
 		setupBundles(t, resourcesRoot, map[string]resource.Bundle{
 			"test.yaml": resource.Bundle{
 				{
@@ -40,15 +39,15 @@ func TestApplySuccess(t *testing.T) {
 				},
 			},
 		})
-
 		setupTestType(t, []resource.TestFuncCall{
-			// Planning
+			// Load
 			{ValidateName: &resource.TestFuncValidateName{
 				Name: "foo",
 			}},
 			{ValidateName: &resource.TestFuncValidateName{
 				Name: "bar",
 			}},
+			// Plan
 			{GetState: &resource.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: nil,
@@ -108,7 +107,6 @@ func TestApplySuccess(t *testing.T) {
 				CurrentState: barDesiredState,
 			}},
 		})
-
 		runCommand(t, Cmd{
 			Args:           []string{"apply", "--localhost", "--state-root", stateRoot, resourcesRoot},
 			ExpectedOutput: "Success",
