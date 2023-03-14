@@ -2,6 +2,7 @@ package tests
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -65,8 +66,11 @@ func (c Cmd) String() string {
 
 func runCommand(t *testing.T, cmd Cmd) {
 	var outputBuffer bytes.Buffer
+
 	logCmdOutput := func() {
-		t.Logf("%s\n%s", cmd, outputBuffer.String())
+		if !testing.Verbose() {
+			t.Logf("%s\n%s", cmd, outputBuffer.String())
+		}
 	}
 	type expectedExit struct{}
 
@@ -98,7 +102,13 @@ func runCommand(t *testing.T, cmd Cmd) {
 	}()
 	command := cli.Cmd
 	command.SetArgs(cmd.Args)
-	command.SetOut(&outputBuffer)
+	var output io.Writer
+	if testing.Verbose() {
+		output = io.MultiWriter(&outputBuffer, os.Stdout)
+	} else {
+		output = &outputBuffer
+	}
+	command.SetOut(output)
 	if err := command.Execute(); err != nil {
 		t.Fatal(err)
 	}
