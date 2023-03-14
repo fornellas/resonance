@@ -1,4 +1,4 @@
-package test
+package tests
 
 import (
 	"bytes"
@@ -13,14 +13,14 @@ import (
 	"github.com/fornellas/resonance/resource"
 )
 
-func setupTestInstance(t *testing.T, testFuncCalls []resource.TestFuncCall) {
+func setupTestInstance(t *testing.T, testFuncCalls []resource.TestFuncCall) func() {
 	resource.TestT = t
 	resource.TestExpectedFuncCalls = testFuncCalls
-	t.Cleanup(func() {
+	return func() {
 		if len(resource.TestExpectedFuncCalls) > 0 {
 			t.Fatalf("expected calls pending: %v", resource.TestExpectedFuncCalls)
 		}
-	})
+	}
 }
 
 func setupDirs(t *testing.T) (string, string) {
@@ -118,7 +118,7 @@ func TestApplySimple(t *testing.T) {
 		},
 	})
 
-	setupTestInstance(t, []resource.TestFuncCall{
+	assertion := setupTestInstance(t, []resource.TestFuncCall{
 		// Planning
 		{ValidateName: &resource.TestFuncValidateName{
 			Name: "foo",
@@ -134,12 +134,11 @@ func TestApplySimple(t *testing.T) {
 			Name:        "bar",
 			ReturnState: nil,
 		}},
-		// FIXME should not do double call here
-		{GetState: &resource.TestFuncGetState{
+		{GetState: &resource.TestFuncGetState{ // FIXME should not do double call here
 			Name:        "foo",
 			ReturnState: nil,
 		}},
-		{GetState: &resource.TestFuncGetState{
+		{GetState: &resource.TestFuncGetState{ // FIXME should not do double call here
 			Name:        "bar",
 			ReturnState: nil,
 		}},
@@ -192,4 +191,6 @@ func TestApplySimple(t *testing.T) {
 		ExpectedCode:   1,
 		ExpectedOutput: "no .yaml resource files found",
 	})
+
+	assertion()
 }
