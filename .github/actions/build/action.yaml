@@ -31,7 +31,7 @@ runs:
       uses: actions/cache@v3
       with:
         path: ${{ steps.gocache.outputs.path }}
-        key: ${{ runner.os }}-gocache-${{ hashFiles('**/go.sum') }}-${{ hashFiles('**/*.go') }}
+        key: ${{ runner.os }}-gocache-${{ hashFiles('**/go.sum', '**/*.go') }}
         restore-keys: ${{ runner.os }}-gocache-
     # staticcheck
     - name: Get staticcheck cache path
@@ -50,7 +50,7 @@ runs:
       with:
         path: |
           ${{ steps.staticcheck.outputs.path }}
-        key: ${{ runner.os }}-staticcheck-${{ hashFiles('**/go.sum') }}-${{ hashFiles('**/*.go') }}
+        key: ${{ runner.os }}-staticcheck-${{ hashFiles('**/go.sum', '**/*.go') }}
         restore-keys: ${{ runner.os }}-staticcheck-
     # BINDIR
     - name: Get BINDIR path
