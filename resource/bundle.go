@@ -1,0 +1,181 @@
+package resource
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"gopkg.in/yaml.v3"
+
+	"github.com/fornellas/resonance/log"
+)
+
+// Resources is the schema used to declare multiple resources at a single file.
+type Resources []Resource
+
+func (rs Resources) Validate() error {
+	resourceMap := map[TypeName]bool{}
+	for _, resource := range rs {
+		if _, ok := resourceMap[resource.TypeName]; ok {
+			return fmt.Errorf("duplicate resource %s", resource.TypeName)
+		}
+		resourceMap[resource.TypeName] = true
+	}
+	return nil
+}
+
+func (rs Resources) AppendIfNotPresent(newResources Resources) Resources {
+	resources := append(Resources{}, rs...)
+	for _, newResource := range newResources {
+		present := false
+		for _, resource := range rs {
+			if newResource.TypeName == resource.TypeName {
+				present = true
+				continue
+			}
+		}
+		if !present {
+			resources = append(resources, newResource)
+		}
+	}
+	return resources
+}
+
+func (rs Resources) Len() int {
+	return len(rs)
+}
+
+func (rs Resources) Swap(i, j int) {
+	rs[i], rs[j] = rs[j], rs[i]
+}
+
+func (rs Resources) Less(i, j int) bool {
+	return rs[i].String() < rs[j].String()
+}
+
+// LoadBundle loads resources from given Yaml file path.
+func LoadResources(ctx context.Context, path string) (Resources, error) {
+	logger := log.GetLogger(ctx)
+	logger.Infof("%s", path)
+	f, err := os.Open(path)
+	if err != nil {
+		return Resources{}, fmt.Errorf("failed to load resource file: %w", err)
+	}
+	defer f.Close()
+
+	decoder := yaml.NewDecoder(f)
+	decoder.KnownFields(true)
+
+	resources := Resources{}
+
+	for {
+		docResources := Resources{}
+		if err := decoder.Decode(&docResources); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return Resources{}, fmt.Errorf("failed to load resource file: %s: %w", path, err)
+		}
+		if err := docResources.Validate(); err != nil {
+			return Resources{}, fmt.Errorf("resource file validation failed: %s: %w", path, err)
+		}
+		resources = append(resources, docResources...)
+	}
+
+	return resources, nil
+}
+
+// Bundle holds all resources for a host.
+type Bundle []Resources
+
+func (b Bundle) validate() error {
+	resourceMap := map[TypeName]bool{}
+
+	for _, resources := range b {
+		for _, resource := range resources {
+			if _, ok := resourceMap[resource.TypeName]; ok {
+				return fmt.Errorf("duplicate resource %s", resource.TypeName)
+			}
+			resourceMap[resource.TypeName] = true
+		}
+	}
+	return nil
+}
+
+// HasTypeName returns true if Resource is contained at Bundle.
+func (b Bundle) HasTypeName(typeName TypeName) bool {
+	for _, resources := range b {
+		for _, resource := range resources {
+			if resource.TypeName == typeName {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// Resources returns all Resource at the bundle
+func (b Bundle) Resources() Resources {
+	allResources := Resources{}
+	for _, resources := range b {
+		allResources = append(allResources, resources...)
+	}
+	return allResources
+}
+
+// LoadBundle search for .yaml files at root, each having the Resources schema,
+// loads and returns all of them.
+// Bundle is sorted by alphabetical order.
+func LoadBundle(ctx context.Context, root string) (Bundle, error) {
+	logger := log.GetLogger(ctx)
+	logger.Infof("📂 Loading resources from %s", root)
+	nestedCtx := log.IndentLogger(ctx)
+	nestedLogger := log.GetLogger(nestedCtx)
+
+	bundle := Bundle{}
+
+	paths := []string{}
+	if err := filepath.Walk(root, func(path string, fileInfo fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if fileInfo.IsDir() || !strings.HasSuffix(fileInfo.Name(), ".yaml") {
+			nestedLogger.Debugf("Skipping %s", path)
+			return nil
+		}
+		nestedLogger.Debugf("Found resources file %s", path)
+		paths = append(paths, path)
+		return nil
+	}); err != nil {
+		return bundle, err
+	}
+	if len(paths) == 0 {
+		return Bundle{}, fmt.Errorf("no .yaml resource files found under %s", root)
+	}
+	sort.Strings(paths)
+
+	for _, path := range paths {
+		resources, err := LoadResources(nestedCtx, path)
+		if err != nil {
+			return bundle, err
+		}
+		bundle = append(bundle, resources)
+	}
+
+	if err := bundle.validate(); err != nil {
+		return bundle, err
+	}
+
+	return bundle, nil
+}
+
+// NewBundleFromResources creates a single bundle from a HostState.
+func NewBundleFromResources(resources Resources) Bundle {
+	return Bundle{resources}
+}
