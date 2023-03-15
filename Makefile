@@ -267,7 +267,21 @@ clean-gotest:
 	rm -f cover.out
 clean: clean-gotest
 
-# ci
+# cover.html
+
+.PHONY: cover.html
+cover.html: gotest
+	$(GO) tool cover -html cover.out -o cover.html
+test: cover.html
+
+.PHONY: clean-cover.html
+clean-cover.html:
+	rm -f cover.html
+clean: clean-cover.html
+
+##
+## ci
+##
 
 .PHONY: ci-help
 ci-help:
@@ -280,7 +294,9 @@ ci-no-install-deps: lint test build
 .PHONY: ci
 ci: install-deps ci-no-install-deps
 
-# rrb
+##
+## rrb
+##
 
 .PHONY: install-deps-rrb
 install-deps-rrb: $(BINDIR)
