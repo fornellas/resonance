@@ -54,7 +54,7 @@ var Cmd = &cobra.Command{
 		}
 		initialResources = initialResources.AppendIfNotPresent(bundle.Resources())
 		fmt.Printf("initialResources:\n%#v\n", initialResources)
-		initialResourcesStateMap, err := resource.NewResourcesStateMap(ctx, hst, initialResources)
+		initialResourcesStateMap, err := resource.GetResourcesStateMap(ctx, hst, initialResources)
 		if err != nil {
 			logger.Fatal(err)
 		}

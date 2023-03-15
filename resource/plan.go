@@ -634,7 +634,7 @@ func NewRollbackPlan(
 	rollbackBundle := NewBundleFromResources(initialResources)
 
 	// ResourcesState
-	initialResourcesStateMap, err := NewResourcesStateMap(ctx, hst, initialResources)
+	initialResourcesStateMap, err := GetResourcesStateMap(ctx, hst, initialResources)
 	if err != nil {
 		logger.Fatal(err)
 	}

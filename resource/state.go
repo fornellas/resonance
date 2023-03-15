@@ -67,7 +67,7 @@ func (hs HostState) Check(
 
 // Refresh gets current host state and returns it as it is.
 func (hs HostState) Refresh(ctx context.Context, hst host.Host) (HostState, error) {
-	resourcesStateMap, err := NewResourcesStateMap(ctx, hst, hs.Resources)
+	resourcesStateMap, err := GetResourcesStateMap(ctx, hst, hs.Resources)
 	if err != nil {
 		return HostState{}, err
 	}
@@ -98,7 +98,7 @@ type ResourceState struct {
 	Clean bool
 }
 
-func NewResourceState(ctx context.Context, hst host.Host, resource Resource) (ResourceState, error) {
+func GetResourceState(ctx context.Context, hst host.Host, resource Resource) (ResourceState, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("🔎 Reading host state")
 
@@ -130,14 +130,14 @@ func NewResourceState(ctx context.Context, hst host.Host, resource Resource) (Re
 
 type ResourcesStateMap map[TypeName]ResourceState
 
-func NewResourcesStateMap(ctx context.Context, hst host.Host, resources Resources) (ResourcesStateMap, error) {
+func GetResourcesStateMap(ctx context.Context, hst host.Host, resources Resources) (ResourcesStateMap, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("🔎 Reading host state")
 	nestedCtx := log.IndentLogger(ctx)
 
 	resourcesStateMap := ResourcesStateMap{}
 	for _, resource := range resources {
-		resourcesState, err := NewResourceState(nestedCtx, hst, resource)
+		resourcesState, err := GetResourceState(nestedCtx, hst, resource)
 		if err != nil {
 			return ResourcesStateMap{}, err
 		}
