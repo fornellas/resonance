@@ -27,11 +27,11 @@ func TestApplyNoYamlResourceFiles(t *testing.T) {
 func TestApplySuccess(t *testing.T) {
 	stateRoot, resourcesRoot := setupDirs(t)
 
-	fooDesiredState := resource.TestState{
+	fooDesiredState := TestState{
 		Value: "foo",
 	}
 
-	barDesiredState := resource.TestState{
+	barDesiredState := TestState{
 		Value: "bar",
 	}
 
@@ -48,20 +48,20 @@ func TestApplySuccess(t *testing.T) {
 				},
 			},
 		})
-		setupTestType(t, []resource.TestFuncCall{
+		setupTestType(t, []TestFuncCall{
 			// Loading resources
-			{ValidateName: &resource.TestFuncValidateName{
+			{ValidateName: &TestFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &resource.TestFuncValidateName{
+			{ValidateName: &TestFuncValidateName{
 				Name: "bar",
 			}},
 			// Reading Host State
-			{GetState: &resource.TestFuncGetState{
+			{GetState: &TestFuncGetState{
 				Name:        "foo",
 				ReturnState: nil,
 			}},
-			{DiffStates: &resource.TestFuncDiffStates{
+			{DiffStates: &TestFuncDiffStates{
 				DesiredState: fooDesiredState,
 				CurrentState: nil,
 				ReturnDiffs: []diffmatchpatch.Diff{{
@@ -69,11 +69,11 @@ func TestApplySuccess(t *testing.T) {
 					Text: "foo",
 				}},
 			}},
-			{GetState: &resource.TestFuncGetState{
+			{GetState: &TestFuncGetState{
 				Name:        "bar",
 				ReturnState: nil,
 			}},
-			{DiffStates: &resource.TestFuncDiffStates{
+			{DiffStates: &TestFuncDiffStates{
 				DesiredState: barDesiredState,
 				CurrentState: nil,
 				ReturnDiffs: []diffmatchpatch.Diff{{
@@ -82,27 +82,27 @@ func TestApplySuccess(t *testing.T) {
 				}},
 			}},
 			// Executing plan
-			{Apply: &resource.TestFuncApply{
+			{Apply: &TestFuncApply{
 				Name:  "foo",
 				State: fooDesiredState,
 			}},
-			{GetState: &resource.TestFuncGetState{
+			{GetState: &TestFuncGetState{
 				Name:        "foo",
 				ReturnState: fooDesiredState,
 			}},
-			{DiffStates: &resource.TestFuncDiffStates{
+			{DiffStates: &TestFuncDiffStates{
 				DesiredState: fooDesiredState,
 				CurrentState: fooDesiredState,
 			}},
-			{Apply: &resource.TestFuncApply{
+			{Apply: &TestFuncApply{
 				Name:  "bar",
 				State: barDesiredState,
 			}},
-			{GetState: &resource.TestFuncGetState{
+			{GetState: &TestFuncGetState{
 				Name:        "bar",
 				ReturnState: barDesiredState,
 			}},
-			{DiffStates: &resource.TestFuncDiffStates{
+			{DiffStates: &TestFuncDiffStates{
 				DesiredState: barDesiredState,
 				CurrentState: barDesiredState,
 			}},
@@ -124,27 +124,27 @@ func TestApplySuccess(t *testing.T) {
 	}
 
 	t.Run("Idempotent apply", func(t *testing.T) {
-		setupTestType(t, []resource.TestFuncCall{
+		setupTestType(t, []TestFuncCall{
 			// Loading resources
-			{ValidateName: &resource.TestFuncValidateName{
+			{ValidateName: &TestFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &resource.TestFuncValidateName{
+			{ValidateName: &TestFuncValidateName{
 				Name: "bar",
 			}},
 			// Loading saved host state
-			{ValidateName: &resource.TestFuncValidateName{
+			{ValidateName: &TestFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &resource.TestFuncValidateName{
+			{ValidateName: &TestFuncValidateName{
 				Name: "bar",
 			}},
 			// Reading Host State
-			{GetState: &resource.TestFuncGetState{
+			{GetState: &TestFuncGetState{
 				Name:        "foo",
 				ReturnState: fooDesiredState,
 			}},
-			{DiffStates: &resource.TestFuncDiffStates{
+			{DiffStates: &TestFuncDiffStates{
 				DesiredState: fooDesiredState,
 				CurrentState: fooDesiredState,
 				ReturnDiffs: []diffmatchpatch.Diff{{
@@ -152,11 +152,11 @@ func TestApplySuccess(t *testing.T) {
 					Text: "foo",
 				}},
 			}},
-			{GetState: &resource.TestFuncGetState{
+			{GetState: &TestFuncGetState{
 				Name:        "bar",
 				ReturnState: barDesiredState,
 			}},
-			{DiffStates: &resource.TestFuncDiffStates{
+			{DiffStates: &TestFuncDiffStates{
 				DesiredState: barDesiredState,
 				CurrentState: barDesiredState,
 				ReturnDiffs: []diffmatchpatch.Diff{{

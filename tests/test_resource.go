@@ -1,4 +1,4 @@
-package resource
+package tests
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
+	"github.com/fornellas/resonance/resource"
 )
 
 type TestState struct {
@@ -22,7 +23,7 @@ func (ts TestState) Validate() error {
 }
 
 type TestFuncValidateName struct {
-	Name        Name
+	Name        resource.Name
 	ReturnError error
 }
 
@@ -31,8 +32,8 @@ func (tfvn TestFuncValidateName) String() string {
 }
 
 type TestFuncGetState struct {
-	Name        Name
-	ReturnState State
+	Name        resource.Name
+	ReturnState resource.State
 	ReturnError error
 }
 
@@ -41,8 +42,8 @@ func (tfgs TestFuncGetState) String() string {
 }
 
 type TestFuncDiffStates struct {
-	DesiredState State
-	CurrentState State
+	DesiredState resource.State
+	CurrentState resource.State
 	ReturnDiffs  []diffmatchpatch.Diff
 	ReturnError  error
 }
@@ -55,8 +56,8 @@ func (tfds TestFuncDiffStates) String() string {
 }
 
 type TestFuncApply struct {
-	Name        Name
-	State       State
+	Name        resource.Name
+	State       resource.State
 	ReturnError error
 }
 
@@ -65,7 +66,7 @@ func (tfa TestFuncApply) String() string {
 }
 
 type TestFuncDestroy struct {
-	Name        Name
+	Name        resource.Name
 	ReturnError error
 }
 
@@ -119,7 +120,7 @@ func (t *Test) getFuncCall() *TestFuncCall {
 	return &testFuncCall
 }
 
-func (t Test) ValidateName(name Name) error {
+func (t Test) ValidateName(name resource.Name) error {
 	funcCall := t.getFuncCall()
 	if funcCall == nil {
 		TestT.Fatalf("no more calls expected, got ValidateName(%#v)", name)
@@ -136,7 +137,7 @@ func (t Test) ValidateName(name Name) error {
 	return funcCall.ValidateName.ReturnError
 }
 
-func (t Test) GetState(ctx context.Context, hst host.Host, name Name) (State, error) {
+func (t Test) GetState(ctx context.Context, hst host.Host, name resource.Name) (resource.State, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Test.GetState(%#v)", name)
 	funcCall := t.getFuncCall()
@@ -157,7 +158,7 @@ func (t Test) GetState(ctx context.Context, hst host.Host, name Name) (State, er
 
 func (t Test) DiffStates(
 	ctx context.Context, hst host.Host,
-	desiredState State, currentState State,
+	desiredState resource.State, currentState resource.State,
 ) ([]diffmatchpatch.Diff, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Test.DiffStates(%#v, %#v)", desiredState, currentState)
@@ -178,7 +179,7 @@ func (t Test) DiffStates(
 }
 
 func (t Test) Apply(
-	ctx context.Context, hst host.Host, name Name, state State,
+	ctx context.Context, hst host.Host, name resource.Name, state resource.State,
 ) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Test.Apply(%#v, %#v)", name, state)
@@ -198,7 +199,7 @@ func (t Test) Apply(
 	return funcCall.Apply.ReturnError
 }
 
-func (t Test) Destroy(ctx context.Context, hst host.Host, name Name) error {
+func (t Test) Destroy(ctx context.Context, hst host.Host, name resource.Name) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Test.Destroy(%#v)", name)
 	funcCall := t.getFuncCall()
@@ -218,6 +219,6 @@ func (t Test) Destroy(ctx context.Context, hst host.Host, name Name) error {
 }
 
 func init() {
-	IndividuallyManageableResourceTypeMap["Test"] = Test{}
-	ManageableResourcesStateMap["Test"] = TestState{}
+	resource.IndividuallyManageableResourceTypeMap["Test"] = Test{}
+	resource.ManageableResourcesStateMap["Test"] = TestState{}
 }
