@@ -388,12 +388,6 @@ func (r Resource) Refreshable() bool {
 	return ok
 }
 
-// IsIndividuallyManageableResource returns true only if ManageableResource is of type IndividuallyManageableResource.
-func (r Resource) IsIndividuallyManageableResource() bool {
-	_, ok := r.ManageableResource().(IndividuallyManageableResource)
-	return ok
-}
-
 // MustIndividuallyManageableResource returns IndividuallyManageableResource from ManageableResource or
 // panics if it isn't of the required type.
 func (r Resource) MustIndividuallyManageableResource() IndividuallyManageableResource {
@@ -650,41 +644,12 @@ type HostState struct {
 	Resources Resources       `yaml:"resources"`
 }
 
-func (hs HostState) Append(hostState HostState) HostState {
-	resources := append(Resources{}, hs.Resources...)
-
-	for _, resource := range hostState.Resources {
-		duplicate := false
-		for _, r := range hs.Resources {
-			if resource.TypeName == r.TypeName {
-				duplicate = true
-				continue
-			}
-		}
-		if !duplicate {
-			resources = append(resources, resource)
-		}
-	}
-
-	return NewHostState(resources)
-}
-
 func (hs HostState) String() string {
 	bytes, err := yaml.Marshal(&hs)
 	if err != nil {
 		panic(err)
 	}
 	return string(bytes)
-}
-
-func (hs HostState) TypeNames() []TypeName {
-	typeNames := []TypeName{}
-
-	for _, resource := range hs.Resources {
-		typeNames = append(typeNames, resource.TypeName)
-	}
-
-	return typeNames
 }
 
 // Check whether current host state matches HostState.
@@ -748,15 +713,6 @@ func NewHostState(resources Resources) HostState {
 		Version:   version.GetVersion(),
 		Resources: resources,
 	}
-}
-
-func (hs HostState) GetState(typename TypeName) State {
-	for _, resource := range hs.Resources {
-		if resource.TypeName == typename {
-			return resource.State
-		}
-	}
-	return nil
 }
 
 type ResourcesState struct {
@@ -1158,19 +1114,6 @@ func (p Plan) Print(ctx context.Context) {
 			nestedLogger.Debugf("%s", step)
 		}
 	}
-}
-
-func (p Plan) HasTypeName(typeName TypeName) bool {
-	for _, step := range p.Steps {
-		for _, resources := range step.StepAction.ActionResourcesMap() {
-			for _, resource := range resources {
-				if resource.TypeName == typeName {
-					return true
-				}
-			}
-		}
-	}
-	return false
 }
 
 func (p Plan) addBundleSteps(
