@@ -103,39 +103,49 @@ type ResourceState struct {
 	Clean bool
 }
 
+func NewResourcesState(ctx context.Context, hst host.Host, resource Resource) (ResourceState, error) {
+	logger := log.GetLogger(ctx)
+	logger.Info("🔎 Reading host state")
+
+	resourcesState := ResourceState{}
+
+	currentState, err := resource.ManageableResource().GetState(ctx, hst, resource.TypeName.Name())
+	if err != nil {
+		return ResourceState{}, err
+	}
+	resourcesState.State = currentState
+
+	diffs, err := resource.ManageableResource().DiffStates(ctx, hst, resource.State, currentState)
+	if err != nil {
+		return ResourceState{}, err
+	}
+
+	resourcesState.Diffs = diffs
+
+	if DiffsHasChanges(diffs) {
+		logger.Infof("%s %s", ActionApply.Emoji(), resource)
+		resourcesState.Clean = false
+	} else {
+		logger.Infof("%s %s", ActionOk.Emoji(), resource)
+		resourcesState.Clean = true
+	}
+
+	return resourcesState, nil
+}
+
 type ResourcesStateMap map[TypeName]ResourceState
 
 func NewResourcesStateMap(ctx context.Context, hst host.Host, resources Resources) (ResourcesStateMap, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("🔎 Reading host state")
 	nestedCtx := log.IndentLogger(ctx)
-	nestedLogger := log.GetLogger(nestedCtx)
 
 	resourcesStateMap := ResourcesStateMap{}
 	for _, resource := range resources {
-		resourcesState := ResourceState{}
-
-		currentState, err := resource.ManageableResource().GetState(nestedCtx, hst, resource.TypeName.Name())
+		resourcesState, err := NewResourcesState(nestedCtx, hst, resource)
 		if err != nil {
 			return ResourcesStateMap{}, err
 		}
-		resourcesState.State = currentState
-
-		diffs, err := resource.ManageableResource().DiffStates(nestedCtx, hst, resource.State, currentState)
-		if err != nil {
-			return ResourcesStateMap{}, err
-		}
-
-		resourcesState.Diffs = diffs
-
-		if DiffsHasChanges(diffs) {
-			nestedLogger.Infof("%s %s", ActionApply.Emoji(), resource)
-			resourcesState.Clean = false
-		} else {
-			nestedLogger.Infof("%s %s", ActionOk.Emoji(), resource)
-			resourcesState.Clean = true
-		}
-
 		resourcesStateMap[resource.TypeName] = resourcesState
 	}
 	return resourcesStateMap, nil
