@@ -31,7 +31,7 @@ var Cmd = &cobra.Command{
 			logger.Fatal(err)
 		}
 
-		// Load saved state
+		// Load saved HostState
 		savedHostState, err := state.LoadHostState(ctx, persistantState)
 		if err != nil {
 			logger.Fatal(err)
@@ -42,7 +42,7 @@ var Cmd = &cobra.Command{
 
 		// Plan
 		rollbackPlan, err := resource.NewRollbackPlan(
-			ctx, hst, resource.Bundle{}, *savedHostState,
+			ctx, hst, resource.Bundle{}, savedHostState.Resources,
 		)
 		if err != nil {
 			logger.Fatal(err)
@@ -50,13 +50,8 @@ var Cmd = &cobra.Command{
 		rollbackPlan.Print(ctx)
 
 		// Execute
-		planHostState, err := rollbackPlan.Execute(ctx, hst)
+		err = rollbackPlan.Execute(ctx, hst)
 		if err != nil {
-			logger.Fatal(err)
-		}
-
-		// Save host state
-		if err := state.SaveHostState(ctx, planHostState, persistantState); err != nil {
 			logger.Fatal(err)
 		}
 

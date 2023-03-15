@@ -24,8 +24,6 @@ var Cmd = &cobra.Command{
 		ctx := cmd.Context()
 
 		logger := log.GetLogger(ctx)
-		nestedCtx := log.IndentLogger(ctx)
-		nestedLogger := log.GetLogger(nestedCtx)
 
 		// Host
 		hst, err := lib.GetHost()
@@ -46,27 +44,43 @@ var Cmd = &cobra.Command{
 			logger.Fatal(err)
 		}
 
-		// Load saved state
+		// Load saved HostState
 		savedHostState, err := state.LoadHostState(ctx, persistantState)
 		if err != nil {
 			logger.Fatal(err)
 		}
+
+		// Read current state
+		var initialResources resource.Resources
 		if savedHostState != nil {
-			if err := savedHostState.Validate(ctx, hst); err != nil {
+			initialResources = savedHostState.Resources
+		}
+		initialResources = initialResources.AppendIfNotPresent(bundle.Resources())
+		initialResourcesState, err := resource.NewResourcesState(ctx, hst, initialResources)
+		if err != nil {
+			logger.Fatal(err)
+		}
+
+		// Check saved HostState
+		if savedHostState != nil {
+			if err := savedHostState.Check(ctx, hst, initialResourcesState); err != nil {
 				logger.Fatal(err)
 			}
 		}
 
 		// Plan
 		plan, err := resource.NewPlanFromSavedStateAndBundle(
-			ctx, hst, bundle, savedHostState, resource.ActionNone,
+			ctx, hst, bundle, savedHostState, initialResourcesState.TypeNameCleanMap, resource.ActionNone,
 		)
 		if err != nil {
 			logger.Fatal(err)
 		}
+		plan.Print(ctx)
 
 		// Print
 		if graphvizPath != "" {
+			nestedCtx := log.IndentLogger(ctx)
+			nestedLogger := log.GetLogger(nestedCtx)
 			graphviz := plan.Graphviz()
 			logger.Info("📝 Plan")
 

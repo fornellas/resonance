@@ -40,10 +40,16 @@ var Cmd = &cobra.Command{
 			logger.Fatal("No previously saved state to destroy")
 		}
 
+		// Read current state
+		initialResourcesState, err := resource.NewResourcesState(ctx, hst, savedHostState.Resources)
+		if err != nil {
+			logger.Fatal(err)
+		}
+
 		// Plan
-		bundle := resource.NewBundleFromHostState(*savedHostState)
+		bundle := resource.NewBundleFromResources(savedHostState.Resources)
 		plan, err := resource.NewPlanFromSavedStateAndBundle(
-			ctx, hst, bundle, nil, resource.ActionDestroy,
+			ctx, hst, bundle, nil, initialResourcesState.TypeNameCleanMap, resource.ActionDestroy,
 		)
 		if err != nil {
 			logger.Fatal(err)
@@ -51,12 +57,13 @@ var Cmd = &cobra.Command{
 		plan.Print(ctx)
 
 		// Execute plan
-		newHostState, err := plan.Execute(ctx, hst)
+		err = plan.Execute(ctx, hst)
 		if err != nil {
 			logger.Fatal(err)
 		}
 
 		// Save state
+		newHostState := resource.NewHostState(bundle.Resources())
 		if err := state.SaveHostState(ctx, newHostState, persistantState); err != nil {
 			logger.Fatal(err)
 		}

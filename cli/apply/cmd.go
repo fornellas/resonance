@@ -1,6 +1,8 @@
 package apply
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/fornellas/resonance/log"
@@ -19,8 +21,6 @@ var Cmd = &cobra.Command{
 		ctx := cmd.Context()
 
 		logger := log.GetLogger(ctx)
-		nestedCtx := log.IndentLogger(ctx)
-		nestedLogger := log.GetLogger(nestedCtx)
 
 		// Host
 		hst, err := lib.GetHost()
@@ -41,44 +41,34 @@ var Cmd = &cobra.Command{
 			logger.Fatal(err)
 		}
 
-		// Load saved state
+		// Load saved HostState
 		savedHostState, err := state.LoadHostState(ctx, persistantState)
 		if err != nil {
 			logger.Fatal(err)
 		}
-		if savedHostState != nil {
-			if err := savedHostState.Validate(ctx, hst); err != nil {
-				logger.Fatal(err)
-			}
-		} else {
-			nestedLogger.Warn("No previously saved state available.")
-		}
 
-		// Read bundle state
-		var excludeTypeNames []resource.TypeName
+		// Read current state
+		var initialResources resource.Resources
 		if savedHostState != nil {
-			excludeTypeNames = savedHostState.TypeNames()
+			initialResources = savedHostState.Resources
 		}
-		bundlesHostState, err := bundle.GetHostState(ctx, hst, excludeTypeNames)
+		initialResources = initialResources.AppendIfNotPresent(bundle.Resources())
+		fmt.Printf("initialResources:\n%#v\n", initialResources)
+		initialResourcesState, err := resource.NewResourcesState(ctx, hst, initialResources)
 		if err != nil {
 			logger.Fatal(err)
 		}
 
-		// Initial state
-		initialHostState := bundlesHostState
+		// Check saved HostState
 		if savedHostState != nil {
-			initialHostState = bundlesHostState.Append(*savedHostState)
+			if err := savedHostState.Check(ctx, hst, initialResourcesState); err != nil {
+				logger.Fatal(err)
+			}
 		}
-
-		// Save initial state
-		// TODO requires marking (bundle - saved) state as "do not destroy"
-		// if err := state.SaveHostState(ctx, initialHostState, persistantState); err != nil {
-		// 	logger.Fatal(err)
-		// }
 
 		// Plan
 		plan, err := resource.NewPlanFromSavedStateAndBundle(
-			ctx, hst, bundle, savedHostState, resource.ActionNone,
+			ctx, hst, bundle, savedHostState, initialResourcesState.TypeNameCleanMap, resource.ActionNone,
 		)
 		if err != nil {
 			logger.Fatal(err)
@@ -87,33 +77,34 @@ var Cmd = &cobra.Command{
 
 		// Execute plan
 		success := true
-		planHostState, err := plan.Execute(ctx, hst)
+		err = plan.Execute(ctx, hst)
 
-		// Rollback
-		if err != nil {
+		if err == nil {
+			// Save plan state
+			newHostState := resource.NewHostState(bundle.Resources())
+			if err := state.SaveHostState(ctx, newHostState, persistantState); err != nil {
+				logger.Fatal(err)
+			}
+		} else {
+			// Rollback
+			nestedCtx := log.IndentLogger(ctx)
+			nestedLogger := log.GetLogger(nestedCtx)
 			success = false
 			nestedLogger.Error(err)
 			nestedLogger.Warn("Failed to execute plan, rolling back to previously saved state.")
 
-			rollbackPlan, err := resource.NewRollbackPlan(
-				nestedCtx, hst, bundle, initialHostState,
-			)
+			rollbackPlan, err := resource.NewRollbackPlan(nestedCtx, hst, bundle, initialResources)
 			if err != nil {
 				logger.Fatal(err)
 			}
 			rollbackPlan.Print(nestedCtx)
 
-			planHostState, err = rollbackPlan.Execute(nestedCtx, hst)
+			err = rollbackPlan.Execute(nestedCtx, hst)
 			if err != nil {
 				nestedLogger.Error(err)
 				logger.Fatal("Rollback failed! You may try the restore command and / or fix things manually.")
 			}
 			nestedLogger.Info("👌 Rollback successful.")
-		}
-
-		// Save plan state
-		if err := state.SaveHostState(ctx, planHostState, persistantState); err != nil {
-			logger.Fatal(err)
 		}
 
 		// Result

@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/fornellas/resonance/log"
+	"github.com/fornellas/resonance/resource"
 
 	"github.com/fornellas/resonance/cli/lib"
 	"github.com/fornellas/resonance/state"
@@ -40,10 +41,18 @@ var Cmd = &cobra.Command{
 			logger.Fatal("No previously saved state available!")
 		}
 
-		// Validate
-		if err := savedHostState.Validate(ctx, hst); err != nil {
+		// Read current state
+		initialResourcesState, err := resource.NewResourcesState(ctx, hst, savedHostState.Resources)
+		if err != nil {
 			logger.Fatal(err)
 		}
+
+		// Check saved HostState
+		if err := savedHostState.Check(ctx, hst, initialResourcesState); err != nil {
+			logger.Fatal(err)
+		}
+
+		// Result
 		logger.Info("🎆 State is OK")
 	},
 }

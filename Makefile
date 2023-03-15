@@ -163,7 +163,7 @@ uninstall-deps-staticcheck:
 uninstall-deps: uninstall-deps-staticcheck
 
 .PHONY: staticcheck
-staticcheck: install-deps-staticcheck go-mod-tidy go-generate
+staticcheck: install-deps-staticcheck go-mod-tidy go-generate goimports
 	$(STATICCHECK) ./...
 lint: staticcheck
 

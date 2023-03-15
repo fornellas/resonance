@@ -80,6 +80,7 @@
     - `hosts.go`
         - 💡Manage entries.
     - `resource.go`
+        - 💡After `Plan.Execute` , validate the full state again to detect any cross-resource state breakage.
         - 🧪Move `GetState` to `IndividuallyManageableResource` and add `GetAllStates` to `MergeableManageableResources`.
         - 🧪Improve diff output
             - Use https://pkg.go.dev/github.com/kylelemons/godebug/diff?
