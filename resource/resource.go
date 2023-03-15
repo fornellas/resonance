@@ -80,14 +80,6 @@ func (a Action) String() string {
 	return str
 }
 
-// SaveState tells whether a Step with this action should have its state saved.
-func (a Action) SaveState() bool {
-	if a == ActionSkip || a == ActionDestroy {
-		return false
-	}
-	return true
-}
-
 // State is a Type specific interface for defining resource state as configured by users.
 type State interface {
 	// Validate whether the parameters are OK.
@@ -518,6 +510,18 @@ func (rs Resources) AppendIfNotPresent(newResources Resources) Resources {
 	return resources
 }
 
+func (rs Resources) Len() int {
+	return len(rs)
+}
+
+func (rs Resources) Swap(i, j int) {
+	rs[i], rs[j] = rs[j], rs[i]
+}
+
+func (rs Resources) Less(i, j int) bool {
+	return rs[i].String() < rs[j].String()
+}
+
 // LoadBundle loads resources from given Yaml file path.
 func LoadResources(ctx context.Context, path string) (Resources, error) {
 	logger := log.GetLogger(ctx)
@@ -806,7 +810,7 @@ type StepAction interface {
 	// Actionable returns whether any action is different from ActionOk or ActionSkip
 	Actionable() bool
 	// ActionResources returns a map from Action to a slice of Resource.
-	ActionResources() map[Action]Resources
+	ActionResourcesMap() map[Action]Resources
 }
 
 // StepActionIndividual is a StepAction which can execute a single Resource.
@@ -872,7 +876,7 @@ func (sai StepActionIndividual) Actionable() bool {
 	return !(sai.Action == ActionOk || sai.Action == ActionSkip)
 }
 
-func (sai StepActionIndividual) ActionResources() map[Action]Resources {
+func (sai StepActionIndividual) ActionResourcesMap() map[Action]Resources {
 	return map[Action]Resources{sai.Action: Resources{sai.Resource}}
 }
 
@@ -1003,7 +1007,7 @@ func (sam StepActionMerged) Actionable() bool {
 	return hasAction
 }
 
-func (sam StepActionMerged) ActionResources() map[Action]Resources {
+func (sam StepActionMerged) ActionResourcesMap() map[Action]Resources {
 	return sam
 }
 
@@ -1026,8 +1030,8 @@ func (s Step) Execute(ctx context.Context, hst host.Host) error {
 	return s.StepAction.Execute(ctx, hst)
 }
 
-func (s Step) ActionResources() map[Action]Resources {
-	return s.StepAction.ActionResources()
+func (s Step) ActionResourcesMap() map[Action]Resources {
+	return s.StepAction.ActionResourcesMap()
 }
 
 // Plan is a directed graph which contains the plan for applying resources to a host.
@@ -1102,6 +1106,8 @@ func (p Plan) Print(ctx context.Context) {
 	logger.Info("📝 Plan")
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
+	nestedNestedCtx := log.IndentLogger(nestedCtx)
+	nestedNestedLogger := log.GetLogger(nestedNestedCtx)
 
 	if !p.Actionable() {
 		nestedLogger.Infof("👌 Nothing to do")
@@ -1109,7 +1115,45 @@ func (p Plan) Print(ctx context.Context) {
 
 	for _, step := range p.Steps {
 		if step.Actionable() {
-			nestedLogger.Infof("%s", step)
+			resources := Resources{}
+			for _, stepResources := range step.ActionResourcesMap() {
+				resources = append(resources, stepResources...)
+			}
+			sort.Sort(resources)
+
+			if len(resources) > 1 {
+				nestedLogger.Infof("%s", step)
+			}
+
+			for _, resource := range resources {
+				diffs, ok := p.InitialResourcesState.TypeNameDiffsMap[resource.TypeName]
+				if !ok {
+					panic(fmt.Sprintf("diffs not found at InitialResourcesState: %s", resource))
+				}
+
+				var action Action
+				for actionResources, stepResources := range step.ActionResourcesMap() {
+					for _, stepResource := range stepResources {
+						if stepResource.TypeName == resource.TypeName {
+							action = actionResources
+						}
+					}
+				}
+				if action == ActionNone {
+					panic(fmt.Sprintf("can not find action: %s", resource))
+				}
+
+				if DiffsHasChanges(diffs) {
+					diffMatchPatch := diffmatchpatch.New()
+					if len(resources) > 1 {
+						nestedNestedLogger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).
+							Infof("%s %s", action.Emoji(), resource)
+					} else {
+						nestedLogger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).
+							Infof("%s %s", action.Emoji(), resource)
+					}
+				}
+			}
 		} else {
 			nestedLogger.Debugf("%s", step)
 		}
@@ -1118,7 +1162,7 @@ func (p Plan) Print(ctx context.Context) {
 
 func (p Plan) HasTypeName(typeName TypeName) bool {
 	for _, step := range p.Steps {
-		for _, resources := range step.StepAction.ActionResources() {
+		for _, resources := range step.StepAction.ActionResourcesMap() {
 			for _, resource := range resources {
 				if resource.TypeName == typeName {
 					return true
