@@ -1,8 +1,6 @@
 package apply
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/fornellas/resonance/log"
@@ -53,7 +51,6 @@ var Cmd = &cobra.Command{
 			initialResources = savedHostState.Resources
 		}
 		initialResources = initialResources.AppendIfNotPresent(bundle.Resources())
-		fmt.Printf("initialResources:\n%#v\n", initialResources)
 		initialResourcesStateMap, err := resource.GetResourcesStateMap(ctx, hst, initialResources)
 		if err != nil {
 			logger.Fatal(err)
