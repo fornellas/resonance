@@ -1032,7 +1032,8 @@ func (s Step) ActionResources() map[Action]Resources {
 
 // Plan is a directed graph which contains the plan for applying resources to a host.
 type Plan struct {
-	Steps []*Step
+	Steps                 []*Step
+	InitialResourcesState ResourcesState
 }
 
 // Graphviz returns a DOT directed graph containing the apply plan.
@@ -1128,18 +1129,14 @@ func (p Plan) HasTypeName(typeName TypeName) bool {
 	return false
 }
 
-func newPartialPlanFromBundle(
+func (p Plan) addBundleSteps(
 	ctx context.Context,
 	bundle Bundle,
-	cleanStateMap map[TypeName]bool,
 	intendedAction Action,
 ) Plan {
 	logger := log.GetLogger(ctx)
 
 	logger.Info("👷 Building plan")
-	plan := Plan{
-		Steps: []*Step{},
-	}
 
 	var lastBundleLastStep *Step
 	for _, resources := range bundle {
@@ -1148,7 +1145,7 @@ func newPartialPlanFromBundle(
 		var step *Step
 		for i, resource := range resources {
 			step = &Step{}
-			plan.Steps = append(plan.Steps, step)
+			p.Steps = append(p.Steps, step)
 
 			// Dependant on previous resources
 			if i == 0 && lastBundleLastStep != nil {
@@ -1161,7 +1158,7 @@ func newPartialPlanFromBundle(
 				action = ActionDestroy
 			}
 			if action != ActionDestroy {
-				cleanState, ok := cleanStateMap[resource.TypeName]
+				cleanState, ok := p.InitialResourcesState.TypeNameCleanMap[resource.TypeName]
 				if !ok {
 					panic(fmt.Errorf("%v missing check result", resource))
 				}
@@ -1197,7 +1194,7 @@ func newPartialPlanFromBundle(
 		lastBundleLastStep = step
 	}
 
-	return plan
+	return p
 }
 
 func prependDestroyStepsToPlan(
@@ -1316,15 +1313,21 @@ func NewPlanFromSavedStateAndBundle(
 	hst host.Host,
 	bundle Bundle,
 	savedHostState *HostState,
-	typeNameCleanMap map[TypeName]bool,
+	initialResourcesState ResourcesState,
 	intendedAction Action,
 ) (Plan, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("📝 Planning changes")
 	nestedCtx := log.IndentLogger(ctx)
 
-	// Add Bundle
-	plan := newPartialPlanFromBundle(nestedCtx, bundle, typeNameCleanMap, intendedAction)
+	// Plan
+	plan := Plan{
+		Steps:                 []*Step{},
+		InitialResourcesState: initialResourcesState,
+	}
+
+	// Add Bundle Steps
+	plan = plan.addBundleSteps(nestedCtx, bundle, intendedAction)
 
 	// Prepend destroy steps
 	if savedHostState != nil {
@@ -1384,19 +1387,23 @@ func NewRollbackPlan(
 ) (Plan, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("📝 Planning rollback")
+	nestedCtx := log.IndentLogger(ctx)
+	rollbackBundle := NewBundleFromResources(initialResources)
 
 	// ResourcesState
-	currentResourcesState, err := NewResourcesState(ctx, hst, initialResources)
+	initialResourcesState, err := NewResourcesState(ctx, hst, initialResources)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
 	// Plan
-	nestedCtx := log.IndentLogger(ctx)
-	rollbackBundle := NewBundleFromResources(initialResources)
-	plan := newPartialPlanFromBundle(
-		nestedCtx, rollbackBundle, currentResourcesState.TypeNameCleanMap, ActionNone,
-	)
+	plan := Plan{
+		Steps:                 []*Step{},
+		InitialResourcesState: initialResourcesState,
+	}
+
+	// Add Bundle Steps
+	plan = plan.addBundleSteps(nestedCtx, rollbackBundle, ActionNone)
 
 	// Prepend destroy steps
 	plan.Steps = prependDestroyStepsFromPlanBundleToPlan(nestedCtx, plan.Steps, rollbackBundle, bundle)
