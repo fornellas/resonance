@@ -9,6 +9,7 @@ import (
 	"github.com/sergi/go-diff/diffmatchpatch"
 
 	"github.com/fornellas/resonance/host"
+	"github.com/fornellas/resonance/resource"
 )
 
 // SystemdUnitState for SystemdUnit.
@@ -29,7 +30,7 @@ func (susp SystemdUnitState) Validate() error {
 // These units are enabled and reload-or-restart on apply or refresh.
 type SystemdUnit struct{}
 
-func (su SystemdUnit) ValidateName(name Name) error {
+func (su SystemdUnit) ValidateName(name resource.Name) error {
 	path := string(name)
 	if !filepath.IsAbs(path) {
 		return fmt.Errorf("path must be absolute: %s", path)
@@ -37,36 +38,36 @@ func (su SystemdUnit) ValidateName(name Name) error {
 	return nil
 }
 
-func (su SystemdUnit) GetState(ctx context.Context, hst host.Host, name Name) (State, error) {
+func (su SystemdUnit) GetState(ctx context.Context, hst host.Host, name resource.Name) (resource.State, error) {
 	return nil, errors.New("SystemdUnit.GetState")
 }
 
 func (su SystemdUnit) DiffStates(
 	ctx context.Context, hst host.Host,
-	desiredState State, currentState State,
+	desiredState resource.State, currentState resource.State,
 ) ([]diffmatchpatch.Diff, error) {
 	panic(errors.New("SystemdUnit.DiffStates"))
 }
 
-func (su SystemdUnit) Refresh(ctx context.Context, hst host.Host, name Name) error {
+func (su SystemdUnit) Refresh(ctx context.Context, hst host.Host, name resource.Name) error {
 	return errors.New("SystemdUnit.Refresh")
 }
 
 func (su SystemdUnit) ConfigureAll(
-	ctx context.Context, hst host.Host, actionNameStateMap map[Action]map[Name]State,
+	ctx context.Context, hst host.Host, actionNameStateMap map[resource.Action]map[resource.Name]resource.State,
 ) error {
 	return errors.New("SystemdUnit.ConfigureAll")
 }
 
 func init() {
-	MergeableManageableResourcesTypeMap["SystemdUnit"] = SystemdUnit{}
-	ManageableResourcesStateMap["SystemdUnit"] = SystemdUnitState{}
+	resource.MergeableManageableResourcesTypeMap["SystemdUnit"] = SystemdUnit{}
+	resource.ManageableResourcesStateMap["SystemdUnit"] = SystemdUnitState{}
 }
 
 // func checkUnitFile(
 // 	ctx context.Context,
 // 	hst host.Host,
-// 	name Name,
+// 	name resource.Name,
 // 	state State,
 // 	path,
 // 	job string,
@@ -134,7 +135,7 @@ func init() {
 // 	return properties, nil
 // }
 
-// func (su SystemdUnit) Check(ctx context.Context, hst host.Host, name Name, state State) (CheckResult, error) {
+// func (su SystemdUnit) Check(ctx context.Context, hst host.Host, name resource.Name, state State) (CheckResult, error) {
 // 	logger := log.GetLogger(ctx)
 
 // 	path := string(name)
@@ -188,7 +189,7 @@ func init() {
 // 	return true, nil
 // }
 
-// func (su SystemdUnit) Apply(ctx context.Context, hst host.Host, name Name, state State) error {
+// func (su SystemdUnit) Apply(ctx context.Context, hst host.Host, name resource.Name, state State) error {
 // 	// logger := log.GetLogger(ctx)
 
 // 	// path := string(name)
@@ -216,12 +217,12 @@ func init() {
 // 	return errors.New("TODO SystemdUnit.Apply")
 // }
 
-// func (su SystemdUnit) Refresh(ctx context.Context, hst host.Host, name Name) error {
+// func (su SystemdUnit) Refresh(ctx context.Context, hst host.Host, name resource.Name) error {
 // 	// systemctl reload-or-restart $unit
 // 	return errors.New("TODO SystemdUnit.Refresh")
 // }
 
-// func (su SystemdUnit) Destroy(ctx context.Context, hst host.Host, name Name) error {
+// func (su SystemdUnit) Destroy(ctx context.Context, hst host.Host, name resource.Name) error {
 
 // 	// systemctl daemon-reload
 // 	return errors.New("TODO SystemdUnit.Destroy")

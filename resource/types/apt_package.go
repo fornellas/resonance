@@ -10,6 +10,7 @@ import (
 
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
+	"github.com/fornellas/resonance/resource"
 )
 
 // APTPackageState is State for APTPackage
@@ -35,12 +36,12 @@ type APTPackage struct{}
 var aptPackageRegexpStatus = regexp.MustCompile(`^Status: (.+)$`)
 var aptPackageRegexpVersion = regexp.MustCompile(`^Version: (.+)$`)
 
-func (ap APTPackage) ValidateName(name Name) error {
+func (ap APTPackage) ValidateName(name resource.Name) error {
 	// https://www.debian.org/doc/debian-policy/ch-controlfields.html#source
 	return nil
 }
 
-func (ap APTPackage) GetState(ctx context.Context, hst host.Host, name Name) (State, error) {
+func (ap APTPackage) GetState(ctx context.Context, hst host.Host, name resource.Name) (resource.State, error) {
 	logger := log.GetLogger(ctx)
 
 	// Get package state
@@ -81,19 +82,19 @@ func (ap APTPackage) GetState(ctx context.Context, hst host.Host, name Name) (St
 
 func (ap APTPackage) DiffStates(
 	ctx context.Context, hst host.Host,
-	desiredState State, currentState State,
+	desiredState resource.State, currentState resource.State,
 ) ([]diffmatchpatch.Diff, error) {
 	diffs := []diffmatchpatch.Diff{}
 	desiredAPTPackageState := desiredState.(*APTPackageState)
 	currentAPTPackageState := currentState.(*APTPackageState)
 
-	diffs = append(diffs, Diff(currentAPTPackageState, desiredAPTPackageState)...)
+	diffs = append(diffs, resource.Diff(currentAPTPackageState, desiredAPTPackageState)...)
 
 	return diffs, nil
 }
 
 func (ap APTPackage) ConfigureAll(
-	ctx context.Context, hst host.Host, actionNameStateMap map[Action]map[Name]State,
+	ctx context.Context, hst host.Host, actionNameStateMap map[resource.Action]map[resource.Name]resource.State,
 ) error {
 	nestedCtx := log.IndentLogger(ctx)
 
@@ -102,10 +103,10 @@ func (ap APTPackage) ConfigureAll(
 	for action, nameStateMap := range actionNameStateMap {
 		var pkgAction string
 		switch action {
-		case ActionOk:
-		case ActionApply:
+		case resource.ActionOk:
+		case resource.ActionApply:
 			pkgAction = "+"
-		case ActionDestroy:
+		case resource.ActionDestroy:
 			pkgAction = "-"
 		default:
 			return fmt.Errorf("unexpected action %s", action)
@@ -142,6 +143,6 @@ func (ap APTPackage) ConfigureAll(
 }
 
 func init() {
-	MergeableManageableResourcesTypeMap["APTPackage"] = APTPackage{}
-	ManageableResourcesStateMap["APTPackage"] = APTPackageState{}
+	resource.MergeableManageableResourcesTypeMap["APTPackage"] = APTPackage{}
+	resource.ManageableResourcesStateMap["APTPackage"] = APTPackageState{}
 }

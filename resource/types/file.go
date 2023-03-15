@@ -12,6 +12,7 @@ import (
 
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
+	"github.com/fornellas/resonance/resource"
 )
 
 // FileState for File
@@ -76,7 +77,7 @@ func (fds FileState) GetGid(ctx context.Context, hst host.Host) (uint32, error) 
 // File resource manages files.
 type File struct{}
 
-func (f File) ValidateName(name Name) error {
+func (f File) ValidateName(name resource.Name) error {
 	path := string(name)
 	if !filepath.IsAbs(path) {
 		return fmt.Errorf("path must be absolute: %s", path)
@@ -84,7 +85,7 @@ func (f File) ValidateName(name Name) error {
 	return nil
 }
 
-func (f File) GetState(ctx context.Context, hst host.Host, name Name) (State, error) {
+func (f File) GetState(ctx context.Context, hst host.Host, name resource.Name) (resource.State, error) {
 	logger := log.GetLogger(ctx)
 
 	path := string(name)
@@ -123,7 +124,7 @@ func (f File) GetState(ctx context.Context, hst host.Host, name Name) (State, er
 
 func (f File) DiffStates(
 	ctx context.Context, hst host.Host,
-	desiredState State, currentState State,
+	desiredState resource.State, currentState resource.State,
 ) ([]diffmatchpatch.Diff, error) {
 	diffs := []diffmatchpatch.Diff{}
 	desiredFileState := desiredState.(*FileState)
@@ -137,7 +138,7 @@ func (f File) DiffStates(
 	if err != nil {
 		return nil, err
 	}
-	diffs = append(diffs, Diff(currentFileState, FileState{
+	diffs = append(diffs, resource.Diff(currentFileState, FileState{
 		Content: desiredFileState.Content,
 		Perm:    desiredFileState.Perm,
 		Uid:     uid,
@@ -148,7 +149,7 @@ func (f File) DiffStates(
 }
 
 func (f File) Apply(
-	ctx context.Context, hst host.Host, name Name, state State,
+	ctx context.Context, hst host.Host, name resource.Name, state resource.State,
 ) error {
 	path := string(name)
 
@@ -190,7 +191,7 @@ func (f File) Apply(
 	return nil
 }
 
-func (f File) Destroy(ctx context.Context, hst host.Host, name Name) error {
+func (f File) Destroy(ctx context.Context, hst host.Host, name resource.Name) error {
 	nestedCtx := log.IndentLogger(ctx)
 	path := string(name)
 	err := hst.Remove(nestedCtx, path)
@@ -201,6 +202,6 @@ func (f File) Destroy(ctx context.Context, hst host.Host, name Name) error {
 }
 
 func init() {
-	IndividuallyManageableResourceTypeMap["File"] = File{}
-	ManageableResourcesStateMap["File"] = FileState{}
+	resource.IndividuallyManageableResourceTypeMap["File"] = File{}
+	resource.ManageableResourcesStateMap["File"] = FileState{}
 }
