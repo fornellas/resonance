@@ -33,51 +33,65 @@ func (aps APTPackageState) Validate() error {
 // APTPackage resource manages files.
 type APTPackage struct{}
 
-var aptPackageRegexpStatus = regexp.MustCompile(`^Status: (.+)$`)
-var aptPackageRegexpVersion = regexp.MustCompile(`^Version: (.+)$`)
-
 func (ap APTPackage) ValidateName(name resource.Name) error {
 	// https://www.debian.org/doc/debian-policy/ch-controlfields.html#source
 	return nil
 }
 
-func (ap APTPackage) GetState(ctx context.Context, hst host.Host, name resource.Name) (resource.State, error) {
-	logger := log.GetLogger(ctx)
+var aptPackageRegexpNotFound = regexp.MustCompile(`^dpkg-query: no packages found matching (.+)$`)
 
-	// Get package state
-	hostCmd := host.Cmd{Path: "dpkg", Args: []string{"-s", string(name)}}
+func (ap APTPackage) GetStates(
+	ctx context.Context, hst host.Host, names []resource.Name,
+) (map[resource.Name]resource.State, error) {
+	// Run dpkg
+	hostCmd := host.Cmd{Path: "dpkg", Args: []string{
+		"--show", "--showformat", `${Package},${Version}\n`,
+	}}
+	for _, name := range names {
+		hostCmd.Args = append(hostCmd.Args, string(name))
+	}
 	waitStatus, stdout, stderr, err := hst.Run(ctx, hostCmd)
 	if err != nil {
 		return nil, err
 	}
-	if !waitStatus.Success() {
-		if waitStatus.Exited && waitStatus.ExitCode == 1 && strings.Contains(stderr, "not installed") {
-			logger.Debug("Not installed")
-			return nil, nil
-		} else {
-			return nil, fmt.Errorf("failed to run '%s': %s\nstdout:\n%s\nstderr:\n%s", hostCmd.String(), waitStatus.String(), stdout, stderr)
-		}
-	}
 
-	// Parse result
-	var status, version string
+	// process stdout
+	nameStateMap := map[resource.Name]resource.State{}
 	for _, line := range strings.Split(stdout, "\n") {
-		matches := aptPackageRegexpStatus.FindStringSubmatch(line)
-		if len(matches) == 2 {
-			status = matches[1]
+		tokens := strings.Split(line, ",")
+		if len(tokens) != 2 {
+			panic(fmt.Errorf(
+				"failed to parse output, expected 2 tokens '%s': %s\nstdout:\n%s\nstderr:\n%s",
+				hostCmd.String(), waitStatus.String(), stdout, stderr,
+			))
 		}
-		matches = aptPackageRegexpVersion.FindStringSubmatch(line)
-		if len(matches) == 2 {
-			version = matches[1]
-		}
-	}
-	if status == "" || version == "" {
-		return nil, fmt.Errorf("failed to parse state from '%s': %s\nstdout:\n%s\nstderr:\n%s", hostCmd.String(), waitStatus.String(), stdout, stderr)
+		//lint:ignore S1021 we need the variable to be of type State, to enable it to be added to nameStateMap
+		var state resource.State
+		state = APTPackageState{Version: tokens[1]}
+		nameStateMap[resource.Name(tokens[0])] = state
 	}
 
-	return APTPackageState{
-		Version: version,
-	}, nil
+	if !waitStatus.Success() {
+		if waitStatus.Exited && waitStatus.ExitCode == 1 {
+			for _, line := range strings.Split(stdout, "\n") {
+				matches := aptPackageRegexpNotFound.FindStringSubmatch(line)
+				if len(matches) != 2 {
+					return nil, fmt.Errorf(
+						"failed to run '%s': %s\nstdout:\n%s\nstderr:\n%s",
+						hostCmd.String(), waitStatus.String(), stdout, stderr,
+					)
+				}
+				nameStateMap[resource.Name(matches[1])] = nil
+			}
+		} else {
+			return nil, fmt.Errorf(
+				"failed to run '%s': %s\nstdout:\n%s\nstderr:\n%s",
+				hostCmd.String(), waitStatus.String(), stdout, stderr,
+			)
+		}
+	}
+
+	return nameStateMap, nil
 }
 
 func (ap APTPackage) DiffStates(

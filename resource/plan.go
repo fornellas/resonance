@@ -57,12 +57,12 @@ func (sai StepActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 			logger.Errorf("💥 %s", sai.Resource)
 			return err
 		}
-		diffHasChanges, _, _, err := sai.Resource.CheckState(ctx, hst, nil)
+		resourceState, err := GetIndividuallyManageableResourceResourceState(ctx, hst, sai.Resource)
 		if err != nil {
 			logger.Errorf("💥 %s", sai.Resource)
 			return err
 		}
-		if diffHasChanges {
+		if !resourceState.Clean {
 			logger.Errorf("💥 %s", sai.Resource)
 			return errors.New(
 				"likely bug in resource implementationm as state was dirty immediately after applying",
@@ -123,6 +123,7 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 		return nil
 	}
 
+	// Build parameters
 	checkResources := Resources{}
 	configureActionParameters := map[Action]map[Name]State{}
 	refreshNames := []Name{}
@@ -146,6 +147,7 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 		}
 	}
 
+	// ConfigureAll
 	if err := sam.MustMergeableManageableResources().ConfigureAll(
 		ctx, hst, configureActionParameters,
 	); err != nil {
@@ -153,20 +155,25 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 		return err
 	}
 
-	for _, resource := range checkResources {
-		diffHasChanges, _, _, err := resource.CheckState(ctx, hst, nil)
-		if err != nil {
-			logger.Errorf("💥%s", sam.StringNoAction())
-			return err
-		}
-		if diffHasChanges {
-			logger.Errorf("💥%s", sam.StringNoAction())
-			return errors.New(
-				"likely bug in resource implementationm as state was dirty immediately after applying",
+	// Check
+	resourcesStateMap, err := GetMergeableManageableResourcesResourcesStateMapMap(
+		ctx, hst, checkResources,
+	)
+	if err != nil {
+		logger.Errorf("💥%s", sam.StringNoAction())
+		return err
+	}
+	for typeName, resourceState := range resourcesStateMap {
+		if !resourceState.Clean {
+			logger.Errorf("💥%s", typeName)
+			return fmt.Errorf(
+				"likely bug in resource implementationm as state was dirty immediately after applying: %s",
+				typeName,
 			)
 		}
 	}
 
+	// Refresh
 	for _, name := range refreshNames {
 		refreshableManageableResource, ok := sam.MustMergeableManageableResources().(RefreshableManageableResource)
 		if ok {

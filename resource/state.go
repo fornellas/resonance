@@ -98,50 +98,146 @@ type ResourceState struct {
 	Clean bool
 }
 
-func GetResourceState(ctx context.Context, hst host.Host, resource Resource) (ResourceState, error) {
+type ResourcesStateMap map[TypeName]ResourceState
+
+// GetIndividuallyManageableResourceResourceState gets current state for all given resources,
+// which must be IndividuallyManageableResource, and return it as ResourceState.
+func GetIndividuallyManageableResourceResourceState(
+	ctx context.Context, hst host.Host, resource Resource,
+) (ResourceState, error) {
 	logger := log.GetLogger(ctx)
-	logger.Info("🔎 Reading host state")
 
-	resourcesState := ResourceState{}
+	resourceState := ResourceState{}
 
-	currentState, err := resource.ManageableResource().GetState(ctx, hst, resource.TypeName.Name())
+	individuallyManageableResource := resource.MustIndividuallyManageableResource()
+
+	currentState, err := individuallyManageableResource.GetState(ctx, hst, resource.TypeName.Name())
 	if err != nil {
 		return ResourceState{}, err
 	}
-	resourcesState.State = currentState
+	resourceState.State = currentState
 
-	diffs, err := resource.ManageableResource().DiffStates(ctx, hst, resource.State, currentState)
+	diffs, err := individuallyManageableResource.DiffStates(ctx, hst, resource.State, currentState)
 	if err != nil {
 		return ResourceState{}, err
 	}
-
-	resourcesState.Diffs = diffs
+	resourceState.Diffs = diffs
 
 	if DiffsHasChanges(diffs) {
 		logger.Infof("%s %s", ActionApply.Emoji(), resource)
-		resourcesState.Clean = false
+		resourceState.Clean = false
 	} else {
 		logger.Infof("%s %s", ActionOk.Emoji(), resource)
-		resourcesState.Clean = true
+		resourceState.Clean = true
 	}
 
-	return resourcesState, nil
+	return resourceState, nil
 }
 
-type ResourcesStateMap map[TypeName]ResourceState
+// GetMergeableManageableResourcesResourcesStateMapMap gets current state for all given resources,
+// which must be MergeableManageableResources, and return it as ResourcesStateMap.
+func GetMergeableManageableResourcesResourcesStateMapMap(
+	ctx context.Context, hst host.Host, resources Resources,
+) (ResourcesStateMap, error) {
+	logger := log.GetLogger(ctx)
 
+	if len(resources) == 0 {
+		return ResourcesStateMap{}, nil
+	}
+
+	var mergeableManageableResources MergeableManageableResources
+
+	names := []Name{}
+	for _, resource := range resources {
+		if !resource.IsMergeableManageableResources() {
+			panic(fmt.Errorf("is not MergeableManageableResources: %s", resource))
+		}
+		if mergeableManageableResources == nil {
+			mergeableManageableResources = resource.MustMergeableManageableResources()
+		}
+		names = append(names, resource.MustName())
+	}
+
+	nameStateMap, err := mergeableManageableResources.GetStates(ctx, hst, names)
+	if err != nil {
+		return nil, err
+	}
+
+	resourcesStateMap := ResourcesStateMap{}
+	for _, resource := range resources {
+		resourceState := ResourceState{}
+
+		currentState, ok := nameStateMap[resource.MustName()]
+		if !ok {
+			panic(fmt.Errorf(
+				"resource %s did not return state for %s", resource.MustType(), resource.MustName()),
+			)
+		}
+		resourceState.State = currentState
+
+		diffs, err := mergeableManageableResources.DiffStates(ctx, hst, resource.State, currentState)
+		if err != nil {
+			return nil, err
+		}
+		resourceState.Diffs = diffs
+
+		if DiffsHasChanges(diffs) {
+			logger.Infof("%s %s", ActionApply.Emoji(), resource)
+			resourceState.Clean = false
+		} else {
+			logger.Infof("%s %s", ActionOk.Emoji(), resource)
+			resourceState.Clean = true
+		}
+
+		resourcesStateMap[resource.TypeName] = resourceState
+	}
+
+	return resourcesStateMap, nil
+}
+
+// GetResourcesStateMap gets current state for all given resources and return
+// it as ResourcesStateMap.
 func GetResourcesStateMap(ctx context.Context, hst host.Host, resources Resources) (ResourcesStateMap, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("🔎 Reading host state")
 	nestedCtx := log.IndentLogger(ctx)
 
-	resourcesStateMap := ResourcesStateMap{}
+	individuallyManageableResources := []Resource{}
+	typeMergeableManageableResourcesMap := map[Type][]Resource{}
 	for _, resource := range resources {
-		resourcesState, err := GetResourceState(nestedCtx, hst, resource)
+		if resource.IsMergeableManageableResources() {
+			typeMergeableManageableResourcesMap[resource.MustType()] = append(
+				typeMergeableManageableResourcesMap[resource.MustType()], resource,
+			)
+		} else {
+			individuallyManageableResources = append(individuallyManageableResources, resource)
+		}
+	}
+
+	resourcesStateMap := ResourcesStateMap{}
+
+	for _, individuallyManageableResource := range individuallyManageableResources {
+		resourcesState, err := GetIndividuallyManageableResourceResourceState(
+			nestedCtx, hst, individuallyManageableResource,
+		)
 		if err != nil {
 			return ResourcesStateMap{}, err
 		}
-		resourcesStateMap[resource.TypeName] = resourcesState
+		resourcesStateMap[individuallyManageableResource.TypeName] = resourcesState
 	}
+
+	for _, mergeableManageableResources := range typeMergeableManageableResourcesMap {
+		mergeableManageableResourcesResourcesStateMap, err := GetMergeableManageableResourcesResourcesStateMapMap(
+			ctx, hst, mergeableManageableResources,
+		)
+		if err != nil {
+			return ResourcesStateMap{}, err
+		}
+
+		for typeName, resourceState := range mergeableManageableResourcesResourcesStateMap {
+			resourcesStateMap[typeName] = resourceState
+		}
+	}
+
 	return resourcesStateMap, nil
 }

@@ -11,7 +11,6 @@ import (
 	"github.com/sergi/go-diff/diffmatchpatch"
 
 	"github.com/fornellas/resonance/host"
-	"github.com/fornellas/resonance/log"
 )
 
 // Name is a name that globally uniquely identifies a resource instance of a given type.
@@ -22,10 +21,6 @@ type Name string
 type ManageableResource interface {
 	// ValidateName validates the name of the resource
 	ValidateName(name Name) error
-
-	// GetState gets the full state of the resource.
-	// If resource is not present, then returns nil.
-	GetState(ctx context.Context, hst host.Host, name Name) (State, error)
 
 	// DiffStates compares the desired State against current State.
 	// If current State is met by desired State, return an empty slice; otherwise,
@@ -54,6 +49,9 @@ type RefreshableManageableResource interface {
 type IndividuallyManageableResource interface {
 	ManageableResource
 
+	// GetState gets the state of the resource, or nil if not present.
+	GetState(ctx context.Context, hst host.Host, name Name) (State, error)
+
 	// Apply configures the resource to given state.
 	// Must be idempotent.
 	Apply(ctx context.Context, hst host.Host, name Name, state State) error
@@ -70,6 +68,9 @@ type IndividuallyManageableResource interface {
 // computed altogether.
 type MergeableManageableResources interface {
 	ManageableResource
+
+	// GetStates gets the state of all resources, or nil if not present.
+	GetStates(ctx context.Context, hst host.Host, names []Name) (map[Name]State, error)
 
 	// ConfigureAll configures all resource to given state.
 	// Must be idempotent.
@@ -288,6 +289,15 @@ func (r Resource) Refreshable() bool {
 	return ok
 }
 
+// IndividuallyManageableResource returns IndividuallyManageableResource
+func (r Resource) IndividuallyManageableResource() (IndividuallyManageableResource, error) {
+	individuallyManageableResource, ok := r.ManageableResource().(IndividuallyManageableResource)
+	if !ok {
+		return nil, fmt.Errorf("%s is not IndividuallyManageableResource", r)
+	}
+	return individuallyManageableResource, nil
+}
+
 // MustIndividuallyManageableResource returns IndividuallyManageableResource from ManageableResource or
 // panics if it isn't of the required type.
 func (r Resource) MustIndividuallyManageableResource() IndividuallyManageableResource {
@@ -312,57 +322,6 @@ func (r Resource) MustMergeableManageableResources() MergeableManageableResource
 		panic(fmt.Errorf("%s is not MergeableManageableResources", r))
 	}
 	return mergeableManageableResources
-}
-
-// CheckState checks whether the resource is at the desired State.
-// When changes are pending returns true, otherwise false.
-// Diff is always returned (with or without changes).
-// The current State is always returned.
-func (r Resource) CheckState(
-	ctx context.Context,
-	hst host.Host,
-	currentStatePtr *State,
-) (bool, []diffmatchpatch.Diff, State, error) {
-	logger := log.GetLogger(ctx)
-
-	var currentState State
-	if currentStatePtr == nil {
-		var err error
-		currentState, err = r.ManageableResource().GetState(ctx, hst, r.TypeName.Name())
-		if err != nil {
-			logger.Errorf("💥%s", r)
-			return false, []diffmatchpatch.Diff{}, nil, err
-		}
-	} else {
-		currentState = *currentStatePtr
-	}
-
-	if currentState == nil {
-		if r.State != nil {
-			return true, Diff(nil, r.State), nil, nil
-		} else {
-			return false, []diffmatchpatch.Diff{}, nil, nil
-		}
-	}
-
-	if r.State == nil {
-		return true, Diff(currentState, nil), nil, nil
-	}
-	diffs, err := r.ManageableResource().DiffStates(ctx, hst, r.State, currentState)
-	if err != nil {
-		logger.Errorf("💥%s", r)
-		return false, []diffmatchpatch.Diff{}, nil, err
-	}
-
-	if DiffsHasChanges(diffs) {
-		diffMatchPatch := diffmatchpatch.New()
-		logger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).
-			Errorf("%s", r)
-		return true, diffs, currentState, nil
-	} else {
-		logger.Infof("✅%s", r)
-		return false, diffs, currentState, nil
-	}
 }
 
 func NewResource(typeName TypeName, state State, destroy bool) Resource {

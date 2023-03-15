@@ -38,8 +38,10 @@ func (su SystemdUnit) ValidateName(name resource.Name) error {
 	return nil
 }
 
-func (su SystemdUnit) GetState(ctx context.Context, hst host.Host, name resource.Name) (resource.State, error) {
-	return nil, errors.New("SystemdUnit.GetState")
+func (su SystemdUnit) GetStates(
+	ctx context.Context, hst host.Host, names []resource.Name,
+) (map[resource.Name]resource.State, error) {
+	return nil, errors.New("SystemdUnit.GetStates")
 }
 
 func (su SystemdUnit) DiffStates(
