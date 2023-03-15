@@ -56,21 +56,21 @@ var Cmd = &cobra.Command{
 			initialResources = savedHostState.Resources
 		}
 		initialResources = initialResources.AppendIfNotPresent(bundle.Resources())
-		initialResourcesState, err := resource.NewResourcesState(ctx, hst, initialResources)
+		initialResourcesStateMap, err := resource.NewResourcesStateMap(ctx, hst, initialResources)
 		if err != nil {
 			logger.Fatal(err)
 		}
 
 		// Check saved HostState
 		if savedHostState != nil {
-			if err := savedHostState.Check(ctx, hst, initialResourcesState); err != nil {
+			if err := savedHostState.Check(ctx, hst, initialResourcesStateMap); err != nil {
 				logger.Fatal(err)
 			}
 		}
 
 		// Plan
 		plan, err := resource.NewPlanFromSavedStateAndBundle(
-			ctx, hst, bundle, savedHostState, initialResourcesState, resource.ActionNone,
+			ctx, hst, bundle, savedHostState, initialResourcesStateMap, resource.ActionNone,
 		)
 		if err != nil {
 			logger.Fatal(err)

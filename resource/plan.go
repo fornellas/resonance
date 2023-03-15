@@ -248,8 +248,8 @@ func (s Step) ActionResourcesMap() map[Action]Resources {
 
 // Plan is a directed graph which contains the plan for applying resources to a host.
 type Plan struct {
-	Steps                 []*Step
-	InitialResourcesState ResourcesState
+	Steps                    []*Step
+	InitialResourcesStateMap ResourcesStateMap
 }
 
 // Graphviz returns a DOT directed graph containing the apply plan.
@@ -338,9 +338,9 @@ func (p Plan) Print(ctx context.Context) {
 			}
 
 			for _, resource := range resources {
-				diffs, ok := p.InitialResourcesState.TypeNameDiffsMap[resource.TypeName]
+				resourceState, ok := p.InitialResourcesStateMap[resource.TypeName]
 				if !ok {
-					panic(fmt.Sprintf("diffs not found at InitialResourcesState: %s", resource))
+					panic(fmt.Sprintf("resourceState not found at InitialResourcesStateMap: %s", resource))
 				}
 
 				var action Action
@@ -355,13 +355,13 @@ func (p Plan) Print(ctx context.Context) {
 					panic(fmt.Sprintf("can not find action: %s", resource))
 				}
 
-				if DiffsHasChanges(diffs) {
+				if DiffsHasChanges(resourceState.Diffs) {
 					diffMatchPatch := diffmatchpatch.New()
 					if len(resources) > 1 {
-						nestedNestedLogger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).
+						nestedNestedLogger.WithField("", diffMatchPatch.DiffPrettyText(resourceState.Diffs)).
 							Infof("%s %s", action.Emoji(), resource)
 					} else {
-						nestedLogger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).
+						nestedLogger.WithField("", diffMatchPatch.DiffPrettyText(resourceState.Diffs)).
 							Infof("%s %s", action.Emoji(), resource)
 					}
 				}
@@ -401,11 +401,11 @@ func (p Plan) addBundleSteps(
 				action = ActionDestroy
 			}
 			if action != ActionDestroy {
-				cleanState, ok := p.InitialResourcesState.TypeNameCleanMap[resource.TypeName]
+				resourceState, ok := p.InitialResourcesStateMap[resource.TypeName]
 				if !ok {
-					panic(fmt.Errorf("%v missing check result", resource))
+					panic(fmt.Errorf("%v missing from InitialResourcesState", resource))
 				}
-				if cleanState {
+				if resourceState.Clean {
 					if refresh && resource.Refreshable() {
 						action = ActionRefresh
 					} else {
@@ -556,7 +556,7 @@ func NewPlanFromSavedStateAndBundle(
 	hst host.Host,
 	bundle Bundle,
 	savedHostState *HostState,
-	initialResourcesState ResourcesState,
+	initialResourcesStateMap ResourcesStateMap,
 	intendedAction Action,
 ) (Plan, error) {
 	logger := log.GetLogger(ctx)
@@ -565,8 +565,8 @@ func NewPlanFromSavedStateAndBundle(
 
 	// Plan
 	plan := Plan{
-		Steps:                 []*Step{},
-		InitialResourcesState: initialResourcesState,
+		Steps:                    []*Step{},
+		InitialResourcesStateMap: initialResourcesStateMap,
 	}
 
 	// Add Bundle Steps
@@ -634,15 +634,15 @@ func NewRollbackPlan(
 	rollbackBundle := NewBundleFromResources(initialResources)
 
 	// ResourcesState
-	initialResourcesState, err := NewResourcesState(ctx, hst, initialResources)
+	initialResourcesStateMap, err := NewResourcesStateMap(ctx, hst, initialResources)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
 	// Plan
 	plan := Plan{
-		Steps:                 []*Step{},
-		InitialResourcesState: initialResourcesState,
+		Steps:                    []*Step{},
+		InitialResourcesStateMap: initialResourcesStateMap,
 	}
 
 	// Add Bundle Steps

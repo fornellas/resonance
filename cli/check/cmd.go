@@ -42,13 +42,13 @@ var Cmd = &cobra.Command{
 		}
 
 		// Read current state
-		initialResourcesState, err := resource.NewResourcesState(ctx, hst, savedHostState.Resources)
+		initialResourcesStateMap, err := resource.NewResourcesStateMap(ctx, hst, savedHostState.Resources)
 		if err != nil {
 			logger.Fatal(err)
 		}
 
 		// Check saved HostState
-		if err := savedHostState.Check(ctx, hst, initialResourcesState); err != nil {
+		if err := savedHostState.Check(ctx, hst, initialResourcesStateMap); err != nil {
 			logger.Fatal(err)
 		}
 

@@ -41,7 +41,7 @@ var Cmd = &cobra.Command{
 		}
 
 		// Read current state
-		initialResourcesState, err := resource.NewResourcesState(ctx, hst, savedHostState.Resources)
+		initialResourcesStateMap, err := resource.NewResourcesStateMap(ctx, hst, savedHostState.Resources)
 		if err != nil {
 			logger.Fatal(err)
 		}
@@ -49,7 +49,7 @@ var Cmd = &cobra.Command{
 		// Plan
 		bundle := resource.NewBundleFromResources(savedHostState.Resources)
 		plan, err := resource.NewPlanFromSavedStateAndBundle(
-			ctx, hst, bundle, nil, initialResourcesState, resource.ActionDestroy,
+			ctx, hst, bundle, nil, initialResourcesStateMap, resource.ActionDestroy,
 		)
 		if err != nil {
 			logger.Fatal(err)

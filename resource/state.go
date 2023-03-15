@@ -38,7 +38,7 @@ func (hs HostState) String() string {
 func (hs HostState) Check(
 	ctx context.Context,
 	hst host.Host,
-	currentResourcesState ResourcesState,
+	currentResourcesStateMap ResourcesStateMap,
 ) error {
 	logger := log.GetLogger(ctx)
 	logger.Info("🕵️ Checking host state")
@@ -48,11 +48,11 @@ func (hs HostState) Check(
 	fail := false
 
 	for _, resource := range hs.Resources {
-		isClean, ok := currentResourcesState.TypeNameCleanMap[resource.TypeName]
+		resourcesState, ok := currentResourcesStateMap[resource.TypeName]
 		if !ok {
 			panic(fmt.Sprintf("state missing from StateMap: %s", resource))
 		}
-		if !isClean {
+		if !resourcesState.Clean {
 			nestedLogger.Errorf("%s state is not clean", resource)
 			fail = true
 		}
@@ -97,45 +97,46 @@ func NewHostState(resources Resources) HostState {
 	}
 }
 
-type ResourcesState struct {
-	TypeNameStateMap map[TypeName]State
-	TypeNameCleanMap map[TypeName]bool
-	TypeNameDiffsMap map[TypeName][]diffmatchpatch.Diff
+type ResourceState struct {
+	State State
+	Diffs []diffmatchpatch.Diff
+	Clean bool
 }
 
-func NewResourcesState(ctx context.Context, hst host.Host, resources Resources) (ResourcesState, error) {
+type ResourcesStateMap map[TypeName]ResourceState
+
+func NewResourcesStateMap(ctx context.Context, hst host.Host, resources Resources) (ResourcesStateMap, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("🔎 Reading host state")
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 
-	resourcesState := ResourcesState{
-		TypeNameStateMap: map[TypeName]State{},
-		TypeNameCleanMap: map[TypeName]bool{},
-		TypeNameDiffsMap: map[TypeName][]diffmatchpatch.Diff{},
-	}
+	resourcesStateMap := ResourcesStateMap{}
 	for _, resource := range resources {
+		resourcesState := ResourceState{}
+
 		currentState, err := resource.ManageableResource().GetState(nestedCtx, hst, resource.TypeName.Name())
 		if err != nil {
-			return ResourcesState{}, err
+			return ResourcesStateMap{}, err
 		}
-		resourcesState.TypeNameStateMap[resource.TypeName] = currentState
+		resourcesState.State = currentState
 
 		diffs, err := resource.ManageableResource().DiffStates(nestedCtx, hst, resource.State, currentState)
 		if err != nil {
-			return ResourcesState{}, err
+			return ResourcesStateMap{}, err
 		}
 
-		resourcesState.TypeNameDiffsMap[resource.TypeName] = diffs
+		resourcesState.Diffs = diffs
 
 		if DiffsHasChanges(diffs) {
 			nestedLogger.Infof("%s %s", ActionApply.Emoji(), resource)
-			resourcesState.TypeNameCleanMap[resource.TypeName] = false
+			resourcesState.Clean = false
 		} else {
 			nestedLogger.Infof("%s %s", ActionOk.Emoji(), resource)
-			resourcesState.TypeNameCleanMap[resource.TypeName] = true
+			resourcesState.Clean = true
 		}
 
+		resourcesStateMap[resource.TypeName] = resourcesState
 	}
-	return resourcesState, nil
+	return resourcesStateMap, nil
 }
