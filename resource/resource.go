@@ -758,6 +758,7 @@ func (hs HostState) GetState(typename TypeName) State {
 type ResourcesState struct {
 	TypeNameStateMap map[TypeName]State
 	TypeNameCleanMap map[TypeName]bool
+	TypeNameDiffsMap map[TypeName][]diffmatchpatch.Diff
 }
 
 func NewResourcesState(ctx context.Context, hst host.Host, resources Resources) (ResourcesState, error) {
@@ -769,6 +770,7 @@ func NewResourcesState(ctx context.Context, hst host.Host, resources Resources) 
 	resourcesState := ResourcesState{
 		TypeNameStateMap: map[TypeName]State{},
 		TypeNameCleanMap: map[TypeName]bool{},
+		TypeNameDiffsMap: map[TypeName][]diffmatchpatch.Diff{},
 	}
 	for _, resource := range resources {
 		currentState, err := resource.ManageableResource().GetState(nestedCtx, hst, resource.TypeName.Name())
@@ -782,10 +784,10 @@ func NewResourcesState(ctx context.Context, hst host.Host, resources Resources) 
 			return ResourcesState{}, err
 		}
 
+		resourcesState.TypeNameDiffsMap[resource.TypeName] = diffs
+
 		if DiffsHasChanges(diffs) {
-			diffMatchPatch := diffmatchpatch.New()
-			nestedLogger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).
-				Infof("%s %s", ActionApply.Emoji(), resource)
+			nestedLogger.Infof("%s %s", ActionApply.Emoji(), resource)
 			resourcesState.TypeNameCleanMap[resource.TypeName] = false
 		} else {
 			nestedLogger.Infof("%s %s", ActionOk.Emoji(), resource)
@@ -1029,16 +1031,18 @@ func (s Step) ActionResources() map[Action]Resources {
 }
 
 // Plan is a directed graph which contains the plan for applying resources to a host.
-type Plan []*Step
+type Plan struct {
+	Steps []*Step
+}
 
 // Graphviz returns a DOT directed graph containing the apply plan.
 func (p Plan) Graphviz() string {
 	var buff bytes.Buffer
 	fmt.Fprint(&buff, "digraph resonance {\n")
-	for _, step := range p {
+	for _, step := range p.Steps {
 		fmt.Fprintf(&buff, "  node [shape=box] \"%s\"\n", step)
 	}
-	for _, step := range p {
+	for _, step := range p.Steps {
 		for _, dependantStep := range step.prerequisiteFor {
 			fmt.Fprintf(&buff, "  \"%s\" -> \"%s\"\n", step.String(), dependantStep.String())
 		}
@@ -1053,7 +1057,7 @@ func (p Plan) executeSteps(ctx context.Context, hst host.Host) error {
 	nestedLogger := log.GetLogger(nestedCtx)
 	logger.Info("🛠️  Applying changes")
 	if p.Actionable() {
-		for _, step := range p {
+		for _, step := range p.Steps {
 			if !step.Actionable() {
 				continue
 			}
@@ -1083,7 +1087,7 @@ func (p Plan) Execute(ctx context.Context, hst host.Host) error {
 }
 
 func (p Plan) Actionable() bool {
-	for _, step := range p {
+	for _, step := range p.Steps {
 		if step.StepAction.Actionable() {
 			return true
 		}
@@ -1102,7 +1106,7 @@ func (p Plan) Print(ctx context.Context) {
 		nestedLogger.Infof("👌 Nothing to do")
 	}
 
-	for _, step := range p {
+	for _, step := range p.Steps {
 		if step.Actionable() {
 			nestedLogger.Infof("%s", step)
 		} else {
@@ -1112,7 +1116,7 @@ func (p Plan) Print(ctx context.Context) {
 }
 
 func (p Plan) HasTypeName(typeName TypeName) bool {
-	for _, step := range p {
+	for _, step := range p.Steps {
 		for _, resources := range step.StepAction.ActionResources() {
 			for _, resource := range resources {
 				if resource.TypeName == typeName {
@@ -1133,7 +1137,9 @@ func newPartialPlanFromBundle(
 	logger := log.GetLogger(ctx)
 
 	logger.Info("👷 Building plan")
-	plan := Plan{}
+	plan := Plan{
+		Steps: []*Step{},
+	}
 
 	var lastBundleLastStep *Step
 	for _, resources := range bundle {
@@ -1142,7 +1148,7 @@ func newPartialPlanFromBundle(
 		var step *Step
 		for i, resource := range resources {
 			step = &Step{}
-			plan = append(plan, step)
+			plan.Steps = append(plan.Steps, step)
 
 			// Dependant on previous resources
 			if i == 0 && lastBundleLastStep != nil {
@@ -1196,10 +1202,10 @@ func newPartialPlanFromBundle(
 
 func prependDestroyStepsToPlan(
 	ctx context.Context,
-	plan Plan,
+	steps []*Step,
 	bundle Bundle,
 	savedHostState HostState,
-) Plan {
+) []*Step {
 	logger := log.GetLogger(ctx)
 	logger.Info("💀 Determining resources to destroy")
 	nestedCtx := log.IndentLogger(ctx)
@@ -1209,8 +1215,8 @@ func prependDestroyStepsToPlan(
 			continue
 		}
 		prerequisiteFor := []*Step{}
-		if len(plan) > 0 {
-			prerequisiteFor = append(prerequisiteFor, plan[0])
+		if len(steps) > 0 {
+			prerequisiteFor = append(prerequisiteFor, steps[0])
 		}
 		step := &Step{
 			StepAction: StepActionIndividual{
@@ -1220,24 +1226,24 @@ func prependDestroyStepsToPlan(
 			prerequisiteFor: prerequisiteFor,
 		}
 		nestedLogger.Infof("%s", step)
-		plan = append(Plan{step}, plan...)
+		steps = append([]*Step{step}, steps...)
 	}
-	return plan
+	return steps
 }
 
-func mergePlanSteps(ctx context.Context, plan Plan) Plan {
+func mergePlanSteps(ctx context.Context, steps []*Step) []*Step {
 	logger := log.GetLogger(ctx)
 	logger.Info("📦 Merging resources")
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 
-	newPlan := Plan{}
+	newSteps := []*Step{}
 
 	mergedSteps := map[Type]*Step{}
-	for _, step := range plan {
+	for _, step := range steps {
 		stepActionIndividual := step.StepAction.(StepActionIndividual)
 		if !stepActionIndividual.Resource.IsMergeableManageableResources() {
-			newPlan = append(newPlan, step)
+			newSteps = append(newSteps, step)
 			continue
 		}
 
@@ -1247,7 +1253,7 @@ func mergePlanSteps(ctx context.Context, plan Plan) Plan {
 			mergedStep = &Step{
 				StepAction: StepActionMerged{},
 			}
-			newPlan = append(newPlan, mergedStep)
+			newSteps = append(newSteps, mergedStep)
 			mergedSteps[stepType] = mergedStep
 		}
 		stepActionMerged := mergedStep.StepAction.(StepActionMerged)
@@ -1257,19 +1263,19 @@ func mergePlanSteps(ctx context.Context, plan Plan) Plan {
 		mergedStep.prerequisiteFor = append(mergedStep.prerequisiteFor, step)
 		stepActionIndividual.Action = ActionSkip
 		step.StepAction = stepActionIndividual
-		newPlan = append(newPlan, step)
+		newSteps = append(newSteps, step)
 	}
 
 	for _, step := range mergedSteps {
 		nestedLogger.Infof("%s", step)
 	}
 
-	return newPlan
+	return newSteps
 }
 
-func topologicalSortPlan(ctx context.Context, plan Plan) (Plan, error) {
+func topologicalSortPlan(ctx context.Context, steps []*Step) ([]*Step, error) {
 	dependantCount := map[*Step]int{}
-	for _, step := range plan {
+	for _, step := range steps {
 		if _, ok := dependantCount[step]; !ok {
 			dependantCount[step] = 0
 		}
@@ -1279,17 +1285,17 @@ func topologicalSortPlan(ctx context.Context, plan Plan) (Plan, error) {
 	}
 
 	noDependantsSteps := []*Step{}
-	for _, step := range plan {
+	for _, step := range steps {
 		if dependantCount[step] == 0 {
 			noDependantsSteps = append(noDependantsSteps, step)
 		}
 	}
 
-	sortedPlan := Plan{}
+	sortedSteps := []*Step{}
 	for len(noDependantsSteps) > 0 {
 		step := noDependantsSteps[0]
 		noDependantsSteps = noDependantsSteps[1:]
-		sortedPlan = append(sortedPlan, step)
+		sortedSteps = append(sortedSteps, step)
 		for _, dependantStep := range step.prerequisiteFor {
 			dependantCount[dependantStep]--
 			if dependantCount[dependantStep] == 0 {
@@ -1298,11 +1304,11 @@ func topologicalSortPlan(ctx context.Context, plan Plan) (Plan, error) {
 		}
 	}
 
-	if len(sortedPlan) != len(plan) {
-		return nil, errors.New("unable to sort plan: it has cycles")
+	if len(sortedSteps) != len(steps) {
+		return nil, errors.New("unable to sort steps: it has cycles")
 	}
 
-	return sortedPlan, nil
+	return sortedSteps, nil
 }
 
 func NewPlanFromSavedStateAndBundle(
@@ -1322,16 +1328,17 @@ func NewPlanFromSavedStateAndBundle(
 
 	// Prepend destroy steps
 	if savedHostState != nil {
-		plan = prependDestroyStepsToPlan(nestedCtx, plan, bundle, *savedHostState)
+		plan.Steps = prependDestroyStepsToPlan(nestedCtx, plan.Steps, bundle, *savedHostState)
 	}
 
 	// Merge steps
-	plan = mergePlanSteps(nestedCtx, plan)
+	plan.Steps = mergePlanSteps(nestedCtx, plan.Steps)
 
 	// Sort
-	plan, err := topologicalSortPlan(nestedCtx, plan)
+	var err error
+	plan.Steps, err = topologicalSortPlan(nestedCtx, plan.Steps)
 	if err != nil {
-		return nil, err
+		return Plan{}, err
 	}
 
 	return plan, nil
@@ -1339,9 +1346,9 @@ func NewPlanFromSavedStateAndBundle(
 
 func prependDestroyStepsFromPlanBundleToPlan(
 	ctx context.Context,
-	plan Plan,
+	steps []*Step,
 	bundles, planBundle Bundle,
-) Plan {
+) []*Step {
 	logger := log.GetLogger(ctx)
 	logger.Info("💀 Determining resources to destroy")
 	nestedCtx := log.IndentLogger(ctx)
@@ -1352,8 +1359,8 @@ func prependDestroyStepsFromPlanBundleToPlan(
 				continue
 			}
 			prerequisiteFor := []*Step{}
-			if len(plan) > 0 {
-				prerequisiteFor = append(prerequisiteFor, plan[0])
+			if len(steps) > 0 {
+				prerequisiteFor = append(prerequisiteFor, steps[0])
 			}
 			step := &Step{
 				StepAction: StepActionIndividual{
@@ -1363,10 +1370,10 @@ func prependDestroyStepsFromPlanBundleToPlan(
 				prerequisiteFor: prerequisiteFor,
 			}
 			nestedLogger.Infof("%s", step)
-			plan = append(Plan{step}, plan...)
+			steps = append([]*Step{step}, steps...)
 		}
 	}
-	return plan
+	return steps
 }
 
 func NewRollbackPlan(
@@ -1392,15 +1399,15 @@ func NewRollbackPlan(
 	)
 
 	// Prepend destroy steps
-	plan = prependDestroyStepsFromPlanBundleToPlan(nestedCtx, plan, rollbackBundle, bundle)
+	plan.Steps = prependDestroyStepsFromPlanBundleToPlan(nestedCtx, plan.Steps, rollbackBundle, bundle)
 
 	// Merge steps
-	plan = mergePlanSteps(nestedCtx, plan)
+	plan.Steps = mergePlanSteps(nestedCtx, plan.Steps)
 
 	// Sort
-	plan, err = topologicalSortPlan(nestedCtx, plan)
+	plan.Steps, err = topologicalSortPlan(nestedCtx, plan.Steps)
 	if err != nil {
-		return nil, err
+		return Plan{}, err
 	}
 
 	return plan, nil
