@@ -36,6 +36,9 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			logger.Fatal(err)
 		}
+		if savedHostState == nil {
+			logger.Fatal("No previously saved state to restore from")
+		}
 
 		// Refresh
 		newHostState, err := savedHostState.Refresh(ctx, hst)

@@ -65,29 +65,24 @@ func (hs HostState) Check(
 	return nil
 }
 
-// Refresh updates each resource from HostState.Resources to the current state and return
-// the new HostState
+// Refresh gets current host state and returns it as it is.
 func (hs HostState) Refresh(ctx context.Context, hst host.Host) (HostState, error) {
-	logger := log.GetLogger(ctx)
-	logger.Info("🔁 Refreshing state")
-	nestedCtx := log.IndentLogger(ctx)
-
-	newHostState := NewHostState(Resources{})
-
-	for _, resource := range hs.Resources {
-		currentState, err := resource.ManageableResource().GetState(
-			nestedCtx, hst, resource.TypeName.Name(),
-		)
-		if err != nil {
-			return HostState{}, err
-		}
-
-		newHostState.Resources = append(newHostState.Resources, NewResource(
-			resource.TypeName, currentState, resource.Destroy,
-		))
+	resourcesStateMap, err := NewResourcesStateMap(ctx, hst, hs.Resources)
+	if err != nil {
+		return HostState{}, err
 	}
 
-	return newHostState, nil
+	resources := Resources{}
+	for _, savedResource := range hs.Resources {
+		resourceState, ok := resourcesStateMap[savedResource.TypeName]
+		if !ok {
+			panic(fmt.Sprintf("missing ResourceState: %s", savedResource))
+		}
+		resources = append(resources, NewResource(
+			savedResource.TypeName, resourceState.State, resourceState.State == nil),
+		)
+	}
+	return NewHostState(resources), nil
 }
 
 func NewHostState(resources Resources) HostState {
@@ -103,7 +98,7 @@ type ResourceState struct {
 	Clean bool
 }
 
-func NewResourcesState(ctx context.Context, hst host.Host, resource Resource) (ResourceState, error) {
+func NewResourceState(ctx context.Context, hst host.Host, resource Resource) (ResourceState, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("🔎 Reading host state")
 
@@ -142,7 +137,7 @@ func NewResourcesStateMap(ctx context.Context, hst host.Host, resources Resource
 
 	resourcesStateMap := ResourcesStateMap{}
 	for _, resource := range resources {
-		resourcesState, err := NewResourcesState(nestedCtx, hst, resource)
+		resourcesState, err := NewResourceState(nestedCtx, hst, resource)
 		if err != nil {
 			return ResourcesStateMap{}, err
 		}
