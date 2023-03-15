@@ -61,25 +61,9 @@ func TestApplySuccess(t *testing.T) {
 				Name:        "foo",
 				ReturnState: nil,
 			}},
-			{DiffStates: &TestFuncDiffStates{
-				DesiredState: fooDesiredState,
-				CurrentState: nil,
-				ReturnDiffs: []diffmatchpatch.Diff{{
-					Type: diffmatchpatch.DiffInsert,
-					Text: "foo",
-				}},
-			}},
 			{GetState: &TestFuncGetState{
 				Name:        "bar",
 				ReturnState: nil,
-			}},
-			{DiffStates: &TestFuncDiffStates{
-				DesiredState: barDesiredState,
-				CurrentState: nil,
-				ReturnDiffs: []diffmatchpatch.Diff{{
-					Type: diffmatchpatch.DiffInsert,
-					Text: "bar",
-				}},
 			}},
 			// Executing plan
 			{Apply: &TestFuncApply{

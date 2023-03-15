@@ -44,7 +44,7 @@ func (ap APTPackage) GetStates(
 	ctx context.Context, hst host.Host, names []resource.Name,
 ) (map[resource.Name]resource.State, error) {
 	// Run dpkg
-	hostCmd := host.Cmd{Path: "dpkg", Args: []string{
+	hostCmd := host.Cmd{Path: "dpkg-query", Args: []string{
 		"--show", "--showformat", `${Package},${Version}\n`,
 	}}
 	for _, name := range names {
@@ -58,6 +58,9 @@ func (ap APTPackage) GetStates(
 	// process stdout
 	nameStateMap := map[resource.Name]resource.State{}
 	for _, line := range strings.Split(stdout, "\n") {
+		if len(line) == 0 {
+			continue
+		}
 		tokens := strings.Split(line, ",")
 		if len(tokens) != 2 {
 			panic(fmt.Errorf(
@@ -99,8 +102,8 @@ func (ap APTPackage) DiffStates(
 	desiredState resource.State, currentState resource.State,
 ) ([]diffmatchpatch.Diff, error) {
 	diffs := []diffmatchpatch.Diff{}
-	desiredAPTPackageState := desiredState.(*APTPackageState)
-	currentAPTPackageState := currentState.(*APTPackageState)
+	desiredAPTPackageState := desiredState.(APTPackageState)
+	currentAPTPackageState := currentState.(APTPackageState)
 
 	diffs = append(diffs, resource.Diff(currentAPTPackageState, desiredAPTPackageState)...)
 
@@ -128,7 +131,7 @@ func (ap APTPackage) ConfigureAll(
 		for name, state := range nameStateMap {
 			var version string
 			if state != nil {
-				aptPackageState := state.(*APTPackageState)
+				aptPackageState := state.(APTPackageState)
 				if aptPackageState.Version != "" {
 					version = fmt.Sprintf("=%s", aptPackageState.Version)
 				}

@@ -117,13 +117,17 @@ func GetIndividuallyManageableResourceResourceState(
 	}
 	resourceState.State = currentState
 
-	diffs, err := individuallyManageableResource.DiffStates(ctx, hst, resource.State, currentState)
-	if err != nil {
-		return ResourceState{}, err
+	if resource.State != nil && currentState != nil {
+		diffs, err := individuallyManageableResource.DiffStates(ctx, hst, resource.State, currentState)
+		if err != nil {
+			return ResourceState{}, err
+		}
+		resourceState.Diffs = diffs
+	} else {
+		resourceState.Diffs = Diff(currentState, resource.State)
 	}
-	resourceState.Diffs = diffs
 
-	if DiffsHasChanges(diffs) {
+	if DiffsHasChanges(resourceState.Diffs) {
 		logger.Infof("%s %s", ActionApply.Emoji(), resource)
 		resourceState.Clean = false
 	} else {
@@ -175,13 +179,17 @@ func GetMergeableManageableResourcesResourcesStateMapMap(
 		}
 		resourceState.State = currentState
 
-		diffs, err := mergeableManageableResources.DiffStates(ctx, hst, resource.State, currentState)
-		if err != nil {
-			return nil, err
+		if resource.State != nil && currentState != nil {
+			diffs, err := mergeableManageableResources.DiffStates(ctx, hst, resource.State, currentState)
+			if err != nil {
+				return nil, err
+			}
+			resourceState.Diffs = diffs
+		} else {
+			resourceState.Diffs = Diff(currentState, resource.State)
 		}
-		resourceState.Diffs = diffs
 
-		if DiffsHasChanges(diffs) {
+		if DiffsHasChanges(resourceState.Diffs) {
 			logger.Infof("%s %s", ActionApply.Emoji(), resource)
 			resourceState.Clean = false
 		} else {
@@ -228,7 +236,7 @@ func GetResourcesStateMap(ctx context.Context, hst host.Host, resources Resource
 
 	for _, mergeableManageableResources := range typeMergeableManageableResourcesMap {
 		mergeableManageableResourcesResourcesStateMap, err := GetMergeableManageableResourcesResourcesStateMapMap(
-			ctx, hst, mergeableManageableResources,
+			nestedCtx, hst, mergeableManageableResources,
 		)
 		if err != nil {
 			return ResourcesStateMap{}, err

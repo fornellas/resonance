@@ -67,11 +67,14 @@ func (c Cmd) String() string {
 func runCommand(t *testing.T, cmd Cmd) {
 	var outputBuffer bytes.Buffer
 
+	cmdOutputLogged := false
 	logCmdOutput := func() {
-		if !testing.Verbose() {
+		if !cmdOutputLogged && (testing.Verbose() || t.Failed()) {
 			t.Logf("%s\n%s", cmd, outputBuffer.String())
 		}
+		cmdOutputLogged = true
 	}
+	t.Cleanup(func() { logCmdOutput() })
 	type expectedExit struct{}
 
 	cli.ExitFunc = func(code int) {

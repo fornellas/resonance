@@ -127,8 +127,8 @@ func (f File) DiffStates(
 	desiredState resource.State, currentState resource.State,
 ) ([]diffmatchpatch.Diff, error) {
 	diffs := []diffmatchpatch.Diff{}
-	desiredFileState := desiredState.(*FileState)
-	currentFileState := currentState.(*FileState)
+	desiredFileState := desiredState.(FileState)
+	currentFileState := currentState.(FileState)
 
 	uid, err := desiredFileState.GetUid(ctx, hst)
 	if err != nil {
@@ -154,7 +154,7 @@ func (f File) Apply(
 	path := string(name)
 
 	// FileState
-	fileState := state.(*FileState)
+	fileState := state.(FileState)
 
 	// Content
 	if err := hst.WriteFile(ctx, path, []byte(fileState.Content), fileState.Perm); err != nil {

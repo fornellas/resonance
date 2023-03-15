@@ -638,7 +638,6 @@ func NewRollbackPlan(
 	logger := log.GetLogger(ctx)
 	logger.Info("📝 Planning rollback")
 	nestedCtx := log.IndentLogger(ctx)
-	rollbackBundle := NewBundleFromResources(initialResources)
 
 	// ResourcesState
 	initialResourcesStateMap, err := GetResourcesStateMap(ctx, hst, initialResources)
@@ -653,6 +652,7 @@ func NewRollbackPlan(
 	}
 
 	// Add Bundle Steps
+	rollbackBundle := NewBundleFromResources(initialResources)
 	plan = plan.addBundleSteps(nestedCtx, rollbackBundle, ActionNone)
 
 	// Prepend destroy steps
