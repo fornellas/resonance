@@ -148,7 +148,7 @@ lint: go-mod-tidy
 
 .PHONY: install-deps-staticcheck
 install-deps-staticcheck: $(BINDIR)
-	@if [ $(BINDIR)/staticcheck -ot $(MAKEFILE_PATH) ] ; then \
+	@if [ $(BINDIR)/staticcheck -ot $(MAKEFILE_PATH) ] || ! [ -f $(BINDIR)/staticcheck ]; then \
 		echo Installing staticcheck ; \
 		rm -rf $(BINDIR)/staticcheck $(BINDIR)/staticcheck.tmp && \
 			curl -sSfL  https://github.com/dominikh/go-tools/releases/download/$(STATICCHECK_VERSION)/staticcheck_linux_$(ARCH).tar.gz | \
