@@ -45,7 +45,10 @@ GOCYCLO_VERSION := v0.6.0
 GOCYCLO_OVER := 15
 
 GO_TEST := gotest
-GO_TEST_FLAGS ?= -v -race -coverprofile cover.out -coverpkg ./... -count=1
+GO_TEST_FLAGS := -race -coverprofile cover.out -coverpkg ./... -count=1
+ifeq ($(V),1)
+GO_TEST_FLAGS := -v $(GO_TEST_FLAGS)
+endif
 GOTEST_VERSION := v0.0.6
 
 RRB_VERSION := latest
@@ -232,7 +235,7 @@ lint: go-vet
 
 .PHONY: test-help
 test-help:
-	@echo 'test: runs all tests'
+	@echo 'test: runs all tests; use V=1 for verbose'
 help: test-help
 
 .PHONY: test
