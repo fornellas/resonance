@@ -53,6 +53,7 @@ GOTEST_VERSION := v0.0.6
 
 RRB_VERSION := latest
 RRB_DEBOUNCE ?= 500ms
+RRB_LOG_LEVEL ?= info
 RRB_PATTERN ?= '**/*.{go}'
 RRB_EXTRA_CMD ?= true
 
@@ -321,6 +322,7 @@ rrb-ci-no-install-deps:
 	rrb \
 		--debounce $(RRB_DEBOUNCE) \
 		--ignore-pattern '.cache/**/*' \
+		--log-level $(RRB_LOG_LEVEL) \
 		--pattern $(RRB_PATTERN) \
 		-- \
 		sh -c "$(MAKE) $(MFLAGS) ci-no-install-deps && $(RRB_EXTRA_CMD)"
@@ -329,6 +331,7 @@ rrb-ci-no-install-deps:
 rrb: install-deps-rrb
 	rrb \
 		--debounce $(RRB_DEBOUNCE) \
+		--log-level $(RRB_LOG_LEVEL) \
 		--pattern Makefile \
 		-- \
 		$(MAKE) $(MFLAGS) install-deps rrb-ci-no-install-deps
