@@ -42,7 +42,7 @@ var Cmd = &cobra.Command{
 
 		// Plan
 		rollbackPlan, err := resource.NewRollbackPlan(
-			ctx, hst, resource.Bundle{}, savedHostState.Resources,
+			ctx, hst, resource.Bundle{}, savedHostState.Bundle.Resources(),
 		)
 		if err != nil {
 			logger.Fatal(err)

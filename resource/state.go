@@ -22,8 +22,9 @@ type State interface {
 // HostState holds the state for a host
 type HostState struct {
 	// Version of the binary used to put the host in this state.
-	Version   version.Version `yaml:"version"`
-	Resources Resources       `yaml:"resources"`
+	Version version.Version `yaml:"version"`
+	Bundle  Bundle          `yaml:"bundle"`
+	// PartialBundle *Bundle         `yaml:"partial_bundle"`
 }
 
 func (hs HostState) String() string {
@@ -47,7 +48,7 @@ func (hs HostState) Check(
 
 	fail := false
 
-	for _, resource := range hs.Resources {
+	for _, resource := range hs.Bundle.Resources() {
 		resourcesState, ok := currentResourcesStateMap[resource.TypeName]
 		if !ok {
 			panic(fmt.Sprintf("state missing from StateMap: %s", resource))
@@ -67,28 +68,32 @@ func (hs HostState) Check(
 
 // Refresh gets current host state and returns it as it is.
 func (hs HostState) Refresh(ctx context.Context, hst host.Host) (HostState, error) {
-	resourcesStateMap, err := GetResourcesStateMap(ctx, hst, hs.Resources)
+	resourcesStateMap, err := GetResourcesStateMap(ctx, hst, hs.Bundle.Resources())
 	if err != nil {
 		return HostState{}, err
 	}
 
-	resources := Resources{}
-	for _, savedResource := range hs.Resources {
-		resourceState, ok := resourcesStateMap[savedResource.TypeName]
-		if !ok {
-			panic(fmt.Sprintf("missing ResourceState: %s", savedResource))
+	newBundle := Bundle{}
+	for _, resources := range hs.Bundle {
+		newResources := Resources{}
+		for _, resource := range resources {
+			resourceState, ok := resourcesStateMap[resource.TypeName]
+			if !ok {
+				panic(fmt.Sprintf("missing ResourceState: %s", resource))
+			}
+			newResources = append(newResources, NewResource(
+				resource.TypeName, resourceState.State, resourceState.State == nil),
+			)
 		}
-		resources = append(resources, NewResource(
-			savedResource.TypeName, resourceState.State, resourceState.State == nil),
-		)
+		newBundle = append(newBundle, newResources)
 	}
-	return NewHostState(resources), nil
+	return NewHostState(newBundle), nil
 }
 
-func NewHostState(resources Resources) HostState {
+func NewHostState(bundle Bundle) HostState {
 	return HostState{
-		Version:   version.GetVersion(),
-		Resources: resources,
+		Version: version.GetVersion(),
+		Bundle:  bundle,
 	}
 }
 

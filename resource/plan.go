@@ -457,7 +457,7 @@ func prependDestroyStepsToPlan(
 	logger.Info("💀 Determining resources to destroy")
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
-	for _, resource := range savedHostState.Resources {
+	for _, resource := range savedHostState.Bundle.Resources() {
 		if bundle.HasTypeName(resource.TypeName) {
 			continue
 		}

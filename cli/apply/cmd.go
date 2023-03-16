@@ -48,7 +48,7 @@ var Cmd = &cobra.Command{
 		// Read current state
 		var initialResources resource.Resources
 		if savedHostState != nil {
-			initialResources = savedHostState.Resources
+			initialResources = savedHostState.Bundle.Resources()
 		}
 		initialResources = initialResources.AppendIfNotPresent(bundle.Resources())
 		initialResourcesStateMap, err := resource.GetResourcesStateMap(ctx, hst, initialResources)
@@ -73,20 +73,20 @@ var Cmd = &cobra.Command{
 		plan.Print(ctx)
 
 		// Execute plan
-		success := true
 		err = plan.Execute(ctx, hst)
 
 		if err == nil {
 			// Save plan state
-			newHostState := resource.NewHostState(bundle.Resources())
+			newHostState := resource.NewHostState(bundle)
 			if err := state.SaveHostState(ctx, newHostState, persistantState); err != nil {
 				logger.Fatal(err)
 			}
+
+			logger.Info("🎆 Success")
 		} else {
 			// Rollback
 			nestedCtx := log.IndentLogger(ctx)
 			nestedLogger := log.GetLogger(nestedCtx)
-			success = false
 			nestedLogger.Error(err)
 			nestedLogger.Warn("Failed to execute plan, rolling back to previously saved state.")
 
@@ -102,12 +102,6 @@ var Cmd = &cobra.Command{
 				logger.Fatal("Rollback failed! You may try the restore command and / or fix things manually.")
 			}
 			nestedLogger.Info("👌 Rollback successful.")
-		}
-
-		// Result
-		if success {
-			logger.Info("🎆 Success")
-		} else {
 			logger.Fatal("Failed to apply, rollback to previously saved state successful.")
 		}
 	},

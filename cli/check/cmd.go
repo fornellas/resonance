@@ -42,7 +42,9 @@ var Cmd = &cobra.Command{
 		}
 
 		// Read current state
-		initialResourcesStateMap, err := resource.GetResourcesStateMap(ctx, hst, savedHostState.Resources)
+		initialResourcesStateMap, err := resource.GetResourcesStateMap(
+			ctx, hst, savedHostState.Bundle.Resources(),
+		)
 		if err != nil {
 			logger.Fatal(err)
 		}

@@ -41,15 +41,16 @@ var Cmd = &cobra.Command{
 		}
 
 		// Read current state
-		initialResourcesStateMap, err := resource.GetResourcesStateMap(ctx, hst, savedHostState.Resources)
+		initialResourcesStateMap, err := resource.GetResourcesStateMap(
+			ctx, hst, savedHostState.Bundle.Resources(),
+		)
 		if err != nil {
 			logger.Fatal(err)
 		}
 
 		// Plan
-		bundle := resource.NewBundleFromResources(savedHostState.Resources)
 		plan, err := resource.NewPlanFromSavedStateAndBundle(
-			ctx, hst, bundle, nil, initialResourcesStateMap, resource.ActionDestroy,
+			ctx, hst, savedHostState.Bundle, nil, initialResourcesStateMap, resource.ActionDestroy,
 		)
 		if err != nil {
 			logger.Fatal(err)
@@ -63,7 +64,7 @@ var Cmd = &cobra.Command{
 		}
 
 		// Save state
-		newHostState := resource.NewHostState(bundle.Resources())
+		newHostState := resource.NewHostState(resource.Bundle{})
 		if err := state.SaveHostState(ctx, newHostState, persistantState); err != nil {
 			logger.Fatal(err)
 		}

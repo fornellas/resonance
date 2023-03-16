@@ -53,7 +53,7 @@ var Cmd = &cobra.Command{
 		// Read current state
 		var initialResources resource.Resources
 		if savedHostState != nil {
-			initialResources = savedHostState.Resources
+			initialResources = savedHostState.Bundle.Resources()
 		}
 		initialResources = initialResources.AppendIfNotPresent(bundle.Resources())
 		initialResourcesStateMap, err := resource.GetResourcesStateMap(ctx, hst, initialResources)
