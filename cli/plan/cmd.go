@@ -62,10 +62,10 @@ var Cmd = &cobra.Command{
 		}
 
 		// Check saved HostState
-		if savedHostState != nil {
-			if err := savedHostState.Check(ctx, hst, initialResourcesStateMap); err != nil {
-				logger.Fatal(err)
-			}
+		if savedHostState != nil && !savedHostState.IsClean(ctx, hst, initialResourcesStateMap) {
+			logger.Fatalf(
+				"Host state is not clean: this often means external agents altered the host state after previous apply. Try the 'refresh' or 'restore' commands.",
+			)
 		}
 
 		// Plan

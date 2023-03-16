@@ -2,7 +2,6 @@ package resource
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/sergi/go-diff/diffmatchpatch"
@@ -35,18 +34,18 @@ func (hs HostState) String() string {
 	return string(bytes)
 }
 
-// Check whether current host state matches HostState.
-func (hs HostState) Check(
+// IsClean whether current host state matches HostState.
+func (hs HostState) IsClean(
 	ctx context.Context,
 	hst host.Host,
 	currentResourcesStateMap ResourcesStateMap,
-) error {
+) bool {
 	logger := log.GetLogger(ctx)
 	logger.Info("🕵️ Checking host state")
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 
-	fail := false
+	clean := true
 
 	for _, resource := range hs.Bundle.Resources() {
 		resourcesState, ok := currentResourcesStateMap[resource.TypeName]
@@ -55,15 +54,11 @@ func (hs HostState) Check(
 		}
 		if !resourcesState.Clean {
 			nestedLogger.Errorf("%s state is not clean", resource)
-			fail = true
+			clean = false
 		}
 	}
 
-	if fail {
-		return errors.New("state is dirty: this means external changes happened to the host that should be addressed before proceeding. Check refresh / restore commands and / or fix the changes manually")
-	}
-
-	return nil
+	return clean
 }
 
 // Refresh gets current host state and returns it as it is.

@@ -50,7 +50,7 @@ var Cmd = &cobra.Command{
 		}
 
 		// Check saved HostState
-		if err := savedHostState.Check(ctx, hst, initialResourcesStateMap); err != nil {
+		if !savedHostState.IsClean(ctx, hst, initialResourcesStateMap) {
 			logger.Fatal(err)
 		}
 
