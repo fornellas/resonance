@@ -9,7 +9,6 @@ import (
 	"github.com/sergi/go-diff/diffmatchpatch"
 
 	"github.com/fornellas/resonance/host"
-	"github.com/fornellas/resonance/log"
 	"github.com/fornellas/resonance/resource"
 )
 
@@ -113,8 +112,6 @@ func (ap APTPackage) DiffStates(
 func (ap APTPackage) ConfigureAll(
 	ctx context.Context, hst host.Host, actionNameStateMap map[resource.Action]map[resource.Name]resource.State,
 ) error {
-	nestedCtx := log.IndentLogger(ctx)
-
 	// Package arguments
 	pkgs := []string{}
 	for action, nameStateMap := range actionNameStateMap {
@@ -145,7 +142,7 @@ func (ap APTPackage) ConfigureAll(
 		Path: "apt-get",
 		Args: append([]string{"install"}, pkgs...),
 	}
-	waitStatus, stdout, stderr, err := hst.Run(nestedCtx, cmd)
+	waitStatus, stdout, stderr, err := hst.Run(ctx, cmd)
 	if err != nil {
 		return fmt.Errorf("failed to run '%s': %s", cmd, err)
 	}

@@ -151,7 +151,7 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 	if err := sam.MustMergeableManageableResources().ConfigureAll(
 		ctx, hst, configureActionParameters,
 	); err != nil {
-		logger.Errorf("💥%s", sam.StringNoAction())
+		logger.Errorf("💥 %s", sam.StringNoAction())
 		return err
 	}
 
@@ -160,12 +160,12 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 		ctx, hst, checkResources,
 	)
 	if err != nil {
-		logger.Errorf("💥%s", sam.StringNoAction())
+		logger.Errorf("💥 %s", sam.StringNoAction())
 		return err
 	}
 	for typeName, resourceState := range typeNameStateMap {
 		if !resourceState.Clean {
-			logger.Errorf("💥%s", typeName)
+			logger.Errorf("💥 %s", typeName)
 			return fmt.Errorf(
 				"likely bug in resource implementationm as state was dirty immediately after applying: %s",
 				typeName,
@@ -179,7 +179,7 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 		if ok {
 			err := refreshableManageableResource.Refresh(ctx, hst, name)
 			if err != nil {
-				logger.Errorf("💥%s", sam.StringNoAction())
+				logger.Errorf("💥 %s", sam.StringNoAction())
 			}
 			return err
 		}
@@ -300,7 +300,6 @@ func (p Plan) executeSteps(ctx context.Context, hst host.Host) error {
 			if err != nil {
 				return err
 			}
-			nestedLogger.Infof("%s", step)
 		}
 	} else {
 		nestedLogger.Infof("👌 Nothing to do")

@@ -99,7 +99,7 @@ var Cmd = &cobra.Command{
 			nestedCtx := log.IndentLogger(ctx)
 			nestedLogger := log.GetLogger(nestedCtx)
 			nestedLogger.Error(err)
-			logger.Warn("Failed to execute plan, rolling back to previously saved state.")
+			logger.Warn("Attempting rollback")
 
 			// Read current state
 			typeNameStateMap, err := resource.GetTypeNameStateMap(
@@ -125,6 +125,9 @@ var Cmd = &cobra.Command{
 				logger.Fatal("Rollback failed! You may try the restore command and / or fix things manually.")
 			}
 			nestedLogger.Info("👌 Rollback successful.")
+
+			// TODO save state without rollback
+
 			logger.Fatal("Failed to apply, rollback to previously saved state successful.")
 		}
 	},
