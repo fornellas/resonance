@@ -156,14 +156,14 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 	}
 
 	// Check
-	resourcesStateMap, err := GetMergeableManageableResourcesResourcesStateMapMap(
+	typeNameStateMap, err := GetMergeableManageableResourcesTypeNameStateMap(
 		ctx, hst, checkResources,
 	)
 	if err != nil {
 		logger.Errorf("💥%s", sam.StringNoAction())
 		return err
 	}
-	for typeName, resourceState := range resourcesStateMap {
+	for typeName, resourceState := range typeNameStateMap {
 		if !resourceState.Clean {
 			logger.Errorf("💥%s", typeName)
 			return fmt.Errorf(
@@ -253,10 +253,21 @@ func (s Step) ActionResourcesMap() map[Action]Resources {
 	return s.StepAction.ActionResourcesMap()
 }
 
+func (s Step) HasTypeName(typeName TypeName) bool {
+	for _, resources := range s.ActionResourcesMap() {
+		for _, resource := range resources {
+			if resource.TypeName == typeName {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // Plan is a directed graph which contains the plan for applying resources to a host.
 type Plan struct {
 	Steps                    []*Step
-	InitialResourcesStateMap ResourcesStateMap
+	TypeNameResourceStateMap TypeNameResourceStateMap
 }
 
 // Graphviz returns a DOT directed graph containing the apply plan.
@@ -345,9 +356,9 @@ func (p Plan) Print(ctx context.Context) {
 			}
 
 			for _, resource := range resources {
-				resourceState, ok := p.InitialResourcesStateMap[resource.TypeName]
+				resourceState, ok := p.TypeNameResourceStateMap[resource.TypeName]
 				if !ok {
-					panic(fmt.Sprintf("resourceState not found at InitialResourcesStateMap: %s", resource))
+					panic(fmt.Sprintf("resourceState not found at TypeNameResourceStateMap: %s", resource))
 				}
 
 				var action Action
@@ -381,7 +392,7 @@ func (p Plan) Print(ctx context.Context) {
 
 func (p Plan) addBundleSteps(
 	ctx context.Context,
-	bundle Bundle,
+	newBundle Bundle,
 	intendedAction Action,
 ) Plan {
 	logger := log.GetLogger(ctx)
@@ -389,11 +400,11 @@ func (p Plan) addBundleSteps(
 	logger.Info("👷 Building plan")
 
 	var lastBundleLastStep *Step
-	for _, resources := range bundle {
+	for _, newResources := range newBundle {
 		bundleSteps := []*Step{}
 		refresh := false
 		var step *Step
-		for i, resource := range resources {
+		for i, newResource := range newResources {
 			step = &Step{}
 			p.Steps = append(p.Steps, step)
 
@@ -404,16 +415,16 @@ func (p Plan) addBundleSteps(
 
 			// Action
 			action := intendedAction
-			if resource.Destroy {
+			if newResource.Destroy {
 				action = ActionDestroy
 			}
 			if action != ActionDestroy {
-				resourceState, ok := p.InitialResourcesStateMap[resource.TypeName]
+				resourceState, ok := p.TypeNameResourceStateMap[newResource.TypeName]
 				if !ok {
-					panic(fmt.Errorf("%v missing from InitialResourcesState", resource))
+					panic(fmt.Errorf("%v missing from TypeNameResourceStateMap", newResource))
 				}
 				if resourceState.Clean {
-					if refresh && resource.Refreshable() {
+					if refresh && newResource.Refreshable() {
 						action = ActionRefresh
 					} else {
 						action = ActionOk
@@ -432,7 +443,7 @@ func (p Plan) addBundleSteps(
 
 			// StepAction
 			step.StepAction = StepActionIndividual{
-				Resource: resource,
+				Resource: newResource,
 				Action:   action,
 			}
 
@@ -447,33 +458,46 @@ func (p Plan) addBundleSteps(
 	return p
 }
 
-func prependDestroyStepsToPlan(
+func addDestroyStepsToPlan(
 	ctx context.Context,
 	steps []*Step,
-	bundle Bundle,
-	savedHostState HostState,
+	newBundle Bundle,
+	previousBundle Bundle,
 ) []*Step {
 	logger := log.GetLogger(ctx)
 	logger.Info("💀 Determining resources to destroy")
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
-	for _, resource := range savedHostState.Bundle.Resources() {
-		if bundle.HasTypeName(resource.TypeName) {
+	previousResources := previousBundle.Resources()
+	for previousIdx, previousResource := range previousResources {
+		if newBundle.HasTypeName(previousResource.TypeName) {
 			continue
 		}
+
 		prerequisiteFor := []*Step{}
-		if len(steps) > 0 {
-			prerequisiteFor = append(prerequisiteFor, steps[0])
+		if previousIdx+1 < len(previousResources) {
+			for _, previousResourcePrereqFor := range previousResources[previousIdx+1:] {
+				for _, step := range steps {
+					if step.HasTypeName(previousResourcePrereqFor.TypeName) {
+						prerequisiteFor = []*Step{step}
+						break
+					}
+				}
+				if len(prerequisiteFor) > 0 {
+					break
+				}
+			}
 		}
+
 		step := &Step{
 			StepAction: StepActionIndividual{
-				Resource: resource,
+				Resource: previousResource,
 				Action:   ActionDestroy,
 			},
 			prerequisiteFor: prerequisiteFor,
 		}
 		nestedLogger.Infof("%s", step)
-		steps = append([]*Step{step}, steps...)
+		steps = append(steps, step)
 	}
 	return steps
 }
@@ -558,12 +582,11 @@ func topologicalSortPlan(ctx context.Context, steps []*Step) ([]*Step, error) {
 	return sortedSteps, nil
 }
 
-func NewPlanFromSavedStateAndBundle(
+func NewApplyPlan(
 	ctx context.Context,
-	hst host.Host,
-	bundle Bundle,
-	savedHostState *HostState,
-	initialResourcesStateMap ResourcesStateMap,
+	newBundle Bundle,
+	previousBundle *Bundle,
+	typeNameResourceStateMap TypeNameResourceStateMap,
 	intendedAction Action,
 ) (Plan, error) {
 	logger := log.GetLogger(ctx)
@@ -573,15 +596,15 @@ func NewPlanFromSavedStateAndBundle(
 	// Plan
 	plan := Plan{
 		Steps:                    []*Step{},
-		InitialResourcesStateMap: initialResourcesStateMap,
+		TypeNameResourceStateMap: typeNameResourceStateMap,
 	}
 
 	// Add Bundle Steps
-	plan = plan.addBundleSteps(nestedCtx, bundle, intendedAction)
+	plan = plan.addBundleSteps(nestedCtx, newBundle, intendedAction)
 
 	// Prepend destroy steps
-	if savedHostState != nil {
-		plan.Steps = prependDestroyStepsToPlan(nestedCtx, plan.Steps, bundle, *savedHostState)
+	if previousBundle != nil {
+		plan.Steps = addDestroyStepsToPlan(nestedCtx, plan.Steps, newBundle, *previousBundle)
 	}
 
 	// Merge steps
@@ -597,75 +620,44 @@ func NewPlanFromSavedStateAndBundle(
 	return plan, nil
 }
 
-func prependDestroyStepsFromPlanBundleToPlan(
-	ctx context.Context,
-	steps []*Step,
-	bundles, planBundle Bundle,
-) []*Step {
-	logger := log.GetLogger(ctx)
-	logger.Info("💀 Determining resources to destroy")
-	nestedCtx := log.IndentLogger(ctx)
-	nestedLogger := log.GetLogger(nestedCtx)
-	for _, planResources := range planBundle {
-		for _, resource := range planResources {
-			if bundles.HasTypeName(resource.TypeName) {
+func NewRollbackBundle(
+	newBundle Bundle,
+	previousBundle *Bundle,
+	typeNameResourceStateMap TypeNameResourceStateMap,
+	intendedAction Action,
+) Bundle {
+	if previousBundle == nil {
+		previousBundle = &Bundle{}
+	}
+
+	rollbackBundle := *previousBundle
+
+	rollbackResources := Resources{}
+
+	for _, newResources := range newBundle {
+		for _, newResource := range newResources {
+			if previousBundle.HasTypeName(newResource.TypeName) {
 				continue
 			}
-			prerequisiteFor := []*Step{}
-			if len(steps) > 0 {
-				prerequisiteFor = append(prerequisiteFor, steps[0])
+			newResourceState, ok := typeNameResourceStateMap[newResource.TypeName]
+			if !ok {
+				panic(fmt.Sprintf("state missing from TypeNameResourceStateMap: %s", newResource.TypeName))
 			}
-			step := &Step{
-				StepAction: StepActionIndividual{
-					Resource: resource,
-					Action:   ActionDestroy,
-				},
-				prerequisiteFor: prerequisiteFor,
-			}
-			nestedLogger.Infof("%s", step)
-			steps = append([]*Step{step}, steps...)
+			rollbackResource := NewResource(
+				newResource.TypeName, newResourceState.State, newResourceState.Destroy(),
+			)
+
+			fmt.Printf("newResourceState: %#v\n", newResourceState.State)
+
+			// TODO insert at rollbackBundle at the correct place, immediately before any
+			// of the following newResources's position at rollbackBundle
+
+			rollbackResources = append(rollbackResources, rollbackResource)
+
 		}
 	}
-	return steps
-}
 
-func NewRollbackPlan(
-	ctx context.Context,
-	hst host.Host,
-	bundle Bundle,
-	initialResources Resources,
-) (Plan, error) {
-	logger := log.GetLogger(ctx)
-	logger.Info("📝 Planning rollback")
-	nestedCtx := log.IndentLogger(ctx)
+	rollbackBundle = append(Bundle{rollbackResources}, rollbackBundle...)
 
-	// ResourcesState
-	initialResourcesStateMap, err := GetResourcesStateMap(ctx, hst, initialResources)
-	if err != nil {
-		logger.Fatal(err)
-	}
-
-	// Plan
-	plan := Plan{
-		Steps:                    []*Step{},
-		InitialResourcesStateMap: initialResourcesStateMap,
-	}
-
-	// Add Bundle Steps
-	rollbackBundle := NewBundleFromResources(initialResources)
-	plan = plan.addBundleSteps(nestedCtx, rollbackBundle, ActionNone)
-
-	// Prepend destroy steps
-	plan.Steps = prependDestroyStepsFromPlanBundleToPlan(nestedCtx, plan.Steps, rollbackBundle, bundle)
-
-	// Merge steps
-	plan.Steps = mergePlanSteps(nestedCtx, plan.Steps)
-
-	// Sort
-	plan.Steps, err = topologicalSortPlan(nestedCtx, plan.Steps)
-	if err != nil {
-		return Plan{}, err
-	}
-
-	return plan, nil
+	return rollbackBundle
 }

@@ -21,9 +21,8 @@ type State interface {
 // HostState holds the state for a host
 type HostState struct {
 	// Version of the binary used to put the host in this state.
-	Version version.Version `yaml:"version"`
-	Bundle  Bundle          `yaml:"bundle"`
-	// PartialBundle *Bundle         `yaml:"partial_bundle"`
+	Version        version.Version `yaml:"version"`
+	PreviousBundle Bundle          `yaml:"previous_bundle"`
 }
 
 func (hs HostState) String() string {
@@ -38,7 +37,7 @@ func (hs HostState) String() string {
 func (hs HostState) IsClean(
 	ctx context.Context,
 	hst host.Host,
-	currentResourcesStateMap ResourcesStateMap,
+	typeNameResourceStateMap TypeNameResourceStateMap,
 ) bool {
 	logger := log.GetLogger(ctx)
 	logger.Info("🕵️ Checking host state")
@@ -47,8 +46,8 @@ func (hs HostState) IsClean(
 
 	clean := true
 
-	for _, resource := range hs.Bundle.Resources() {
-		resourcesState, ok := currentResourcesStateMap[resource.TypeName]
+	for _, resource := range hs.PreviousBundle.Resources() {
+		resourcesState, ok := typeNameResourceStateMap[resource.TypeName]
 		if !ok {
 			panic(fmt.Sprintf("state missing from StateMap: %s", resource))
 		}
@@ -63,16 +62,16 @@ func (hs HostState) IsClean(
 
 // Refresh gets current host state and returns it as it is.
 func (hs HostState) Refresh(ctx context.Context, hst host.Host) (HostState, error) {
-	resourcesStateMap, err := GetResourcesStateMap(ctx, hst, hs.Bundle.Resources())
+	typeNameStateMap, err := GetTypeNameStateMap(ctx, hst, hs.PreviousBundle.Resources())
 	if err != nil {
 		return HostState{}, err
 	}
 
 	newBundle := Bundle{}
-	for _, resources := range hs.Bundle {
+	for _, resources := range hs.PreviousBundle {
 		newResources := Resources{}
 		for _, resource := range resources {
-			resourceState, ok := resourcesStateMap[resource.TypeName]
+			resourceState, ok := typeNameStateMap[resource.TypeName]
 			if !ok {
 				panic(fmt.Sprintf("missing ResourceState: %s", resource))
 			}
@@ -85,10 +84,10 @@ func (hs HostState) Refresh(ctx context.Context, hst host.Host) (HostState, erro
 	return NewHostState(newBundle), nil
 }
 
-func NewHostState(bundle Bundle) HostState {
+func NewHostState(previousBundle Bundle) HostState {
 	return HostState{
-		Version: version.GetVersion(),
-		Bundle:  bundle,
+		Version:        version.GetVersion(),
+		PreviousBundle: previousBundle,
 	}
 }
 
@@ -98,7 +97,11 @@ type ResourceState struct {
 	Clean bool
 }
 
-type ResourcesStateMap map[TypeName]ResourceState
+func (rs ResourceState) Destroy() bool {
+	return rs.State == nil
+}
+
+type TypeNameResourceStateMap map[TypeName]ResourceState
 
 // GetIndividuallyManageableResourceResourceState gets current state for all given resources,
 // which must be IndividuallyManageableResource, and return it as ResourceState.
@@ -139,14 +142,14 @@ func GetIndividuallyManageableResourceResourceState(
 }
 
 // GetMergeableManageableResourcesResourcesStateMapMap gets current state for all given resources,
-// which must be MergeableManageableResources, and return it as ResourcesStateMap.
-func GetMergeableManageableResourcesResourcesStateMapMap(
+// which must be MergeableManageableResources, and return it as TypeNameStateMap.
+func GetMergeableManageableResourcesTypeNameStateMap(
 	ctx context.Context, hst host.Host, resources Resources,
-) (ResourcesStateMap, error) {
+) (TypeNameResourceStateMap, error) {
 	logger := log.GetLogger(ctx)
 
 	if len(resources) == 0 {
-		return ResourcesStateMap{}, nil
+		return TypeNameResourceStateMap{}, nil
 	}
 
 	var mergeableManageableResources MergeableManageableResources
@@ -167,7 +170,7 @@ func GetMergeableManageableResourcesResourcesStateMapMap(
 		return nil, err
 	}
 
-	resourcesStateMap := ResourcesStateMap{}
+	typeNameResourceStateMap := TypeNameResourceStateMap{}
 	for _, resource := range resources {
 		resourceState := ResourceState{}
 
@@ -197,15 +200,17 @@ func GetMergeableManageableResourcesResourcesStateMapMap(
 			resourceState.Clean = true
 		}
 
-		resourcesStateMap[resource.TypeName] = resourceState
+		typeNameResourceStateMap[resource.TypeName] = resourceState
 	}
 
-	return resourcesStateMap, nil
+	return typeNameResourceStateMap, nil
 }
 
-// GetResourcesStateMap gets current state for all given resources and return
-// it as ResourcesStateMap.
-func GetResourcesStateMap(ctx context.Context, hst host.Host, resources Resources) (ResourcesStateMap, error) {
+// GetTypeNameStateMap gets current state for all given resources and return
+// it as TypeNameStateMap.
+func GetTypeNameStateMap(
+	ctx context.Context, hst host.Host, resources Resources,
+) (TypeNameResourceStateMap, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("🔎 Reading host state")
 	nestedCtx := log.IndentLogger(ctx)
@@ -222,30 +227,30 @@ func GetResourcesStateMap(ctx context.Context, hst host.Host, resources Resource
 		}
 	}
 
-	resourcesStateMap := ResourcesStateMap{}
+	typeNameResourceStateMap := TypeNameResourceStateMap{}
 
 	for _, individuallyManageableResource := range individuallyManageableResources {
 		resourcesState, err := GetIndividuallyManageableResourceResourceState(
 			nestedCtx, hst, individuallyManageableResource,
 		)
 		if err != nil {
-			return ResourcesStateMap{}, err
+			return TypeNameResourceStateMap{}, err
 		}
-		resourcesStateMap[individuallyManageableResource.TypeName] = resourcesState
+		typeNameResourceStateMap[individuallyManageableResource.TypeName] = resourcesState
 	}
 
 	for _, mergeableManageableResources := range typeMergeableManageableResourcesMap {
-		mergeableManageableResourcesResourcesStateMap, err := GetMergeableManageableResourcesResourcesStateMapMap(
+		mergeableManageableResourcesTypeNameStateMap, err := GetMergeableManageableResourcesTypeNameStateMap(
 			nestedCtx, hst, mergeableManageableResources,
 		)
 		if err != nil {
-			return ResourcesStateMap{}, err
+			return TypeNameResourceStateMap{}, err
 		}
 
-		for typeName, resourceState := range mergeableManageableResourcesResourcesStateMap {
-			resourcesStateMap[typeName] = resourceState
+		for typeName, resourceState := range mergeableManageableResourcesTypeNameStateMap {
+			typeNameResourceStateMap[typeName] = resourceState
 		}
 	}
 
-	return resourcesStateMap, nil
+	return typeNameResourceStateMap, nil
 }

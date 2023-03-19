@@ -34,38 +34,50 @@ var Cmd = &cobra.Command{
 
 		// Load resources
 		root := args[0]
-		bundle, err := resource.LoadBundle(ctx, root)
+		newBundle, err := resource.LoadBundle(ctx, root)
 		if err != nil {
 			logger.Fatal(err)
 		}
 
 		// Load saved HostState
-		savedHostState, err := state.LoadHostState(ctx, persistantState)
+		hostState, err := state.LoadHostState(ctx, persistantState)
 		if err != nil {
 			logger.Fatal(err)
 		}
+		var previousBundle *resource.Bundle
+		if hostState != nil {
+			previousBundle = &hostState.PreviousBundle
+		}
 
 		// Read current state
-		var initialResources resource.Resources
-		if savedHostState != nil {
-			initialResources = savedHostState.Bundle.Resources()
+		var allResources resource.Resources
+		if hostState != nil {
+			allResources = hostState.PreviousBundle.Resources()
 		}
-		initialResources = initialResources.AppendIfNotPresent(bundle.Resources())
-		initialResourcesStateMap, err := resource.GetResourcesStateMap(ctx, hst, initialResources)
+		allResources = allResources.AppendIfNotPresent(newBundle.Resources())
+		typeNameStateMap, err := resource.GetTypeNameStateMap(ctx, hst, allResources)
 		if err != nil {
 			logger.Fatal(err)
 		}
 
 		// Check saved HostState
-		if savedHostState != nil && !savedHostState.IsClean(ctx, hst, initialResourcesStateMap) {
+		if hostState != nil && !hostState.IsClean(ctx, hst, typeNameStateMap) {
 			logger.Fatalf(
 				"Host state is not clean: this often means external agents altered the host state after previous apply. Try the 'refresh' or 'restore' commands.",
 			)
 		}
 
+		// Rollback NewRollbackBundle
+		rollbackBundle := resource.NewRollbackBundle(
+			newBundle, previousBundle, typeNameStateMap, resource.ActionApply,
+		)
+
+		// TODO save rollback bundle
+
 		// Plan
-		plan, err := resource.NewPlanFromSavedStateAndBundle(
-			ctx, hst, bundle, savedHostState, initialResourcesStateMap, resource.ActionNone,
+
+		plan, err := resource.NewApplyPlan(
+			ctx, newBundle, previousBundle, typeNameStateMap, resource.ActionApply,
 		)
 		if err != nil {
 			logger.Fatal(err)
@@ -77,25 +89,36 @@ var Cmd = &cobra.Command{
 
 		if err == nil {
 			// Save plan state
-			newHostState := resource.NewHostState(bundle)
+			newHostState := resource.NewHostState(newBundle)
 			if err := state.SaveHostState(ctx, newHostState, persistantState); err != nil {
 				logger.Fatal(err)
 			}
 
 			logger.Info("🎆 Success")
 		} else {
-			// Rollback
 			nestedCtx := log.IndentLogger(ctx)
 			nestedLogger := log.GetLogger(nestedCtx)
 			nestedLogger.Error(err)
 			nestedLogger.Warn("Failed to execute plan, rolling back to previously saved state.")
 
-			rollbackPlan, err := resource.NewRollbackPlan(nestedCtx, hst, bundle, initialResources)
+			// Read current state
+			typeNameStateMap, err := resource.GetTypeNameStateMap(
+				nestedCtx, hst, rollbackBundle.Resources(),
+			)
+			if err != nil {
+				logger.Fatal(err)
+			}
+
+			// Rollback Plan
+			rollbackPlan, err := resource.NewApplyPlan(
+				nestedCtx, rollbackBundle, nil, typeNameStateMap, resource.ActionApply,
+			)
 			if err != nil {
 				logger.Fatal(err)
 			}
 			rollbackPlan.Print(nestedCtx)
 
+			// Execute plan
 			err = rollbackPlan.Execute(nestedCtx, hst)
 			if err != nil {
 				nestedLogger.Error(err)
