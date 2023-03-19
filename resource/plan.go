@@ -49,6 +49,8 @@ func (sai StepActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 			err := refreshableManageableResource.Refresh(ctx, hst, name)
 			if err != nil {
 				logger.Errorf("💥 %s", sai.Resource)
+			} else {
+				logger.Infof("%s %s", ActionRefresh.Emoji(), sai.Resource)
 			}
 			return err
 		}
@@ -72,6 +74,8 @@ func (sai StepActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 		err := individuallyManageableResource.Destroy(ctx, hst, name)
 		if err != nil {
 			logger.Errorf("💥 %s", sai.Resource)
+		} else {
+			logger.Infof("%s %s", ActionDestroy.Emoji(), sai.Resource)
 		}
 		return err
 	default:
@@ -381,6 +385,8 @@ func (p Plan) Print(ctx context.Context) {
 						nestedLogger.WithField("", diffMatchPatch.DiffPrettyText(resourceState.Diffs)).
 							Infof("%s %s", action.Emoji(), resource)
 					}
+				} else {
+					nestedLogger.Infof("%s %s", action.Emoji(), resource)
 				}
 			}
 		} else {
@@ -414,14 +420,18 @@ func (p Plan) addBundleSteps(
 
 			// Action
 			action := intendedAction
+			resourceState, ok := p.TypeNameResourceStateMap[newResource.TypeName]
+			if !ok {
+				panic(fmt.Errorf("%v missing from TypeNameResourceStateMap", newResource))
+			}
 			if newResource.Destroy {
-				action = ActionDestroy
+				if resourceState.Clean {
+					action = ActionOk
+				} else {
+					action = ActionDestroy
+				}
 			}
 			if action != ActionDestroy {
-				resourceState, ok := p.TypeNameResourceStateMap[newResource.TypeName]
-				if !ok {
-					panic(fmt.Errorf("%v missing from TypeNameResourceStateMap", newResource))
-				}
 				if resourceState.Clean {
 					if refresh && newResource.Refreshable() {
 						action = ActionRefresh
@@ -584,7 +594,7 @@ func topologicalSortPlan(ctx context.Context, steps []*Step) ([]*Step, error) {
 	return sortedSteps, nil
 }
 
-func NewApplyPlan(
+func NewPlan(
 	ctx context.Context,
 	newBundle Bundle,
 	previousBundle *Bundle,
@@ -646,7 +656,7 @@ func NewRollbackBundle(
 				panic(fmt.Sprintf("state missing from TypeNameResourceStateMap: %s", newResource.TypeName))
 			}
 			rollbackResource := NewResource(
-				newResource.TypeName, newResourceState.State, newResourceState.Destroy(),
+				newResource.TypeName, newResourceState.State, newResourceState.State == nil,
 			)
 
 			// FIXME insert at rollbackBundle at the correct place, immediately before any

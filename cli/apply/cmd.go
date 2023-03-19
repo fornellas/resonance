@@ -76,7 +76,7 @@ var Cmd = &cobra.Command{
 
 		// Plan
 
-		plan, err := resource.NewApplyPlan(
+		plan, err := resource.NewPlan(
 			ctx, newBundle, previousBundle, typeNameStateMap, resource.ActionApply,
 		)
 		if err != nil {
@@ -110,7 +110,7 @@ var Cmd = &cobra.Command{
 			}
 
 			// Rollback Plan
-			rollbackPlan, err := resource.NewApplyPlan(
+			rollbackPlan, err := resource.NewPlan(
 				nestedCtx, rollbackBundle, nil, typeNameStateMap, resource.ActionApply,
 			)
 			if err != nil {

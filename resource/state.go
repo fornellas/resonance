@@ -97,10 +97,6 @@ type ResourceState struct {
 	Clean bool
 }
 
-func (rs ResourceState) Destroy() bool {
-	return rs.State == nil
-}
-
 type TypeNameResourceStateMap map[TypeName]ResourceState
 
 // GetIndividuallyManageableResourceResourceState gets current state for all given resources,

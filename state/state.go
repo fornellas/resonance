@@ -43,6 +43,7 @@ func LoadHostState(
 ) (*resource.HostState, error) {
 	logger := log.GetLogger(ctx)
 	nestedCtx := log.IndentLogger(ctx)
+	nestedLogger := log.GetLogger(nestedCtx)
 
 	var hostState resource.HostState
 
@@ -53,6 +54,7 @@ func LoadHostState(
 		return &hostState, err
 	}
 	if savedBytes == nil {
+		nestedLogger.Info("No previously saved state")
 		return nil, nil
 	}
 
