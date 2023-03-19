@@ -27,6 +27,15 @@ func TestApplyNoYamlResourceFiles(t *testing.T) {
 func TestApplySuccess(t *testing.T) {
 	stateRoot, resourcesRoot := setupDirs(t)
 
+	args := []string{
+		"apply",
+		"--log-level=debug",
+		"--force-color",
+		"--localhost",
+		"--state-root", stateRoot,
+		resourcesRoot,
+	}
+
 	fooDesiredState := TestState{
 		Value: "foo",
 	}
@@ -77,6 +86,10 @@ func TestApplySuccess(t *testing.T) {
 			{DiffStates: &TestFuncDiffStates{
 				DesiredState: fooDesiredState,
 				CurrentState: fooDesiredState,
+				ReturnDiffs: []diffmatchpatch.Diff{{
+					Type: diffmatchpatch.DiffEqual,
+					Text: "foo",
+				}},
 			}},
 			{Apply: &TestFuncApply{
 				Name:  "bar",
@@ -89,16 +102,14 @@ func TestApplySuccess(t *testing.T) {
 			{DiffStates: &TestFuncDiffStates{
 				DesiredState: barDesiredState,
 				CurrentState: barDesiredState,
+				ReturnDiffs: []diffmatchpatch.Diff{{
+					Type: diffmatchpatch.DiffEqual,
+					Text: "bar",
+				}},
 			}},
 		})
 		runCommand(t, Cmd{
-			Args: []string{"apply",
-				"--log-level=debug",
-				"--force-color",
-				"--localhost",
-				"--state-root", stateRoot,
-				resourcesRoot,
-			},
+			Args:           args,
 			ExpectedOutput: "Success",
 		})
 	})
@@ -107,7 +118,7 @@ func TestApplySuccess(t *testing.T) {
 		return
 	}
 
-	t.Run("Idempotent apply", func(t *testing.T) {
+	t.Run("Idempotency", func(t *testing.T) {
 		setupTestType(t, []TestFuncCall{
 			// Loading resources
 			{ValidateName: &TestFuncValidateName{
@@ -150,24 +161,228 @@ func TestApplySuccess(t *testing.T) {
 			}},
 		})
 		runCommand(t, Cmd{
-			Args: []string{"apply",
-				"--log-level=debug",
-				"--force-color",
-				"--localhost",
-				"--state-root", stateRoot,
-				resourcesRoot,
-			},
+			Args:           args,
 			ExpectedOutput: "Success",
 		})
 	})
 
-	// t.Run("Destroy old resources", func(t *testing.T) {})
+	if t.Failed() {
+		return
+	}
 
-	// t.Run("Idempotent apply", func(t *testing.T) {})
+	t.Run("Destroy old resources", func(t *testing.T) {
+		setupBundles(t, resourcesRoot, map[string]resource.Resources{
+			"test.yaml": resource.Resources{
+				{
+					TypeName: "Test[foo]",
+					State:    fooDesiredState,
+				},
+			},
+		})
+		setupTestType(t, []TestFuncCall{
+			// Loading resources
+			{ValidateName: &TestFuncValidateName{
+				Name: "foo",
+			}},
+			// Loading saved host state
+			{ValidateName: &TestFuncValidateName{
+				Name: "foo",
+			}},
+			{ValidateName: &TestFuncValidateName{
+				Name: "bar",
+			}},
+			// Reading Host State
+			{GetState: &TestFuncGetState{
+				Name:        "foo",
+				ReturnState: fooDesiredState,
+			}},
+			{DiffStates: &TestFuncDiffStates{
+				DesiredState: fooDesiredState,
+				CurrentState: fooDesiredState,
+				ReturnDiffs: []diffmatchpatch.Diff{{
+					Type: diffmatchpatch.DiffEqual,
+					Text: "foo",
+				}},
+			}},
+			{GetState: &TestFuncGetState{
+				Name:        "bar",
+				ReturnState: barDesiredState,
+			}},
+			{DiffStates: &TestFuncDiffStates{
+				DesiredState: barDesiredState,
+				CurrentState: barDesiredState,
+				ReturnDiffs: []diffmatchpatch.Diff{{
+					Type: diffmatchpatch.DiffEqual,
+					Text: "bar",
+				}},
+			}},
+			// Executing plan
+			{Destroy: &TestFuncDestroy{
+				Name: "bar",
+			}},
+		})
+		runCommand(t, Cmd{
+			Args:           args,
+			ExpectedOutput: "Success",
+		})
+	})
 
-	// t.Run("Apply new resource", func(t *testing.T) {})
+	if t.Failed() {
+		return
+	}
 
-	// t.Run("Idempotent apply", func(t *testing.T) {})
+	t.Run("Idempotency", func(t *testing.T) {
+		setupTestType(t, []TestFuncCall{
+			// Loading resources
+			{ValidateName: &TestFuncValidateName{
+				Name: "foo",
+			}},
+			// Loading saved host state
+			{ValidateName: &TestFuncValidateName{
+				Name: "foo",
+			}},
+			// Reading Host State
+			{GetState: &TestFuncGetState{
+				Name:        "foo",
+				ReturnState: fooDesiredState,
+			}},
+			{DiffStates: &TestFuncDiffStates{
+				DesiredState: fooDesiredState,
+				CurrentState: fooDesiredState,
+				ReturnDiffs: []diffmatchpatch.Diff{{
+					Type: diffmatchpatch.DiffEqual,
+					Text: "foo",
+				}},
+			}},
+		})
+		runCommand(t, Cmd{
+			Args:           args,
+			ExpectedOutput: "Success",
+		})
+	})
+
+	if t.Failed() {
+		return
+	}
+
+	t.Run("Apply new resource", func(t *testing.T) {
+		setupBundles(t, resourcesRoot, map[string]resource.Resources{
+			"test.yaml": resource.Resources{
+				{
+					TypeName: "Test[foo]",
+					State:    fooDesiredState,
+				},
+				{
+					TypeName: "Test[bar]",
+					State:    barDesiredState,
+				},
+			},
+		})
+		setupTestType(t, []TestFuncCall{
+			// Loading resources
+			{ValidateName: &TestFuncValidateName{
+				Name: "foo",
+			}},
+			{ValidateName: &TestFuncValidateName{
+				Name: "bar",
+			}},
+			// Loading saved host state
+			{ValidateName: &TestFuncValidateName{
+				Name: "foo",
+			}},
+			// Reading Host State
+			{GetState: &TestFuncGetState{
+				Name:        "foo",
+				ReturnState: fooDesiredState,
+			}},
+			{DiffStates: &TestFuncDiffStates{
+				DesiredState: fooDesiredState,
+				CurrentState: fooDesiredState,
+				ReturnDiffs: []diffmatchpatch.Diff{{
+					Type: diffmatchpatch.DiffEqual,
+					Text: "foo",
+				}},
+			}},
+			{GetState: &TestFuncGetState{
+				Name:        "bar",
+				ReturnState: nil,
+			}},
+			// Executing plan
+			{Apply: &TestFuncApply{
+				Name:  "bar",
+				State: barDesiredState,
+			}},
+			{GetState: &TestFuncGetState{
+				Name:        "bar",
+				ReturnState: barDesiredState,
+			}},
+			{DiffStates: &TestFuncDiffStates{
+				DesiredState: barDesiredState,
+				CurrentState: barDesiredState,
+				ReturnDiffs: []diffmatchpatch.Diff{{
+					Type: diffmatchpatch.DiffEqual,
+					Text: "bar",
+				}},
+			}},
+		})
+		runCommand(t, Cmd{
+			Args:           args,
+			ExpectedOutput: "Success",
+		})
+	})
+
+	if t.Failed() {
+		return
+	}
+
+	t.Run("Idempotency", func(t *testing.T) {
+		setupTestType(t, []TestFuncCall{
+			// Loading resources
+			{ValidateName: &TestFuncValidateName{
+				Name: "foo",
+			}},
+			{ValidateName: &TestFuncValidateName{
+				Name: "bar",
+			}},
+			// Loading saved host state
+			{ValidateName: &TestFuncValidateName{
+				Name: "foo",
+			}},
+			{ValidateName: &TestFuncValidateName{
+				Name: "bar",
+			}},
+			// Reading Host State
+			{GetState: &TestFuncGetState{
+				Name:        "foo",
+				ReturnState: fooDesiredState,
+			}},
+			{DiffStates: &TestFuncDiffStates{
+				DesiredState: fooDesiredState,
+				CurrentState: fooDesiredState,
+				ReturnDiffs: []diffmatchpatch.Diff{{
+					Type: diffmatchpatch.DiffEqual,
+					Text: "foo",
+				}},
+			}},
+			{GetState: &TestFuncGetState{
+				Name:        "bar",
+				ReturnState: barDesiredState,
+			}},
+			{DiffStates: &TestFuncDiffStates{
+				DesiredState: barDesiredState,
+				CurrentState: barDesiredState,
+				ReturnDiffs: []diffmatchpatch.Diff{{
+					Type: diffmatchpatch.DiffEqual,
+					Text: "bar",
+				}},
+			}},
+		})
+		runCommand(t, Cmd{
+			Args:           args,
+			ExpectedOutput: "Success",
+		})
+	})
+
 }
 
 // func TestApplyFailureWithRollback(t *testing.T) {
