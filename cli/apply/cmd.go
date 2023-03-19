@@ -99,7 +99,7 @@ var Cmd = &cobra.Command{
 			nestedCtx := log.IndentLogger(ctx)
 			nestedLogger := log.GetLogger(nestedCtx)
 			nestedLogger.Error(err)
-			nestedLogger.Warn("Failed to execute plan, rolling back to previously saved state.")
+			logger.Warn("Failed to execute plan, rolling back to previously saved state.")
 
 			// Read current state
 			typeNameStateMap, err := resource.GetTypeNameStateMap(

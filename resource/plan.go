@@ -545,6 +545,9 @@ func mergePlanSteps(ctx context.Context, steps []*Step) []*Step {
 }
 
 func topologicalSortPlan(ctx context.Context, steps []*Step) ([]*Step, error) {
+	logger := log.GetLogger(ctx)
+	logger.Info("✨ Ordering")
+
 	dependantCount := map[*Step]int{}
 	for _, step := range steps {
 		if _, ok := dependantCount[step]; !ok {
@@ -647,9 +650,7 @@ func NewRollbackBundle(
 				newResource.TypeName, newResourceState.State, newResourceState.Destroy(),
 			)
 
-			fmt.Printf("newResourceState: %#v\n", newResourceState.State)
-
-			// TODO insert at rollbackBundle at the correct place, immediately before any
+			// FIXME insert at rollbackBundle at the correct place, immediately before any
 			// of the following newResources's position at rollbackBundle
 
 			rollbackResources = append(rollbackResources, rollbackResource)
