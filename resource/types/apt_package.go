@@ -103,7 +103,7 @@ func (ap APTPackage) ConfigureAll(
 		var pkgAction string
 		switch action {
 		case resource.ActionOk:
-		case resource.ActionApply:
+		case resource.ActionConfigure:
 			pkgAction = "+"
 		case resource.ActionDestroy:
 			pkgAction = "-"

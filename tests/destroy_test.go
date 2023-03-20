@@ -1,30 +1,13 @@
 package tests
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/fornellas/resonance/resource"
 )
 
-func TestCheckNoPreviousState(t *testing.T) {
-	stateRoot, _ := setupDirs(t)
-
-	args := []string{
-		"check",
-		"--log-level=debug",
-		"--force-color",
-		"--localhost",
-		"--state-root", stateRoot,
-	}
-
-	runCommand(t, Cmd{
-		Args:           args,
-		ExpectedCode:   1,
-		ExpectedOutput: "No previously saved host state available to check",
-	})
-}
-
-func TestCheckClean(t *testing.T) {
+func TestDestroy(t *testing.T) {
 	stateRoot, resourcesRoot := setupDirs(t)
 
 	fooState := TestState{
@@ -78,8 +61,7 @@ func TestCheckClean(t *testing.T) {
 		return
 	}
 
-	t.Run("check is clean", func(t *testing.T) {
-
+	t.Run("destroy", func(t *testing.T) {
 		setupTestType(t, []TestFuncCall{
 			// Loading saved host state
 			{ValidateName: &TestFuncValidateName{
@@ -90,9 +72,13 @@ func TestCheckClean(t *testing.T) {
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
+			// Executing plan
+			{Destroy: &TestFuncDestroy{
+				Name: "foo",
+			}},
 		})
 		args := []string{
-			"check",
+			"destroy",
 			"--log-level=debug",
 			"--force-color",
 			"--localhost",
@@ -100,12 +86,12 @@ func TestCheckClean(t *testing.T) {
 		}
 		runCommand(t, Cmd{
 			Args:           args,
-			ExpectedOutput: "State is clean",
+			ExpectedOutput: "Success",
 		})
 	})
 }
 
-func TestCheckDirty(t *testing.T) {
+func TestDestroyFailureWithSuccessfulRollback(t *testing.T) {
 	stateRoot, resourcesRoot := setupDirs(t)
 
 	fooState := TestState{
@@ -159,23 +145,41 @@ func TestCheckDirty(t *testing.T) {
 		return
 	}
 
-	t.Run("check is dirty", func(t *testing.T) {
-
+	t.Run("destroy with rollback", func(t *testing.T) {
 		setupTestType(t, []TestFuncCall{
 			// Loading saved host state
 			{ValidateName: &TestFuncValidateName{
 				Name: "foo",
 			}},
 			// Reading Host State
+			{GetState: &TestFuncGetState{
+				Name:        "foo",
+				ReturnState: fooState,
+			}},
+			// Executing plan
+			{Destroy: &TestFuncDestroy{
+				Name:        "foo",
+				ReturnError: errors.New("fooError"),
+			}},
+			// Rollback: Reading host state
 			{GetState: &TestFuncGetState{
 				Name: "foo",
 				ReturnState: TestState{
-					Value: "fooDirty",
+					Value: "fooError",
 				},
+			}},
+			// Rollback: Applying changes
+			{Configure: &TestFuncConfigure{
+				Name:  "foo",
+				State: fooState,
+			}},
+			{GetState: &TestFuncGetState{
+				Name:        "foo",
+				ReturnState: fooState,
 			}},
 		})
 		args := []string{
-			"check",
+			"destroy",
 			"--log-level=debug",
 			"--force-color",
 			"--localhost",
@@ -184,7 +188,7 @@ func TestCheckDirty(t *testing.T) {
 		runCommand(t, Cmd{
 			Args:           args,
 			ExpectedCode:   1,
-			ExpectedOutput: "Host state is not clean",
+			ExpectedOutput: "Failed to apply, rollback to previously saved state successful",
 		})
 	})
 }

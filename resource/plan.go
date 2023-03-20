@@ -54,8 +54,8 @@ func (sai StepActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 			}
 			return err
 		}
-	case ActionApply:
-		if err := individuallyManageableResource.Apply(ctx, hst, name, state); err != nil {
+	case ActionConfigure:
+		if err := individuallyManageableResource.Configure(ctx, hst, name, state); err != nil {
 			logger.Errorf("💥 %s", sai.Resource)
 			return err
 		}
@@ -458,7 +458,7 @@ func (p Plan) addBundleSteps(
 						action = ActionOk
 					}
 				} else {
-					action = ActionApply
+					action = ActionConfigure
 				}
 			}
 
@@ -476,7 +476,7 @@ func (p Plan) addBundleSteps(
 			}
 
 			// Refresh
-			if action == ActionApply {
+			if action == ActionConfigure {
 				refresh = true
 			}
 		}

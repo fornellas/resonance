@@ -42,9 +42,9 @@ type IndividuallyManageableResource interface {
 	// GetState gets the state of the resource, or nil if not present.
 	GetState(ctx context.Context, hst host.Host, name Name) (State, error)
 
-	// Apply configures the resource to given state.
+	// Configure configures the resource to given state.
 	// Must be idempotent.
-	Apply(ctx context.Context, hst host.Host, name Name, state State) error
+	Configure(ctx context.Context, hst host.Host, name Name, state State) error
 
 	// Destroy a configured resource at given host.
 	// Must be idempotent.

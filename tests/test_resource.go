@@ -39,13 +39,13 @@ func (tfgs TestFuncGetState) String() string {
 	return fmt.Sprintf("(%#v) (%#v, %#v)", tfgs.Name, tfgs.ReturnState, tfgs.ReturnError)
 }
 
-type TestFuncApply struct {
+type TestFuncConfigure struct {
 	Name        resource.Name
 	State       resource.State
 	ReturnError error
 }
 
-func (tfa TestFuncApply) String() string {
+func (tfa TestFuncConfigure) String() string {
 	return fmt.Sprintf("(%#v, %#v) (%#v)", tfa.Name, tfa.State, tfa.ReturnError)
 }
 
@@ -61,7 +61,7 @@ func (tfd TestFuncDestroy) String() string {
 type TestFuncCall struct {
 	ValidateName *TestFuncValidateName
 	GetState     *TestFuncGetState
-	Apply        *TestFuncApply
+	Configure    *TestFuncConfigure
 	Destroy      *TestFuncDestroy
 }
 
@@ -139,25 +139,25 @@ func (t Test) GetState(ctx context.Context, hst host.Host, name resource.Name) (
 	return funcCall.GetState.ReturnState, funcCall.GetState.ReturnError
 }
 
-func (t Test) Apply(
+func (t Test) Configure(
 	ctx context.Context, hst host.Host, name resource.Name, state resource.State,
 ) error {
 	logger := log.GetLogger(ctx)
-	logger.Debugf("Test.Apply(%#v, %#v)", name, state)
+	logger.Debugf("Test.Configure(%#v, %#v)", name, state)
 	funcCall := t.getFuncCall()
 	if funcCall == nil {
-		TestT.Fatalf("no more calls expected, got Apply(%#v, %#v)", name, state)
+		TestT.Fatalf("no more calls expected, got Configure(%#v, %#v)", name, state)
 	}
-	if funcCall.Apply == nil {
-		TestT.Fatalf("unexpected call: got Apply(%#v, %#v), expected %#v", name, state, funcCall)
+	if funcCall.Configure == nil {
+		TestT.Fatalf("unexpected call: got Configure(%#v, %#v), expected %#v", name, state, funcCall)
 	}
-	if funcCall.Apply.Name != name || !reflect.DeepEqual(funcCall.Apply.State, state) {
+	if funcCall.Configure.Name != name || !reflect.DeepEqual(funcCall.Configure.State, state) {
 		TestT.Fatalf(
-			"unexpected arguments: got Apply(%#v, %#v), expected Apply(%#v, %#v)",
-			name, state, funcCall.Apply.Name, funcCall.Apply.State,
+			"unexpected arguments: got Configure(%#v, %#v), expected Configure(%#v, %#v)",
+			name, state, funcCall.Configure.Name, funcCall.Configure.State,
 		)
 	}
-	return funcCall.Apply.ReturnError
+	return funcCall.Configure.ReturnError
 }
 
 func (t Test) Destroy(ctx context.Context, hst host.Host, name resource.Name) error {

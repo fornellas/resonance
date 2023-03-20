@@ -74,7 +74,7 @@ func TestApplySuccess(t *testing.T) {
 				ReturnState: nil,
 			}},
 			// Executing plan
-			{Apply: &TestFuncApply{
+			{Configure: &TestFuncConfigure{
 				Name:  "foo",
 				State: fooState,
 			}},
@@ -82,7 +82,7 @@ func TestApplySuccess(t *testing.T) {
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
-			{Apply: &TestFuncApply{
+			{Configure: &TestFuncConfigure{
 				Name:  "bar",
 				State: barState,
 			}},
@@ -243,7 +243,7 @@ func TestApplySuccess(t *testing.T) {
 				ReturnState: nil,
 			}},
 			// Executing plan
-			{Apply: &TestFuncApply{
+			{Configure: &TestFuncConfigure{
 				Name:  "bar",
 				State: barState,
 			}},
@@ -346,7 +346,7 @@ func TestApplyFailureWithSuccessfulRollback(t *testing.T) {
 				ReturnState: nil,
 			}},
 			// Executing plan
-			{Apply: &TestFuncApply{
+			{Configure: &TestFuncConfigure{
 				Name:  "foo",
 				State: fooState,
 			}},
@@ -354,7 +354,7 @@ func TestApplyFailureWithSuccessfulRollback(t *testing.T) {
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
-			{Apply: &TestFuncApply{
+			{Configure: &TestFuncConfigure{
 				Name:  "bar",
 				State: barState,
 			}},
@@ -419,7 +419,7 @@ func TestApplyFailureWithSuccessfulRollback(t *testing.T) {
 				ReturnState: barState,
 			}},
 			// Executing plan
-			{Apply: &TestFuncApply{
+			{Configure: &TestFuncConfigure{
 				Name:  "foo",
 				State: fooNewState,
 			}},
@@ -427,7 +427,7 @@ func TestApplyFailureWithSuccessfulRollback(t *testing.T) {
 				Name:        "foo",
 				ReturnState: fooNewState,
 			}},
-			{Apply: &TestFuncApply{
+			{Configure: &TestFuncConfigure{
 				Name:        "bar",
 				State:       barNewState,
 				ReturnError: errors.New("barNew failed"),
@@ -444,7 +444,7 @@ func TestApplyFailureWithSuccessfulRollback(t *testing.T) {
 				},
 			}},
 			// Rollback: Executing plan
-			{Apply: &TestFuncApply{
+			{Configure: &TestFuncConfigure{
 				Name:  "foo",
 				State: fooState,
 			}},
@@ -452,7 +452,7 @@ func TestApplyFailureWithSuccessfulRollback(t *testing.T) {
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
-			{Apply: &TestFuncApply{
+			{Configure: &TestFuncConfigure{
 				Name:  "bar",
 				State: barState,
 			}},

@@ -166,7 +166,7 @@ func (b Bundle) IsClean(
 			diffs := Diff(currentState, resource.State)
 
 			if DiffsHasChanges(diffs) {
-				nestedLogger.Infof("%s %s", ActionApply.Emoji(), resource)
+				nestedLogger.Infof("%s %s", ActionConfigure.Emoji(), resource)
 				clean = false
 			} else {
 				nestedLogger.Infof("%s %s", ActionOk.Emoji(), resource)

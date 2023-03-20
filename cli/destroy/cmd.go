@@ -1,56 +1,21 @@
-package apply
+package destroy
 
 import (
-	"context"
-
 	"github.com/spf13/cobra"
 
 	"github.com/fornellas/resonance/cli/lib"
-	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
 	"github.com/fornellas/resonance/resource"
 	"github.com/fornellas/resonance/state"
 )
 
-func readState(
-	ctx context.Context,
-	hst host.Host,
-	newBundle resource.Bundle,
-	hostState *resource.HostState,
-) resource.TypeNameStateMap {
-	logger := log.GetLogger(ctx)
-	typeNames := newBundle.TypeNames()
-	if hostState != nil {
-		for _, typeName := range hostState.PreviousBundle.TypeNames() {
-			duplicate := false
-			for _, tn := range typeNames {
-				if typeName == tn {
-					duplicate = true
-					break
-				}
-			}
-			if duplicate {
-				continue
-			}
-			typeNames = append(typeNames, typeName)
-		}
-	}
-	typeNameStateMap, err := resource.GetTypeNameStateMap(ctx, hst, typeNames)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	return typeNameStateMap
-}
-
 var Cmd = &cobra.Command{
-	Use:   "apply [flags] resources_root",
-	Short: "Applies configuration to a host.",
-	Long:  "Loads all resoures from .yaml files at resources_root, the previous state, craft a plan and applies required changes to given host.",
-	Args:  cobra.ExactArgs(1),
+	Use:   "destroy [flags]",
+	Short: "Destroy previously configured resources.",
+	Long:  "Loads previous state from host and destroys all of them from the host.",
+	Args:  cobra.ExactArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := cmd.Context()
-
-		root := args[0]
 
 		logger := log.GetLogger(ctx)
 
@@ -66,24 +31,22 @@ var Cmd = &cobra.Command{
 			logger.Fatal(err)
 		}
 
-		// Load resources
-		newBundle, err := resource.LoadBundle(ctx, hst, root)
-		if err != nil {
-			logger.Fatal(err)
-		}
-
 		// Load saved HostState
 		hostState, err := state.LoadHostState(ctx, persistantState)
 		if err != nil {
 			logger.Fatal(err)
 		}
-		var previousBundle *resource.Bundle
-		if hostState != nil {
-			previousBundle = &hostState.PreviousBundle
+		if hostState == nil {
+			logger.Fatal("No previously saved host state available to be destroyed")
 		}
 
 		// Read state
-		typeNameStateMap := readState(ctx, hst, newBundle, hostState)
+		typeNameStateMap, err := resource.GetTypeNameStateMap(
+			ctx, hst, hostState.PreviousBundle.TypeNames(),
+		)
+		if err != nil {
+			logger.Fatal(err)
+		}
 
 		// Check saved HostState
 		if hostState != nil {
@@ -100,14 +63,14 @@ var Cmd = &cobra.Command{
 
 		// Rollback NewRollbackBundle
 		rollbackBundle := resource.NewRollbackBundle(
-			newBundle, previousBundle, typeNameStateMap, resource.ActionConfigure,
+			hostState.PreviousBundle, nil, typeNameStateMap, resource.ActionConfigure,
 		)
 
 		// TODO save rollback bundle
 
 		// Plan
 		plan, err := resource.NewPlan(
-			ctx, hst, newBundle, previousBundle, typeNameStateMap, resource.ActionConfigure,
+			ctx, hst, hostState.PreviousBundle, nil, typeNameStateMap, resource.ActionDestroy,
 		)
 		if err != nil {
 			logger.Fatal(err)
@@ -119,7 +82,7 @@ var Cmd = &cobra.Command{
 
 		if err == nil {
 			// Save plan state
-			newHostState := resource.NewHostState(newBundle)
+			newHostState := resource.NewHostState(resource.Bundle{})
 			if err := state.SaveHostState(ctx, newHostState, persistantState); err != nil {
 				logger.Fatal(err)
 			}
