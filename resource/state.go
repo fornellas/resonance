@@ -63,6 +63,7 @@ func GetTypeNameStateMap(
 	logger := log.GetLogger(ctx)
 	logger.Info("🔎 Reading host state")
 	nestedCtx := log.IndentLogger(ctx)
+	nestedLogger := log.GetLogger(nestedCtx)
 
 	// Separate individual from mergeable
 	individuallyManageableResourcesTypeNames := []TypeName{}
@@ -92,6 +93,7 @@ func GetTypeNameStateMap(
 		if err != nil {
 			return nil, err
 		}
+		nestedLogger.Infof("%s", typeName)
 		typeNameStateMap[typeName] = state
 	}
 
