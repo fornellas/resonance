@@ -63,7 +63,7 @@ var Cmd = &cobra.Command{
 		}
 
 		// Result
-		logger.Info("🎆 State is OK")
+		logger.Info("🎆 State is clean")
 	},
 }
 
