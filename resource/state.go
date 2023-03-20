@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/sergi/go-diff/diffmatchpatch"
-
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
 	"github.com/fornellas/resonance/version"
@@ -54,71 +52,6 @@ func NewHostState(previousBundle Bundle) HostState {
 		Version:        version.GetVersion(),
 		PreviousBundle: previousBundle,
 	}
-}
-
-type ResourceState struct {
-	State State
-	Diffs []diffmatchpatch.Diff
-	Clean bool
-}
-
-type TypeNameResourceStateMap map[TypeName]ResourceState
-
-// GetMergeableManageableResourcesResourcesStateMapMap gets current state for all given resources,
-// which must be MergeableManageableResources, and return it as TypeNameStateMap.
-func GetMergeableManageableResourcesTypeNameResourceStateMap(
-	ctx context.Context, hst host.Host, resources Resources,
-) (TypeNameResourceStateMap, error) {
-	logger := log.GetLogger(ctx)
-
-	if len(resources) == 0 {
-		return TypeNameResourceStateMap{}, nil
-	}
-
-	var mergeableManageableResources MergeableManageableResources
-
-	names := []Name{}
-	for _, resource := range resources {
-		if !resource.IsMergeableManageableResources() {
-			panic(fmt.Errorf("is not MergeableManageableResources: %s", resource))
-		}
-		if mergeableManageableResources == nil {
-			mergeableManageableResources = resource.MustMergeableManageableResources()
-		}
-		names = append(names, resource.MustName())
-	}
-
-	nameStateMap, err := mergeableManageableResources.GetStates(ctx, hst, names)
-	if err != nil {
-		return nil, err
-	}
-
-	typeNameResourceStateMap := TypeNameResourceStateMap{}
-	for _, resource := range resources {
-		resourceState := ResourceState{}
-
-		currentState, ok := nameStateMap[resource.MustName()]
-		if !ok {
-			panic(fmt.Errorf(
-				"resource %s did not return state for %s", resource.MustType(), resource.MustName()),
-			)
-		}
-		resourceState.State = currentState
-
-		resourceState.Diffs = Diff(currentState, resource.State)
-
-		if DiffsHasChanges(resourceState.Diffs) {
-			logger.Infof("%s %s", ActionApply.Emoji(), resource)
-			resourceState.Clean = false
-		} else {
-			logger.Infof("%s %s", ActionOk.Emoji(), resource)
-			resourceState.Clean = true
-		}
-
-		typeNameResourceStateMap[resource.TypeName] = resourceState
-	}
-
-	return typeNameResourceStateMap, nil
 }
 
 type TypeNameStateMap map[TypeName]State

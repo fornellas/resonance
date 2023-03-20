@@ -137,8 +137,10 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 	checkResources := Resources{}
 	configureActionParameters := map[Action]map[Name]State{}
 	refreshNames := []Name{}
+	typeNameResourceMap := map[TypeName]Resource{}
 	for action, resources := range sam {
 		for _, resource := range resources {
+			typeNameResourceMap[resource.TypeName] = resource
 			if action == ActionRefresh {
 				refreshNames = append(refreshNames, resource.MustName())
 			} else {
@@ -150,9 +152,6 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 				} else {
 					configureActionParameters[action][resource.MustName()] = nil
 				}
-			}
-			if action != ActionDestroy {
-				checkResources = append(checkResources, resource)
 			}
 		}
 	}
@@ -166,16 +165,21 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 	}
 
 	// Check
-	typeNameStateMap, err := GetMergeableManageableResourcesTypeNameResourceStateMap(
-		ctx, hst, checkResources,
-	)
+	typeNameStateMap, err := GetTypeNameStateMap(ctx, hst, checkResources.TypeNames())
 	if err != nil {
 		logger.Errorf("💥 %s", sam.StringNoAction())
 		return err
 	}
-	for typeName, resourceState := range typeNameStateMap {
-		if !resourceState.Clean {
-			logger.Errorf("💥 %s", typeName)
+
+	for typeName, currentState := range typeNameStateMap {
+		resource, ok := typeNameResourceMap[typeName]
+		if !ok {
+			panic(fmt.Sprintf("typeNameResourceMap missing %s", typeName))
+		}
+		diffs := Diff(resource.State, currentState)
+		if DiffsHasChanges(diffs) {
+			diffMatchPatch := diffmatchpatch.New()
+			logger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).Errorf("💥 %s", typeName)
 			return fmt.Errorf(
 				"likely bug in resource implementationm as state was dirty immediately after applying: %s",
 				typeName,

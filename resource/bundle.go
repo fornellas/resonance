@@ -43,6 +43,14 @@ func (rs Resources) Less(i, j int) bool {
 	return rs[i].String() < rs[j].String()
 }
 
+func (rs Resources) TypeNames() []TypeName {
+	typeNames := []TypeName{}
+	for _, resource := range rs {
+		typeNames = append(typeNames, resource.TypeName)
+	}
+	return typeNames
+}
+
 // LoadBundle loads resources from given Yaml file path.
 func LoadResources(ctx context.Context, hst host.Host, path string) (Resources, error) {
 	logger := log.GetLogger(ctx)
