@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/sergi/go-diff/diffmatchpatch"
-
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
 	"github.com/fornellas/resonance/resource"
@@ -31,47 +29,45 @@ type FileState struct {
 	Group string `yaml:"group"`
 }
 
-func (fds FileState) Validate() error {
-	if fds.Perm == os.FileMode(0) {
-		return fmt.Errorf("missing 'perm'")
+func (fs FileState) ValidateAndUpdate(ctx context.Context, hst host.Host) (resource.State, error) {
+	// Validate
+	if fs.Perm == os.FileMode(0) {
+		return nil, fmt.Errorf("missing 'perm'")
 	}
-	if fds.Uid != 0 && fds.User != "" {
-		return fmt.Errorf("can't set both 'uid' and 'user'")
+	if fs.Uid != 0 && fs.User != "" {
+		return nil, fmt.Errorf("can't set both 'uid' and 'user'")
 	}
-	if fds.Gid != 0 && fds.Group != "" {
-		return fmt.Errorf("can't set both 'gid' and 'group'")
+	if fs.Gid != 0 && fs.Group != "" {
+		return nil, fmt.Errorf("can't set both 'gid' and 'group'")
 	}
-	return nil
-}
 
-func (fds FileState) GetUid(ctx context.Context, hst host.Host) (uint32, error) {
-	if fds.User != "" {
-		usr, err := hst.Lookup(ctx, fds.User)
+	// Update
+	if fs.User != "" {
+		usr, err := hst.Lookup(ctx, fs.User)
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 		uid, err := strconv.ParseUint(usr.Uid, 10, 32)
 		if err != nil {
-			return 0, fmt.Errorf("failed to parse UID: %s", usr.Uid)
+			return nil, fmt.Errorf("failed to parse UID: %s", usr.Uid)
 		}
-		return uint32(uid), nil
+		fs.Uid = uint32(uid)
+		fs.User = ""
 	}
-	return fds.Uid, nil
-}
-
-func (fds FileState) GetGid(ctx context.Context, hst host.Host) (uint32, error) {
-	if fds.Group != "" {
-		group, err := hst.LookupGroup(ctx, fds.Group)
+	if fs.Group != "" {
+		group, err := hst.LookupGroup(ctx, fs.Group)
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 		gid, err := strconv.ParseUint(group.Gid, 10, 32)
 		if err != nil {
-			return 0, fmt.Errorf("failed to parse GID: %s", group.Gid)
+			return nil, fmt.Errorf("failed to parse GID: %s", group.Gid)
 		}
-		return uint32(gid), nil
+		fs.Gid = uint32(gid)
+		fs.Group = ""
 	}
-	return fds.Uid, nil
+
+	return fs, nil
 }
 
 // File resource manages files.
@@ -122,32 +118,6 @@ func (f File) GetState(ctx context.Context, hst host.Host, name resource.Name) (
 	return fileState, nil
 }
 
-func (f File) DiffStates(
-	ctx context.Context, hst host.Host,
-	desiredState resource.State, currentState resource.State,
-) ([]diffmatchpatch.Diff, error) {
-	diffs := []diffmatchpatch.Diff{}
-	desiredFileState := desiredState.(FileState)
-	currentFileState := currentState.(FileState)
-
-	uid, err := desiredFileState.GetUid(ctx, hst)
-	if err != nil {
-		return nil, err
-	}
-	gid, err := desiredFileState.GetGid(ctx, hst)
-	if err != nil {
-		return nil, err
-	}
-	diffs = append(diffs, resource.Diff(currentFileState, FileState{
-		Content: desiredFileState.Content,
-		Perm:    desiredFileState.Perm,
-		Uid:     uid,
-		Gid:     gid,
-	})...)
-
-	return diffs, nil
-}
-
 func (f File) Apply(
 	ctx context.Context, hst host.Host, name resource.Name, state resource.State,
 ) error {
@@ -174,15 +144,7 @@ func (f File) Apply(
 	stat_t := fileInfo.Sys().(*syscall.Stat_t)
 
 	// Uid / Gid
-	uid, err := fileState.GetUid(ctx, hst)
-	if err != nil {
-		return err
-	}
-	gid, err := fileState.GetGid(ctx, hst)
-	if err != nil {
-		return err
-	}
-	if stat_t.Uid != uid || stat_t.Gid != gid {
+	if stat_t.Uid != fileState.Uid || stat_t.Gid != fileState.Gid {
 		if err := hst.Chown(ctx, path, int(fileState.Uid), int(fileState.Gid)); err != nil {
 			return err
 		}

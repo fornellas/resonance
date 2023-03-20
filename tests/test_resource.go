@@ -7,8 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sergi/go-diff/diffmatchpatch"
-
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
 	"github.com/fornellas/resonance/resource"
@@ -18,8 +16,8 @@ type TestState struct {
 	Value string
 }
 
-func (ts TestState) Validate() error {
-	return nil
+func (ts TestState) ValidateAndUpdate(ctx context.Context, hst host.Host) (resource.State, error) {
+	return ts, nil
 }
 
 type TestFuncValidateName struct {
@@ -39,20 +37,6 @@ type TestFuncGetState struct {
 
 func (tfgs TestFuncGetState) String() string {
 	return fmt.Sprintf("(%#v) (%#v, %#v)", tfgs.Name, tfgs.ReturnState, tfgs.ReturnError)
-}
-
-type TestFuncDiffStates struct {
-	DesiredState resource.State
-	CurrentState resource.State
-	ReturnDiffs  []diffmatchpatch.Diff
-	ReturnError  error
-}
-
-func (tfds TestFuncDiffStates) String() string {
-	return fmt.Sprintf(
-		"(%#v, %#v) (%#v, %#v)",
-		tfds.DesiredState, tfds.CurrentState, tfds.ReturnDiffs, tfds.ReturnError,
-	)
 }
 
 type TestFuncApply struct {
@@ -77,7 +61,6 @@ func (tfd TestFuncDestroy) String() string {
 type TestFuncCall struct {
 	ValidateName *TestFuncValidateName
 	GetState     *TestFuncGetState
-	DiffStates   *TestFuncDiffStates
 	Apply        *TestFuncApply
 	Destroy      *TestFuncDestroy
 }
@@ -154,28 +137,6 @@ func (t Test) GetState(ctx context.Context, hst host.Host, name resource.Name) (
 		)
 	}
 	return funcCall.GetState.ReturnState, funcCall.GetState.ReturnError
-}
-
-func (t Test) DiffStates(
-	ctx context.Context, hst host.Host,
-	desiredState resource.State, currentState resource.State,
-) ([]diffmatchpatch.Diff, error) {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Test.DiffStates(%#v, %#v)", desiredState, currentState)
-	funcCall := t.getFuncCall()
-	if funcCall == nil {
-		TestT.Fatalf("no more calls expected, got DiffStates(%#v, %#v)", desiredState, currentState)
-	}
-	if funcCall.DiffStates == nil {
-		TestT.Fatalf("unexpected call: got DiffStates(%#v, %#v), expected %#v", desiredState, currentState, funcCall)
-	}
-	if !reflect.DeepEqual(funcCall.DiffStates.DesiredState, desiredState) || !reflect.DeepEqual(funcCall.DiffStates.CurrentState, currentState) {
-		TestT.Fatalf(
-			"unexpected arguments: got DiffStates(%#v, %#v), expected DiffStates(%#v, %#v)",
-			desiredState, currentState, funcCall.DiffStates.DesiredState, funcCall.DiffStates.CurrentState,
-		)
-	}
-	return funcCall.DiffStates.ReturnDiffs, funcCall.DiffStates.ReturnError
 }
 
 func (t Test) Apply(

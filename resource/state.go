@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/sergi/go-diff/diffmatchpatch"
-	"gopkg.in/yaml.v3"
 
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
@@ -14,8 +13,9 @@ import (
 
 // State is a Type specific interface for defining resource state as configured by users.
 type State interface {
-	// Validate whether the parameters are OK.
-	Validate() error
+	// ValidateAndUpdate validates and updates the state with any required information from the host.
+	// Eg: transform username into UID.
+	ValidateAndUpdate(ctx context.Context, hst host.Host) (State, error)
 }
 
 // HostState holds the state for a host
@@ -25,64 +25,29 @@ type HostState struct {
 	PreviousBundle Bundle          `yaml:"previous_bundle"`
 }
 
-func (hs HostState) String() string {
-	bytes, err := yaml.Marshal(&hs)
-	if err != nil {
-		panic(err)
-	}
-	return string(bytes)
-}
-
-// IsClean whether current host state matches HostState.
-func (hs HostState) IsClean(
-	ctx context.Context,
-	hst host.Host,
-	typeNameResourceStateMap TypeNameResourceStateMap,
-) bool {
-	logger := log.GetLogger(ctx)
-	logger.Info("🕵️ Checking host state")
-	nestedCtx := log.IndentLogger(ctx)
-	nestedLogger := log.GetLogger(nestedCtx)
-
-	clean := true
-
-	for _, resource := range hs.PreviousBundle.Resources() {
-		resourcesState, ok := typeNameResourceStateMap[resource.TypeName]
-		if !ok {
-			panic(fmt.Sprintf("state missing from StateMap: %s", resource))
-		}
-		if !resourcesState.Clean {
-			nestedLogger.Errorf("%s state is not clean", resource)
-			clean = false
-		}
-	}
-
-	return clean
-}
-
 // Refresh gets current host state and returns it as it is.
-func (hs HostState) Refresh(ctx context.Context, hst host.Host) (HostState, error) {
-	typeNameStateMap, err := GetTypeNameStateMap(ctx, hst, hs.PreviousBundle.Resources())
-	if err != nil {
-		return HostState{}, err
-	}
+// func (hs HostState) Refresh(ctx context.Context, hst host.Host) (HostState, error) {
+// 	typeNameStateMap, err := GetTypeNameResourceStateMap(ctx, hst, hs.PreviousBundle.Resources())
+// 	if err != nil {
+// 		return HostState{}, err
+// 	}
 
-	newBundle := Bundle{}
-	for _, resources := range hs.PreviousBundle {
-		newResources := Resources{}
-		for _, resource := range resources {
-			resourceState, ok := typeNameStateMap[resource.TypeName]
-			if !ok {
-				panic(fmt.Sprintf("missing ResourceState: %s", resource))
-			}
-			newResources = append(newResources, NewResource(
-				resource.TypeName, resourceState.State, resourceState.State == nil),
-			)
-		}
-		newBundle = append(newBundle, newResources)
-	}
-	return NewHostState(newBundle), nil
-}
+// 	newBundle := Bundle{}
+// 	for _, resources := range hs.PreviousBundle {
+// 		newResources := Resources{}
+// 		for _, resource := range resources {
+// 			resourceState, ok := typeNameStateMap[resource.TypeName]
+// 			if !ok {
+// 				panic(fmt.Sprintf("missing ResourceState: %s", resource))
+// 			}
+// 			newResources = append(newResources, NewResource(
+// 				resource.TypeName, resourceState.State, resourceState.State == nil),
+// 			)
+// 		}
+// 		newBundle = append(newBundle, newResources)
+// 	}
+// 	return NewHostState(newBundle), nil
+// }
 
 func NewHostState(previousBundle Bundle) HostState {
 	return HostState{
@@ -116,15 +81,7 @@ func GetIndividuallyManageableResourceResourceState(
 	}
 	resourceState.State = currentState
 
-	if resource.State != nil && currentState != nil {
-		diffs, err := individuallyManageableResource.DiffStates(ctx, hst, resource.State, currentState)
-		if err != nil {
-			return ResourceState{}, err
-		}
-		resourceState.Diffs = diffs
-	} else {
-		resourceState.Diffs = Diff(currentState, resource.State)
-	}
+	resourceState.Diffs = Diff(currentState, resource.State)
 
 	if DiffsHasChanges(resourceState.Diffs) {
 		logger.Infof("%s %s", ActionApply.Emoji(), resource)
@@ -139,7 +96,7 @@ func GetIndividuallyManageableResourceResourceState(
 
 // GetMergeableManageableResourcesResourcesStateMapMap gets current state for all given resources,
 // which must be MergeableManageableResources, and return it as TypeNameStateMap.
-func GetMergeableManageableResourcesTypeNameStateMap(
+func GetMergeableManageableResourcesTypeNameResourceStateMap(
 	ctx context.Context, hst host.Host, resources Resources,
 ) (TypeNameResourceStateMap, error) {
 	logger := log.GetLogger(ctx)
@@ -178,15 +135,7 @@ func GetMergeableManageableResourcesTypeNameStateMap(
 		}
 		resourceState.State = currentState
 
-		if resource.State != nil && currentState != nil {
-			diffs, err := mergeableManageableResources.DiffStates(ctx, hst, resource.State, currentState)
-			if err != nil {
-				return nil, err
-			}
-			resourceState.Diffs = diffs
-		} else {
-			resourceState.Diffs = Diff(currentState, resource.State)
-		}
+		resourceState.Diffs = Diff(currentState, resource.State)
 
 		if DiffsHasChanges(resourceState.Diffs) {
 			logger.Infof("%s %s", ActionApply.Emoji(), resource)
@@ -202,51 +151,61 @@ func GetMergeableManageableResourcesTypeNameStateMap(
 	return typeNameResourceStateMap, nil
 }
 
-// GetTypeNameStateMap gets current state for all given resources and return
-// it as TypeNameStateMap.
+type TypeNameStateMap map[TypeName]State
+
+// GetTypeNameStateMap gets current state for all given TypeName.
 func GetTypeNameStateMap(
-	ctx context.Context, hst host.Host, resources Resources,
-) (TypeNameResourceStateMap, error) {
+	ctx context.Context, hst host.Host, typeNames []TypeName,
+) (TypeNameStateMap, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("🔎 Reading host state")
 	nestedCtx := log.IndentLogger(ctx)
 
-	individuallyManageableResources := []Resource{}
-	typeMergeableManageableResourcesMap := map[Type][]Resource{}
-	for _, resource := range resources {
-		if resource.IsMergeableManageableResources() {
-			typeMergeableManageableResourcesMap[resource.MustType()] = append(
-				typeMergeableManageableResourcesMap[resource.MustType()], resource,
+	// Separate individual from mergeable
+	individuallyManageableResourcesTypeNames := []TypeName{}
+	mergeableManageableResourcesTypeNameMap := map[Type][]Name{}
+	for _, typeName := range typeNames {
+		if typeName.IsIndividuallyManageableResource() {
+			individuallyManageableResourcesTypeNames = append(
+				individuallyManageableResourcesTypeNames, typeName,
+			)
+		} else if typeName.IsMergeableManageableResources() {
+			mergeableManageableResourcesTypeNameMap[typeName.Type()] = append(
+				mergeableManageableResourcesTypeNameMap[typeName.Type()], typeName.Name(),
 			)
 		} else {
-			individuallyManageableResources = append(individuallyManageableResources, resource)
+			panic(fmt.Sprintf("unknow resource interface: %s", typeName))
 		}
 	}
 
-	typeNameResourceStateMap := TypeNameResourceStateMap{}
+	// TypeNameStateMap
+	typeNameStateMap := TypeNameStateMap{}
 
-	for _, individuallyManageableResource := range individuallyManageableResources {
-		resourcesState, err := GetIndividuallyManageableResourceResourceState(
-			nestedCtx, hst, individuallyManageableResource,
+	// Get state for individual
+	for _, typeName := range individuallyManageableResourcesTypeNames {
+		state, err := typeName.MustIndividuallyManageableResource().GetState(
+			nestedCtx, hst, typeName.Name(),
 		)
 		if err != nil {
-			return TypeNameResourceStateMap{}, err
+			return nil, err
 		}
-		typeNameResourceStateMap[individuallyManageableResource.TypeName] = resourcesState
+		typeNameStateMap[typeName] = state
 	}
 
-	for _, mergeableManageableResources := range typeMergeableManageableResourcesMap {
-		mergeableManageableResourcesTypeNameStateMap, err := GetMergeableManageableResourcesTypeNameStateMap(
-			nestedCtx, hst, mergeableManageableResources,
-		)
+	// Get state for mergeable
+	for tpe, names := range mergeableManageableResourcesTypeNameMap {
+		nameStateMap, err := tpe.MustMergeableManageableResources().GetStates(nestedCtx, hst, names)
 		if err != nil {
-			return TypeNameResourceStateMap{}, err
+			return nil, err
 		}
-
-		for typeName, resourceState := range mergeableManageableResourcesTypeNameStateMap {
-			typeNameResourceStateMap[typeName] = resourceState
+		for name, state := range nameStateMap {
+			typeName, err := NewTypeName(tpe, name)
+			if err != nil {
+				panic(fmt.Sprintf("failed to create new TypeName %s %s: %s", tpe, name, err))
+			}
+			typeNameStateMap[typeName] = state
 		}
 	}
 
-	return typeNameResourceStateMap, nil
+	return typeNameStateMap, nil
 }

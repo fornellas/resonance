@@ -160,7 +160,7 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 	}
 
 	// Check
-	typeNameStateMap, err := GetMergeableManageableResourcesTypeNameStateMap(
+	typeNameStateMap, err := GetMergeableManageableResourcesTypeNameResourceStateMap(
 		ctx, hst, checkResources,
 	)
 	if err != nil {
@@ -270,8 +270,8 @@ func (s Step) HasTypeName(typeName TypeName) bool {
 
 // Plan is a directed graph which contains the plan for applying resources to a host.
 type Plan struct {
-	Steps                    []*Step
-	TypeNameResourceStateMap TypeNameResourceStateMap
+	Steps            []*Step
+	TypeNameStateMap TypeNameStateMap
 }
 
 // Graphviz returns a DOT directed graph containing the apply plan.
@@ -334,7 +334,7 @@ func (p Plan) Actionable() bool {
 }
 
 // Print the whole plan
-func (p Plan) Print(ctx context.Context) {
+func (p Plan) Print(ctx context.Context, hst host.Host) error {
 	logger := log.GetLogger(ctx)
 	logger.Info("📝 Plan")
 	nestedCtx := log.IndentLogger(ctx)
@@ -359,10 +359,12 @@ func (p Plan) Print(ctx context.Context) {
 			}
 
 			for _, resource := range resources {
-				resourceState, ok := p.TypeNameResourceStateMap[resource.TypeName]
+				currentState, ok := p.TypeNameStateMap[resource.TypeName]
 				if !ok {
-					panic(fmt.Sprintf("resourceState not found at TypeNameResourceStateMap: %s", resource))
+					panic(fmt.Sprintf("State not found at TypeNameStateMap: %s", resource.TypeName))
 				}
+
+				diffs := Diff(currentState, resource.State)
 
 				var action Action
 				for actionResources, stepResources := range step.ActionResourcesMap() {
@@ -376,13 +378,13 @@ func (p Plan) Print(ctx context.Context) {
 					panic(fmt.Sprintf("can not find action: %s", resource))
 				}
 
-				if DiffsHasChanges(resourceState.Diffs) {
+				if DiffsHasChanges(diffs) {
 					diffMatchPatch := diffmatchpatch.New()
 					if len(resources) > 1 {
-						nestedNestedLogger.WithField("", diffMatchPatch.DiffPrettyText(resourceState.Diffs)).
+						nestedNestedLogger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).
 							Infof("%s %s", action.Emoji(), resource)
 					} else {
-						nestedLogger.WithField("", diffMatchPatch.DiffPrettyText(resourceState.Diffs)).
+						nestedLogger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).
 							Infof("%s %s", action.Emoji(), resource)
 					}
 				} else {
@@ -393,15 +395,17 @@ func (p Plan) Print(ctx context.Context) {
 			nestedLogger.Debugf("%s", step)
 		}
 	}
+
+	return nil
 }
 
 func (p Plan) addBundleSteps(
 	ctx context.Context,
+	hst host.Host,
 	newBundle Bundle,
 	intendedAction Action,
-) Plan {
+) (Plan, error) {
 	logger := log.GetLogger(ctx)
-
 	logger.Info("👷 Building plan")
 
 	var lastBundleLastStep *Step
@@ -420,19 +424,24 @@ func (p Plan) addBundleSteps(
 
 			// Action
 			action := intendedAction
-			resourceState, ok := p.TypeNameResourceStateMap[newResource.TypeName]
+			currentState, ok := p.TypeNameStateMap[newResource.TypeName]
 			if !ok {
-				panic(fmt.Errorf("%v missing from TypeNameResourceStateMap", newResource))
+				panic(fmt.Errorf("State missing from TypeNameStateMap: %s", newResource.TypeName))
 			}
+
+			diffs := Diff(currentState, newResource.State)
+
+			clean := !DiffsHasChanges(diffs)
+
 			if newResource.Destroy {
-				if resourceState.Clean {
+				if clean {
 					action = ActionOk
 				} else {
 					action = ActionDestroy
 				}
 			}
 			if action != ActionDestroy {
-				if resourceState.Clean {
+				if clean {
 					if refresh && newResource.Refreshable() {
 						action = ActionRefresh
 					} else {
@@ -464,7 +473,7 @@ func (p Plan) addBundleSteps(
 		lastBundleLastStep = step
 	}
 
-	return p
+	return p, nil
 }
 
 func addDestroyStepsToPlan(
@@ -596,9 +605,10 @@ func topologicalSortPlan(ctx context.Context, steps []*Step) ([]*Step, error) {
 
 func NewPlan(
 	ctx context.Context,
+	hst host.Host,
 	newBundle Bundle,
 	previousBundle *Bundle,
-	typeNameResourceStateMap TypeNameResourceStateMap,
+	typeNameStateMap TypeNameStateMap,
 	intendedAction Action,
 ) (Plan, error) {
 	logger := log.GetLogger(ctx)
@@ -607,12 +617,16 @@ func NewPlan(
 
 	// Plan
 	plan := Plan{
-		Steps:                    []*Step{},
-		TypeNameResourceStateMap: typeNameResourceStateMap,
+		Steps:            []*Step{},
+		TypeNameStateMap: typeNameStateMap,
 	}
 
 	// Add Bundle Steps
-	plan = plan.addBundleSteps(nestedCtx, newBundle, intendedAction)
+	var err error
+	plan, err = plan.addBundleSteps(nestedCtx, hst, newBundle, intendedAction)
+	if err != nil {
+		return Plan{}, err
+	}
 
 	// Prepend destroy steps
 	if previousBundle != nil {
@@ -623,7 +637,6 @@ func NewPlan(
 	plan.Steps = mergePlanSteps(nestedCtx, plan.Steps)
 
 	// Sort
-	var err error
 	plan.Steps, err = topologicalSortPlan(nestedCtx, plan.Steps)
 	if err != nil {
 		return Plan{}, err
@@ -635,7 +648,7 @@ func NewPlan(
 func NewRollbackBundle(
 	newBundle Bundle,
 	previousBundle *Bundle,
-	typeNameResourceStateMap TypeNameResourceStateMap,
+	typeNameStateMap TypeNameStateMap,
 	intendedAction Action,
 ) Bundle {
 	if previousBundle == nil {
@@ -651,12 +664,12 @@ func NewRollbackBundle(
 			if previousBundle.HasTypeName(newResource.TypeName) {
 				continue
 			}
-			newResourceState, ok := typeNameResourceStateMap[newResource.TypeName]
+			state, ok := typeNameStateMap[newResource.TypeName]
 			if !ok {
 				panic(fmt.Sprintf("state missing from TypeNameResourceStateMap: %s", newResource.TypeName))
 			}
 			rollbackResource := NewResource(
-				newResource.TypeName, newResourceState.State, newResourceState.State == nil,
+				newResource.TypeName, state, state == nil,
 			)
 
 			// FIXME insert at rollbackBundle at the correct place, immediately before any

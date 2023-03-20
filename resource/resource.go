@@ -8,8 +8,6 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/sergi/go-diff/diffmatchpatch"
-
 	"github.com/fornellas/resonance/host"
 )
 
@@ -21,14 +19,6 @@ type Name string
 type ManageableResource interface {
 	// ValidateName validates the name of the resource
 	ValidateName(name Name) error
-
-	// DiffStates compares the desired State against current State.
-	// If current State is met by desired State, return an empty slice; otherwise,
-	// return the Diff from current State to desired State showing what needs change.
-	DiffStates(
-		ctx context.Context, hst host.Host,
-		desiredState State, currentState State,
-	) ([]diffmatchpatch.Diff, error)
 }
 
 // RefreshableManageableResource defines an interface for resources that can be refreshed.
@@ -131,8 +121,14 @@ func (t Type) ManageableResource() ManageableResource {
 	panic(fmt.Errorf("unknown resource type '%s'", t))
 }
 
-func NewTypeFromManageableResource(manageableResource ManageableResource) Type {
-	return Type(reflect.TypeOf(manageableResource).Name())
+// MustMergeableManageableResources returns MergeableManageableResources from ManageableResource or
+// panics if it isn't of the required type.
+func (t Type) MustMergeableManageableResources() MergeableManageableResources {
+	mergeableManageableResources, ok := t.ManageableResource().(MergeableManageableResources)
+	if !ok {
+		panic(fmt.Errorf("%s is not MergeableManageableResources", t))
+	}
+	return mergeableManageableResources
 }
 
 // IndividuallyManageableResourceTypeMap maps Type to IndividuallyManageableResource.
@@ -204,6 +200,42 @@ func (tn TypeName) ManageableResource() ManageableResource {
 	return tpe.ManageableResource()
 }
 
+// IsIndividuallyManageableResource returns true if ManageableResource() is of type IndividuallyManageableResource.
+func (tn TypeName) IsIndividuallyManageableResource() bool {
+	_, ok := tn.ManageableResource().(IndividuallyManageableResource)
+	return ok
+}
+
+// MustIndividuallyManageableResource returns IndividuallyManageableResource from ManageableResource or
+// panics if it isn't of the required type.
+func (tn TypeName) MustIndividuallyManageableResource() IndividuallyManageableResource {
+	individuallyManageableResource, ok := tn.ManageableResource().(IndividuallyManageableResource)
+	if !ok {
+		panic(fmt.Errorf("%s is not IndividuallyManageableResource", tn))
+	}
+	return individuallyManageableResource
+}
+
+// IsMergeableManageableResources returns true only if ManageableResource() is of type MergeableManageableResources.
+func (tn TypeName) IsMergeableManageableResources() bool {
+	_, ok := tn.ManageableResource().(MergeableManageableResources)
+	return ok
+}
+
+// MustMergeableManageableResources returns MergeableManageableResources from ManageableResource or
+// panics if it isn't of the required type.
+func (tn TypeName) MustMergeableManageableResources() MergeableManageableResources {
+	mergeableManageableResources, ok := tn.ManageableResource().(MergeableManageableResources)
+	if !ok {
+		panic(fmt.Errorf("%s is not MergeableManageableResources", tn))
+	}
+	return mergeableManageableResources
+}
+
+func NewTypeName(tpe Type, name Name) (TypeName, error) {
+	return NewTypeNameFromStr(fmt.Sprintf("%s[%s]", tpe, name))
+}
+
 func NewTypeNameFromStr(typeNameStr string) (TypeName, error) {
 	typeName := TypeName(typeNameStr)
 	_, _, err := typeName.typeName()
@@ -252,9 +284,6 @@ func (r *Resource) UnmarshalYAML(node *yaml.Node) error {
 	} else {
 		err := unmarshalSchema.StateNode.Decode(state)
 		if err != nil {
-			return fmt.Errorf("line %d: %w", unmarshalSchema.StateNode.Line, err)
-		}
-		if err := state.Validate(); err != nil {
 			return fmt.Errorf("line %d: %w", unmarshalSchema.StateNode.Line, err)
 		}
 	}

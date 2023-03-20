@@ -6,8 +6,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/sergi/go-diff/diffmatchpatch"
-
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/resource"
 )
@@ -18,15 +16,15 @@ type APTPackageState struct {
 	Version string `yaml:"version"`
 }
 
-func (aps APTPackageState) Validate() error {
+func (aps APTPackageState) ValidateAndUpdate(ctx context.Context, hst host.Host) (resource.State, error) {
 	// https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
 	if strings.HasSuffix(aps.Version, "+") {
-		return fmt.Errorf("version can't end in +: %s", aps.Version)
+		return nil, fmt.Errorf("version can't end in +: %s", aps.Version)
 	}
 	if strings.HasSuffix(aps.Version, "-") {
-		return fmt.Errorf("version can't end in -: %s", aps.Version)
+		return nil, fmt.Errorf("version can't end in -: %s", aps.Version)
 	}
-	return nil
+	return aps, nil
 }
 
 // APTPackage resource manages files.
@@ -94,19 +92,6 @@ func (ap APTPackage) GetStates(
 	}
 
 	return nameStateMap, nil
-}
-
-func (ap APTPackage) DiffStates(
-	ctx context.Context, hst host.Host,
-	desiredState resource.State, currentState resource.State,
-) ([]diffmatchpatch.Diff, error) {
-	diffs := []diffmatchpatch.Diff{}
-	desiredAPTPackageState := desiredState.(APTPackageState)
-	currentAPTPackageState := currentState.(APTPackageState)
-
-	diffs = append(diffs, resource.Diff(currentAPTPackageState, desiredAPTPackageState)...)
-
-	return diffs, nil
 }
 
 func (ap APTPackage) ConfigureAll(

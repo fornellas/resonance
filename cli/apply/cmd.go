@@ -34,7 +34,7 @@ var Cmd = &cobra.Command{
 
 		// Load resources
 		root := args[0]
-		newBundle, err := resource.LoadBundle(ctx, root)
+		newBundle, err := resource.LoadBundle(ctx, hst, root)
 		if err != nil {
 			logger.Fatal(err)
 		}
@@ -49,22 +49,39 @@ var Cmd = &cobra.Command{
 			previousBundle = &hostState.PreviousBundle
 		}
 
-		// Read current state
-		var allResources resource.Resources
+		// Read state
+		typeNames := newBundle.TypeNames()
 		if hostState != nil {
-			allResources = hostState.PreviousBundle.Resources()
+			for _, typeName := range hostState.PreviousBundle.TypeNames() {
+				duplicate := false
+				for _, tn := range typeNames {
+					if typeName == tn {
+						duplicate = true
+						break
+					}
+				}
+				if duplicate {
+					continue
+				}
+				typeNames = append(typeNames, typeName)
+			}
 		}
-		allResources = allResources.AppendIfNotPresent(newBundle.Resources())
-		typeNameStateMap, err := resource.GetTypeNameStateMap(ctx, hst, allResources)
+		typeNameStateMap, err := resource.GetTypeNameStateMap(ctx, hst, typeNames)
 		if err != nil {
 			logger.Fatal(err)
 		}
 
 		// Check saved HostState
-		if hostState != nil && !hostState.IsClean(ctx, hst, typeNameStateMap) {
-			logger.Fatalf(
-				"Host state is not clean: this often means external agents altered the host state after previous apply. Try the 'refresh' or 'restore' commands.",
-			)
+		if hostState != nil {
+			isClean, err := hostState.PreviousBundle.IsClean(ctx, hst, typeNameStateMap)
+			if err != nil {
+				logger.Fatal(err)
+			}
+			if !isClean {
+				logger.Fatalf(
+					"Host state is not clean: this often means external agents altered the host state after previous apply. Try the 'refresh' or 'restore' commands.",
+				)
+			}
 		}
 
 		// Rollback NewRollbackBundle
@@ -75,14 +92,13 @@ var Cmd = &cobra.Command{
 		// TODO save rollback bundle
 
 		// Plan
-
 		plan, err := resource.NewPlan(
-			ctx, newBundle, previousBundle, typeNameStateMap, resource.ActionApply,
+			ctx, hst, newBundle, previousBundle, typeNameStateMap, resource.ActionApply,
 		)
 		if err != nil {
 			logger.Fatal(err)
 		}
-		plan.Print(ctx)
+		plan.Print(ctx, hst)
 
 		// Execute plan
 		err = plan.Execute(ctx, hst)
@@ -102,21 +118,19 @@ var Cmd = &cobra.Command{
 			logger.Warn("Attempting rollback")
 
 			// Read current state
-			typeNameStateMap, err := resource.GetTypeNameStateMap(
-				nestedCtx, hst, rollbackBundle.Resources(),
-			)
+			typeNameStateMap, err := resource.GetTypeNameStateMap(nestedCtx, hst, rollbackBundle.TypeNames())
 			if err != nil {
 				logger.Fatal(err)
 			}
 
 			// Rollback Plan
 			rollbackPlan, err := resource.NewPlan(
-				nestedCtx, rollbackBundle, nil, typeNameStateMap, resource.ActionApply,
+				nestedCtx, hst, rollbackBundle, nil, typeNameStateMap, resource.ActionApply,
 			)
 			if err != nil {
 				logger.Fatal(err)
 			}
-			rollbackPlan.Print(nestedCtx)
+			rollbackPlan.Print(nestedCtx, hst)
 
 			// Execute plan
 			err = rollbackPlan.Execute(nestedCtx, hst)

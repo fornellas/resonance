@@ -13,6 +13,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -30,23 +31,6 @@ func (rs Resources) Validate() error {
 	return nil
 }
 
-func (rs Resources) AppendIfNotPresent(newResources Resources) Resources {
-	resources := append(Resources{}, rs...)
-	for _, newResource := range newResources {
-		present := false
-		for _, resource := range rs {
-			if newResource.TypeName == resource.TypeName {
-				present = true
-				continue
-			}
-		}
-		if !present {
-			resources = append(resources, newResource)
-		}
-	}
-	return resources
-}
-
 func (rs Resources) Len() int {
 	return len(rs)
 }
@@ -60,12 +44,14 @@ func (rs Resources) Less(i, j int) bool {
 }
 
 // LoadBundle loads resources from given Yaml file path.
-func LoadResources(ctx context.Context, path string) (Resources, error) {
+func LoadResources(ctx context.Context, hst host.Host, path string) (Resources, error) {
 	logger := log.GetLogger(ctx)
 	logger.Infof("%s", path)
+	nestedCtx := log.IndentLogger(ctx)
+
 	f, err := os.Open(path)
 	if err != nil {
-		return Resources{}, fmt.Errorf("failed to load resource file: %w", err)
+		return nil, fmt.Errorf("failed to load resource file: %w", err)
 	}
 	defer f.Close()
 
@@ -85,7 +71,16 @@ func LoadResources(ctx context.Context, path string) (Resources, error) {
 		if err := docResources.Validate(); err != nil {
 			return Resources{}, fmt.Errorf("resource file validation failed: %s: %w", path, err)
 		}
-		resources = append(resources, docResources...)
+		updatedAndValidatedDocResources := Resources{}
+		for _, resource := range docResources {
+			var err error
+			resource.State, err = resource.State.ValidateAndUpdate(nestedCtx, hst)
+			if err != nil {
+				return nil, err
+			}
+			updatedAndValidatedDocResources = append(updatedAndValidatedDocResources, resource)
+		}
+		resources = append(resources, updatedAndValidatedDocResources...)
 	}
 
 	return resources, nil
@@ -129,10 +124,55 @@ func (b Bundle) Resources() Resources {
 	return allResources
 }
 
+// TypeNames returns all TypeName at the bundle
+func (b Bundle) TypeNames() []TypeName {
+	typeNames := []TypeName{}
+	for _, resources := range b {
+		for _, resource := range resources {
+			typeNames = append(typeNames, resource.TypeName)
+		}
+	}
+	return typeNames
+}
+
+// IsClean whether all resources at Bundle are clean.
+func (b Bundle) IsClean(
+	ctx context.Context,
+	hst host.Host,
+	typeNameStateMap TypeNameStateMap,
+) (bool, error) {
+	logger := log.GetLogger(ctx)
+	logger.Info("🕵️ Checking if state is clean")
+	nestedCtx := log.IndentLogger(ctx)
+	nestedLogger := log.GetLogger(nestedCtx)
+
+	clean := true
+
+	for _, resources := range b {
+		for _, resource := range resources {
+			currentState, ok := typeNameStateMap[resource.TypeName]
+			if !ok {
+				panic(fmt.Sprintf("TypeNameStateMap missing %s", resource.TypeName))
+			}
+
+			diffs := Diff(currentState, resource.State)
+
+			if DiffsHasChanges(diffs) {
+				nestedLogger.Infof("%s %s", ActionApply.Emoji(), resource)
+				clean = false
+			} else {
+				nestedLogger.Infof("%s %s", ActionOk.Emoji(), resource)
+			}
+		}
+	}
+
+	return clean, nil
+}
+
 // LoadBundle search for .yaml files at root, each having the Resources schema,
 // loads and returns all of them.
 // Bundle is sorted by alphabetical order.
-func LoadBundle(ctx context.Context, root string) (Bundle, error) {
+func LoadBundle(ctx context.Context, hst host.Host, root string) (Bundle, error) {
 	logger := log.GetLogger(ctx)
 	logger.Infof("📂 Loading resources from %s", root)
 	nestedCtx := log.IndentLogger(ctx)
@@ -161,7 +201,7 @@ func LoadBundle(ctx context.Context, root string) (Bundle, error) {
 	sort.Strings(paths)
 
 	for _, path := range paths {
-		resources, err := LoadResources(nestedCtx, path)
+		resources, err := LoadResources(nestedCtx, hst, path)
 		if err != nil {
 			return bundle, err
 		}
