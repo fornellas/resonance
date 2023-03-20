@@ -52,8 +52,8 @@ func TestDestroy(t *testing.T) {
 			resourcesRoot,
 		}
 		runCommand(t, Cmd{
-			Args:           args,
-			ExpectedOutput: "Success",
+			Args:             args,
+			ExpectedInOutput: "Success",
 		})
 	})
 
@@ -85,8 +85,8 @@ func TestDestroy(t *testing.T) {
 			"--state-root", stateRoot,
 		}
 		runCommand(t, Cmd{
-			Args:           args,
-			ExpectedOutput: "Success",
+			Args:             args,
+			ExpectedInOutput: "Success",
 		})
 	})
 }
@@ -136,8 +136,8 @@ func TestDestroyFailureWithSuccessfulRollback(t *testing.T) {
 			resourcesRoot,
 		}
 		runCommand(t, Cmd{
-			Args:           args,
-			ExpectedOutput: "Success",
+			Args:             args,
+			ExpectedInOutput: "Success",
 		})
 	})
 
@@ -186,9 +186,9 @@ func TestDestroyFailureWithSuccessfulRollback(t *testing.T) {
 			"--state-root", stateRoot,
 		}
 		runCommand(t, Cmd{
-			Args:           args,
-			ExpectedCode:   1,
-			ExpectedOutput: "Failed to apply, rollback to previously saved state successful",
+			Args:             args,
+			ExpectedCode:     1,
+			ExpectedInOutput: "Failed to apply, rollback to previously saved state successful",
 		})
 	})
 }

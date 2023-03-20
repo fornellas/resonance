@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -55,13 +56,18 @@ func setupBundles(t *testing.T, resourcesRoot string, resourcesMap map[string]re
 }
 
 type Cmd struct {
-	Args           []string
-	ExpectedCode   int
-	ExpectedOutput string
+	Args             []string
+	ExpectedCode     int
+	ExpectedInOutput string
 }
 
 func (c Cmd) String() string {
 	return strings.Join(c.Args, " ")
+}
+
+func removeANSIEscapeSequences(input string) string {
+	ansiEscapeRegex := regexp.MustCompile(`\x1b\[[0-?]*[ -/]*[@-~]`)
+	return ansiEscapeRegex.ReplaceAllString(input, "")
 }
 
 func runCommand(t *testing.T, cmd Cmd) {
@@ -96,10 +102,10 @@ func runCommand(t *testing.T, cmd Cmd) {
 			logCmdOutput()
 			panic(p)
 		}
-		if cmd.ExpectedOutput != "" {
-			if !strings.Contains(outputBuffer.String(), cmd.ExpectedOutput) {
+		if cmd.ExpectedInOutput != "" {
+			if !strings.Contains(removeANSIEscapeSequences(outputBuffer.String()), cmd.ExpectedInOutput) {
 				logCmdOutput()
-				t.Fatalf("output does not contain %#v", cmd.ExpectedOutput)
+				t.Fatalf("output does not contain %#v", cmd.ExpectedInOutput)
 			}
 		}
 	}()
@@ -113,6 +119,7 @@ func runCommand(t *testing.T, cmd Cmd) {
 		output = &outputBuffer
 	}
 	command.SetOut(output)
+	cli.Reset()
 	if err := command.Execute(); err != nil {
 		t.Fatal(err)
 	}

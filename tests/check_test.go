@@ -18,9 +18,9 @@ func TestCheckNoPreviousState(t *testing.T) {
 	}
 
 	runCommand(t, Cmd{
-		Args:           args,
-		ExpectedCode:   1,
-		ExpectedOutput: "No previously saved host state available to check",
+		Args:             args,
+		ExpectedCode:     1,
+		ExpectedInOutput: "No previously saved host state available to check",
 	})
 }
 
@@ -69,8 +69,8 @@ func TestCheckClean(t *testing.T) {
 			resourcesRoot,
 		}
 		runCommand(t, Cmd{
-			Args:           args,
-			ExpectedOutput: "Success",
+			Args:             args,
+			ExpectedInOutput: "Success",
 		})
 	})
 
@@ -99,8 +99,8 @@ func TestCheckClean(t *testing.T) {
 			"--state-root", stateRoot,
 		}
 		runCommand(t, Cmd{
-			Args:           args,
-			ExpectedOutput: "State is clean",
+			Args:             args,
+			ExpectedInOutput: "State is clean",
 		})
 	})
 }
@@ -150,8 +150,8 @@ func TestCheckDirty(t *testing.T) {
 			resourcesRoot,
 		}
 		runCommand(t, Cmd{
-			Args:           args,
-			ExpectedOutput: "Success",
+			Args:             args,
+			ExpectedInOutput: "Success",
 		})
 	})
 
@@ -182,9 +182,9 @@ func TestCheckDirty(t *testing.T) {
 			"--state-root", stateRoot,
 		}
 		runCommand(t, Cmd{
-			Args:           args,
-			ExpectedCode:   1,
-			ExpectedOutput: "Host state is not clean",
+			Args:             args,
+			ExpectedCode:     1,
+			ExpectedInOutput: "Host state is not clean",
 		})
 	})
 }

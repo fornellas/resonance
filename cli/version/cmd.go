@@ -18,6 +18,10 @@ var Cmd = &cobra.Command{
 	},
 }
 
+func Reset() {
+
+}
+
 func init() {
 	lib.AddHostFlags(Cmd)
 	lib.AddPersistantStateFlags(Cmd)
