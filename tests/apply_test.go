@@ -467,5 +467,4 @@ func TestApplyFailureWithSuccessfulRollback(t *testing.T) {
 			ExpectedOutput: "Failed to apply, rollback to previously saved state successful",
 		})
 	})
-
 }
