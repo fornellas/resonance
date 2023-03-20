@@ -59,13 +59,19 @@ func (sai StepActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 			logger.Errorf("💥 %s", sai.Resource)
 			return err
 		}
-		resourceState, err := GetIndividuallyManageableResourceResourceState(ctx, hst, sai.Resource)
+		typeNameStateMap, err := GetTypeNameStateMap(ctx, hst, []TypeName{sai.Resource.TypeName})
 		if err != nil {
 			logger.Errorf("💥 %s", sai.Resource)
 			return err
 		}
-		if !resourceState.Clean {
-			logger.Errorf("💥 %s", sai.Resource)
+		currentState, ok := typeNameStateMap[sai.Resource.TypeName]
+		if !ok {
+			panic(fmt.Errorf("TypeNameStateMap missing %s", sai.Resource.TypeName))
+		}
+		diffs := Diff(sai.Resource.State, currentState)
+		if DiffsHasChanges(diffs) {
+			diffMatchPatch := diffmatchpatch.New()
+			logger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).Errorf("💥 %s", sai.Resource)
 			return errors.New(
 				"likely bug in resource implementationm as state was dirty immediately after applying",
 			)

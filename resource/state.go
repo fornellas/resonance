@@ -64,36 +64,6 @@ type ResourceState struct {
 
 type TypeNameResourceStateMap map[TypeName]ResourceState
 
-// GetIndividuallyManageableResourceResourceState gets current state for all given resources,
-// which must be IndividuallyManageableResource, and return it as ResourceState.
-func GetIndividuallyManageableResourceResourceState(
-	ctx context.Context, hst host.Host, resource Resource,
-) (ResourceState, error) {
-	logger := log.GetLogger(ctx)
-
-	resourceState := ResourceState{}
-
-	individuallyManageableResource := resource.MustIndividuallyManageableResource()
-
-	currentState, err := individuallyManageableResource.GetState(ctx, hst, resource.TypeName.Name())
-	if err != nil {
-		return ResourceState{}, err
-	}
-	resourceState.State = currentState
-
-	resourceState.Diffs = Diff(currentState, resource.State)
-
-	if DiffsHasChanges(resourceState.Diffs) {
-		logger.Infof("%s %s", ActionApply.Emoji(), resource)
-		resourceState.Clean = false
-	} else {
-		logger.Infof("%s %s", ActionOk.Emoji(), resource)
-		resourceState.Clean = true
-	}
-
-	return resourceState, nil
-}
-
 // GetMergeableManageableResourcesResourcesStateMapMap gets current state for all given resources,
 // which must be MergeableManageableResources, and return it as TypeNameStateMap.
 func GetMergeableManageableResourcesTypeNameResourceStateMap(
