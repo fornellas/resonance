@@ -24,28 +24,25 @@ type HostState struct {
 }
 
 // Refresh gets current host state and returns it as it is.
-// func (hs HostState) Refresh(ctx context.Context, hst host.Host) (HostState, error) {
-// 	typeNameStateMap, err := GetTypeNameResourceStateMap(ctx, hst, hs.PreviousBundle.Resources())
-// 	if err != nil {
-// 		return HostState{}, err
-// 	}
-
-// 	newBundle := Bundle{}
-// 	for _, resources := range hs.PreviousBundle {
-// 		newResources := Resources{}
-// 		for _, resource := range resources {
-// 			resourceState, ok := typeNameStateMap[resource.TypeName]
-// 			if !ok {
-// 				panic(fmt.Sprintf("missing ResourceState: %s", resource))
-// 			}
-// 			newResources = append(newResources, NewResource(
-// 				resource.TypeName, resourceState.State, resourceState.State == nil),
-// 			)
-// 		}
-// 		newBundle = append(newBundle, newResources)
-// 	}
-// 	return NewHostState(newBundle), nil
-// }
+func (hs HostState) Refresh(
+	ctx context.Context, typeNameStateMap TypeNameStateMap,
+) (HostState, error) {
+	newBundle := Bundle{}
+	for _, resources := range hs.PreviousBundle {
+		newResources := Resources{}
+		for _, resource := range resources {
+			currentState, ok := typeNameStateMap[resource.TypeName]
+			if !ok {
+				panic(fmt.Sprintf("missing ResourceState: %s", resource))
+			}
+			newResources = append(newResources, NewResource(
+				resource.TypeName, currentState, currentState == nil),
+			)
+		}
+		newBundle = append(newBundle, newResources)
+	}
+	return NewHostState(newBundle), nil
+}
 
 func NewHostState(previousBundle Bundle) HostState {
 	return HostState{
