@@ -7,6 +7,7 @@ import (
 	"os/user"
 	"testing"
 
+	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -53,8 +54,8 @@ type TestFuncRemove struct {
 }
 
 type TestFuncRun struct {
-	Cmd              Cmd
-	ReturnWaitStatus WaitStatus
+	Cmd              host.Cmd
+	ReturnWaitStatus host.WaitStatus
 	ReturnStdout     string
 	ReturnStderr     string
 	ReturnError      error
@@ -193,16 +194,16 @@ func (t Test) Remove(ctx context.Context, name string) error {
 	return funcCall.Remove.ReturnError
 }
 
-func (t Test) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, error) {
+func (t Test) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, string, string, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Run %s", cmd)
 	funcCall := t.getFuncCall()
 	if funcCall == nil {
-		return WaitStatus{}, "", "", fmt.Errorf("no more calls expected: got Run(%v)", cmd)
+		return host.WaitStatus{}, "", "", fmt.Errorf("no more calls expected: got Run(%v)", cmd)
 	}
 	if funcCall.Run == nil {
 		t.T.Fail() // FIXME use T.Fatalf()
-		return WaitStatus{}, "", "", fmt.Errorf("unexpected call: got Run(%v), expected %#v", cmd, funcCall)
+		return host.WaitStatus{}, "", "", fmt.Errorf("unexpected call: got Run(%v), expected %#v", cmd, funcCall)
 	}
 	return funcCall.Run.ReturnWaitStatus, funcCall.Run.ReturnStdout, funcCall.Run.ReturnStderr, funcCall.Run.ReturnError
 }
