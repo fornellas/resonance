@@ -148,6 +148,7 @@ func runCommand(t *testing.T, cmd Cmd) {
 		if cmd.ExpectedInStdout != "" {
 			if !strings.Contains(removeANSIEscapeSequences(stdoutStr), cmd.ExpectedInStdout) {
 				logCmdOutput()
+				t.Logf("stdout:\n%s", stdoutStr)
 				t.Fatalf("stdout does not contain %#v", cmd.ExpectedInStdout)
 			}
 		}

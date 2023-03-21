@@ -126,8 +126,8 @@
     - `graph/cmd.go`
         - ✨Implement.
     - `lint/cmd.go`: implement:
-        - ✨Validate resource definitions
-        - ✨Lint yaml (format & sort)
+        - 💡Validate resource definitions
+        - 💡Lint yaml (format & sort)
     - `help/cmd.go`
         - 🌎Show help on schema for resource files.
         - 🌎Show help on each resource type and its configuration parameters

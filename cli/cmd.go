@@ -9,6 +9,7 @@ import (
 	"github.com/fornellas/resonance/cli/apply"
 	"github.com/fornellas/resonance/cli/check"
 	"github.com/fornellas/resonance/cli/destroy"
+	"github.com/fornellas/resonance/cli/graph"
 	"github.com/fornellas/resonance/cli/plan"
 	"github.com/fornellas/resonance/cli/refresh"
 	"github.com/fornellas/resonance/cli/restore"
@@ -71,6 +72,9 @@ func init() {
 
 	Cmd.AddCommand(destroy.Cmd)
 	resetFuncs = append(resetFuncs, destroy.Reset)
+
+	Cmd.AddCommand(graph.Cmd)
+	resetFuncs = append(resetFuncs, graph.Reset)
 
 	Cmd.AddCommand(plan.Cmd)
 	resetFuncs = append(resetFuncs, plan.Reset)
