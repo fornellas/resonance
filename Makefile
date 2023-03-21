@@ -45,7 +45,7 @@ GOCYCLO_VERSION := v0.6.0
 GOCYCLO_OVER := 15
 
 GO_TEST := gotest
-GO_TEST_FLAGS := -race -coverprofile cover.out -coverpkg ./... -count=1
+GO_TEST_FLAGS := -race -coverprofile cover.txt -coverpkg ./... -count=1
 ifeq ($(V),1)
 GO_TEST_FLAGS := -v $(GO_TEST_FLAGS)
 endif
@@ -265,14 +265,14 @@ test: gotest
 .PHONY: clean-gotest
 clean-gotest:
 	$(GO) clean -r -testcache
-	rm -f cover.out cover.html
+	rm -f cover.txt cover.html
 clean: clean-gotest
 
 # cover.html
 
 .PHONY: cover.html
 cover.html: gotest
-	$(GO) tool cover -html cover.out -o cover.html
+	$(GO) tool cover -html cover.txt -o cover.html
 test: cover.html
 
 .PHONY: clean-cover.html
@@ -285,7 +285,7 @@ clean: clean-cover.html
 .PHONY: cover-func
 cover-func: cover.html
 	@echo -n "Coverage: "
-	@$(GO) tool cover -func cover.out | awk '/^total:/{print $$NF}'
+	@$(GO) tool cover -func cover.txt | awk '/^total:/{print $$NF}'
 test: cover-func
 
 ##

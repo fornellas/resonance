@@ -82,5 +82,5 @@ runs:
       uses: codecov/codecov-action@v3
       with:
         token: ${{ inputs.CODECOV_TOKEN }}
-        files: cover.out
+        files: cover.txt
         fail_ci_if_error: true
