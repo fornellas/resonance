@@ -402,7 +402,12 @@ func (p Plan) Print(ctx context.Context, hst host.Host) error {
 		nestedLogger.Infof("👌 Nothing to do")
 	}
 
-	for _, step := range p.Steps {
+	steps, err := topologicalSortPlan(nestedCtx, p.Steps)
+	if err != nil {
+		return err
+	}
+
+	for _, step := range steps {
 		if step.Actionable() {
 			resources := Resources{}
 			for _, stepResources := range step.ActionResourcesMap() {

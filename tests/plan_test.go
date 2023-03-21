@@ -57,11 +57,9 @@ func TestPlan(t *testing.T) {
 	}
 	runCommand(t, Cmd{
 		Args: args,
-		ExpectedInOutput: ("📝 Plan\n" +
-			"  🔧 Test[foo]\n" +
+		ExpectedInOutput: ("  🔧 Test[foo]\n" +
 			"    value: foo\n" +
 			"    \n" +
-			"  Test[✅ bar]\n" +
-			"🎆 Success"),
+			"  Test[✅ bar]\n"),
 	})
 }
