@@ -1,5 +1,9 @@
 name: 'Build'
 description: 'Run build'
+inputs:
+  CODECOV_TOKEN:
+    description: 'CODECOV_TOKEN'
+    required: true
 runs:
   using: 'composite'
   steps:
@@ -77,6 +81,6 @@ runs:
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
-        token: ${{ secrets.CODECOV_TOKEN }}
+        token: ${{ inputs.CODECOV_TOKEN }}
         files: cover.out
         fail_ci_if_error: true
