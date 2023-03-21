@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/fornellas/resonance/resource"
+	"github.com/fornellas/resonance/tests/resources"
 )
 
 func TestApplyNoYamlResourceFiles(t *testing.T) {
@@ -35,11 +36,11 @@ func TestApplySuccess(t *testing.T) {
 		resourcesRoot,
 	}
 
-	fooState := TestState{
+	fooState := resources.TestState{
 		Value: "foo",
 	}
 
-	barState := TestState{
+	barState := resources.TestState{
 		Value: "bar",
 	}
 
@@ -56,37 +57,37 @@ func TestApplySuccess(t *testing.T) {
 				},
 			},
 		})
-		setupTestType(t, []TestFuncCall{
+		setupTestType(t, []resources.TestFuncCall{
 			// Loading resources
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "bar",
 			}},
 			// Reading Host State
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: nil,
 			}},
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "bar",
 				ReturnState: nil,
 			}},
 			// Executing plan
-			{Configure: &TestFuncConfigure{
+			{Configure: &resources.TestFuncConfigure{
 				Name:  "foo",
 				State: fooState,
 			}},
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
-			{Configure: &TestFuncConfigure{
+			{Configure: &resources.TestFuncConfigure{
 				Name:  "bar",
 				State: barState,
 			}},
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "bar",
 				ReturnState: barState,
 			}},
@@ -102,27 +103,27 @@ func TestApplySuccess(t *testing.T) {
 	}
 
 	t.Run("Idempotency", func(t *testing.T) {
-		setupTestType(t, []TestFuncCall{
+		setupTestType(t, []resources.TestFuncCall{
 			// Loading resources
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "bar",
 			}},
 			// Loading saved host state
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "bar",
 			}},
 			// Reading Host State
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "bar",
 				ReturnState: barState,
 			}},
@@ -146,29 +147,29 @@ func TestApplySuccess(t *testing.T) {
 				},
 			},
 		})
-		setupTestType(t, []TestFuncCall{
+		setupTestType(t, []resources.TestFuncCall{
 			// Loading resources
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "foo",
 			}},
 			// Loading saved host state
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "bar",
 			}},
 			// Reading Host State
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "bar",
 				ReturnState: barState,
 			}},
 			// Executing plan
-			{Destroy: &TestFuncDestroy{
+			{Destroy: &resources.TestFuncDestroy{
 				Name: "bar",
 			}},
 		})
@@ -183,17 +184,17 @@ func TestApplySuccess(t *testing.T) {
 	}
 
 	t.Run("Idempotency", func(t *testing.T) {
-		setupTestType(t, []TestFuncCall{
+		setupTestType(t, []resources.TestFuncCall{
 			// Loading resources
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "foo",
 			}},
 			// Loading saved host state
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "foo",
 			}},
 			// Reading Host State
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
@@ -221,33 +222,33 @@ func TestApplySuccess(t *testing.T) {
 				},
 			},
 		})
-		setupTestType(t, []TestFuncCall{
+		setupTestType(t, []resources.TestFuncCall{
 			// Loading resources
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "bar",
 			}},
 			// Loading saved host state
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "foo",
 			}},
 			// Reading Host State
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "bar",
 				ReturnState: nil,
 			}},
 			// Executing plan
-			{Configure: &TestFuncConfigure{
+			{Configure: &resources.TestFuncConfigure{
 				Name:  "bar",
 				State: barState,
 			}},
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "bar",
 				ReturnState: barState,
 			}},
@@ -263,27 +264,27 @@ func TestApplySuccess(t *testing.T) {
 	}
 
 	t.Run("Idempotency", func(t *testing.T) {
-		setupTestType(t, []TestFuncCall{
+		setupTestType(t, []resources.TestFuncCall{
 			// Loading resources
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "bar",
 			}},
 			// Loading saved host state
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "bar",
 			}},
 			// Reading Host State
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "bar",
 				ReturnState: barState,
 			}},
@@ -307,11 +308,11 @@ func TestApplyFailureWithSuccessfulRollback(t *testing.T) {
 		resourcesRoot,
 	}
 
-	fooState := TestState{
+	fooState := resources.TestState{
 		Value: "foo",
 	}
 
-	barState := TestState{
+	barState := resources.TestState{
 		Value: "bar",
 	}
 
@@ -328,37 +329,37 @@ func TestApplyFailureWithSuccessfulRollback(t *testing.T) {
 				},
 			},
 		})
-		setupTestType(t, []TestFuncCall{
+		setupTestType(t, []resources.TestFuncCall{
 			// Loading resources
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "bar",
 			}},
 			// Reading Host State
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: nil,
 			}},
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "bar",
 				ReturnState: nil,
 			}},
 			// Executing plan
-			{Configure: &TestFuncConfigure{
+			{Configure: &resources.TestFuncConfigure{
 				Name:  "foo",
 				State: fooState,
 			}},
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
-			{Configure: &TestFuncConfigure{
+			{Configure: &resources.TestFuncConfigure{
 				Name:  "bar",
 				State: barState,
 			}},
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "bar",
 				ReturnState: barState,
 			}},
@@ -373,11 +374,11 @@ func TestApplyFailureWithSuccessfulRollback(t *testing.T) {
 		return
 	}
 
-	fooNewState := TestState{
+	fooNewState := resources.TestState{
 		Value: "fooNew",
 	}
 
-	barNewState := TestState{
+	barNewState := resources.TestState{
 		Value: "barNew",
 	}
 
@@ -394,69 +395,69 @@ func TestApplyFailureWithSuccessfulRollback(t *testing.T) {
 				},
 			},
 		})
-		setupTestType(t, []TestFuncCall{
+		setupTestType(t, []resources.TestFuncCall{
 			// Loading resources
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "bar",
 			}},
 			// Loading saved host state
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "bar",
 			}},
 			// Reading Host State
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "bar",
 				ReturnState: barState,
 			}},
 			// Executing plan
-			{Configure: &TestFuncConfigure{
+			{Configure: &resources.TestFuncConfigure{
 				Name:  "foo",
 				State: fooNewState,
 			}},
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: fooNewState,
 			}},
-			{Configure: &TestFuncConfigure{
+			{Configure: &resources.TestFuncConfigure{
 				Name:        "bar",
 				State:       barNewState,
 				ReturnError: errors.New("barNew failed"),
 			}},
 			// Rollback: Reading host state
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: fooNewState,
 			}},
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name: "bar",
-				ReturnState: TestState{
+				ReturnState: resources.TestState{
 					Value: "barBroken",
 				},
 			}},
 			// Rollback: Executing plan
-			{Configure: &TestFuncConfigure{
+			{Configure: &resources.TestFuncConfigure{
 				Name:  "foo",
 				State: fooState,
 			}},
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
-			{Configure: &TestFuncConfigure{
+			{Configure: &resources.TestFuncConfigure{
 				Name:  "bar",
 				State: barState,
 			}},
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "bar",
 				ReturnState: barState,
 			}},

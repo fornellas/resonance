@@ -1,4 +1,4 @@
-package tests
+package resources
 
 import (
 	"context"

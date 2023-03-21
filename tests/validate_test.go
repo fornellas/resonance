@@ -4,16 +4,17 @@ import (
 	"testing"
 
 	"github.com/fornellas/resonance/resource"
+	"github.com/fornellas/resonance/tests/resources"
 )
 
 func TestValidate(t *testing.T) {
 	stateRoot, resourcesRoot := setupDirs(t)
 
-	fooState := TestState{
+	fooState := resources.TestState{
 		Value: "foo",
 	}
 
-	barState := TestState{
+	barState := resources.TestState{
 		Value: "bar",
 	}
 
@@ -29,12 +30,12 @@ func TestValidate(t *testing.T) {
 			},
 		},
 	})
-	setupTestType(t, []TestFuncCall{
+	setupTestType(t, []resources.TestFuncCall{
 		// Loading resources
-		{ValidateName: &TestFuncValidateName{
+		{ValidateName: &resources.TestFuncValidateName{
 			Name: "foo",
 		}},
-		{ValidateName: &TestFuncValidateName{
+		{ValidateName: &resources.TestFuncValidateName{
 			Name: "bar",
 		}},
 	})

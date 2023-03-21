@@ -5,12 +5,13 @@ import (
 	"testing"
 
 	"github.com/fornellas/resonance/resource"
+	"github.com/fornellas/resonance/tests/resources"
 )
 
 func TestDestroy(t *testing.T) {
 	stateRoot, resourcesRoot := setupDirs(t)
 
-	fooState := TestState{
+	fooState := resources.TestState{
 		Value: "foo",
 	}
 
@@ -23,22 +24,22 @@ func TestDestroy(t *testing.T) {
 				},
 			},
 		})
-		setupTestType(t, []TestFuncCall{
+		setupTestType(t, []resources.TestFuncCall{
 			// Loading resources
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "foo",
 			}},
 			// Reading Host State
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: nil,
 			}},
 			// Executing plan
-			{Configure: &TestFuncConfigure{
+			{Configure: &resources.TestFuncConfigure{
 				Name:  "foo",
 				State: fooState,
 			}},
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
@@ -62,18 +63,18 @@ func TestDestroy(t *testing.T) {
 	}
 
 	t.Run("destroy", func(t *testing.T) {
-		setupTestType(t, []TestFuncCall{
+		setupTestType(t, []resources.TestFuncCall{
 			// Loading saved host state
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "foo",
 			}},
 			// Reading Host State
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
 			// Executing plan
-			{Destroy: &TestFuncDestroy{
+			{Destroy: &resources.TestFuncDestroy{
 				Name: "foo",
 			}},
 		})
@@ -94,7 +95,7 @@ func TestDestroy(t *testing.T) {
 func TestDestroyFailureWithSuccessfulRollback(t *testing.T) {
 	stateRoot, resourcesRoot := setupDirs(t)
 
-	fooState := TestState{
+	fooState := resources.TestState{
 		Value: "foo",
 	}
 
@@ -107,22 +108,22 @@ func TestDestroyFailureWithSuccessfulRollback(t *testing.T) {
 				},
 			},
 		})
-		setupTestType(t, []TestFuncCall{
+		setupTestType(t, []resources.TestFuncCall{
 			// Loading resources
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "foo",
 			}},
 			// Reading Host State
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: nil,
 			}},
 			// Executing plan
-			{Configure: &TestFuncConfigure{
+			{Configure: &resources.TestFuncConfigure{
 				Name:  "foo",
 				State: fooState,
 			}},
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
@@ -146,34 +147,34 @@ func TestDestroyFailureWithSuccessfulRollback(t *testing.T) {
 	}
 
 	t.Run("destroy with rollback", func(t *testing.T) {
-		setupTestType(t, []TestFuncCall{
+		setupTestType(t, []resources.TestFuncCall{
 			// Loading saved host state
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "foo",
 			}},
 			// Reading Host State
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
 			// Executing plan
-			{Destroy: &TestFuncDestroy{
+			{Destroy: &resources.TestFuncDestroy{
 				Name:        "foo",
 				ReturnError: errors.New("fooError"),
 			}},
 			// Rollback: Reading host state
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name: "foo",
-				ReturnState: TestState{
+				ReturnState: resources.TestState{
 					Value: "fooError",
 				},
 			}},
 			// Rollback: Applying changes
-			{Configure: &TestFuncConfigure{
+			{Configure: &resources.TestFuncConfigure{
 				Name:  "foo",
 				State: fooState,
 			}},
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},

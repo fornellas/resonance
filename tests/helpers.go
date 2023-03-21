@@ -13,14 +13,15 @@ import (
 
 	"github.com/fornellas/resonance/cli"
 	"github.com/fornellas/resonance/resource"
+	"github.com/fornellas/resonance/tests/resources"
 )
 
-func setupTestType(t *testing.T, testFuncCalls []TestFuncCall) {
-	TestT = t
-	TestExpectedFuncCalls = testFuncCalls
+func setupTestType(t *testing.T, testFuncCalls []resources.TestFuncCall) {
+	resources.TestT = t
+	resources.TestExpectedFuncCalls = testFuncCalls
 	t.Cleanup(func() {
-		if len(TestExpectedFuncCalls) > 0 {
-			t.Errorf("expected calls pending:\n%v", TestExpectedFuncCalls)
+		if len(resources.TestExpectedFuncCalls) > 0 {
+			t.Errorf("expected calls pending:\n%v", resources.TestExpectedFuncCalls)
 		}
 	})
 }

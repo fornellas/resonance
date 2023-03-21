@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/fornellas/resonance/resource"
+	"github.com/fornellas/resonance/tests/resources"
 )
 
 func TestRefreshNoPreviousState(t *testing.T) {
@@ -27,11 +28,11 @@ func TestRefreshNoPreviousState(t *testing.T) {
 func TestRefresh(t *testing.T) {
 	stateRoot, resourcesRoot := setupDirs(t)
 
-	fooState := TestState{
+	fooState := resources.TestState{
 		Value: "foo",
 	}
 
-	fooStateNew := TestState{
+	fooStateNew := resources.TestState{
 		Value: "fooNew",
 	}
 
@@ -44,22 +45,22 @@ func TestRefresh(t *testing.T) {
 				},
 			},
 		})
-		setupTestType(t, []TestFuncCall{
+		setupTestType(t, []resources.TestFuncCall{
 			// Loading resources
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "foo",
 			}},
 			// Reading Host State
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: nil,
 			}},
 			// Executing plan
-			{Configure: &TestFuncConfigure{
+			{Configure: &resources.TestFuncConfigure{
 				Name:  "foo",
 				State: fooState,
 			}},
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
@@ -83,13 +84,13 @@ func TestRefresh(t *testing.T) {
 	}
 
 	t.Run("refresh", func(t *testing.T) {
-		setupTestType(t, []TestFuncCall{
+		setupTestType(t, []resources.TestFuncCall{
 			// Loading saved host state
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "foo",
 			}},
 			// Reading Host State
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: fooStateNew,
 			}},
@@ -120,17 +121,17 @@ func TestRefresh(t *testing.T) {
 				},
 			},
 		})
-		setupTestType(t, []TestFuncCall{
+		setupTestType(t, []resources.TestFuncCall{
 			// Loading resources
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "foo",
 			}},
 			// Loading saved host state
-			{ValidateName: &TestFuncValidateName{
+			{ValidateName: &resources.TestFuncValidateName{
 				Name: "foo",
 			}},
 			// Reading host state
-			{GetState: &TestFuncGetState{
+			{GetState: &resources.TestFuncGetState{
 				Name:        "foo",
 				ReturnState: fooStateNew,
 			}},
