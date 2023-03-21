@@ -300,13 +300,59 @@ func (p Plan) Graphviz() string {
 	return buff.String()
 }
 
+func topologicalSortPlan(ctx context.Context, steps []*Step) ([]*Step, error) {
+	logger := log.GetLogger(ctx)
+	logger.Info("✨ Ordering")
+
+	dependantCount := map[*Step]int{}
+	for _, step := range steps {
+		if _, ok := dependantCount[step]; !ok {
+			dependantCount[step] = 0
+		}
+		for _, prereq := range step.prerequisiteFor {
+			dependantCount[prereq]++
+		}
+	}
+
+	noDependantsSteps := []*Step{}
+	for _, step := range steps {
+		if dependantCount[step] == 0 {
+			noDependantsSteps = append(noDependantsSteps, step)
+		}
+	}
+
+	sortedSteps := []*Step{}
+	for len(noDependantsSteps) > 0 {
+		step := noDependantsSteps[0]
+		noDependantsSteps = noDependantsSteps[1:]
+		sortedSteps = append(sortedSteps, step)
+		for _, dependantStep := range step.prerequisiteFor {
+			dependantCount[dependantStep]--
+			if dependantCount[dependantStep] == 0 {
+				noDependantsSteps = append(noDependantsSteps, dependantStep)
+			}
+		}
+	}
+
+	if len(sortedSteps) != len(steps) {
+		return nil, errors.New("unable to sort steps: try 'graph' command to debug it")
+	}
+
+	return sortedSteps, nil
+}
+
 func (p Plan) executeSteps(ctx context.Context, hst host.Host) error {
 	logger := log.GetLogger(ctx)
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 	logger.Info("🛠️  Applying changes")
 	if p.Actionable() {
-		for _, step := range p.Steps {
+		steps, err := topologicalSortPlan(nestedCtx, p.Steps)
+		if err != nil {
+			return err
+		}
+
+		for _, step := range steps {
 			if !step.Actionable() {
 				continue
 			}
@@ -572,47 +618,6 @@ func mergePlanSteps(ctx context.Context, steps []*Step) []*Step {
 	return newSteps
 }
 
-func topologicalSortPlan(ctx context.Context, steps []*Step) ([]*Step, error) {
-	logger := log.GetLogger(ctx)
-	logger.Info("✨ Ordering")
-
-	dependantCount := map[*Step]int{}
-	for _, step := range steps {
-		if _, ok := dependantCount[step]; !ok {
-			dependantCount[step] = 0
-		}
-		for _, prereq := range step.prerequisiteFor {
-			dependantCount[prereq]++
-		}
-	}
-
-	noDependantsSteps := []*Step{}
-	for _, step := range steps {
-		if dependantCount[step] == 0 {
-			noDependantsSteps = append(noDependantsSteps, step)
-		}
-	}
-
-	sortedSteps := []*Step{}
-	for len(noDependantsSteps) > 0 {
-		step := noDependantsSteps[0]
-		noDependantsSteps = noDependantsSteps[1:]
-		sortedSteps = append(sortedSteps, step)
-		for _, dependantStep := range step.prerequisiteFor {
-			dependantCount[dependantStep]--
-			if dependantCount[dependantStep] == 0 {
-				noDependantsSteps = append(noDependantsSteps, dependantStep)
-			}
-		}
-	}
-
-	if len(sortedSteps) != len(steps) {
-		return nil, errors.New("unable to sort steps: it has cycles")
-	}
-
-	return sortedSteps, nil
-}
-
 func NewPlan(
 	ctx context.Context,
 	hst host.Host,
@@ -645,12 +650,6 @@ func NewPlan(
 
 	// Merge steps
 	plan.Steps = mergePlanSteps(nestedCtx, plan.Steps)
-
-	// Sort
-	plan.Steps, err = topologicalSortPlan(nestedCtx, plan.Steps)
-	if err != nil {
-		return Plan{}, err
-	}
 
 	return plan, nil
 }
