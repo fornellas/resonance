@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
 	"github.com/fornellas/resonance/version"
@@ -21,6 +23,14 @@ type HostState struct {
 	// Version of the binary used to put the host in this state.
 	Version        version.Version `yaml:"version"`
 	PreviousBundle Bundle          `yaml:"previous_bundle"`
+}
+
+func (hs HostState) String() string {
+	bytes, err := yaml.Marshal(&hs)
+	if err != nil {
+		panic(err)
+	}
+	return string(bytes)
 }
 
 // Refresh gets current host state and returns it as it is.

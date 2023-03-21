@@ -59,6 +59,7 @@ type Cmd struct {
 	Args             []string
 	ExpectedCode     int
 	ExpectedInOutput string
+	ExpectedInStdout string
 }
 
 func (c Cmd) String() string {
@@ -73,6 +74,7 @@ func removeANSIEscapeSequences(input string) string {
 func runCommand(t *testing.T, cmd Cmd) {
 	var outputBuffer bytes.Buffer
 
+	// log output function
 	cmdOutputLogged := false
 	logCmdOutput := func() {
 		if !cmdOutputLogged && (!testing.Verbose() || t.Failed()) {
@@ -83,6 +85,7 @@ func runCommand(t *testing.T, cmd Cmd) {
 	t.Cleanup(func() { logCmdOutput() })
 	type expectedExit struct{}
 
+	// Exit mock
 	cli.ExitFunc = func(code int) {
 		if cmd.ExpectedCode != code {
 			logCmdOutput()
@@ -109,8 +112,12 @@ func runCommand(t *testing.T, cmd Cmd) {
 			}
 		}
 	}()
+
 	command := cli.Cmd
+
 	command.SetArgs(cmd.Args)
+
+	// Capture output
 	var output io.Writer
 	if testing.Verbose() {
 		output = io.MultiWriter(&outputBuffer, os.Stdout)
@@ -119,7 +126,35 @@ func runCommand(t *testing.T, cmd Cmd) {
 		output = &outputBuffer
 	}
 	command.SetOut(output)
+
+	// Capture stdout
+	// TODO print stdout if testing.Verbose()
+	originalStdout := os.Stdout
+	stdoutRead, stdoutWrite, _ := os.Pipe()
+	os.Stdout = stdoutWrite
+	stdoutCh := make(chan string)
+	go func() {
+		var buff bytes.Buffer
+		_, err := io.Copy(&buff, stdoutRead)
+		if err != nil {
+			t.Errorf("failed to read stdout: %s", err)
+		}
+		stdoutCh <- buff.String()
+	}()
+	defer func() {
+		os.Stdout = originalStdout
+		stdoutWrite.Close()
+		stdoutStr := <-stdoutCh
+		if cmd.ExpectedInStdout != "" {
+			if !strings.Contains(removeANSIEscapeSequences(stdoutStr), cmd.ExpectedInStdout) {
+				logCmdOutput()
+				t.Fatalf("stdout does not contain %#v", cmd.ExpectedInStdout)
+			}
+		}
+	}()
+
 	cli.Reset()
+
 	if err := command.Execute(); err != nil {
 		t.Fatal(err)
 	}
