@@ -13,7 +13,7 @@ func TestRestoreNoPreviousState(t *testing.T) {
 
 	args := []string{
 		"restore",
-		"--log-level=debug",
+		"--log-level=trace",
 		"--force-color",
 		"--localhost",
 		"--state-root", stateRoot,
@@ -68,7 +68,7 @@ func TestRestore(t *testing.T) {
 		})
 		args := []string{
 			"apply",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,
@@ -107,7 +107,7 @@ func TestRestore(t *testing.T) {
 		})
 		args := []string{
 			"restore",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,
@@ -140,7 +140,7 @@ func TestRestore(t *testing.T) {
 		})
 		args := []string{
 			"apply",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,
@@ -199,7 +199,7 @@ func TestRestoreFailureWithRollback(t *testing.T) {
 		})
 		args := []string{
 			"apply",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,
@@ -250,7 +250,7 @@ func TestRestoreFailureWithRollback(t *testing.T) {
 		})
 		args := []string{
 			"restore",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,
@@ -284,7 +284,7 @@ func TestRestoreFailureWithRollback(t *testing.T) {
 		})
 		args := []string{
 			"apply",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,

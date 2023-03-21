@@ -51,14 +51,12 @@ var Cmd = &cobra.Command{
 
 		// Check saved HostState
 		if hostState != nil {
-			isClean, err := hostState.PreviousBundle.IsClean(ctx, hst, typeNameStateMap)
+			dirtyMsg, err := hostState.IsClean(ctx, hst, typeNameStateMap)
 			if err != nil {
 				logger.Fatal(err)
 			}
-			if !isClean {
-				logger.Fatalf(
-					"Host state is not clean: this often means external agents altered the host state after previous apply. Try the 'refresh' or 'restore' commands.",
-				)
+			if dirtyMsg != "" {
+				logger.Fatal(dirtyMsg)
 			}
 		}
 

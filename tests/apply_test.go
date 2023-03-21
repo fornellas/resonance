@@ -13,7 +13,7 @@ func TestApplyNoYamlResourceFiles(t *testing.T) {
 	runCommand(t, Cmd{
 		Args: []string{
 			"apply",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,
@@ -29,7 +29,7 @@ func TestApplyIndividual(t *testing.T) {
 
 	args := []string{
 		"apply",
-		"--log-level=debug",
+		"--log-level=trace",
 		"--force-color",
 		"--localhost",
 		"--state-root", stateRoot,
@@ -301,7 +301,7 @@ func TestApplyIndividualAndMergeable(t *testing.T) {
 
 	args := []string{
 		"apply",
-		"--log-level=debug",
+		"--log-level=trace",
 		"--force-color",
 		"--localhost",
 		"--state-root", stateRoot,
@@ -796,7 +796,7 @@ func TestApplyDirtyState(t *testing.T) {
 
 	args := []string{
 		"apply",
-		"--log-level=debug",
+		"--log-level=trace",
 		"--force-color",
 		"--localhost",
 		"--state-root", stateRoot,
@@ -906,7 +906,7 @@ func TestApplyDirtyState(t *testing.T) {
 		runCommand(t, Cmd{
 			Args:             args,
 			ExpectedCode:     1,
-			ExpectedInOutput: "Host state is not clean",
+			ExpectedInOutput: "Previous host state is not clean:",
 		})
 	})
 }
@@ -916,7 +916,7 @@ func TestApplyFailureWithRollback(t *testing.T) {
 
 	args := []string{
 		"apply",
-		"--log-level=debug",
+		"--log-level=trace",
 		"--force-color",
 		"--localhost",
 		"--state-root", stateRoot,

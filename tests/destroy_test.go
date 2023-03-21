@@ -13,7 +13,7 @@ func TestDestroyNoPreviousState(t *testing.T) {
 
 	args := []string{
 		"destroy",
-		"--log-level=debug",
+		"--log-level=trace",
 		"--force-color",
 		"--localhost",
 		"--state-root", stateRoot,
@@ -64,7 +64,7 @@ func TestDestroy(t *testing.T) {
 		})
 		args := []string{
 			"apply",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,
@@ -98,7 +98,7 @@ func TestDestroy(t *testing.T) {
 		})
 		args := []string{
 			"destroy",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,
@@ -179,7 +179,7 @@ func TestDestroyDirtyState(t *testing.T) {
 		})
 		args := []string{
 			"apply",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,
@@ -216,7 +216,7 @@ func TestDestroyDirtyState(t *testing.T) {
 		})
 		args := []string{
 			"destroy",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,
@@ -224,7 +224,7 @@ func TestDestroyDirtyState(t *testing.T) {
 		runCommand(t, Cmd{
 			Args:             args,
 			ExpectedCode:     1,
-			ExpectedInOutput: "Host state is not clean",
+			ExpectedInOutput: "Previous host state is not clean:",
 		})
 	})
 }
@@ -267,7 +267,7 @@ func TestDestroyFailureWithSuccessfulRollback(t *testing.T) {
 		})
 		args := []string{
 			"apply",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,
@@ -318,7 +318,7 @@ func TestDestroyFailureWithSuccessfulRollback(t *testing.T) {
 		})
 		args := []string{
 			"destroy",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,

@@ -41,7 +41,7 @@ func TestValidate(t *testing.T) {
 	})
 	args := []string{
 		"validate",
-		"--log-level=debug",
+		"--log-level=trace",
 		"--force-color",
 		"--localhost",
 		"--state-root", stateRoot,

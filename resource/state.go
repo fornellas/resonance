@@ -23,6 +23,7 @@ type HostState struct {
 	// Version of the binary used to put the host in this state.
 	Version        version.Version `yaml:"version"`
 	PreviousBundle Bundle          `yaml:"previous_bundle"`
+	RollbackBundle *Bundle         `yaml:"rollback_bundle"`
 }
 
 func (hs HostState) String() string {
@@ -51,13 +52,34 @@ func (hs HostState) Refresh(
 		}
 		newBundle = append(newBundle, newResources)
 	}
-	return NewHostState(newBundle), nil
+	return NewHostState(newBundle, nil), nil
 }
 
-func NewHostState(previousBundle Bundle) HostState {
+// IsClean checks whether host state is clean.
+func (hs HostState) IsClean(
+	ctx context.Context,
+	hst host.Host,
+	typeNameStateMap TypeNameStateMap,
+) (string, error) {
+	previousBundleIsClean, err := hs.PreviousBundle.IsClean(ctx, hst, typeNameStateMap)
+	if err != nil {
+		return "", err
+	}
+	if !previousBundleIsClean {
+		return "Previous host state is not clean: this often means external agents altered the host state after a previous action. Try the 'refresh' or 'restore' commands.", nil
+	}
+
+	if hs.RollbackBundle != nil {
+		return "A previous action did not fully complete and a rollback is pending, try the 'rollback' command.", nil
+	}
+	return "", nil
+}
+
+func NewHostState(previousBundle Bundle, rollbackBundle *Bundle) HostState {
 	return HostState{
 		Version:        version.GetVersion(),
 		PreviousBundle: previousBundle,
+		RollbackBundle: rollbackBundle,
 	}
 }
 

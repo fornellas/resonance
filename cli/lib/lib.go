@@ -56,7 +56,7 @@ func AddPersistantStateFlags(cmd *cobra.Command) {
 	)
 }
 
-func Rollback(ctx context.Context, hst host.Host, rollbackBundle resource.Bundle) {
+func Rollback(ctx context.Context, hst host.Host, rollbackBundle resource.Bundle) error {
 	logger := log.GetLogger(ctx)
 	logger.Warn("Attempting rollback")
 	nestedCtx := log.IndentLogger(ctx)
@@ -65,7 +65,7 @@ func Rollback(ctx context.Context, hst host.Host, rollbackBundle resource.Bundle
 	// Read current state
 	typeNameStateMap, err := resource.GetTypeNameStateMap(nestedCtx, hst, rollbackBundle.TypeNames())
 	if err != nil {
-		logger.Fatal(err)
+		return err
 	}
 
 	// Rollback Plan
@@ -73,21 +73,17 @@ func Rollback(ctx context.Context, hst host.Host, rollbackBundle resource.Bundle
 		nestedCtx, hst, rollbackBundle, nil, typeNameStateMap, resource.ActionConfigure,
 	)
 	if err != nil {
-		logger.Fatal(err)
+		return err
 	}
 	rollbackPlan.Print(nestedCtx, hst)
 
 	// Execute plan
 	err = rollbackPlan.Execute(nestedCtx, hst)
 	if err != nil {
-		nestedLogger.Error(err)
-		logger.Fatal("Rollback failed! You may try the restore command and / or fix things manually.")
+		return err
 	}
 	nestedLogger.Info("👌 Rollback successful.")
-
-	// TODO save state without rollback
-
-	logger.Fatal("Failed, rollback to previously saved state successful.")
+	return nil
 }
 
 func readState(
@@ -148,14 +144,12 @@ func Plan(
 
 	// Check saved HostState
 	if hostState != nil {
-		isClean, err := hostState.PreviousBundle.IsClean(ctx, hst, typeNameStateMap)
+		dirtyMsg, err := hostState.IsClean(ctx, hst, typeNameStateMap)
 		if err != nil {
 			logger.Fatal(err)
 		}
-		if !isClean {
-			logger.Fatalf(
-				"Host state is not clean: this often means external agents altered the host state after previous apply. Try the 'refresh' or 'restore' commands.",
-			)
+		if dirtyMsg != "" {
+			logger.Fatal(dirtyMsg)
 		}
 	}
 

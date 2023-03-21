@@ -12,7 +12,7 @@ func TestRefreshNoPreviousState(t *testing.T) {
 
 	args := []string{
 		"refresh",
-		"--log-level=debug",
+		"--log-level=trace",
 		"--force-color",
 		"--localhost",
 		"--state-root", stateRoot,
@@ -67,7 +67,7 @@ func TestRefresh(t *testing.T) {
 		})
 		args := []string{
 			"apply",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,
@@ -97,7 +97,7 @@ func TestRefresh(t *testing.T) {
 		})
 		args := []string{
 			"refresh",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,
@@ -138,7 +138,7 @@ func TestRefresh(t *testing.T) {
 		})
 		args := []string{
 			"apply",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,

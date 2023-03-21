@@ -13,6 +13,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/sergi/go-diff/diffmatchpatch"
+
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
 )
@@ -143,7 +145,7 @@ func (b Bundle) TypeNames() []TypeName {
 	return typeNames
 }
 
-// IsClean whether all resources at Bundle are clean.
+// IsClean checks whether all resources at Bundle are clean.
 func (b Bundle) IsClean(
 	ctx context.Context,
 	hst host.Host,
@@ -166,7 +168,10 @@ func (b Bundle) IsClean(
 			diffs := Diff(currentState, resource.State)
 
 			if DiffsHasChanges(diffs) {
-				nestedLogger.Infof("%s %s", ActionConfigure.Emoji(), resource)
+				diffMatchPatch := diffmatchpatch.New()
+				nestedLogger.WithField(
+					"", diffMatchPatch.DiffPrettyText(diffs),
+				).Infof("%s %s", ActionConfigure.Emoji(), resource)
 				clean = false
 			} else {
 				nestedLogger.Infof("%s %s", ActionOk.Emoji(), resource)

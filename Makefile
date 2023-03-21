@@ -45,7 +45,7 @@ GOCYCLO_VERSION := v0.6.0
 GOCYCLO_OVER := 15
 
 GO_TEST := gotest
-GO_TEST_FLAGS := -race -coverprofile cover.txt -coverpkg ./... -count=1
+GO_TEST_FLAGS := -race -coverprofile cover.txt -coverpkg ./... -count=1 -failfast
 ifeq ($(V),1)
 GO_TEST_FLAGS := -v $(GO_TEST_FLAGS)
 endif

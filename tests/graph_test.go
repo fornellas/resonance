@@ -52,7 +52,7 @@ func TestGraph(t *testing.T) {
 		})
 		args := []string{
 			"graph",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,
@@ -86,7 +86,7 @@ func TestGraph(t *testing.T) {
 		})
 		args := []string{
 			"graph",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,

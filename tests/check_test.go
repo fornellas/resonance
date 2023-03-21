@@ -12,7 +12,7 @@ func TestCheckNoPreviousState(t *testing.T) {
 
 	args := []string{
 		"check",
-		"--log-level=debug",
+		"--log-level=trace",
 		"--force-color",
 		"--localhost",
 		"--state-root", stateRoot,
@@ -63,7 +63,7 @@ func TestCheckClean(t *testing.T) {
 		})
 		args := []string{
 			"apply",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,
@@ -94,7 +94,7 @@ func TestCheckClean(t *testing.T) {
 		})
 		args := []string{
 			"check",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,
@@ -144,7 +144,7 @@ func TestCheckDirty(t *testing.T) {
 		})
 		args := []string{
 			"apply",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,
@@ -177,7 +177,7 @@ func TestCheckDirty(t *testing.T) {
 		})
 		args := []string{
 			"check",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,
@@ -185,7 +185,7 @@ func TestCheckDirty(t *testing.T) {
 		runCommand(t, Cmd{
 			Args:             args,
 			ExpectedCode:     1,
-			ExpectedInOutput: "Host state is not clean",
+			ExpectedInOutput: "Previous host state is not clean:",
 		})
 	})
 }

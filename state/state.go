@@ -45,13 +45,11 @@ func LoadHostState(
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 
-	var hostState resource.HostState
-
 	logger.Infof("📂 Loading saved host state from %s", persistantState)
 
 	savedBytes, err := persistantState.Load(nestedCtx)
 	if err != nil {
-		return &hostState, err
+		return nil, err
 	}
 	if savedBytes == nil {
 		nestedLogger.Info("No previously saved state")
@@ -61,6 +59,7 @@ func LoadHostState(
 	decoder := yaml.NewDecoder(bytes.NewReader(*savedBytes))
 	decoder.KnownFields(true)
 	hasMultipleDocuments := false
+	var hostState resource.HostState
 	for {
 		if err := decoder.Decode(&hostState); err != nil {
 			if errors.Is(err, io.EOF) {
@@ -73,6 +72,8 @@ func LoadHostState(
 		}
 		hasMultipleDocuments = true
 	}
+
+	nestedLogger.WithField("", hostState.String()).Trace("State")
 
 	return &hostState, nil
 }

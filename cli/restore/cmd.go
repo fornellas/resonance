@@ -61,11 +61,16 @@ var Cmd = &cobra.Command{
 		}
 		plan.Print(ctx, hst)
 
-		// TODO save rollback bundle
+		// Save rollback bundle
+		if err := state.SaveHostState(
+			ctx, resource.NewHostState(hostState.PreviousBundle, &rollbackBundle), persistantState,
+		); err != nil {
+			logger.Fatal(err)
+		}
 
 		// Execute
 		if err = plan.Execute(ctx, hst); err == nil {
-			newHostState := resource.NewHostState(hostState.PreviousBundle)
+			newHostState := resource.NewHostState(hostState.PreviousBundle, nil)
 			if err := state.SaveHostState(ctx, newHostState, persistantState); err != nil {
 				logger.Fatal(err)
 			}
@@ -75,7 +80,20 @@ var Cmd = &cobra.Command{
 			nestedCtx := log.IndentLogger(ctx)
 			nestedLogger := log.GetLogger(nestedCtx)
 			nestedLogger.Error(err)
-			lib.Rollback(ctx, hst, rollbackBundle)
+
+			// Rollback
+			if err := lib.Rollback(ctx, hst, rollbackBundle); err != nil {
+				logger.Fatal("Rollback failed! You may try the 'rollback' command or fix things manually.")
+			}
+
+			// Save State
+			if err := state.SaveHostState(
+				ctx, resource.NewHostState(hostState.PreviousBundle, nil), persistantState,
+			); err != nil {
+				logger.Fatal(err)
+			}
+
+			logger.Fatal("Failed, rollback to previously saved state successful.")
 		}
 	},
 }

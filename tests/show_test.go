@@ -12,7 +12,7 @@ func TestShowNoPreviousState(t *testing.T) {
 
 	args := []string{
 		"show",
-		"--log-level=debug",
+		"--log-level=trace",
 		"--force-color",
 		"--localhost",
 		"--state-root", stateRoot,
@@ -63,7 +63,7 @@ func TestShow(t *testing.T) {
 		})
 		args := []string{
 			"apply",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,
@@ -89,7 +89,7 @@ func TestShow(t *testing.T) {
 		})
 		args := []string{
 			"show",
-			"--log-level=debug",
+			"--log-level=trace",
 			"--force-color",
 			"--localhost",
 			"--state-root", stateRoot,

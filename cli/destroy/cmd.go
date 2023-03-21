@@ -50,14 +50,12 @@ var Cmd = &cobra.Command{
 
 		// Check saved HostState
 		if hostState != nil {
-			isClean, err := hostState.PreviousBundle.IsClean(ctx, hst, typeNameStateMap)
+			dirtyMsg, err := hostState.IsClean(ctx, hst, typeNameStateMap)
 			if err != nil {
 				logger.Fatal(err)
 			}
-			if !isClean {
-				logger.Fatalf(
-					"Host state is not clean: this often means external agents altered the host state after previous apply. Try the 'refresh' or 'restore' commands.",
-				)
+			if dirtyMsg != "" {
+				logger.Fatal(dirtyMsg)
 			}
 		}
 
@@ -65,8 +63,6 @@ var Cmd = &cobra.Command{
 		rollbackBundle := resource.NewRollbackBundle(
 			hostState.PreviousBundle, nil, typeNameStateMap, resource.ActionConfigure,
 		)
-
-		// TODO save rollback bundle
 
 		// Plan
 		plan, err := resource.NewPlan(
@@ -77,12 +73,19 @@ var Cmd = &cobra.Command{
 		}
 		plan.Print(ctx, hst)
 
+		// Save rollback bundle
+		if err := state.SaveHostState(
+			ctx, resource.NewHostState(hostState.PreviousBundle, &rollbackBundle), persistantState,
+		); err != nil {
+			logger.Fatal(err)
+		}
+
 		// Execute plan
 		err = plan.Execute(ctx, hst)
 
 		if err == nil {
 			// Save plan state
-			newHostState := resource.NewHostState(resource.Bundle{})
+			newHostState := resource.NewHostState(resource.Bundle{}, nil)
 			if err := state.SaveHostState(ctx, newHostState, persistantState); err != nil {
 				logger.Fatal(err)
 			}
@@ -92,7 +95,20 @@ var Cmd = &cobra.Command{
 			nestedCtx := log.IndentLogger(ctx)
 			nestedLogger := log.GetLogger(nestedCtx)
 			nestedLogger.Error(err)
-			lib.Rollback(ctx, hst, rollbackBundle)
+
+			// Rollback
+			if err := lib.Rollback(ctx, hst, rollbackBundle); err != nil {
+				logger.Fatal("Rollback failed! You may try the 'rollback' command or fix things manually.")
+			}
+
+			// Save State
+			if err := state.SaveHostState(
+				ctx, resource.NewHostState(rollbackBundle, nil), persistantState,
+			); err != nil {
+				logger.Fatal(err)
+			}
+
+			logger.Fatal("Failed, rollback to previously saved state successful.")
 		}
 	},
 }
