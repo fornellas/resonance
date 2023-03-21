@@ -1,25 +1,25 @@
 # Roadmap
 
-- 🧪v0.1: MVP
+- 🧪 MVP
     - Minimum CI /CD.
     - Basic types: `File`, `APTPackage`, `SystemdUnit`.
     - CLI with basic commands.
-- ✨v0.2: Refinement
+- ✨  Refinement
     - Add tests
     - Toughen CI
     - Speed, refine existing features, squash bugs.
     - Improve dependencies (type implicit and subscription).
-- 📈v0.3 Expansion
+- 📈  Expansion
     - Publish packages.
     - SSH support.
     - More resource types.
-- 📄v0.4 Templating
+- 📄  Templating
     - Host inventory.
     - Generate resources with Go template.
     - "High level" resources can declare "primitive" resources.
-- 🌎v1.0 Core features complete
+- 🌎 Core features complete
     - Add help command with information on all resource types.
-- 💡v? TBD
+- 💡 Ideas
     - Support different Linux Distributions (eg: some resources may require slightly different implementations).
     - Manage multiple hosts: do in parallel, all or nothnig for the whole group.
 
