@@ -84,4 +84,3 @@ runs:
         token: ${{ inputs.CODECOV_TOKEN }}
         files: cover.txt
         fail_ci_if_error: true
-        verbose: true
