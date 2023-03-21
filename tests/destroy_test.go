@@ -54,7 +54,7 @@ func TestDestroy(t *testing.T) {
 		}
 		runCommand(t, Cmd{
 			Args:             args,
-			ExpectedInOutput: "Success",
+			ExpectedInOutput: "Apply successful",
 		})
 	})
 
@@ -138,7 +138,7 @@ func TestDestroyFailureWithSuccessfulRollback(t *testing.T) {
 		}
 		runCommand(t, Cmd{
 			Args:             args,
-			ExpectedInOutput: "Success",
+			ExpectedInOutput: "Apply successful",
 		})
 	})
 

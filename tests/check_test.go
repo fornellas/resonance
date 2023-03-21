@@ -71,7 +71,7 @@ func TestCheckClean(t *testing.T) {
 		}
 		runCommand(t, Cmd{
 			Args:             args,
-			ExpectedInOutput: "Success",
+			ExpectedInOutput: "Apply successful",
 		})
 	})
 
@@ -152,7 +152,7 @@ func TestCheckDirty(t *testing.T) {
 		}
 		runCommand(t, Cmd{
 			Args:             args,
-			ExpectedInOutput: "Success",
+			ExpectedInOutput: "Apply successful",
 		})
 	})
 

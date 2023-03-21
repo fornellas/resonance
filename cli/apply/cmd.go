@@ -44,7 +44,7 @@ var Cmd = &cobra.Command{
 				logger.Fatal(err)
 			}
 
-			logger.Info("🎆 Success")
+			logger.Info("🎆 Apply successful")
 		} else {
 			nestedCtx := log.IndentLogger(ctx)
 			nestedLogger := log.GetLogger(nestedCtx)

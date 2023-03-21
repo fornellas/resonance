@@ -75,7 +75,7 @@ func TestRefresh(t *testing.T) {
 		}
 		runCommand(t, Cmd{
 			Args:             args,
-			ExpectedInOutput: "Success",
+			ExpectedInOutput: "Apply successful",
 		})
 	})
 
@@ -146,7 +146,7 @@ func TestRefresh(t *testing.T) {
 		}
 		runCommand(t, Cmd{
 			Args:             args,
-			ExpectedInOutput: "Success",
+			ExpectedInOutput: "Apply successful",
 		})
 	})
 }
