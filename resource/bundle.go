@@ -53,11 +53,20 @@ func (rs Resources) TypeNames() []TypeName {
 	return typeNames
 }
 
+func (rs Resources) String() string {
+	bytes, err := yaml.Marshal(&rs)
+	if err != nil {
+		panic(err)
+	}
+	return string(bytes)
+}
+
 // LoadBundle loads resources from given Yaml file path.
 func LoadResources(ctx context.Context, hst host.Host, path string) (Resources, error) {
 	logger := log.GetLogger(ctx)
 	logger.Infof("%s", path)
 	nestedCtx := log.IndentLogger(ctx)
+	nestedLogger := log.GetLogger(nestedCtx)
 
 	f, err := os.Open(path)
 	if err != nil {
@@ -92,6 +101,8 @@ func LoadResources(ctx context.Context, hst host.Host, path string) (Resources, 
 		}
 		resources = append(resources, updatedAndValidatedDocResources...)
 	}
+
+	nestedLogger.WithField("", resources.String()).Trace("Resources")
 
 	return resources, nil
 }

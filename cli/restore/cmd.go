@@ -63,7 +63,7 @@ var Cmd = &cobra.Command{
 
 		// Save rollback bundle
 		if err := state.SaveHostState(
-			ctx, resource.NewHostState(hostState.PreviousBundle, &rollbackBundle), persistantState,
+			ctx, resource.NewHostState(rollbackBundle, true), persistantState,
 		); err != nil {
 			logger.Fatal(err)
 		}
@@ -71,7 +71,7 @@ var Cmd = &cobra.Command{
 		// Execute
 		if err = plan.Execute(ctx, hst); err == nil {
 			if err := state.SaveHostState(
-				ctx, resource.NewHostState(hostState.PreviousBundle, nil), persistantState,
+				ctx, resource.NewHostState(hostState.PreviousBundle, false), persistantState,
 			); err != nil {
 				logger.Fatal(err)
 			}
@@ -89,7 +89,7 @@ var Cmd = &cobra.Command{
 
 			// Save State
 			if err := state.SaveHostState(
-				ctx, resource.NewHostState(hostState.PreviousBundle, nil), persistantState,
+				ctx, resource.NewHostState(hostState.PreviousBundle, false), persistantState,
 			); err != nil {
 				logger.Fatal(err)
 			}

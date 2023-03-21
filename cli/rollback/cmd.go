@@ -38,7 +38,7 @@ var Cmd = &cobra.Command{
 		if hostState == nil {
 			logger.Fatal("No previously saved host state available to rollback from")
 		}
-		if hostState.RollbackBundle == nil {
+		if !hostState.Rollback {
 			logger.Fatal("No rollback required for saved host state")
 		}
 
@@ -52,7 +52,7 @@ var Cmd = &cobra.Command{
 
 		// Plan
 		plan, err := resource.NewPlan(
-			ctx, hst, *hostState.RollbackBundle, nil, typeNameStateMap, resource.ActionConfigure,
+			ctx, hst, hostState.PreviousBundle, nil, typeNameStateMap, resource.ActionConfigure,
 		)
 		if err != nil {
 			logger.Fatal(err)
@@ -62,7 +62,7 @@ var Cmd = &cobra.Command{
 		// Execute
 		if err = plan.Execute(ctx, hst); err == nil {
 			if err := state.SaveHostState(
-				ctx, resource.NewHostState(hostState.PreviousBundle, nil), persistantState,
+				ctx, resource.NewHostState(hostState.PreviousBundle, false), persistantState,
 			); err != nil {
 				logger.Fatal(err)
 			}
