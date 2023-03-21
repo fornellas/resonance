@@ -73,3 +73,9 @@ runs:
     - name: git status
       run: GIT_STATUS="$(git status --porcelain)" && [ -n "$GIT_STATUS" ] && { echo git status ; echo "$GIT_STATUS" ; echo git diff ; git diff ; exit 1 ; } || true
       shell: bash
+    # codecov
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        files: cover.out
+        fail_ci_if_error: true
