@@ -222,8 +222,3 @@ func LoadBundle(ctx context.Context, hst host.Host, root string) (Bundle, error)
 
 	return bundle, nil
 }
-
-// NewBundleFromResources creates a single bundle from a HostState.
-func NewBundleFromResources(resources Resources) Bundle {
-	return Bundle{resources}
-}

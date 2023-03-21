@@ -222,16 +222,6 @@ func (tn TypeName) IsMergeableManageableResources() bool {
 	return ok
 }
 
-// MustMergeableManageableResources returns MergeableManageableResources from ManageableResource or
-// panics if it isn't of the required type.
-func (tn TypeName) MustMergeableManageableResources() MergeableManageableResources {
-	mergeableManageableResources, ok := tn.ManageableResource().(MergeableManageableResources)
-	if !ok {
-		panic(fmt.Errorf("%s is not MergeableManageableResources", tn))
-	}
-	return mergeableManageableResources
-}
-
 func NewTypeName(tpe Type, name Name) (TypeName, error) {
 	return NewTypeNameFromStr(fmt.Sprintf("%s[%s]", tpe, name))
 }
@@ -316,15 +306,6 @@ func (r Resource) ManageableResource() ManageableResource {
 func (r Resource) Refreshable() bool {
 	_, ok := r.ManageableResource().(RefreshableManageableResource)
 	return ok
-}
-
-// IndividuallyManageableResource returns IndividuallyManageableResource
-func (r Resource) IndividuallyManageableResource() (IndividuallyManageableResource, error) {
-	individuallyManageableResource, ok := r.ManageableResource().(IndividuallyManageableResource)
-	if !ok {
-		return nil, fmt.Errorf("%s is not IndividuallyManageableResource", r)
-	}
-	return individuallyManageableResource, nil
 }
 
 // MustIndividuallyManageableResource returns IndividuallyManageableResource from ManageableResource or
