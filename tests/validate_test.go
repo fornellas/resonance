@@ -10,32 +10,32 @@ import (
 func TestValidate(t *testing.T) {
 	stateRoot, resourcesRoot := setupDirs(t)
 
-	fooState := resources.TestState{
+	fooState := resources.IndividualState{
 		Value: "foo",
 	}
 
-	barState := resources.TestState{
+	barState := resources.IndividualState{
 		Value: "bar",
 	}
 
 	setupBundles(t, resourcesRoot, map[string]resource.Resources{
 		"test.yaml": resource.Resources{
 			{
-				TypeName: "Test[foo]",
+				TypeName: "Individual[foo]",
 				State:    fooState,
 			},
 			{
-				TypeName: "Test[bar]",
+				TypeName: "Individual[bar]",
 				State:    barState,
 			},
 		},
 	})
-	setupTestType(t, []resources.TestFuncCall{
+	resources.SetupIndividualType(t, []resources.IndividualFuncCall{
 		// Loading resources
-		{ValidateName: &resources.TestFuncValidateName{
+		{ValidateName: &resources.IndividualFuncValidateName{
 			Name: "foo",
 		}},
-		{ValidateName: &resources.TestFuncValidateName{
+		{ValidateName: &resources.IndividualFuncValidateName{
 			Name: "bar",
 		}},
 	})

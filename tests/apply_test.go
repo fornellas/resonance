@@ -36,11 +36,11 @@ func TestApplySuccess(t *testing.T) {
 		resourcesRoot,
 	}
 
-	fooState := resources.TestState{
+	fooState := resources.IndividualState{
 		Value: "foo",
 	}
 
-	barState := resources.TestState{
+	barState := resources.IndividualState{
 		Value: "bar",
 	}
 
@@ -48,46 +48,46 @@ func TestApplySuccess(t *testing.T) {
 		setupBundles(t, resourcesRoot, map[string]resource.Resources{
 			"test.yaml": resource.Resources{
 				{
-					TypeName: "Test[foo]",
+					TypeName: "Individual[foo]",
 					State:    fooState,
 				},
 				{
-					TypeName: "Test[bar]",
+					TypeName: "Individual[bar]",
 					State:    barState,
 				},
 			},
 		})
-		setupTestType(t, []resources.TestFuncCall{
+		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
 			// Loading resources
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "bar",
 			}},
 			// Reading Host State
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "foo",
 				ReturnState: nil,
 			}},
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "bar",
 				ReturnState: nil,
 			}},
 			// Executing plan
-			{Configure: &resources.TestFuncConfigure{
+			{Configure: &resources.IndividualFuncConfigure{
 				Name:  "foo",
 				State: fooState,
 			}},
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
-			{Configure: &resources.TestFuncConfigure{
+			{Configure: &resources.IndividualFuncConfigure{
 				Name:  "bar",
 				State: barState,
 			}},
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "bar",
 				ReturnState: barState,
 			}},
@@ -103,27 +103,27 @@ func TestApplySuccess(t *testing.T) {
 	}
 
 	t.Run("Idempotency", func(t *testing.T) {
-		setupTestType(t, []resources.TestFuncCall{
+		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
 			// Loading resources
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "bar",
 			}},
 			// Loading saved host state
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "bar",
 			}},
 			// Reading Host State
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "bar",
 				ReturnState: barState,
 			}},
@@ -142,34 +142,34 @@ func TestApplySuccess(t *testing.T) {
 		setupBundles(t, resourcesRoot, map[string]resource.Resources{
 			"test.yaml": resource.Resources{
 				{
-					TypeName: "Test[foo]",
+					TypeName: "Individual[foo]",
 					State:    fooState,
 				},
 			},
 		})
-		setupTestType(t, []resources.TestFuncCall{
+		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
 			// Loading resources
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
 			}},
 			// Loading saved host state
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "bar",
 			}},
 			// Reading Host State
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "bar",
 				ReturnState: barState,
 			}},
 			// Executing plan
-			{Destroy: &resources.TestFuncDestroy{
+			{Destroy: &resources.IndividualFuncDestroy{
 				Name: "bar",
 			}},
 		})
@@ -184,17 +184,17 @@ func TestApplySuccess(t *testing.T) {
 	}
 
 	t.Run("Idempotency", func(t *testing.T) {
-		setupTestType(t, []resources.TestFuncCall{
+		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
 			// Loading resources
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
 			}},
 			// Loading saved host state
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
 			}},
 			// Reading Host State
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
@@ -213,42 +213,42 @@ func TestApplySuccess(t *testing.T) {
 		setupBundles(t, resourcesRoot, map[string]resource.Resources{
 			"test.yaml": resource.Resources{
 				{
-					TypeName: "Test[foo]",
+					TypeName: "Individual[foo]",
 					State:    fooState,
 				},
 				{
-					TypeName: "Test[bar]",
+					TypeName: "Individual[bar]",
 					State:    barState,
 				},
 			},
 		})
-		setupTestType(t, []resources.TestFuncCall{
+		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
 			// Loading resources
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "bar",
 			}},
 			// Loading saved host state
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
 			}},
 			// Reading Host State
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "bar",
 				ReturnState: nil,
 			}},
 			// Executing plan
-			{Configure: &resources.TestFuncConfigure{
+			{Configure: &resources.IndividualFuncConfigure{
 				Name:  "bar",
 				State: barState,
 			}},
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "bar",
 				ReturnState: barState,
 			}},
@@ -264,27 +264,27 @@ func TestApplySuccess(t *testing.T) {
 	}
 
 	t.Run("Idempotency", func(t *testing.T) {
-		setupTestType(t, []resources.TestFuncCall{
+		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
 			// Loading resources
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "bar",
 			}},
 			// Loading saved host state
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "bar",
 			}},
 			// Reading Host State
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "bar",
 				ReturnState: barState,
 			}},
@@ -308,19 +308,19 @@ func TestApplyDirtyState(t *testing.T) {
 		resourcesRoot,
 	}
 
-	fooState := resources.TestState{
+	fooState := resources.IndividualState{
 		Value: "foo",
 	}
 
-	barState := resources.TestState{
+	barState := resources.IndividualState{
 		Value: "bar",
 	}
 
-	fooNewState := resources.TestState{
+	fooNewState := resources.IndividualState{
 		Value: "fooNew",
 	}
 
-	barNewState := resources.TestState{
+	barNewState := resources.IndividualState{
 		Value: "barNew",
 	}
 
@@ -328,46 +328,46 @@ func TestApplyDirtyState(t *testing.T) {
 		setupBundles(t, resourcesRoot, map[string]resource.Resources{
 			"test.yaml": resource.Resources{
 				{
-					TypeName: "Test[foo]",
+					TypeName: "Individual[foo]",
 					State:    fooState,
 				},
 				{
-					TypeName: "Test[bar]",
+					TypeName: "Individual[bar]",
 					State:    barState,
 				},
 			},
 		})
-		setupTestType(t, []resources.TestFuncCall{
+		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
 			// Loading resources
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "bar",
 			}},
 			// Reading Host State
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "foo",
 				ReturnState: nil,
 			}},
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "bar",
 				ReturnState: nil,
 			}},
 			// Executing plan
-			{Configure: &resources.TestFuncConfigure{
+			{Configure: &resources.IndividualFuncConfigure{
 				Name:  "foo",
 				State: fooState,
 			}},
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
-			{Configure: &resources.TestFuncConfigure{
+			{Configure: &resources.IndividualFuncConfigure{
 				Name:  "bar",
 				State: barState,
 			}},
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "bar",
 				ReturnState: barState,
 			}},
@@ -383,27 +383,27 @@ func TestApplyDirtyState(t *testing.T) {
 	}
 
 	t.Run("apply with dirty state", func(t *testing.T) {
-		setupTestType(t, []resources.TestFuncCall{
+		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
 			// Loading resources
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "bar",
 			}},
 			// Loading saved host state
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "bar",
 			}},
 			// Reading Host State
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "foo",
 				ReturnState: fooNewState,
 			}},
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "bar",
 				ReturnState: barNewState,
 			}},
@@ -428,11 +428,11 @@ func TestApplyFailureWithRollback(t *testing.T) {
 		resourcesRoot,
 	}
 
-	fooState := resources.TestState{
+	fooState := resources.IndividualState{
 		Value: "foo",
 	}
 
-	barState := resources.TestState{
+	barState := resources.IndividualState{
 		Value: "bar",
 	}
 
@@ -440,46 +440,46 @@ func TestApplyFailureWithRollback(t *testing.T) {
 		setupBundles(t, resourcesRoot, map[string]resource.Resources{
 			"test.yaml": resource.Resources{
 				{
-					TypeName: "Test[foo]",
+					TypeName: "Individual[foo]",
 					State:    fooState,
 				},
 				{
-					TypeName: "Test[bar]",
+					TypeName: "Individual[bar]",
 					State:    barState,
 				},
 			},
 		})
-		setupTestType(t, []resources.TestFuncCall{
+		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
 			// Loading resources
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "bar",
 			}},
 			// Reading Host State
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "foo",
 				ReturnState: nil,
 			}},
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "bar",
 				ReturnState: nil,
 			}},
 			// Executing plan
-			{Configure: &resources.TestFuncConfigure{
+			{Configure: &resources.IndividualFuncConfigure{
 				Name:  "foo",
 				State: fooState,
 			}},
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
-			{Configure: &resources.TestFuncConfigure{
+			{Configure: &resources.IndividualFuncConfigure{
 				Name:  "bar",
 				State: barState,
 			}},
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "bar",
 				ReturnState: barState,
 			}},
@@ -494,11 +494,11 @@ func TestApplyFailureWithRollback(t *testing.T) {
 		return
 	}
 
-	fooNewState := resources.TestState{
+	fooNewState := resources.IndividualState{
 		Value: "fooNew",
 	}
 
-	barNewState := resources.TestState{
+	barNewState := resources.IndividualState{
 		Value: "barNew",
 	}
 
@@ -506,78 +506,78 @@ func TestApplyFailureWithRollback(t *testing.T) {
 		setupBundles(t, resourcesRoot, map[string]resource.Resources{
 			"test.yaml": resource.Resources{
 				{
-					TypeName: "Test[foo]",
+					TypeName: "Individual[foo]",
 					State:    fooNewState,
 				},
 				{
-					TypeName: "Test[bar]",
+					TypeName: "Individual[bar]",
 					State:    barNewState,
 				},
 			},
 		})
-		setupTestType(t, []resources.TestFuncCall{
+		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
 			// Loading resources
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "bar",
 			}},
 			// Loading saved host state
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "bar",
 			}},
 			// Reading Host State
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "bar",
 				ReturnState: barState,
 			}},
 			// Executing plan
-			{Configure: &resources.TestFuncConfigure{
+			{Configure: &resources.IndividualFuncConfigure{
 				Name:  "foo",
 				State: fooNewState,
 			}},
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "foo",
 				ReturnState: fooNewState,
 			}},
-			{Configure: &resources.TestFuncConfigure{
+			{Configure: &resources.IndividualFuncConfigure{
 				Name:        "bar",
 				State:       barNewState,
 				ReturnError: errors.New("barNew failed"),
 			}},
 			// Rollback: Reading host state
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "foo",
 				ReturnState: fooNewState,
 			}},
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name: "bar",
-				ReturnState: resources.TestState{
+				ReturnState: resources.IndividualState{
 					Value: "barBroken",
 				},
 			}},
 			// Rollback: Executing plan
-			{Configure: &resources.TestFuncConfigure{
+			{Configure: &resources.IndividualFuncConfigure{
 				Name:  "foo",
 				State: fooState,
 			}},
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
-			{Configure: &resources.TestFuncConfigure{
+			{Configure: &resources.IndividualFuncConfigure{
 				Name:  "bar",
 				State: barState,
 			}},
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "bar",
 				ReturnState: barState,
 			}},

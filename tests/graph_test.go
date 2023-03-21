@@ -10,42 +10,42 @@ import (
 func TestGraph(t *testing.T) {
 	stateRoot, resourcesRoot := setupDirs(t)
 
-	fooState := resources.TestState{
+	fooState := resources.IndividualState{
 		Value: "foo",
 	}
 
-	barState := resources.TestState{
+	barState := resources.IndividualState{
 		Value: "bar",
 	}
 
 	setupBundles(t, resourcesRoot, map[string]resource.Resources{
 		"test.yaml": resource.Resources{
 			{
-				TypeName: "Test[foo]",
+				TypeName: "Individual[foo]",
 				State:    fooState,
 			},
 			{
-				TypeName: "Test[bar]",
+				TypeName: "Individual[bar]",
 				State:    barState,
 			},
 		},
 	})
 
 	t.Run("plan link", func(t *testing.T) {
-		setupTestType(t, []resources.TestFuncCall{
+		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
 			// Loading resources
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "bar",
 			}},
 			// Reading Host State
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "foo",
 				ReturnState: nil,
 			}},
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "bar",
 				ReturnState: barState,
 			}},
@@ -61,25 +61,25 @@ func TestGraph(t *testing.T) {
 		}
 		runCommand(t, Cmd{
 			Args:             args,
-			ExpectedInStdout: "http://magjac.com/graphviz-visual-editor/?dot=digraph+resonance+%7B%0A++node+%5Bshape%3Dbox%5D+%22Test%5B%F0%9F%94%A7+foo%5D%22%0A++node+%5Bshape%3Dbox%5D+%22Test%5B%E2%9C%85+bar%5D%22%0A++%22Test%5B%F0%9F%94%A7+foo%5D%22+-%3E+%22Test%5B%E2%9C%85+bar%5D%22%0A%7D%0A",
+			ExpectedInStdout: "http://magjac.com/graphviz-visual-editor/?dot=digraph+resonance+%7B%0A++node+%5Bshape%3Dbox%5D+%22Individual%5B%F0%9F%94%A7+foo%5D%22%0A++node+%5Bshape%3Dbox%5D+%22Individual%5B%E2%9C%85+bar%5D%22%0A++%22Individual%5B%F0%9F%94%A7+foo%5D%22+-%3E+%22Individual%5B%E2%9C%85+bar%5D%22%0A%7D%0A",
 		})
 	})
 
 	t.Run("plan dot", func(t *testing.T) {
-		setupTestType(t, []resources.TestFuncCall{
+		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
 			// Loading resources
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
 			}},
-			{ValidateName: &resources.TestFuncValidateName{
+			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "bar",
 			}},
 			// Reading Host State
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "foo",
 				ReturnState: nil,
 			}},
-			{GetState: &resources.TestFuncGetState{
+			{GetState: &resources.IndividualFuncGetState{
 				Name:        "bar",
 				ReturnState: barState,
 			}},
@@ -96,9 +96,9 @@ func TestGraph(t *testing.T) {
 		runCommand(t, Cmd{
 			Args: args,
 			ExpectedInStdout: (`digraph resonance {` + "\n" +
-				`  node [shape=box] "Test[🔧 foo]"` + "\n" +
-				`  node [shape=box] "Test[✅ bar]"` + "\n" +
-				`  "Test[🔧 foo]" -> "Test[✅ bar]"` + "\n" +
+				`  node [shape=box] "Individual[🔧 foo]"` + "\n" +
+				`  node [shape=box] "Individual[✅ bar]"` + "\n" +
+				`  "Individual[🔧 foo]" -> "Individual[✅ bar]"` + "\n" +
 				`}` + "\n"),
 		})
 	})

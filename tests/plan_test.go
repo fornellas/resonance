@@ -10,40 +10,40 @@ import (
 func TestPlan(t *testing.T) {
 	stateRoot, resourcesRoot := setupDirs(t)
 
-	fooState := resources.TestState{
+	fooState := resources.IndividualState{
 		Value: "foo",
 	}
 
-	barState := resources.TestState{
+	barState := resources.IndividualState{
 		Value: "bar",
 	}
 
 	setupBundles(t, resourcesRoot, map[string]resource.Resources{
 		"test.yaml": resource.Resources{
 			{
-				TypeName: "Test[foo]",
+				TypeName: "Individual[foo]",
 				State:    fooState,
 			},
 			{
-				TypeName: "Test[bar]",
+				TypeName: "Individual[bar]",
 				State:    barState,
 			},
 		},
 	})
-	setupTestType(t, []resources.TestFuncCall{
+	resources.SetupIndividualType(t, []resources.IndividualFuncCall{
 		// Loading resources
-		{ValidateName: &resources.TestFuncValidateName{
+		{ValidateName: &resources.IndividualFuncValidateName{
 			Name: "foo",
 		}},
-		{ValidateName: &resources.TestFuncValidateName{
+		{ValidateName: &resources.IndividualFuncValidateName{
 			Name: "bar",
 		}},
 		// Reading Host State
-		{GetState: &resources.TestFuncGetState{
+		{GetState: &resources.IndividualFuncGetState{
 			Name:        "foo",
 			ReturnState: nil,
 		}},
-		{GetState: &resources.TestFuncGetState{
+		{GetState: &resources.IndividualFuncGetState{
 			Name:        "bar",
 			ReturnState: barState,
 		}},
@@ -58,9 +58,9 @@ func TestPlan(t *testing.T) {
 	}
 	runCommand(t, Cmd{
 		Args: args,
-		ExpectedInOutput: ("  🔧 Test[foo]\n" +
+		ExpectedInOutput: ("  🔧 Individual[foo]\n" +
 			"    value: foo\n" +
 			"    \n" +
-			"  Test[✅ bar]\n"),
+			"  Individual[✅ bar]\n"),
 	})
 }
