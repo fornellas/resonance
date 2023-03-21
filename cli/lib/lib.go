@@ -87,7 +87,7 @@ func Rollback(ctx context.Context, hst host.Host, rollbackBundle resource.Bundle
 
 	// TODO save state without rollback
 
-	logger.Fatal("Failed to apply, rollback to previously saved state successful.")
+	logger.Fatal("Failed, rollback to previously saved state successful.")
 }
 
 func readState(

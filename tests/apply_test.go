@@ -416,7 +416,7 @@ func TestApplyDirtyState(t *testing.T) {
 	})
 }
 
-func TestApplyFailureWithSuccessfulRollback(t *testing.T) {
+func TestApplyFailureWithRollback(t *testing.T) {
 	stateRoot, resourcesRoot := setupDirs(t)
 
 	args := []string{
@@ -585,7 +585,7 @@ func TestApplyFailureWithSuccessfulRollback(t *testing.T) {
 		runCommand(t, Cmd{
 			Args:             args,
 			ExpectedCode:     1,
-			ExpectedInOutput: "Failed to apply, rollback to previously saved state successful",
+			ExpectedInOutput: "Failed, rollback to previously saved state successful",
 		})
 	})
 }

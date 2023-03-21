@@ -326,7 +326,7 @@ func TestDestroyFailureWithSuccessfulRollback(t *testing.T) {
 		runCommand(t, Cmd{
 			Args:             args,
 			ExpectedCode:     1,
-			ExpectedInOutput: "Failed to apply, rollback to previously saved state successful",
+			ExpectedInOutput: "Failed, rollback to previously saved state successful",
 		})
 	})
 }
