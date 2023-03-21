@@ -124,16 +124,12 @@ func (sam StepActionMerged) MustMergeableManageableResources() MergeableManageab
 	return mergeableManageableResources
 }
 
-// Execute the required Action for each Resource.
-func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
-	logger := log.GetLogger(ctx)
-
-	if !sam.Actionable() {
-		logger.Debugf("%s", sam)
-		return nil
-	}
-
-	// Build parameters
+func (sam StepActionMerged) buildParameters() (
+	Resources,
+	map[Action]map[Name]State,
+	[]Name,
+	map[TypeName]Resource,
+) {
 	checkResources := Resources{}
 	configureActionParameters := map[Action]map[Name]State{}
 	refreshNames := []Name{}
@@ -144,17 +140,47 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 			if action == ActionRefresh {
 				refreshNames = append(refreshNames, resource.MustName())
 			} else {
-				if configureActionParameters[action] == nil {
-					configureActionParameters[action] = map[Name]State{}
-				}
-				if !resource.Destroy {
-					configureActionParameters[action][resource.MustName()] = resource.State
+				add := false
+				var state State
+
+				if resource.Destroy {
+					state = nil
+					add = true
 				} else {
-					configureActionParameters[action][resource.MustName()] = nil
+					if action == ActionDestroy {
+						panic(fmt.Errorf("action is destroy but resonance.Destroy is false: %s", resource))
+					}
+					if action.Actionable() {
+						state = resource.State
+						add = true
+					}
+				}
+
+				if add {
+					checkResources = append(checkResources, resource)
+					if configureActionParameters[action] == nil {
+						configureActionParameters[action] = map[Name]State{}
+					}
+					configureActionParameters[action][resource.MustName()] = state
 				}
 			}
 		}
 	}
+
+	return checkResources, configureActionParameters, refreshNames, typeNameResourceMap
+}
+
+// Execute the required Action for each Resource.
+func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
+	logger := log.GetLogger(ctx)
+
+	if !sam.Actionable() {
+		logger.Debugf("%s", sam)
+		return nil
+	}
+
+	// Build parameters
+	checkResources, configureActionParameters, refreshNames, typeNameResourceMap := sam.buildParameters()
 
 	// ConfigureAll
 	if err := sam.MustMergeableManageableResources().ConfigureAll(
@@ -389,14 +415,59 @@ func (p Plan) Actionable() bool {
 	return false
 }
 
+func (p Plan) printResource(
+	ctx context.Context,
+	step *Step,
+	resource Resource,
+	resources Resources,
+) {
+	logger := log.GetLogger(ctx)
+	nestedCtx := log.IndentLogger(ctx)
+	nestedLogger := log.GetLogger(nestedCtx)
+
+	currentState, ok := p.TypeNameStateMap[resource.TypeName]
+	if !ok {
+		panic(fmt.Sprintf("State not found at TypeNameStateMap: %s", resource.TypeName))
+	}
+
+	diffs := Diff(currentState, resource.State)
+
+	var action Action
+	for actionResources, stepResources := range step.ActionResourcesMap() {
+		for _, stepResource := range stepResources {
+			if stepResource.TypeName == resource.TypeName {
+				action = actionResources
+			}
+		}
+	}
+	if action == ActionNone {
+		panic(fmt.Sprintf("can not find action: %s", resource))
+	}
+
+	if DiffsHasChanges(diffs) {
+		diffMatchPatch := diffmatchpatch.New()
+		if len(resources) > 1 {
+			nestedLogger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).
+				Infof("%s %s", action.Emoji(), resource)
+		} else {
+			logger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).
+				Infof("%s %s", action.Emoji(), resource)
+		}
+	} else {
+		if len(resources) > 1 {
+			logger.Infof("  %s %s", action.Emoji(), resource)
+		} else {
+			logger.Infof("%s %s", action.Emoji(), resource)
+		}
+	}
+}
+
 // Print the whole plan
 func (p Plan) Print(ctx context.Context, hst host.Host) error {
 	logger := log.GetLogger(ctx)
 	logger.Info("📝 Plan")
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
-	nestedNestedCtx := log.IndentLogger(nestedCtx)
-	nestedNestedLogger := log.GetLogger(nestedNestedCtx)
 
 	if !p.Actionable() {
 		nestedLogger.Infof("👌 Nothing to do")
@@ -420,37 +491,7 @@ func (p Plan) Print(ctx context.Context, hst host.Host) error {
 			}
 
 			for _, resource := range resources {
-				currentState, ok := p.TypeNameStateMap[resource.TypeName]
-				if !ok {
-					panic(fmt.Sprintf("State not found at TypeNameStateMap: %s", resource.TypeName))
-				}
-
-				diffs := Diff(currentState, resource.State)
-
-				var action Action
-				for actionResources, stepResources := range step.ActionResourcesMap() {
-					for _, stepResource := range stepResources {
-						if stepResource.TypeName == resource.TypeName {
-							action = actionResources
-						}
-					}
-				}
-				if action == ActionNone {
-					panic(fmt.Sprintf("can not find action: %s", resource))
-				}
-
-				if DiffsHasChanges(diffs) {
-					diffMatchPatch := diffmatchpatch.New()
-					if len(resources) > 1 {
-						nestedNestedLogger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).
-							Infof("%s %s", action.Emoji(), resource)
-					} else {
-						nestedLogger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).
-							Infof("%s %s", action.Emoji(), resource)
-					}
-				} else {
-					nestedLogger.Infof("%s %s", action.Emoji(), resource)
-				}
+				p.printResource(nestedCtx, step, resource, resources)
 			}
 		} else {
 			nestedLogger.Debugf("%s", step)
@@ -568,9 +609,13 @@ func addDestroyStepsToPlan(
 			}
 		}
 
+		resource := previousResource
+		resource.State = nil
+		resource.Destroy = true
+
 		step := &Step{
 			StepAction: StepActionIndividual{
-				Resource: previousResource,
+				Resource: resource,
 				Action:   ActionDestroy,
 			},
 			prerequisiteFor: prerequisiteFor,

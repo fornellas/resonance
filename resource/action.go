@@ -46,6 +46,19 @@ var actionStrMap = map[Action]string{
 	ActionDestroy:   "Destroy",
 }
 
+func (a Action) Actionable() bool {
+	if a == ActionRefresh {
+		return true
+	}
+	if a == ActionConfigure {
+		return true
+	}
+	if a == ActionDestroy {
+		return true
+	}
+	return false
+}
+
 func (a Action) String() string {
 	str, ok := actionStrMap[a]
 	if !ok {

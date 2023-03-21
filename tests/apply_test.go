@@ -24,7 +24,7 @@ func TestApplyNoYamlResourceFiles(t *testing.T) {
 	})
 }
 
-func TestApplySuccess(t *testing.T) {
+func TestApplyIndividual(t *testing.T) {
 	stateRoot, resourcesRoot := setupDirs(t)
 
 	args := []string{
@@ -287,6 +287,501 @@ func TestApplySuccess(t *testing.T) {
 			{GetState: &resources.IndividualFuncGetState{
 				Name:        "bar",
 				ReturnState: barState,
+			}},
+		})
+		runCommand(t, Cmd{
+			Args:             args,
+			ExpectedInOutput: "Apply successful",
+		})
+	})
+}
+
+func TestApplyIndividualAndMergeable(t *testing.T) {
+	stateRoot, resourcesRoot := setupDirs(t)
+
+	args := []string{
+		"apply",
+		"--log-level=debug",
+		"--force-color",
+		"--localhost",
+		"--state-root", stateRoot,
+		resourcesRoot,
+	}
+
+	fooMergeableState := resources.MergeableState{
+		Value: "foo",
+	}
+
+	barMergeableState := resources.MergeableState{
+		Value: "bar",
+	}
+
+	fooIndividualState := resources.IndividualState{
+		Value: "foo",
+	}
+
+	barIndividualState := resources.IndividualState{
+		Value: "bar",
+	}
+
+	t.Run("First apply", func(t *testing.T) {
+		setupBundles(t, resourcesRoot, map[string]resource.Resources{
+			"a.yaml": resource.Resources{
+				{
+					TypeName: "Mergeable[foo]",
+					State:    fooMergeableState,
+				},
+				{
+					TypeName: "Individual[foo]",
+					State:    fooIndividualState,
+				},
+			},
+			"b.yaml": resource.Resources{
+				{
+					TypeName: "Mergeable[bar]",
+					State:    barMergeableState,
+				},
+				{
+					TypeName: "Individual[bar]",
+					State:    barIndividualState,
+				},
+			},
+		})
+		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+			// Loading resources
+			{ValidateName: &resources.IndividualFuncValidateName{
+				Name: "foo",
+			}},
+			{ValidateName: &resources.IndividualFuncValidateName{
+				Name: "bar",
+			}},
+			// Reading Host State
+			{GetState: &resources.IndividualFuncGetState{
+				Name: "foo",
+			}},
+			{GetState: &resources.IndividualFuncGetState{
+				Name: "bar",
+			}},
+			// Executing plan
+			{Configure: &resources.IndividualFuncConfigure{
+				Name:  "foo",
+				State: fooIndividualState,
+			}},
+			{GetState: &resources.IndividualFuncGetState{
+				Name:        "foo",
+				ReturnState: fooIndividualState,
+			}},
+			{Configure: &resources.IndividualFuncConfigure{
+				Name:  "bar",
+				State: barIndividualState,
+			}},
+			{GetState: &resources.IndividualFuncGetState{
+				Name:        "bar",
+				ReturnState: barIndividualState,
+			}},
+		})
+		resources.SetupMergeableType(t, []resources.MergeableFuncCall{
+			// Loading resources
+			{ValidateName: &resources.MergeableFuncValidateName{
+				Name: "foo",
+			}},
+			{ValidateName: &resources.MergeableFuncValidateName{
+				Name: "bar",
+			}},
+			// Reading Host State
+			{GetStates: &resources.MergeableFuncGetStates{
+				Names: []resource.Name{
+					resource.Name("foo"),
+					resource.Name("bar"),
+				},
+				ReturnNameStateMap: map[resource.Name]resource.State{
+					resource.Name("foo"): nil,
+					resource.Name("bar"): nil,
+				},
+			}},
+			// Executing plan
+			{ConfigureAll: &resources.MergeableFuncConfigureAll{
+				ActionNameStateMap: map[resource.Action]map[resource.Name]resource.State{
+					resource.ActionConfigure: map[resource.Name]resource.State{
+						resource.Name("foo"): fooMergeableState,
+						resource.Name("bar"): barMergeableState,
+					},
+				},
+			}},
+			{GetStates: &resources.MergeableFuncGetStates{
+				Names: []resource.Name{
+					resource.Name("foo"),
+					resource.Name("bar"),
+				},
+				ReturnNameStateMap: map[resource.Name]resource.State{
+					resource.Name("foo"): fooMergeableState,
+					resource.Name("bar"): barMergeableState,
+				},
+			}},
+		})
+		runCommand(t, Cmd{
+			Args:             args,
+			ExpectedInOutput: "Apply successful",
+		})
+	})
+
+	if t.Failed() {
+		return
+	}
+
+	t.Run("Idempotency", func(t *testing.T) {
+		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+			// Loading resources
+			{ValidateName: &resources.IndividualFuncValidateName{
+				Name: "foo",
+			}},
+			{ValidateName: &resources.IndividualFuncValidateName{
+				Name: "bar",
+			}},
+			// Loading saved host state
+			{ValidateName: &resources.IndividualFuncValidateName{
+				Name: "foo",
+			}},
+			{ValidateName: &resources.IndividualFuncValidateName{
+				Name: "bar",
+			}},
+			// Reading Host State
+			{GetState: &resources.IndividualFuncGetState{
+				Name:        "foo",
+				ReturnState: fooIndividualState,
+			}},
+			{GetState: &resources.IndividualFuncGetState{
+				Name:        "bar",
+				ReturnState: barIndividualState,
+			}},
+		})
+		resources.SetupMergeableType(t, []resources.MergeableFuncCall{
+			// Loading resources
+			{ValidateName: &resources.MergeableFuncValidateName{
+				Name: "foo",
+			}},
+			{ValidateName: &resources.MergeableFuncValidateName{
+				Name: "bar",
+			}},
+			// Loading saved host state
+			{ValidateName: &resources.MergeableFuncValidateName{
+				Name: "foo",
+			}},
+			{ValidateName: &resources.MergeableFuncValidateName{
+				Name: "bar",
+			}},
+			// Reading Host State
+			{GetStates: &resources.MergeableFuncGetStates{
+				Names: []resource.Name{
+					resource.Name("foo"),
+					resource.Name("bar"),
+				},
+				ReturnNameStateMap: map[resource.Name]resource.State{
+					resource.Name("foo"): fooMergeableState,
+					resource.Name("bar"): barMergeableState,
+				},
+			}},
+		})
+		runCommand(t, Cmd{
+			Args:             args,
+			ExpectedInOutput: "Apply successful",
+		})
+	})
+
+	if t.Failed() {
+		return
+	}
+
+	t.Run("Destroy old resources", func(t *testing.T) {
+		setupBundles(t, resourcesRoot, map[string]resource.Resources{
+			"a.yaml": resource.Resources{
+				{
+					TypeName: "Mergeable[foo]",
+					State:    fooMergeableState,
+				},
+			},
+			"b.yaml": resource.Resources{
+				{
+					TypeName: "Individual[bar]",
+					State:    barIndividualState,
+				},
+			},
+		})
+		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+			// Loading resources
+			{ValidateName: &resources.IndividualFuncValidateName{
+				Name: "bar",
+			}},
+			// Loading saved host state
+			{ValidateName: &resources.IndividualFuncValidateName{
+				Name: "foo",
+			}},
+			{ValidateName: &resources.IndividualFuncValidateName{
+				Name: "bar",
+			}},
+			// Reading Host State
+			{GetState: &resources.IndividualFuncGetState{
+				Name:        "bar",
+				ReturnState: barIndividualState,
+			}},
+			{GetState: &resources.IndividualFuncGetState{
+				Name:        "foo",
+				ReturnState: fooIndividualState,
+			}},
+			// Executing plan
+			{Destroy: &resources.IndividualFuncDestroy{
+				Name: "foo",
+			}},
+		})
+		resources.SetupMergeableType(t, []resources.MergeableFuncCall{
+			// Loading resources
+			{ValidateName: &resources.MergeableFuncValidateName{
+				Name: "foo",
+			}},
+			// Loading saved host state
+			{ValidateName: &resources.MergeableFuncValidateName{
+				Name: "foo",
+			}},
+			{ValidateName: &resources.MergeableFuncValidateName{
+				Name: "bar",
+			}},
+			// Reading Host State
+			{GetStates: &resources.MergeableFuncGetStates{
+				Names: []resource.Name{
+					resource.Name("foo"),
+					resource.Name("bar"),
+				},
+				ReturnNameStateMap: map[resource.Name]resource.State{
+					resource.Name("foo"): fooMergeableState,
+					resource.Name("bar"): barMergeableState,
+				},
+			}},
+			// Executing plan
+			{ConfigureAll: &resources.MergeableFuncConfigureAll{
+				ActionNameStateMap: map[resource.Action]map[resource.Name]resource.State{
+					resource.ActionDestroy: map[resource.Name]resource.State{
+						resource.Name("bar"): nil,
+					},
+				},
+			}},
+			{GetStates: &resources.MergeableFuncGetStates{
+				Names: []resource.Name{
+					resource.Name("bar"),
+				},
+				ReturnNameStateMap: map[resource.Name]resource.State{
+					resource.Name("bar"): nil,
+				},
+			}},
+		})
+		runCommand(t, Cmd{
+			Args:             args,
+			ExpectedInOutput: "Apply successful",
+		})
+	})
+
+	if t.Failed() {
+		return
+	}
+
+	t.Run("Idempotency", func(t *testing.T) {
+		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+			// Loading resources
+			{ValidateName: &resources.IndividualFuncValidateName{
+				Name: "bar",
+			}},
+			// Loading saved host state
+			{ValidateName: &resources.IndividualFuncValidateName{
+				Name: "bar",
+			}},
+			// Reading Host State
+			{GetState: &resources.IndividualFuncGetState{
+				Name:        "bar",
+				ReturnState: barIndividualState,
+			}},
+		})
+		resources.SetupMergeableType(t, []resources.MergeableFuncCall{
+			// Loading resources
+			{ValidateName: &resources.MergeableFuncValidateName{
+				Name: "foo",
+			}},
+			// Loading saved host state
+			{ValidateName: &resources.MergeableFuncValidateName{
+				Name: "foo",
+			}},
+			// Reading Host State
+			{GetStates: &resources.MergeableFuncGetStates{
+				Names: []resource.Name{
+					resource.Name("foo"),
+				},
+				ReturnNameStateMap: map[resource.Name]resource.State{
+					resource.Name("foo"): fooMergeableState,
+				},
+			}},
+		})
+		runCommand(t, Cmd{
+			Args:             args,
+			ExpectedInOutput: "Apply successful",
+		})
+	})
+
+	if t.Failed() {
+		return
+	}
+
+	t.Run("Apply new resource", func(t *testing.T) {
+		setupBundles(t, resourcesRoot, map[string]resource.Resources{
+			"a.yaml": resource.Resources{
+				{
+					TypeName: "Mergeable[foo]",
+					State:    fooMergeableState,
+				},
+				{
+					TypeName: "Individual[foo]",
+					State:    fooIndividualState,
+				},
+			},
+			"b.yaml": resource.Resources{
+				{
+					TypeName: "Mergeable[bar]",
+					State:    barMergeableState,
+				},
+				{
+					TypeName: "Individual[bar]",
+					State:    barIndividualState,
+				},
+			},
+		})
+		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+			// Loading resources
+			{ValidateName: &resources.IndividualFuncValidateName{
+				Name: "foo",
+			}},
+			{ValidateName: &resources.IndividualFuncValidateName{
+				Name: "bar",
+			}},
+			// Loading saved host state
+			{ValidateName: &resources.IndividualFuncValidateName{
+				Name: "bar",
+			}},
+			// Reading Host State
+			{GetState: &resources.IndividualFuncGetState{
+				Name: "foo",
+			}},
+			{GetState: &resources.IndividualFuncGetState{
+				Name:        "bar",
+				ReturnState: barIndividualState,
+			}},
+			// Executing plan
+			{Configure: &resources.IndividualFuncConfigure{
+				Name:  "foo",
+				State: fooIndividualState,
+			}},
+			{GetState: &resources.IndividualFuncGetState{
+				Name:        "foo",
+				ReturnState: fooIndividualState,
+			}},
+		})
+		resources.SetupMergeableType(t, []resources.MergeableFuncCall{
+			// Loading resources
+			{ValidateName: &resources.MergeableFuncValidateName{
+				Name: "foo",
+			}},
+			{ValidateName: &resources.MergeableFuncValidateName{
+				Name: "bar",
+			}},
+			// Loading saved host state
+			{ValidateName: &resources.MergeableFuncValidateName{
+				Name: "foo",
+			}},
+			// Reading Host State
+			{GetStates: &resources.MergeableFuncGetStates{
+				Names: []resource.Name{
+					resource.Name("foo"),
+					resource.Name("bar"),
+				},
+				ReturnNameStateMap: map[resource.Name]resource.State{
+					resource.Name("foo"): fooMergeableState,
+					resource.Name("bar"): nil,
+				},
+			}},
+			// Executing plan
+			{ConfigureAll: &resources.MergeableFuncConfigureAll{
+				ActionNameStateMap: map[resource.Action]map[resource.Name]resource.State{
+					resource.ActionConfigure: map[resource.Name]resource.State{
+						resource.Name("bar"): barMergeableState,
+					},
+				},
+			}},
+			{GetStates: &resources.MergeableFuncGetStates{
+				Names: []resource.Name{
+					resource.Name("bar"),
+				},
+				ReturnNameStateMap: map[resource.Name]resource.State{
+					resource.Name("bar"): barMergeableState,
+				},
+			}},
+		})
+		runCommand(t, Cmd{
+			Args:             args,
+			ExpectedInOutput: "Apply successful",
+		})
+	})
+
+	if t.Failed() {
+		return
+	}
+
+	t.Run("Idempotency", func(t *testing.T) {
+		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+			// Loading resources
+			{ValidateName: &resources.IndividualFuncValidateName{
+				Name: "foo",
+			}},
+			{ValidateName: &resources.IndividualFuncValidateName{
+				Name: "bar",
+			}},
+			// Loading saved host state
+			{ValidateName: &resources.IndividualFuncValidateName{
+				Name: "foo",
+			}},
+			{ValidateName: &resources.IndividualFuncValidateName{
+				Name: "bar",
+			}},
+			// Reading Host State
+			{GetState: &resources.IndividualFuncGetState{
+				Name:        "foo",
+				ReturnState: fooIndividualState,
+			}},
+			{GetState: &resources.IndividualFuncGetState{
+				Name:        "bar",
+				ReturnState: barIndividualState,
+			}},
+		})
+		resources.SetupMergeableType(t, []resources.MergeableFuncCall{
+			// Loading resources
+			{ValidateName: &resources.MergeableFuncValidateName{
+				Name: "foo",
+			}},
+			{ValidateName: &resources.MergeableFuncValidateName{
+				Name: "bar",
+			}},
+			// Loading saved host state
+			{ValidateName: &resources.MergeableFuncValidateName{
+				Name: "foo",
+			}},
+			{ValidateName: &resources.MergeableFuncValidateName{
+				Name: "bar",
+			}},
+			// Reading Host State
+			{GetStates: &resources.MergeableFuncGetStates{
+				Names: []resource.Name{
+					resource.Name("foo"),
+					resource.Name("bar"),
+				},
+				ReturnNameStateMap: map[resource.Name]resource.State{
+					resource.Name("foo"): fooMergeableState,
+					resource.Name("bar"): barMergeableState,
+				},
 			}},
 		})
 		runCommand(t, Cmd{
