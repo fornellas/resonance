@@ -85,8 +85,9 @@ var Cmd = &cobra.Command{
 
 		if err == nil {
 			// Save plan state
-			newHostState := resource.NewHostState(resource.Bundle{}, nil)
-			if err := state.SaveHostState(ctx, newHostState, persistantState); err != nil {
+			if err := state.SaveHostState(
+				ctx, resource.NewHostState(resource.Bundle{}, nil), persistantState,
+			); err != nil {
 				logger.Fatal(err)
 			}
 
