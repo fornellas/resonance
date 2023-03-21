@@ -6,11 +6,11 @@ import (
 	"github.com/fornellas/resonance/resource"
 )
 
-func TestRefreshNoPreviousState(t *testing.T) {
+func TestRestoreNoPreviousState(t *testing.T) {
 	stateRoot, _ := setupDirs(t)
 
 	args := []string{
-		"refresh",
+		"restore",
 		"--log-level=debug",
 		"--force-color",
 		"--localhost",
@@ -20,19 +20,19 @@ func TestRefreshNoPreviousState(t *testing.T) {
 	runCommand(t, Cmd{
 		Args:             args,
 		ExpectedCode:     1,
-		ExpectedInOutput: "No previously saved host state available to check",
+		ExpectedInOutput: "No previously saved host state available to restore from",
 	})
 }
 
-func TestRefresh(t *testing.T) {
+func TestRestore(t *testing.T) {
 	stateRoot, resourcesRoot := setupDirs(t)
 
 	fooState := TestState{
 		Value: "foo",
 	}
 
-	fooStateNew := TestState{
-		Value: "fooNew",
+	fooStateBroken := TestState{
+		Value: "fooBroken",
 	}
 
 	t.Run("apply", func(t *testing.T) {
@@ -82,7 +82,7 @@ func TestRefresh(t *testing.T) {
 		return
 	}
 
-	t.Run("refresh", func(t *testing.T) {
+	t.Run("restore", func(t *testing.T) {
 		setupTestType(t, []TestFuncCall{
 			// Loading saved host state
 			{ValidateName: &TestFuncValidateName{
@@ -91,11 +91,20 @@ func TestRefresh(t *testing.T) {
 			// Reading Host State
 			{GetState: &TestFuncGetState{
 				Name:        "foo",
-				ReturnState: fooStateNew,
+				ReturnState: fooStateBroken,
+			}},
+			// Executing plan
+			{Configure: &TestFuncConfigure{
+				Name:  "foo",
+				State: fooState,
+			}},
+			{GetState: &TestFuncGetState{
+				Name:        "foo",
+				ReturnState: fooState,
 			}},
 		})
 		args := []string{
-			"refresh",
+			"restore",
 			"--log-level=debug",
 			"--force-color",
 			"--localhost",
@@ -103,7 +112,7 @@ func TestRefresh(t *testing.T) {
 		}
 		runCommand(t, Cmd{
 			Args:             args,
-			ExpectedInOutput: "Refresh successful",
+			ExpectedInOutput: "Restore successful",
 		})
 	})
 
@@ -112,14 +121,6 @@ func TestRefresh(t *testing.T) {
 	}
 
 	t.Run("apply", func(t *testing.T) {
-		setupBundles(t, resourcesRoot, map[string]resource.Resources{
-			"test.yaml": resource.Resources{
-				{
-					TypeName: "Test[foo]",
-					State:    fooStateNew,
-				},
-			},
-		})
 		setupTestType(t, []TestFuncCall{
 			// Loading resources
 			{ValidateName: &TestFuncValidateName{
@@ -132,7 +133,7 @@ func TestRefresh(t *testing.T) {
 			// Reading host state
 			{GetState: &TestFuncGetState{
 				Name:        "foo",
-				ReturnState: fooStateNew,
+				ReturnState: fooState,
 			}},
 		})
 		args := []string{

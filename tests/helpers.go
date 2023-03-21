@@ -75,7 +75,7 @@ func runCommand(t *testing.T, cmd Cmd) {
 
 	cmdOutputLogged := false
 	logCmdOutput := func() {
-		if !cmdOutputLogged && !testing.Verbose() && t.Failed() {
+		if !cmdOutputLogged && (!testing.Verbose() || t.Failed()) {
 			t.Logf("%s\n%s", cmd, outputBuffer.String())
 		}
 		cmdOutputLogged = true

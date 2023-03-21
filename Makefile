@@ -265,7 +265,7 @@ test: gotest
 .PHONY: clean-gotest
 clean-gotest:
 	$(GO) clean -r -testcache
-	rm -f cover.out
+	rm -f cover.out cover.html
 clean: clean-gotest
 
 # cover.html
@@ -279,6 +279,14 @@ test: cover.html
 clean-cover.html:
 	rm -f cover.html
 clean: clean-cover.html
+
+# cover-func
+
+.PHONY: cover-func
+cover-func: cover.html
+	@echo -n "Coverage: "
+	@$(GO) tool cover -func cover.out | awk '/^total:/{print $$NF}'
+test: cover-func
 
 ##
 ## ci
