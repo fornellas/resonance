@@ -1,25 +1,25 @@
 # Roadmap
 
-- 🧪 MVP
+- 🧪MVP
     - Minimum CI /CD.
     - Basic types: `File`, `APTPackage`, `SystemdUnit`.
     - CLI with basic commands.
-- ✨  Refinement
+- ✨Refinement
     - Add tests
     - Toughen CI
     - Speed, refine existing features, squash bugs.
     - Improve dependencies (type implicit and subscription).
-- 📈  Expansion
+- 📈Expansion
     - Publish packages.
     - SSH support.
     - More resource types.
-- 📄  Templating
+- 📄Templating
     - Host inventory.
     - Generate resources with Go template.
     - "High level" resources can declare "primitive" resources.
-- 🌎 Core features complete
+- 🌎Core features complete
     - Add help command with information on all resource types.
-- 💡 Ideas
+- 💡Ideas
     - Support different Linux Distributions (eg: some resources may require slightly different implementations).
     - Manage multiple hosts: do in parallel, all or nothnig for the whole group.
 
@@ -27,11 +27,11 @@
 
 - GitHub Action
     - `.github/actions/build.yaml`
-        - ✨Add check for test code coverage (integrate with badge).
         - ✨Fix cache for tools at `bin/` not working
-- README.md
-    - Add badges
-      - ✨Coverage
+- Documentation
+    - ✨README.md
+      - ✨Usage example.
+    - ✨Resources
 - ✨Add TESTS!
     - ✨`RefreshableManageableResource`
     - ✨`host/local.go`
@@ -45,50 +45,9 @@
         - 📈Implement using Go Ssh libraries.
     - ✨Ensure execution environment is always the same.
 - `resource/`
-    - 💡Merge `Resource` and `ManageableResource`.
-    - `alternatives.go`
-        - 💡Implement with `update-alternatives`.
-    - `apt_update.go`
-        - 📈Calls `apt-get update`.
-        - 📈There should be a single resource declaration
-            - 📈Implicitly added if not present.
-        - 📈It must be `refreshed_by` `APTRepository`.
-        - 📈Parameters can be "freshness", so eg, if update is > freshness, then do update.
-    - `apt_repository.go`:
-        - 📈Use `add-apt-repository` to add at `/etc/apt/sources.list.d`
-    - `apt_package.go`
-        - ✨Improve `APTPackageState.ValidateName`
-        - ✨Improve `APTPackage.ValidateName`
-        - ✨Enforce after `File[/etc/apt/preferences.d/.+]`.
-        - 📈 Support directly passing `.deb` packages.
-    - `file.go`
-        - ✨Type: regular, link, dir, char device, block device, pipe, socket.
-    - `group.go`
-        - 📈Manage groups.
-    - `user.go`
-        - 📈After `Group[.+]`.
-    - `git.go`
-        - 💡Clone a git repository and clean checkout to a specific hash.
-    - `hostname.go`
-        - 💡Set the hostname.
-    - `network_manager.go`
-        - 💡Setup network interfaces.
-    - `fstab.go`
-        - 💡Manage entries
-    - `reboot.go`
-        - 💡Handle reboots (eg: for kernel upgrades).
-    - `sysctl.go`
-        - 💡`/etc/sysctl.d/` file and refresh.
-    - `iptables.go`
-        - 💡iptables configuration in disk & reload.
-    - `hosts.go`
-        - 💡Manage entries.
-    - `resource.go`
-        - 💡After `Plan.Execute` , validate the full state again to detect any cross-resource state breakage.
+    - `bundle.go`
         - 🧪Improve diff output
-            - Use https://pkg.go.dev/github.com/kylelemons/godebug/diff?
-        - `Plan.Execute`
-            - ✨Parallelise check.
+        - Use https://pkg.go.dev/github.com/kylelemons/godebug/diff?
         - `LoadResourceBundles`
             - Go templates
                 - 📄Before parsing yaml, Go template each resource bundle yaml.
@@ -103,24 +62,67 @@
                             - 📄There may be valid corner cases here. In such scenarios:
                                 - 📄`--allow-inventory-changes` have apply re-run when inventory changes at the end.
                                 - 📄Should put a limit (otherwise, inifinite loops can happen).
-        - `PersistantState`
-            - ✨Save history of states: enable to rollback to any previous state.
-            - ✨Support `refreshed_by`, to enable resources to subscribe to others (eg: `SystemdUnit[nginx.service]` is `refreshed_by` `File[/etc/nginx/.+]`)
-        - `ManageableResource`
-            - ✨Support defining implicit dependencies (eg: `Group` before `User`)
-            - Check if current host OS is supported.
-        - `Plan`
-            - `Execute`
-                - ✨Apply nodes concurrently for cases where it can be done (eg: no refresh).
-            - `NewPlan`
-                - ✨Run checks concurrently.
+    - `resource.go`
+        - 💡Merge `Resource` and `ManageableResource`.
+        - ✨Parallelize checks at `GetTypeNameStateMap`.
+        - ✨Support defining implicit dependencies (eg: `Group` before `User`)
+        - 💡Check if current host OS is supported.
         - 📄High level & Primitive resources
             - 📄Primitive resources are the basic types (eg: `File`, `Package`)
             - 📄Support high level resources, that are declared individually, but when loaded, generate various primitive resources.
-    - `systemd_unit.go`
-        - 🧪Manages https://www.freedesktop.org/software/systemd/man/systemd.unit.html
-        - 🧪Calls `systemctl daemon-reload` on change.
-        - 🧪On refresh, do `systemctl reload-or-restart $unit`.
+    - `types/`
+        - `*.go`
+            - 💡Merge `File` and `FileState` (same for other types).
+        - `alternatives.go`
+            - 📈Implement with `update-alternatives`.
+        - `apt_update.go`
+            - 📈Calls `apt-get update`.
+            - 📈There should be a single resource declaration
+                - 📈Implicitly added if not present.
+            - 📈It must be `refreshed_by` `APTRepository`.
+            - 📈Parameters can be "freshness", so eg, if update is > freshness, then do update.
+        - `apt_repository.go`:
+            - 📈Use `add-apt-repository` to add at `/etc/apt/sources.list.d`
+        - `apt_package.go`
+            - ✨Improve `APTPackageState.ValidateName`
+            - ✨Improve `APTPackage.ValidateName`
+            - ✨Enforce after `File[/etc/apt/preferences.d/.+]`.
+            - 📈 Support directly passing `.deb` packages.
+        - `file.go`
+            - ✨Type: regular, link, dir, char device, block device, pipe, socket.
+        - `git.go`
+            - 💡Clone a git repository and clean checkout to a specific hash.
+        - `group.go`
+            - 📈Manage groups.
+        - `hostname.go`
+            - 💡Set the hostname.
+        - `hosts.go`
+            - 💡Manage entries.
+        - `iptables.go`
+            - 💡iptables configuration in disk & reload.
+        - `network_manager.go`
+            - 💡Setup network interfaces.
+        - `fstab.go`
+            - 💡Manage entries
+        - `reboot.go`
+            - 💡Handle reboots (eg: for kernel upgrades).
+        - `sysctl.go`
+            - 💡`/etc/sysctl.d/` file and refresh.
+        - `systemd_unit.go`
+            - 🧪Manages https://www.freedesktop.org/software/systemd/man/systemd.unit.html
+            - 🧪Calls `systemctl daemon-reload` on change.
+            - 🧪On refresh, do `systemctl reload-or-restart $unit`.
+        - `user.go`
+            - 📈After `Group[.+]`.
+    - `plan.go`
+        - ✨Apply nodes concurrently for cases where it can be done (eg: no refresh).
+        - 💡After `Plan.Execute` , validate the full state again to detect any cross-resource state breakage.
+        - 🧪Improve diff output
+            - Use https://pkg.go.dev/github.com/kylelemons/godebug/diff?
+    - `state.go`
+        - `PersistantState`
+            - ✨Save history of states: enable to rollback to any previous state.
+            - ✨Support `refreshed_by`, to enable resources to subscribe to others (eg: `SystemdUnit[nginx.service]` is `refreshed_by` `File[/etc/nginx/.+]`)
 - `cli/`
     - `**/cmd.go`
         - ✨^C cancel context
