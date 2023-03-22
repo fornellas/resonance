@@ -34,8 +34,8 @@ func (h Host) Save(ctx context.Context, bytes []byte) error {
 			return err
 		}
 		logger.Warnf(
-			"unable to change file ownership to root, be mindful it may contain sensitive information: %s :%s",
-			h.Path, err,
+			"failed to change ownership to root, be mindful it may contain sensitive information: %s",
+			err,
 		)
 	}
 	return nil
