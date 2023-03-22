@@ -91,18 +91,17 @@ func (l Local) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, er
 	}
 
 	waitStatus := WaitStatus{}
-
 	err := execCmd.Run()
+	if err != nil {
+		if _, ok := err.(*exec.ExitError); !ok {
+			return waitStatus, stdoutBuffer.String(), stderrBuffer.String(), err
+		}
+	}
 	waitStatus.ExitCode = execCmd.ProcessState.ExitCode()
 	waitStatus.Exited = execCmd.ProcessState.Exited()
 	signal := execCmd.ProcessState.Sys().(syscall.WaitStatus).Signal()
 	if signal > 0 {
 		waitStatus.Signal = signal.String()
-	}
-	if err != nil {
-		if _, ok := err.(*exec.ExitError); !ok {
-			return waitStatus, stdoutBuffer.String(), stderrBuffer.String(), err
-		}
 	}
 	return waitStatus, stdoutBuffer.String(), stderrBuffer.String(), nil
 }
