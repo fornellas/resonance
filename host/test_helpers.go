@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -138,20 +139,36 @@ func testHost(t *testing.T, host Host) {
 		})
 	})
 
-	// t.Run("Mkdir", func(t *testing.T) {
-	// 	t.Run("Success", func(t *testing.T) {
-	// outputBuffer.Reset()
-	// 	})
-	// 	t.Run("ErrPermission", func(t *testing.T) {
-	// outputBuffer.Reset()
-	// 	})
-	// 	t.Run("ErrExist", func(t *testing.T) {
-	// outputBuffer.Reset()
-	// 	})
-	// 	t.Run("ErrNotExist", func(t *testing.T) {
-	// outputBuffer.Reset()
-	// 	})
-	// })
+	t.Run("Mkdir", func(t *testing.T) {
+		t.Run("Success", func(t *testing.T) {
+			outputBuffer.Reset()
+			name := filepath.Join(t.TempDir(), "foo")
+			fileMode := os.FileMode(0500)
+			err := host.Mkdir(ctx, name, fileMode)
+			require.NoError(t, err)
+			fileInfo, err := os.Lstat(name)
+			require.NoError(t, err)
+			require.True(t, fileInfo.IsDir())
+			require.Equal(t, fileMode, fileInfo.Mode()&fs.ModePerm)
+		})
+		t.Run("ErrPermission", func(t *testing.T) {
+			outputBuffer.Reset()
+			checkNotRoot(t)
+			err := host.Mkdir(ctx, "/etc/foo", 0750)
+			require.ErrorIs(t, err, os.ErrPermission)
+		})
+		t.Run("ErrExist", func(t *testing.T) {
+			outputBuffer.Reset()
+			name := filepath.Join(t.TempDir(), "foo")
+			err := host.Mkdir(ctx, name, 0750)
+			require.NoError(t, err)
+			err = host.Mkdir(ctx, name, 0750)
+			require.ErrorIs(t, err, os.ErrExist)
+		})
+		t.Run("ErrNotExist", func(t *testing.T) {
+			outputBuffer.Reset()
+		})
+	})
 
 	// t.Run("ReadFile", func(t *testing.T) {
 	// 	t.Run("Success", func(t *testing.T) {
