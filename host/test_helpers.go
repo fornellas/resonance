@@ -167,23 +167,34 @@ func testHost(t *testing.T, host Host) {
 		})
 		t.Run("ErrNotExist", func(t *testing.T) {
 			outputBuffer.Reset()
+			name := filepath.Join(t.TempDir(), "foo", "bar")
+			err := host.Mkdir(ctx, name, 0750)
+			require.ErrorIs(t, err, os.ErrNotExist)
 		})
 	})
 
-	// t.Run("ReadFile", func(t *testing.T) {
-	// 	t.Run("Success", func(t *testing.T) {
-	// outputBuffer.Reset()
-	// 	})
-	// 	t.Run("ErrPermission", func(t *testing.T) {
-	// outputBuffer.Reset()
-	// 	})
-	// 	t.Run("ErrExist", func(t *testing.T) {
-	// outputBuffer.Reset()
-	// 	})
-	// 	t.Run("ErrNotExist", func(t *testing.T) {
-	// outputBuffer.Reset()
-	// 	})
-	// })
+	t.Run("ReadFile", func(t *testing.T) {
+		t.Run("Success", func(t *testing.T) {
+			outputBuffer.Reset()
+			name := filepath.Join(t.TempDir(), "foo")
+			data := []byte("foo")
+			err := os.WriteFile(name, data, os.FileMode(0600))
+			require.NoError(t, err)
+			readData, err := host.ReadFile(ctx, name)
+			require.NoError(t, err)
+			require.Equal(t, data, readData)
+		})
+		t.Run("ErrPermission", func(t *testing.T) {
+			outputBuffer.Reset()
+			_, err := host.ReadFile(ctx, "/etc/shadow")
+			require.ErrorIs(t, err, os.ErrPermission)
+		})
+		t.Run("ErrNotExist", func(t *testing.T) {
+			outputBuffer.Reset()
+			_, err := host.ReadFile(ctx, "/non-existent")
+			require.ErrorIs(t, err, os.ErrNotExist)
+		})
+	})
 
 	// t.Run("Remove", func(t *testing.T) {
 	// 	t.Run("Success", func(t *testing.T) {
