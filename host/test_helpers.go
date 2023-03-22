@@ -113,20 +113,30 @@ func testHost(t *testing.T, host Host) {
 		})
 	})
 
-	// t.Run("Lstat", func(t *testing.T) {
-	// 	t.Run("Success", func(t *testing.T) {
-	// outputBuffer.Reset()
-	// 	})
-	// 	t.Run("ErrPermission", func(t *testing.T) {
-	// outputBuffer.Reset()
-	// 	})
-	// 	t.Run("ErrExist", func(t *testing.T) {
-	// outputBuffer.Reset()
-	// 	})
-	// 	t.Run("ErrNotExist", func(t *testing.T) {
-	// outputBuffer.Reset()
-	// 	})
-	// })
+	t.Run("Lstat", func(t *testing.T) {
+		name := filepath.Join(t.TempDir(), "foo")
+		file, err := os.Create(name)
+		require.NoError(t, err)
+		file.Close()
+		t.Run("Success", func(t *testing.T) {
+			outputBuffer.Reset()
+			fileInfo, err := os.Lstat(name)
+			require.NoError(t, err)
+			hostFileInfo, err := host.Lstat(ctx, name)
+			require.NoError(t, err)
+			require.Equal(t, fileInfo, hostFileInfo)
+		})
+		t.Run("ErrPermission", func(t *testing.T) {
+			outputBuffer.Reset()
+			_, err := host.Lstat(ctx, "/etc/ssl/private/foo")
+			require.ErrorIs(t, err, os.ErrPermission)
+		})
+		t.Run("ErrNotExist", func(t *testing.T) {
+			outputBuffer.Reset()
+			_, err := host.Lstat(ctx, "/non-existent")
+			require.ErrorIs(t, err, os.ErrNotExist)
+		})
+	})
 
 	// t.Run("Mkdir", func(t *testing.T) {
 	// 	t.Run("Success", func(t *testing.T) {
