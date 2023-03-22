@@ -28,6 +28,9 @@ export GOMODCACHE := $(CACHE_DIR)/go-mod
 .PHONY: GOMODCACHE
 GOMODCACHE:
 	@echo $(GOMODCACHE)
+# osusergo have Lookup and LookupGroup to use pure Go implementation to enable
+# management of local users
+GO_BUILD_FLAGS := -tags osusergo
 
 GOIMPORTS_VERSION := 0.3.0
 GOIMPORTS := goimports
@@ -259,7 +262,7 @@ uninstall-deps: uninstall-deps-gotest
 
 .PHONY: gotest
 gotest: install-deps-gotest go-generate
-	$(GO_TEST) ./... $(GO_TEST_FLAGS)
+	$(GO_TEST) ./... $(GO_TEST_FLAGS) $(GO_BUILD_FLAGS)
 test: gotest
 
 .PHONY: clean-gotest
@@ -355,7 +358,7 @@ help: build-help
 
 .PHONY: build
 build: go-generate
-	$(GO) build .
+	$(GO) build $(GO_BUILD_FLAGS) .
 
 .PHONY: clean-build
 clean-build:

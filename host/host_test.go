@@ -3,6 +3,7 @@ package host
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -127,7 +128,12 @@ func testHost(t *testing.T, host Host) {
 			require.NoError(t, err)
 			hostFileInfo, err := host.Lstat(ctx, name)
 			require.NoError(t, err)
-			require.Equal(t, fileInfo, hostFileInfo)
+			require.Equal(t, fileInfo.Name(), hostFileInfo.Name())
+			require.Equal(t, fileInfo.Size(), hostFileInfo.Size())
+			require.Equal(t, fileInfo.Mode(), hostFileInfo.Mode())
+			require.Equal(t, fileInfo.ModTime(), hostFileInfo.ModTime())
+			require.Equal(t, fileInfo.IsDir(), hostFileInfo.IsDir())
+			require.Equal(t, fileInfo.Sys(), hostFileInfo.Sys())
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()
@@ -199,7 +205,7 @@ func testHost(t *testing.T, host Host) {
 	})
 
 	t.Run("Remove", func(t *testing.T) {
-		t.Run("Success", func(t *testing.T) {
+		t.Run("Success file", func(t *testing.T) {
 			outputBuffer.Reset()
 			name := filepath.Join(t.TempDir(), "foo")
 			file, err := os.Create(name)
@@ -210,10 +216,26 @@ func testHost(t *testing.T, host Host) {
 			_, err = os.Lstat(name)
 			require.ErrorIs(t, err, os.ErrNotExist)
 		})
-		t.Run("ErrPermission", func(t *testing.T) {
+		t.Run("Success dir", func(t *testing.T) {
+			outputBuffer.Reset()
+			name := filepath.Join(t.TempDir(), "foo")
+			err := os.Mkdir(name, 0700)
+			require.NoError(t, err)
+			err = host.Remove(ctx, name)
+			require.NoError(t, err)
+			_, err = os.Lstat(name)
+			require.ErrorIs(t, err, os.ErrNotExist)
+		})
+		t.Run("ErrPermission file", func(t *testing.T) {
 			outputBuffer.Reset()
 			skipIfRoot(t)
 			err := host.Remove(ctx, "/bin/ls")
+			require.ErrorIs(t, err, os.ErrPermission)
+		})
+		t.Run("ErrPermission dir", func(t *testing.T) {
+			outputBuffer.Reset()
+			skipIfRoot(t)
+			err := host.Remove(ctx, "/bin")
 			require.ErrorIs(t, err, os.ErrPermission)
 		})
 		t.Run("ErrNotExist", func(t *testing.T) {
@@ -348,7 +370,7 @@ func testHost(t *testing.T, host Host) {
 			err := host.WriteFile(ctx, "/etc/foo", []byte{}, 0600)
 			require.ErrorIs(t, err, os.ErrPermission)
 		})
-		t.Run("ErrExist", func(t *testing.T) {
+		t.Run("ovewrite file", func(t *testing.T) {
 			outputBuffer.Reset()
 			name := filepath.Join(t.TempDir(), "foo")
 			fileMode := os.FileMode(0600)
@@ -366,6 +388,14 @@ func testHost(t *testing.T, host Host) {
 			require.False(t, fileInfo.IsDir())
 			require.Equal(t, fileMode, fileInfo.Mode()&fs.ModePerm)
 		})
+		t.Run("syscall.EISDIR", func(t *testing.T) {
+			outputBuffer.Reset()
+			name := filepath.Join(t.TempDir(), "foo")
+			err := os.Mkdir(name, os.FileMode(0700))
+			require.NoError(t, err)
+			err = host.WriteFile(ctx, name, []byte{}, os.FileMode(0640))
+			require.ErrorIs(t, err, syscall.EISDIR)
+		})
 		t.Run("ErrNotExist", func(t *testing.T) {
 			outputBuffer.Reset()
 			name := filepath.Join(t.TempDir(), "foo", "bar")
@@ -378,5 +408,70 @@ func testHost(t *testing.T, host Host) {
 func TestLocal(t *testing.T) {
 	host := Local{}
 
+	testHost(t, host)
+}
+
+type localRunOnly struct {
+	T    *testing.T
+	Host Host
+}
+
+func (lro localRunOnly) Chmod(ctx context.Context, name string, mode os.FileMode) error {
+	err := errors.New("unexpected call received: Chmod")
+	lro.T.Fatal(err)
+	return err
+}
+func (lro localRunOnly) Chown(ctx context.Context, name string, uid, gid int) error {
+	err := errors.New("unexpected call received: Chown")
+	lro.T.Fatal(err)
+	return err
+}
+func (lro localRunOnly) Lookup(ctx context.Context, username string) (*user.User, error) {
+	err := errors.New("unexpected call received: Lookup")
+	lro.T.Fatal(err)
+	return nil, err
+}
+func (lro localRunOnly) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
+	err := errors.New("unexpected call received: LookupGroup")
+	lro.T.Fatal(err)
+	return nil, err
+}
+func (lro localRunOnly) Lstat(ctx context.Context, name string) (os.FileInfo, error) {
+	err := errors.New("unexpected call received: Lstat")
+	lro.T.Fatal(err)
+	return nil, err
+}
+func (lro localRunOnly) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
+	err := errors.New("unexpected call received: Mkdir")
+	lro.T.Fatal(err)
+	return err
+}
+func (lro localRunOnly) ReadFile(ctx context.Context, name string) ([]byte, error) {
+	err := errors.New("unexpected call received: ReadFile")
+	lro.T.Fatal(err)
+	return nil, err
+}
+func (lro localRunOnly) Remove(ctx context.Context, name string) error {
+	err := errors.New("unexpected call received: Remove")
+	lro.T.Fatal(err)
+	return err
+}
+func (lro localRunOnly) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, error) {
+	return lro.Host.Run(ctx, cmd)
+}
+func (lro localRunOnly) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
+	err := errors.New("unexpected call received: WriteFile")
+	lro.T.Fatal(err)
+	return err
+}
+func (lro localRunOnly) String() string {
+	return lro.Host.String()
+}
+
+func TestRun(t *testing.T) {
+	host := Run{Host: localRunOnly{
+		T:    t,
+		Host: Local{},
+	}}
 	testHost(t, host)
 }

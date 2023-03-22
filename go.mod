@@ -3,6 +3,7 @@ module github.com/fornellas/resonance
 go 1.20
 
 require (
+	github.com/alessio/shellescape v1.4.1
 	github.com/fatih/color v1.14.1
 	github.com/kylelemons/godebug v1.1.0
 	github.com/openconfig/goyang v1.2.0

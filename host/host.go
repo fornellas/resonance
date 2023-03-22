@@ -103,10 +103,12 @@ type Host interface {
 	// // Link works similar to os.Link.
 	// Link(ctx context.Context, oldname, newname string) error
 
-	// Lookup works similar to os/user.Lookup
+	// Lookup works similar to os/user.Lookup in its pure Go version,
+	// that reads from /etc/passwd.
 	Lookup(ctx context.Context, username string) (*user.User, error)
 
-	// LookupGroup works similar to os/user.LookupGroup
+	// LookupGroup works similar to os/user.LookupGroup in its pure Go version,
+	// that reads from /etc/group.
 	LookupGroup(ctx context.Context, name string) (*user.Group, error)
 
 	// Lstat works similar to os.Lstat, but it always returns non-nil Sys().
