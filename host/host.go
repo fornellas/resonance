@@ -112,8 +112,8 @@ type Host interface {
 	// Lstat works similar to os.Lstat, but it always returns non-nil Sys().
 	Lstat(ctx context.Context, name string) (os.FileInfo, error)
 
-	// // Mkdir works similar to os.Mkdir.
-	// Mkdir(ctx context.Context, name string, perm os.FileMode) error
+	// Mkdir works similar to os.Mkdir.
+	Mkdir(ctx context.Context, name string, perm os.FileMode) error
 
 	// ReadFile works similar to os.ReadFile.
 	ReadFile(ctx context.Context, name string) ([]byte, error)

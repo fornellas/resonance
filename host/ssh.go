@@ -33,6 +33,10 @@ func (s Ssh) Lstat(ctx context.Context, name string) (os.FileInfo, error) {
 	return nil, errors.New("TODO Ssh.Lstat")
 }
 
+func (s Ssh) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
+	return errors.New("TODO Ssh.Mkdir")
+}
+
 func (s Ssh) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	return nil, errors.New("TODO Ssh.ReadFile")
 }

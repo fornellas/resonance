@@ -45,6 +45,10 @@ func (l Local) Lstat(ctx context.Context, name string) (os.FileInfo, error) {
 	return os.Lstat(name)
 }
 
+func (l Local) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
+	return os.Mkdir(name, perm)
+}
+
 func (l Local) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("ReadFile %s", name)

@@ -3,9 +3,7 @@ package lib
 import (
 	"context"
 	"errors"
-	"path/filepath"
 
-	"github.com/adrg/xdg"
 	"github.com/spf13/cobra"
 
 	"github.com/fornellas/resonance/host"
@@ -46,13 +44,13 @@ func AddHostFlags(cmd *cobra.Command) {
 var stateRoot string
 
 func GetPersistantState(hst host.Host) (state.PersistantState, error) {
-	return state.NewLocal(stateRoot, hst), nil
+	return state.NewHost(stateRoot, hst), nil
 }
 
 func AddPersistantStateFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(
-		&stateRoot, "state-root", "", filepath.Join(xdg.StateHome, "resonance", "state"),
-		"Root path where to save host state to.",
+		&stateRoot, "state-root", "", "/var/lib/resonance",
+		"Root path at host where to save host state to.",
 	)
 }
 
