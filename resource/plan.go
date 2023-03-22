@@ -47,17 +47,16 @@ func (sai StepActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 			err := refreshableManageableResource.Refresh(ctx, hst, name)
 			if err != nil {
 				logger.Errorf("💥 %s", sai.Resource)
-			} else {
-				logger.Infof("%s %s", ActionRefresh.Emoji(), sai.Resource)
+				return err
 			}
-			return err
+			logger.Infof("%s", sai)
 		}
 	case ActionConfigure:
 		if err := individuallyManageableResource.Configure(ctx, hst, name, state); err != nil {
 			logger.Errorf("💥 %s", sai.Resource)
 			return err
 		}
-		typeNameStateMap, err := GetTypeNameStateMap(ctx, hst, []TypeName{sai.Resource.TypeName})
+		typeNameStateMap, err := GetTypeNameStateMap(ctx, hst, []TypeName{sai.Resource.TypeName}, false)
 		if err != nil {
 			logger.Errorf("💥 %s", sai.Resource)
 			return err
@@ -73,14 +72,14 @@ func (sai StepActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 				"likely bug in resource implementationm as state was dirty immediately after applying",
 			)
 		}
+		logger.Infof("%s", sai)
 	case ActionDestroy:
 		err := individuallyManageableResource.Destroy(ctx, hst, name)
 		if err != nil {
 			logger.Errorf("💥 %s", sai.Resource)
-		} else {
-			logger.Infof("%s %s", ActionDestroy.Emoji(), sai.Resource)
+			return err
 		}
-		return err
+		logger.Infof("%s", sai)
 	default:
 		panic(fmt.Errorf("unexpected action %v", sai.Action))
 	}
@@ -88,7 +87,7 @@ func (sai StepActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 }
 
 func (sai StepActionIndividual) String() string {
-	return fmt.Sprintf("%s[%s %s]", sai.Resource.MustType(), sai.Action.Emoji(), sai.Resource.MustName())
+	return fmt.Sprintf("%s %s[%s]", sai.Action.Emoji(), sai.Resource.MustType(), sai.Resource.MustName())
 }
 
 func (sai StepActionIndividual) Actionable() bool {
@@ -124,12 +123,12 @@ func (sam StepActionMerged) MustMergeableManageableResources() MergeableManageab
 func (sam StepActionMerged) buildParameters() (
 	Resources,
 	map[Action]map[Name]State,
-	[]Name,
+	Names,
 	map[TypeName]Resource,
 ) {
 	checkResources := Resources{}
 	configureActionParameters := map[Action]map[Name]State{}
-	refreshNames := []Name{}
+	refreshNames := Names{}
 	typeNameResourceMap := map[TypeName]Resource{}
 	for action, resources := range sam {
 		for _, resource := range resources {
@@ -167,6 +166,26 @@ func (sam StepActionMerged) buildParameters() (
 	return checkResources, configureActionParameters, refreshNames, typeNameResourceMap
 }
 
+func (sam StepActionMerged) Type() Type {
+	var tpePtr *Type
+	for _, resources := range sam {
+		for _, resource := range resources {
+			if tpePtr != nil {
+				if resource.TypeName.Type() != *tpePtr {
+					panic(fmt.Errorf("multiple resource types: %s", sam))
+				}
+			} else {
+				tpe := resource.TypeName.Type()
+				tpePtr = &tpe
+			}
+		}
+	}
+	if tpePtr == nil {
+		panic(fmt.Errorf("empty: %s", sam))
+	}
+	return *tpePtr
+}
+
 // Execute the required Action for each Resource.
 func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 	logger := log.GetLogger(ctx)
@@ -188,12 +207,11 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 	}
 
 	// Check
-	typeNameStateMap, err := GetTypeNameStateMap(ctx, hst, checkResources.TypeNames())
+	typeNameStateMap, err := GetTypeNameStateMap(ctx, hst, checkResources.TypeNames(), false)
 	if err != nil {
 		logger.Errorf("💥 %s", sam.StringNoAction())
 		return err
 	}
-
 	for typeName, currentState := range typeNameStateMap {
 		resource, ok := typeNameResourceMap[typeName]
 		if !ok {
@@ -208,6 +226,7 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 			)
 		}
 	}
+	logger.Infof("%s", sam)
 
 	// Refresh
 	for _, name := range refreshNames {
@@ -217,8 +236,8 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 			if err != nil {
 				logger.Errorf("💥 %s", sam.StringNoAction())
 			}
-			return err
 		}
+		logger.Infof("%s %s", ActionRefresh.Emoji(), MustNewTypeName(sam.Type(), name))
 	}
 
 	return nil
@@ -324,7 +343,7 @@ func (p Plan) Graphviz() string {
 
 func topologicalSortPlan(ctx context.Context, steps []*Step) ([]*Step, error) {
 	logger := log.GetLogger(ctx)
-	logger.Info("✨ Ordering")
+	logger.Debug("Sorting plan")
 
 	dependantCount := map[*Step]int{}
 	for _, step := range steps {

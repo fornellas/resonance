@@ -63,7 +63,7 @@ func Rollback(ctx context.Context, hst host.Host, rollbackBundle resource.Bundle
 	nestedLogger := log.GetLogger(nestedCtx)
 
 	// Read current state
-	typeNameStateMap, err := resource.GetTypeNameStateMap(nestedCtx, hst, rollbackBundle.TypeNames())
+	typeNameStateMap, err := resource.GetTypeNameStateMap(nestedCtx, hst, rollbackBundle.TypeNames(), true)
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func readState(
 			typeNames = append(typeNames, typeName)
 		}
 	}
-	typeNameStateMap, err := resource.GetTypeNameStateMap(ctx, hst, typeNames)
+	typeNameStateMap, err := resource.GetTypeNameStateMap(ctx, hst, typeNames, true)
 	if err != nil {
 		logger.Fatal(err)
 	}

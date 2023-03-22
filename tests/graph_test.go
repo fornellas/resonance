@@ -61,7 +61,7 @@ func TestGraph(t *testing.T) {
 		}
 		runCommand(t, Cmd{
 			Args:             args,
-			ExpectedInStdout: "http://magjac.com/graphviz-visual-editor/?dot=digraph+resonance+%7B%0A++node+%5Bshape%3Dbox%5D+%22Individual%5B%F0%9F%94%A7+foo%5D%22%0A++node+%5Bshape%3Dbox%5D+%22Individual%5B%E2%9C%85+bar%5D%22%0A++%22Individual%5B%F0%9F%94%A7+foo%5D%22+-%3E+%22Individual%5B%E2%9C%85+bar%5D%22%0A%7D%0A",
+			ExpectedInStdout: "http://magjac.com/graphviz-visual-editor/?dot=digraph+resonance+%7B%0A++node+%5Bshape%3Dbox%5D+%22%F0%9F%94%A7+Individual%5Bfoo%5D%22%0A++node+%5Bshape%3Dbox%5D+%22%E2%9C%85+Individual%5Bbar%5D%22%0A++%22%F0%9F%94%A7+Individual%5Bfoo%5D%22+-%3E+%22%E2%9C%85+Individual%5Bbar%5D%22%0A%7D%0A",
 		})
 	})
 
@@ -96,9 +96,9 @@ func TestGraph(t *testing.T) {
 		runCommand(t, Cmd{
 			Args: args,
 			ExpectedInStdout: (`digraph resonance {` + "\n" +
-				`  node [shape=box] "Individual[🔧 foo]"` + "\n" +
-				`  node [shape=box] "Individual[✅ bar]"` + "\n" +
-				`  "Individual[🔧 foo]" -> "Individual[✅ bar]"` + "\n" +
+				`  node [shape=box] "🔧 Individual[foo]"` + "\n" +
+				`  node [shape=box] "✅ Individual[bar]"` + "\n" +
+				`  "🔧 Individual[foo]" -> "✅ Individual[bar]"` + "\n" +
 				`}` + "\n"),
 		})
 	})

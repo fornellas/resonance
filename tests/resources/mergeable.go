@@ -30,7 +30,7 @@ func (mfvn MergeableFuncValidateName) String() string {
 }
 
 type MergeableFuncGetStates struct {
-	Names              []resource.Name
+	Names              resource.Names
 	ReturnNameStateMap map[resource.Name]resource.State
 	ReturnError        error
 }
@@ -120,7 +120,7 @@ func (m Mergeable) ValidateName(name resource.Name) error {
 
 func (m Mergeable) GetStates(
 	ctx context.Context, hst host.Host,
-	names []resource.Name,
+	names resource.Names,
 ) (map[resource.Name]resource.State, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Test.GetStates(%#v)", names)

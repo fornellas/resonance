@@ -87,16 +87,22 @@ type TypeNameStateMap map[TypeName]State
 
 // GetTypeNameStateMap gets current state for all given TypeName.
 func GetTypeNameStateMap(
-	ctx context.Context, hst host.Host, typeNames []TypeName,
+	ctx context.Context, hst host.Host, typeNames []TypeName, shouldLog bool,
 ) (TypeNameStateMap, error) {
 	logger := log.GetLogger(ctx)
-	logger.Info("🔎 Reading host state")
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
+	var getStateCtx context.Context
+	if shouldLog {
+		logger.Info("🔎 Reading host state")
+		getStateCtx = nestedCtx
+	} else {
+		getStateCtx = ctx
+	}
 
 	// Separate individual from mergeable
 	individuallyManageableResourcesTypeNames := []TypeName{}
-	mergeableManageableResourcesTypeNameMap := map[Type][]Name{}
+	mergeableManageableResourcesTypeNameMap := map[Type]Names{}
 	for _, typeName := range typeNames {
 		if typeName.IsIndividuallyManageableResource() {
 			individuallyManageableResourcesTypeNames = append(
@@ -117,20 +123,32 @@ func GetTypeNameStateMap(
 	// Get state for individual
 	for _, typeName := range individuallyManageableResourcesTypeNames {
 		state, err := typeName.MustIndividuallyManageableResource().GetState(
-			nestedCtx, hst, typeName.Name(),
+			getStateCtx, hst, typeName.Name(),
 		)
 		if err != nil {
+			if shouldLog {
+				nestedLogger.Errorf("%s", typeName)
+			}
 			return nil, err
 		}
-		nestedLogger.Infof("%s", typeName)
+		if shouldLog {
+			nestedLogger.Infof("%s", typeName)
+		}
 		typeNameStateMap[typeName] = state
 	}
 
 	// Get state for mergeable
 	for tpe, names := range mergeableManageableResourcesTypeNameMap {
-		nameStateMap, err := tpe.MustMergeableManageableResources().GetStates(nestedCtx, hst, names)
+		typeNamesStr := fmt.Sprintf("%s[%s]", tpe, names)
+		nameStateMap, err := tpe.MustMergeableManageableResources().GetStates(getStateCtx, hst, names)
 		if err != nil {
+			if shouldLog {
+				nestedLogger.Errorf("%s", typeNamesStr)
+			}
 			return nil, err
+		}
+		if shouldLog {
+			nestedLogger.Infof("%s", typeNamesStr)
 		}
 		for name, state := range nameStateMap {
 			typeName, err := NewTypeName(tpe, name)

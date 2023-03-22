@@ -38,7 +38,7 @@ func (ap APTPackage) ValidateName(name resource.Name) error {
 var aptPackageRegexpNotFound = regexp.MustCompile(`^dpkg-query: no packages found matching (.+)$`)
 
 func (ap APTPackage) GetStates(
-	ctx context.Context, hst host.Host, names []resource.Name,
+	ctx context.Context, hst host.Host, names resource.Names,
 ) (map[resource.Name]resource.State, error) {
 	// Run dpkg
 	hostCmd := host.Cmd{Path: "dpkg-query", Args: []string{

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"sort"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 
@@ -14,6 +16,29 @@ import (
 // Name is a name that globally uniquely identifies a resource instance of a given type.
 // Eg: for File type a Name would be the file absolute path such as /etc/issue.
 type Name string
+
+type Names []Name
+
+func (ns Names) Len() int {
+	return len(ns)
+}
+
+func (ns Names) Swap(i, j int) {
+	ns[i], ns[j] = ns[j], ns[i]
+}
+
+func (ns Names) Less(i, j int) bool {
+	return string(ns[i]) < string(ns[j])
+}
+
+func (ns Names) String() string {
+	namesStr := []string{}
+	for _, name := range ns {
+		namesStr = append(namesStr, string(name))
+	}
+	sort.Strings(namesStr)
+	return strings.Join(namesStr, ",")
+}
 
 // ManageableResource defines a common interface for managing resource state.
 type ManageableResource interface {
@@ -60,7 +85,7 @@ type MergeableManageableResources interface {
 	ManageableResource
 
 	// GetStates gets the state of all resources, or nil if not present.
-	GetStates(ctx context.Context, hst host.Host, names []Name) (map[Name]State, error)
+	GetStates(ctx context.Context, hst host.Host, names Names) (map[Name]State, error)
 
 	// ConfigureAll configures all resource to given state.
 	// Must be idempotent.
@@ -224,6 +249,14 @@ func (tn TypeName) IsMergeableManageableResources() bool {
 
 func NewTypeName(tpe Type, name Name) (TypeName, error) {
 	return NewTypeNameFromStr(fmt.Sprintf("%s[%s]", tpe, name))
+}
+
+func MustNewTypeName(tpe Type, name Name) TypeName {
+	typeName, err := NewTypeNameFromStr(fmt.Sprintf("%s[%s]", tpe, name))
+	if err != nil {
+		panic(err)
+	}
+	return typeName
 }
 
 func NewTypeNameFromStr(typeNameStr string) (TypeName, error) {

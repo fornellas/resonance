@@ -60,6 +60,6 @@ func TestPlan(t *testing.T) {
 		Args: args,
 		ExpectedInOutput: ("  🔧 Individual[foo]\n" +
 			"    +value: foo\n" +
-			"  Individual[✅ bar]\n"),
+			"  ✅ Individual[bar]\n"),
 	})
 }

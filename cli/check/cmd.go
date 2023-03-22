@@ -43,7 +43,7 @@ var Cmd = &cobra.Command{
 
 		// Read state
 		typeNameStateMap, err := resource.GetTypeNameStateMap(
-			ctx, hst, hostState.PreviousBundle.TypeNames(),
+			ctx, hst, hostState.PreviousBundle.TypeNames(), true,
 		)
 		if err != nil {
 			logger.Fatal(err)
