@@ -17,10 +17,12 @@ import (
 	"github.com/fornellas/resonance/log"
 )
 
-func checkNotRoot(t *testing.T) {
+func skipIfRoot(t *testing.T) {
 	u, err := user.Current()
 	require.NoError(t, err)
-	require.NotEqual(t, "0", u.Uid, "test can not be executed as root")
+	if u.Uid == "0" {
+		t.SkipNow()
+	}
 }
 
 func testHost(t *testing.T, host Host) {
@@ -46,7 +48,7 @@ func testHost(t *testing.T, host Host) {
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()
-			checkNotRoot(t)
+			skipIfRoot(t)
 			err = host.Chmod(ctx, "/tmp", 0)
 			require.ErrorIs(t, err, os.ErrPermission)
 		})
@@ -72,7 +74,7 @@ func testHost(t *testing.T, host Host) {
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()
-			checkNotRoot(t)
+			skipIfRoot(t)
 			err = host.Chown(ctx, name, 0, 0)
 			require.ErrorIs(t, err, os.ErrPermission)
 		})
@@ -153,7 +155,7 @@ func testHost(t *testing.T, host Host) {
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()
-			checkNotRoot(t)
+			skipIfRoot(t)
 			err := host.Mkdir(ctx, "/etc/foo", 0750)
 			require.ErrorIs(t, err, os.ErrPermission)
 		})
@@ -210,7 +212,7 @@ func testHost(t *testing.T, host Host) {
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()
-			checkNotRoot(t)
+			skipIfRoot(t)
 			err := host.Remove(ctx, "/bin/ls")
 			require.ErrorIs(t, err, os.ErrPermission)
 		})
@@ -342,7 +344,7 @@ func testHost(t *testing.T, host Host) {
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()
-			checkNotRoot(t)
+			skipIfRoot(t)
 			err := host.WriteFile(ctx, "/etc/foo", []byte{}, 0600)
 			require.ErrorIs(t, err, os.ErrPermission)
 		})
