@@ -196,20 +196,30 @@ func testHost(t *testing.T, host Host) {
 		})
 	})
 
-	// t.Run("Remove", func(t *testing.T) {
-	// 	t.Run("Success", func(t *testing.T) {
-	// outputBuffer.Reset()
-	// 	})
-	// 	t.Run("ErrPermission", func(t *testing.T) {
-	// outputBuffer.Reset()
-	// 	})
-	// 	t.Run("ErrExist", func(t *testing.T) {
-	// outputBuffer.Reset()
-	// 	})
-	// 	t.Run("ErrNotExist", func(t *testing.T) {
-	// outputBuffer.Reset()
-	// 	})
-	// })
+	t.Run("Remove", func(t *testing.T) {
+		t.Run("Success", func(t *testing.T) {
+			outputBuffer.Reset()
+			name := filepath.Join(t.TempDir(), "foo")
+			file, err := os.Create(name)
+			require.NoError(t, err)
+			file.Close()
+			err = host.Remove(ctx, name)
+			require.NoError(t, err)
+			_, err = os.Lstat(name)
+			require.ErrorIs(t, err, os.ErrNotExist)
+		})
+		t.Run("ErrPermission", func(t *testing.T) {
+			outputBuffer.Reset()
+			checkNotRoot(t)
+			err := host.Remove(ctx, "/bin/ls")
+			require.ErrorIs(t, err, os.ErrPermission)
+		})
+		t.Run("ErrNotExist", func(t *testing.T) {
+			outputBuffer.Reset()
+			err := host.Remove(ctx, "/non-existent")
+			require.ErrorIs(t, err, os.ErrNotExist)
+		})
+	})
 
 	t.Run("Run", func(t *testing.T) {
 		t.Run("Args, output and failure", func(t *testing.T) {
