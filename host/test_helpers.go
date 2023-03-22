@@ -324,18 +324,51 @@ func testHost(t *testing.T, host Host) {
 		})
 	})
 
-	// t.Run("WriteFile", func(t *testing.T) {
-	// 	t.Run("Success", func(t *testing.T) {
-	// outputBuffer.Reset()
-	// 	})
-	// 	t.Run("ErrPermission", func(t *testing.T) {
-	// outputBuffer.Reset()
-	// 	})
-	// 	t.Run("ErrExist", func(t *testing.T) {
-	// outputBuffer.Reset()
-	// 	})
-	// 	t.Run("ErrNotExist", func(t *testing.T) {
-	// outputBuffer.Reset()
-	// 	})
-	// })
+	t.Run("WriteFile", func(t *testing.T) {
+		t.Run("Success", func(t *testing.T) {
+			outputBuffer.Reset()
+			name := filepath.Join(t.TempDir(), "foo")
+			data := []byte("foo")
+			fileMode := os.FileMode(0600)
+			err := host.WriteFile(ctx, name, data, fileMode)
+			require.NoError(t, err)
+			readData, err := os.ReadFile(name)
+			require.NoError(t, err)
+			require.Equal(t, data, readData)
+			fileInfo, err := os.Lstat(name)
+			require.NoError(t, err)
+			require.False(t, fileInfo.IsDir())
+			require.Equal(t, fileMode, fileInfo.Mode()&fs.ModePerm)
+		})
+		t.Run("ErrPermission", func(t *testing.T) {
+			outputBuffer.Reset()
+			checkNotRoot(t)
+			err := host.WriteFile(ctx, "/etc/foo", []byte{}, 0600)
+			require.ErrorIs(t, err, os.ErrPermission)
+		})
+		t.Run("ErrExist", func(t *testing.T) {
+			outputBuffer.Reset()
+			name := filepath.Join(t.TempDir(), "foo")
+			fileMode := os.FileMode(0600)
+			err := host.WriteFile(ctx, name, []byte{}, fileMode)
+			require.NoError(t, err)
+			data := []byte("foo")
+			newFileMode := os.FileMode(0640)
+			err = host.WriteFile(ctx, name, data, newFileMode)
+			require.NoError(t, err)
+			readData, err := os.ReadFile(name)
+			require.NoError(t, err)
+			require.Equal(t, data, readData)
+			fileInfo, err := os.Lstat(name)
+			require.NoError(t, err)
+			require.False(t, fileInfo.IsDir())
+			require.Equal(t, fileMode, fileInfo.Mode()&fs.ModePerm)
+		})
+		t.Run("ErrNotExist", func(t *testing.T) {
+			outputBuffer.Reset()
+			name := filepath.Join(t.TempDir(), "foo", "bar")
+			err := host.WriteFile(ctx, name, []byte{}, 0600)
+			require.ErrorIs(t, err, os.ErrNotExist)
+		})
+	})
 }
