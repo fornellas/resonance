@@ -17,9 +17,9 @@ import (
 )
 
 func checkNotRoot(t *testing.T) {
-	user, err := user.Current()
+	u, err := user.Current()
 	require.NoError(t, err)
-	require.NotEqual(t, "0", user.Uid, "test can not be executed as root")
+	require.NotEqual(t, "0", u.Uid, "test can not be executed as root")
 }
 
 func testHost(t *testing.T, host Host) {
@@ -82,11 +82,36 @@ func testHost(t *testing.T, host Host) {
 		})
 	})
 
-	// t.Run("Lookup", func(t *testing.T) {
-	// })
+	t.Run("Lookup", func(t *testing.T) {
+		t.Run("Success", func(t *testing.T) {
+			outputBuffer.Reset()
+			u, err := host.Lookup(ctx, "root")
+			require.NoError(t, err)
+			require.Equal(t, "0", u.Uid)
+			require.Equal(t, "0", u.Gid)
+			require.Equal(t, "root", u.Username)
+		})
+		t.Run("UnknownUserError", func(t *testing.T) {
+			outputBuffer.Reset()
+			_, err := host.Lookup(ctx, "foobar")
+			require.ErrorIs(t, err, user.UnknownUserError("foobar"))
+		})
+	})
 
-	// t.Run("LookupGroup", func(t *testing.T) {
-	// })
+	t.Run("LookupGroup", func(t *testing.T) {
+		t.Run("Success", func(t *testing.T) {
+			outputBuffer.Reset()
+			g, err := host.LookupGroup(ctx, "root")
+			require.NoError(t, err)
+			require.Equal(t, "0", g.Gid)
+			require.Equal(t, "root", g.Name)
+		})
+		t.Run("UnknownGroupError", func(t *testing.T) {
+			outputBuffer.Reset()
+			_, err := host.LookupGroup(ctx, "foobar")
+			require.ErrorIs(t, err, user.UnknownGroupError("foobar"))
+		})
+	})
 
 	// t.Run("Lstat", func(t *testing.T) {
 	// 	t.Run("Success", func(t *testing.T) {
