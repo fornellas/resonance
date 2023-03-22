@@ -5,7 +5,10 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/user"
+	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -13,12 +16,137 @@ import (
 	"github.com/fornellas/resonance/log"
 )
 
+func checkNotRoot(t *testing.T) {
+	user, err := user.Current()
+	require.NoError(t, err)
+	require.NotEqual(t, "0", user.Uid, "test can not be executed as root")
+}
+
 func testHost(t *testing.T, host Host) {
 	ctx := context.Background()
 	var outputBuffer bytes.Buffer
 	ctx = log.SetLoggerValue(ctx, &outputBuffer, "debug", func(code int) {
 		t.Fatalf("exit called with %d", code)
 	})
+
+	t.Run("Chmod", func(t *testing.T) {
+		name := filepath.Join(t.TempDir(), "foo")
+		file, err := os.Create(name)
+		require.NoError(t, err)
+		file.Close()
+		t.Run("Success", func(t *testing.T) {
+			outputBuffer.Reset()
+			fileMode := os.FileMode(0247)
+			err = host.Chmod(ctx, name, fileMode)
+			require.NoError(t, err)
+			fileInfo, err := os.Lstat(name)
+			require.NoError(t, err)
+			require.Equal(t, fileMode, fileInfo.Mode())
+		})
+		t.Run("ErrPermission", func(t *testing.T) {
+			outputBuffer.Reset()
+			checkNotRoot(t)
+			err = host.Chmod(ctx, "/tmp", 0)
+			require.ErrorIs(t, err, os.ErrPermission)
+		})
+		t.Run("ErrNotExist", func(t *testing.T) {
+			outputBuffer.Reset()
+			err = host.Chmod(ctx, "/non-existent", 0)
+			require.ErrorIs(t, err, os.ErrNotExist)
+		})
+	})
+
+	t.Run("Chown", func(t *testing.T) {
+		name := filepath.Join(t.TempDir(), "foo")
+		file, err := os.Create(name)
+		require.NoError(t, err)
+		file.Close()
+		t.Run("Success", func(t *testing.T) {
+			outputBuffer.Reset()
+			fileInfo, err := os.Lstat(name)
+			require.NoError(t, err)
+			stat_t := fileInfo.Sys().(*syscall.Stat_t)
+			err = host.Chown(ctx, name, int(stat_t.Uid), int(stat_t.Gid))
+			require.NoError(t, err)
+		})
+		t.Run("ErrPermission", func(t *testing.T) {
+			outputBuffer.Reset()
+			checkNotRoot(t)
+			err = host.Chown(ctx, name, 0, 0)
+			require.ErrorIs(t, err, os.ErrPermission)
+		})
+		t.Run("ErrNotExist", func(t *testing.T) {
+			outputBuffer.Reset()
+			err = host.Chown(ctx, "/non-existent", 0, 0)
+			require.ErrorIs(t, err, os.ErrNotExist)
+		})
+	})
+
+	// t.Run("Lookup", func(t *testing.T) {
+	// })
+
+	// t.Run("LookupGroup", func(t *testing.T) {
+	// })
+
+	// t.Run("Lstat", func(t *testing.T) {
+	// 	t.Run("Success", func(t *testing.T) {
+	// outputBuffer.Reset()
+	// 	})
+	// 	t.Run("ErrPermission", func(t *testing.T) {
+	// outputBuffer.Reset()
+	// 	})
+	// 	t.Run("ErrExist", func(t *testing.T) {
+	// outputBuffer.Reset()
+	// 	})
+	// 	t.Run("ErrNotExist", func(t *testing.T) {
+	// outputBuffer.Reset()
+	// 	})
+	// })
+
+	// t.Run("Mkdir", func(t *testing.T) {
+	// 	t.Run("Success", func(t *testing.T) {
+	// outputBuffer.Reset()
+	// 	})
+	// 	t.Run("ErrPermission", func(t *testing.T) {
+	// outputBuffer.Reset()
+	// 	})
+	// 	t.Run("ErrExist", func(t *testing.T) {
+	// outputBuffer.Reset()
+	// 	})
+	// 	t.Run("ErrNotExist", func(t *testing.T) {
+	// outputBuffer.Reset()
+	// 	})
+	// })
+
+	// t.Run("ReadFile", func(t *testing.T) {
+	// 	t.Run("Success", func(t *testing.T) {
+	// outputBuffer.Reset()
+	// 	})
+	// 	t.Run("ErrPermission", func(t *testing.T) {
+	// outputBuffer.Reset()
+	// 	})
+	// 	t.Run("ErrExist", func(t *testing.T) {
+	// outputBuffer.Reset()
+	// 	})
+	// 	t.Run("ErrNotExist", func(t *testing.T) {
+	// outputBuffer.Reset()
+	// 	})
+	// })
+
+	// t.Run("Remove", func(t *testing.T) {
+	// 	t.Run("Success", func(t *testing.T) {
+	// outputBuffer.Reset()
+	// 	})
+	// 	t.Run("ErrPermission", func(t *testing.T) {
+	// outputBuffer.Reset()
+	// 	})
+	// 	t.Run("ErrExist", func(t *testing.T) {
+	// outputBuffer.Reset()
+	// 	})
+	// 	t.Run("ErrNotExist", func(t *testing.T) {
+	// outputBuffer.Reset()
+	// 	})
+	// })
 
 	t.Run("Run", func(t *testing.T) {
 		t.Run("Args, output and failure", func(t *testing.T) {
@@ -122,4 +250,19 @@ func testHost(t *testing.T, host Host) {
 			require.Equal(t, "", stderr)
 		})
 	})
+
+	// t.Run("WriteFile", func(t *testing.T) {
+	// 	t.Run("Success", func(t *testing.T) {
+	// outputBuffer.Reset()
+	// 	})
+	// 	t.Run("ErrPermission", func(t *testing.T) {
+	// outputBuffer.Reset()
+	// 	})
+	// 	t.Run("ErrExist", func(t *testing.T) {
+	// outputBuffer.Reset()
+	// 	})
+	// 	t.Run("ErrNotExist", func(t *testing.T) {
+	// outputBuffer.Reset()
+	// 	})
+	// })
 }
