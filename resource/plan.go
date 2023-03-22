@@ -8,8 +8,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/sergi/go-diff/diffmatchpatch"
-
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
 )
@@ -68,10 +66,9 @@ func (sai StepActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 		if !ok {
 			panic(fmt.Errorf("TypeNameStateMap missing %s", sai.Resource.TypeName))
 		}
-		diffs := Diff(sai.Resource.State, currentState)
-		if DiffsHasChanges(diffs) {
-			diffMatchPatch := diffmatchpatch.New()
-			logger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).Errorf("💥 %s", sai.Resource)
+		chunks := Diff(sai.Resource.State, currentState)
+		if chunks.HaveChanges() {
+			logger.WithField("", chunks.String()).Errorf("💥 %s", sai.Resource)
 			return errors.New(
 				"likely bug in resource implementationm as state was dirty immediately after applying",
 			)
@@ -202,10 +199,9 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 		if !ok {
 			panic(fmt.Sprintf("typeNameResourceMap missing %s", typeName))
 		}
-		diffs := Diff(resource.State, currentState)
-		if DiffsHasChanges(diffs) {
-			diffMatchPatch := diffmatchpatch.New()
-			logger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).Errorf("💥 %s", typeName)
+		chunks := Diff(resource.State, currentState)
+		if chunks.HaveChanges() {
+			logger.WithField("", chunks.String()).Errorf("💥 %s", typeName)
 			return fmt.Errorf(
 				"likely bug in resource implementationm as state was dirty immediately after applying: %s",
 				typeName,
@@ -430,7 +426,7 @@ func (p Plan) printResource(
 		panic(fmt.Sprintf("State not found at TypeNameStateMap: %s", resource.TypeName))
 	}
 
-	diffs := Diff(currentState, resource.State)
+	chunks := Diff(currentState, resource.State)
 
 	var action Action
 	for actionResources, stepResources := range step.ActionResourcesMap() {
@@ -444,14 +440,11 @@ func (p Plan) printResource(
 		panic(fmt.Sprintf("can not find action: %s", resource))
 	}
 
-	if DiffsHasChanges(diffs) {
-		diffMatchPatch := diffmatchpatch.New()
+	if chunks.HaveChanges() {
 		if len(resources) > 1 {
-			nestedLogger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).
-				Infof("%s %s", action.Emoji(), resource)
+			nestedLogger.WithField("", chunks.String()).Infof("%s %s", action.Emoji(), resource)
 		} else {
-			logger.WithField("", diffMatchPatch.DiffPrettyText(diffs)).
-				Infof("%s %s", action.Emoji(), resource)
+			logger.WithField("", chunks.String()).Infof("%s %s", action.Emoji(), resource)
 		}
 	} else {
 		if len(resources) > 1 {
@@ -531,9 +524,9 @@ func (p Plan) addBundleSteps(
 				panic(fmt.Errorf("State missing from TypeNameStateMap: %s", newResource.TypeName))
 			}
 
-			diffs := Diff(currentState, newResource.State)
+			chunks := Diff(currentState, newResource.State)
 
-			clean := !DiffsHasChanges(diffs)
+			clean := !chunks.HaveChanges()
 
 			if newResource.Destroy {
 				if clean {

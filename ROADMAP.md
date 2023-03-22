@@ -46,8 +46,6 @@
     - ✨Ensure execution environment is always the same.
 - `resource/`
     - `bundle.go`
-        - 🧪Improve diff output
-        - Use https://pkg.go.dev/github.com/kylelemons/godebug/diff?
         - `LoadResourceBundles`
             - Go templates
                 - 📄Before parsing yaml, Go template each resource bundle yaml.
@@ -117,8 +115,6 @@
     - `plan.go`
         - ✨Apply nodes concurrently for cases where it can be done (eg: no refresh).
         - 💡After `Plan.Execute` , validate the full state again to detect any cross-resource state breakage.
-        - 🧪Improve diff output
-            - Use https://pkg.go.dev/github.com/kylelemons/godebug/diff?
     - `state.go`
         - `PersistantState`
             - ✨Save history of states: enable to rollback to any previous state.

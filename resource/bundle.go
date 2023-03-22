@@ -13,8 +13,6 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/sergi/go-diff/diffmatchpatch"
-
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
 )
@@ -176,12 +174,11 @@ func (b Bundle) IsClean(
 				panic(fmt.Sprintf("TypeNameStateMap missing %s", resource.TypeName))
 			}
 
-			diffs := Diff(currentState, resource.State)
+			chunks := Diff(currentState, resource.State)
 
-			if DiffsHasChanges(diffs) {
-				diffMatchPatch := diffmatchpatch.New()
+			if chunks.HaveChanges() {
 				nestedLogger.WithField(
-					"", diffMatchPatch.DiffPrettyText(diffs),
+					"", chunks.String(),
 				).Infof("%s %s", ActionConfigure.Emoji(), resource)
 				clean = false
 			} else {

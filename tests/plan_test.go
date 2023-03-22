@@ -59,8 +59,7 @@ func TestPlan(t *testing.T) {
 	runCommand(t, Cmd{
 		Args: args,
 		ExpectedInOutput: ("  🔧 Individual[foo]\n" +
-			"    value: foo\n" +
-			"    \n" +
+			"    +value: foo\n" +
 			"  Individual[✅ bar]\n"),
 	})
 }
