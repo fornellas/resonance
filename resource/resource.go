@@ -319,6 +319,19 @@ func (r *Resource) UnmarshalYAML(node *yaml.Node) error {
 	return nil
 }
 
+func (r Resource) MarshalYAML() (interface{}, error) {
+	if r.Destroy {
+		r.State = nil
+	}
+	type resourceAlias Resource
+	node := yaml.Node{}
+	err := node.Encode(resourceAlias(r))
+	if err != nil {
+		return nil, err
+	}
+	return node, nil
+}
+
 func (r Resource) MustType() Type {
 	return r.TypeName.Type()
 }
