@@ -31,6 +31,7 @@ GOMODCACHE:
 # osusergo have Lookup and LookupGroup to use pure Go implementation to enable
 # management of local users
 GO_BUILD_FLAGS := -tags osusergo
+GOARCHS := 386 amd64 arm arm64
 
 GOIMPORTS_VERSION := 0.3.0
 GOIMPORTS := goimports
@@ -292,6 +293,36 @@ cover-func: cover.html
 test: cover-func
 
 ##
+## Build
+##
+
+.PHONY: build-help
+build-help:
+	@echo 'build: build everything'
+help: build-help
+
+.PHONY: build-%
+build-%: go-generate
+	GOARCH=$* $(GO) build -o resonance.$$(go env GOOS).$* $(GO_BUILD_FLAGS) .
+
+.PHONY: build-goarchs
+build-goarchs:
+	@echo $(foreach GOARCH,$(GOARCHS),$(GOARCH))
+
+.PHONY: build
+build: $(foreach GOARCH,$(GOARCHS),build-$(GOARCH))
+
+.PHONY: clean-build-%
+clean-build-%:
+	rm -f resonance.$$(go env GOOS).$*
+
+.PHONY: clean-build
+clean-build: $(foreach GOARCH,$(GOARCHS),clean-build-$(GOARCH))
+	$(GO) clean -r -cache -modcache
+	rm -f version/.version
+clean: clean-build
+
+##
 ## ci
 ##
 
@@ -346,22 +377,3 @@ rrb: install-deps-rrb
 		--pattern Makefile \
 		-- \
 		$(MAKE) $(MFLAGS) install-deps rrb-ci-no-install-deps
-
-##
-## Build
-##
-
-.PHONY: build-help
-build-help:
-	@echo 'build: build everything'
-help: build-help
-
-.PHONY: build
-build: go-generate
-	$(GO) build $(GO_BUILD_FLAGS) .
-
-.PHONY: clean-build
-clean-build:
-	$(GO) clean -r -cache -modcache
-	rm -f version/.version
-clean: clean-build

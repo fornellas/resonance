@@ -24,13 +24,11 @@ jobs:
         run: |
           set -e
           echo 'files<<EOF' >> $GITHUB_OUTPUT
-          for GOARCH in 386 amd64 arm arm64
+          GOOS=$(go env GOOS)
+          for GOARCH in $(make build-goarchs)
           do
-            echo GOARCH=$GOARCH
-            GOARCH=$GOARCH make build
-            mv resonance resonance.$(go env GOOS).$GOARCH
-            gzip resonance.$(go env GOOS).$GOARCH
-            echo resonance.$(go env GOOS).${GOARCH}.gz >> $GITHUB_OUTPUT
+            gzip resonance.${GOOS}.${GOARCH}
+            echo resonance.${GOOS}.${GOARCH}.gz >> $GITHUB_OUTPUT
           done
           echo EOF >> $GITHUB_OUTPUT
         shell: bash
