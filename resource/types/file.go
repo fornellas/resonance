@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"syscall"
 
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
@@ -104,16 +103,15 @@ func (f File) GetState(ctx context.Context, hst host.Host, name resource.Name) (
 	if err != nil {
 		return nil, err
 	}
-	stat_t := fileInfo.Sys().(*syscall.Stat_t)
 
 	// Perm
 	fileState.Perm = fileInfo.Mode()
 
 	// Uid
-	fileState.Uid = stat_t.Uid
+	fileState.Uid = fileInfo.Uid()
 
 	// Gid
-	fileState.Gid = stat_t.Gid
+	fileState.Gid = fileInfo.Gid()
 
 	return fileState, nil
 }
@@ -141,10 +139,9 @@ func (f File) Configure(
 	if err != nil {
 		return err
 	}
-	stat_t := fileInfo.Sys().(*syscall.Stat_t)
 
 	// Uid / Gid
-	if stat_t.Uid != fileState.Uid || stat_t.Gid != fileState.Gid {
+	if fileInfo.Uid() != fileState.Uid || fileInfo.Gid() != fileState.Gid {
 		if err := hst.Chown(ctx, path, int(fileState.Uid), int(fileState.Gid)); err != nil {
 			return err
 		}

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -39,10 +40,23 @@ func (l Local) LookupGroup(ctx context.Context, name string) (*user.Group, error
 	return user.LookupGroup(name)
 }
 
-func (l Local) Lstat(ctx context.Context, name string) (os.FileInfo, error) {
+func (l Local) Lstat(ctx context.Context, name string) (HostFileInfo, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Lstat %s", name)
-	return os.Lstat(name)
+	fileInfo, err := os.Lstat(name)
+	if err != nil {
+		return HostFileInfo{}, err
+	}
+	stat_t := fileInfo.Sys().(*syscall.Stat_t)
+	return NewHostFileInfo(
+		filepath.Base(name),
+		fileInfo.Size(),
+		fileInfo.Mode(),
+		fileInfo.ModTime(),
+		fileInfo.IsDir(),
+		stat_t.Uid,
+		stat_t.Gid,
+	), nil
 }
 
 func (l Local) Mkdir(ctx context.Context, name string, perm os.FileMode) error {

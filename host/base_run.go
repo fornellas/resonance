@@ -19,34 +19,6 @@ import (
 	"github.com/fornellas/resonance/log"
 )
 
-type FileInfo struct {
-	name   string
-	stat_t syscall.Stat_t
-}
-
-func (fi FileInfo) Name() string {
-	return fi.name
-}
-func (fi FileInfo) Size() int64 {
-	return fi.stat_t.Size
-}
-
-func (fi FileInfo) Mode() fs.FileMode {
-	return fs.FileMode(fi.stat_t.Mode & (uint32(fs.ModeType) | uint32(fs.ModePerm)))
-}
-
-func (fi FileInfo) ModTime() time.Time {
-	return time.Unix(fi.stat_t.Mtim.Sec, fi.stat_t.Mtim.Nsec)
-}
-
-func (fi FileInfo) IsDir() bool {
-	return (fi.Mode() & fs.ModeDir) > 0
-}
-
-func (fi FileInfo) Sys() any {
-	return &fi.stat_t
-}
-
 type baseRun struct {
 	Host Host
 }
@@ -219,101 +191,90 @@ func (br baseRun) stat(ctx context.Context, name string) (string, error) {
 	return stdout, nil
 }
 
-func (br baseRun) Lstat(ctx context.Context, name string) (os.FileInfo, error) {
+func (br baseRun) Lstat(ctx context.Context, name string) (HostFileInfo, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Lstat %s", name)
 	stdout, err := br.stat(ctx, name)
 	if err != nil {
-		return nil, err
+		return HostFileInfo{}, err
 	}
 
 	tokens := strings.Split(strings.TrimRight(stdout, "\n"), ",")
 	if len(tokens) != 14 {
-		return nil, fmt.Errorf("unable to parse stat output: %s", tokens)
+		return HostFileInfo{}, fmt.Errorf("unable to parse stat output: %s", tokens)
 	}
 
-	fileInfo := &FileInfo{name: filepath.Base(name)}
+	// dev, err := strconv.ParseUint(tokens[0], 10, 64)
+	// if err != nil {
+	// 	return HostFileInfo{}, fmt.Errorf("unable to parse dev: %s", tokens[0])
+	// }
 
-	dev, err := strconv.ParseUint(tokens[0], 10, 64)
+	// ino, err := strconv.ParseUint(tokens[1], 10, 64)
+	// if err != nil {
+	// 	return HostFileInfo{}, fmt.Errorf("unable to parse ino: %s", tokens[1])
+	// }
+
+	// nlink, err := strconv.ParseUint(tokens[2], 10, 64)
+	// if err != nil {
+	// 	return HostFileInfo{}, fmt.Errorf("unable to parse nlink: %s", tokens[2])
+	// }
+
+	statMode, err := strconv.ParseUint(tokens[3], 16, 32)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse dev: %s", tokens[0])
+		return HostFileInfo{}, fmt.Errorf("unable to parse mode: %s", tokens[3])
 	}
-	fileInfo.stat_t.Dev = dev
-
-	ino, err := strconv.ParseUint(tokens[1], 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse ino: %s", tokens[1])
-	}
-	fileInfo.stat_t.Ino = ino
-
-	nlink, err := strconv.ParseUint(tokens[2], 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse nlink: %s", tokens[2])
-	}
-	fileInfo.stat_t.Nlink = nlink
-
-	mode, err := strconv.ParseUint(tokens[3], 16, 32)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse mode: %s", tokens[3])
-	}
-	fileInfo.stat_t.Mode = uint32(mode)
+	mode := fs.FileMode(uint32(statMode) & (uint32(fs.ModeType) | uint32(fs.ModePerm)))
 
 	uid, err := strconv.ParseUint(tokens[4], 10, 32)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse uid: %s", tokens[4])
+		return HostFileInfo{}, fmt.Errorf("unable to parse uid: %s", tokens[4])
 	}
-	fileInfo.stat_t.Uid = uint32(uid)
 
 	gid, err := strconv.ParseUint(tokens[5], 10, 32)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse gid: %s", tokens[5])
+		return HostFileInfo{}, fmt.Errorf("unable to parse gid: %s", tokens[5])
 	}
-	fileInfo.stat_t.Gid = uint32(gid)
-
-	// fileInfo.stat_t.X__pad0 = column[6] // int32
 
 	// fileInfo.stat_t.Rdev = column[7] // uint64
 
-	// fileInfo.stat_t.Size = column[8] // int64
-
-	blksize, err := strconv.ParseInt(tokens[9], 10, 64)
+	size, err := strconv.ParseInt(tokens[8], 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse blksize: %s", tokens[9])
+		return HostFileInfo{}, fmt.Errorf("unable to parse Size: %s", tokens[8])
 	}
-	fileInfo.stat_t.Blksize = blksize
+
+	// blksize, err := strconv.ParseInt(tokens[9], 10, 64)
+	// if err != nil {
+	// 	return HostFileInfo{}, fmt.Errorf("unable to parse blksize: %s", tokens[9])
+	// }
 
 	// fileInfo.stat_t.Blocks = column[10] // int64
 
-	atimTime, err := time.Parse("2006-01-02 15:04:05.999999999 -0700", tokens[11])
+	// atimTime, err := time.Parse("2006-01-02 15:04:05.999999999 -0700", tokens[11])
+	// if err != nil {
+	// 	return HostFileInfo{}, fmt.Errorf("unable to parse atim: %s: %w", tokens[11], err)
+	// }
+
+	modTime, err := time.Parse("2006-01-02 15:04:05.999999999 -0700", tokens[12])
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse atim: %s: %w", tokens[11], err)
-	}
-	fileInfo.stat_t.Atim = syscall.Timespec{
-		Sec:  atimTime.Unix(),
-		Nsec: atimTime.UnixNano() % 1000000000,
+		return HostFileInfo{}, fmt.Errorf("unable to parse modTime: %s: %w", tokens[12], err)
 	}
 
-	mtimTime, err := time.Parse("2006-01-02 15:04:05.999999999 -0700", tokens[12])
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse mtim: %s: %w", tokens[12], err)
-	}
-	fileInfo.stat_t.Mtim = syscall.Timespec{
-		Sec:  mtimTime.Unix(),
-		Nsec: mtimTime.UnixNano() % 1000000000,
-	}
+	isDir := (uint32(statMode) & uint32(fs.ModeDir)) > 0
 
-	ctimTime, err := time.Parse("2006-01-02 15:04:05.999999999 -0700", tokens[13])
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse ctim: %s: %w", tokens[13], err)
-	}
-	fileInfo.stat_t.Ctim = syscall.Timespec{
-		Sec:  ctimTime.Unix(),
-		Nsec: ctimTime.UnixNano() % 1000000000,
-	}
+	// ctimTime, err := time.Parse("2006-01-02 15:04:05.999999999 -0700", tokens[13])
+	// if err != nil {
+	// 	return HostFileInfo{}, fmt.Errorf("unable to parse ctim: %s: %w", tokens[13], err)
+	// }
 
-	// fileInfo.stat_t.X__unused = column[14] // [3]int64
-
-	return fileInfo, nil
+	return NewHostFileInfo(
+		filepath.Base(name),
+		size,
+		mode,
+		modTime,
+		isDir,
+		uint32(uid),
+		uint32(gid),
+	), nil
 }
 
 func (br baseRun) Mkdir(ctx context.Context, name string, perm os.FileMode) error {

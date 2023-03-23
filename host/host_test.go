@@ -133,7 +133,10 @@ func testHost(t *testing.T, host Host) {
 			require.Equal(t, fileInfo.Mode(), hostFileInfo.Mode())
 			require.Equal(t, fileInfo.ModTime(), hostFileInfo.ModTime())
 			require.Equal(t, fileInfo.IsDir(), hostFileInfo.IsDir())
-			require.Equal(t, fileInfo.Sys(), hostFileInfo.Sys())
+			require.Equal(t, nil, hostFileInfo.Sys())
+			stat_t := fileInfo.Sys().(*syscall.Stat_t)
+			require.Equal(t, stat_t.Uid, hostFileInfo.Uid())
+			require.Equal(t, stat_t.Gid, hostFileInfo.Gid())
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()
@@ -440,10 +443,10 @@ func (bro baseRunOnly) LookupGroup(ctx context.Context, name string) (*user.Grou
 	return nil, err
 }
 
-func (bro baseRunOnly) Lstat(ctx context.Context, name string) (os.FileInfo, error) {
+func (bro baseRunOnly) Lstat(ctx context.Context, name string) (HostFileInfo, error) {
 	err := errors.New("unexpected call received: Lstat")
 	bro.T.Fatal(err)
-	return nil, err
+	return HostFileInfo{}, err
 }
 
 func (bro baseRunOnly) Mkdir(ctx context.Context, name string, perm os.FileMode) error {

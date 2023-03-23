@@ -29,8 +29,8 @@ func (s Ssh) LookupGroup(ctx context.Context, name string) (*user.Group, error) 
 	return nil, errors.New("TODO Ssh.LookupGroup")
 }
 
-func (s Ssh) Lstat(ctx context.Context, name string) (os.FileInfo, error) {
-	return nil, errors.New("TODO Ssh.Lstat")
+func (s Ssh) Lstat(ctx context.Context, name string) (HostFileInfo, error) {
+	return HostFileInfo{}, errors.New("TODO Ssh.Lstat")
 }
 
 func (s Ssh) Mkdir(ctx context.Context, name string, perm os.FileMode) error {

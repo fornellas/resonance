@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/user"
 	"strings"
+	"time"
 )
 
 // Cmd represents a command to be run.
@@ -86,6 +88,68 @@ func (ws *WaitStatus) String() string {
 	return str
 }
 
+type HostFileInfo struct {
+	name    string
+	size    int64
+	mode    fs.FileMode
+	modTime time.Time
+	isDir   bool
+	uid     uint32
+	gid     uint32
+}
+
+func (hfi HostFileInfo) Name() string {
+	return hfi.name
+}
+
+func (hfi HostFileInfo) Size() int64 {
+	return hfi.size
+}
+
+func (hfi HostFileInfo) Mode() fs.FileMode {
+	return hfi.mode
+}
+
+func (hfi HostFileInfo) ModTime() time.Time {
+	return hfi.modTime
+}
+
+func (hfi HostFileInfo) IsDir() bool {
+	return hfi.isDir
+}
+
+func (hfi HostFileInfo) Sys() any {
+	return nil
+}
+
+func (hfi HostFileInfo) Uid() uint32 {
+	return hfi.uid
+}
+
+func (hfi HostFileInfo) Gid() uint32 {
+	return hfi.gid
+}
+
+func NewHostFileInfo(
+	name string,
+	size int64,
+	mode fs.FileMode,
+	modTime time.Time,
+	isDir bool,
+	uid uint32,
+	gid uint32,
+) HostFileInfo {
+	return HostFileInfo{
+		name:    name,
+		size:    size,
+		mode:    mode,
+		modTime: modTime,
+		isDir:   isDir,
+		uid:     uid,
+		gid:     gid,
+	}
+}
+
 // Host defines an interface for interacting with a host.
 type Host interface {
 	// Chmod works similar to os.Chmod.
@@ -111,8 +175,9 @@ type Host interface {
 	// that reads from /etc/group.
 	LookupGroup(ctx context.Context, name string) (*user.Group, error)
 
-	// Lstat works similar to os.Lstat, but it always returns non-nil Sys().
-	Lstat(ctx context.Context, name string) (os.FileInfo, error)
+	// Lstat works similar to os.Lstat, but returns HostFileInfo with some
+	// extra methods.
+	Lstat(ctx context.Context, name string) (HostFileInfo, error)
 
 	// Mkdir works similar to os.Mkdir.
 	Mkdir(ctx context.Context, name string, perm os.FileMode) error
