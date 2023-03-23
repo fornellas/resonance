@@ -26,7 +26,7 @@ func SaveHostState(ctx context.Context, hostState resource.HostState, persistant
 	logger := log.GetLogger(ctx)
 	nestedCtx := log.IndentLogger(ctx)
 
-	logger.Infof("💾 Saving new host state to %s", persistantState)
+	logger.Infof("💾 Saving host state to %s", persistantState)
 
 	bytes, err := yaml.Marshal(&hostState)
 	if err != nil {
