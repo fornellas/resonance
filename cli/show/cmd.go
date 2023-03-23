@@ -26,6 +26,7 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			logger.Fatal(err)
 		}
+		defer hst.Close()
 
 		// PersistantState
 		persistantState, err := lib.GetPersistantState(hst)

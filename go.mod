@@ -10,6 +10,8 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.6.1
 	github.com/stretchr/testify v1.7.0
+	golang.org/x/crypto v0.0.0-20200302210943-78000ba7a073
+	golang.org/x/term v0.6.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 

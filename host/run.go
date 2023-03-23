@@ -18,6 +18,10 @@ func (r Run) String() string {
 	return r.Host.String()
 }
 
+func (r Run) Close() error {
+	return r.Host.Close()
+}
+
 func NewRun(host Host) Run {
 	run := Run{
 		Host: host,

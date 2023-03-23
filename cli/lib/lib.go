@@ -30,8 +30,10 @@ func GetHost(ctx context.Context) (host.Host, error) {
 	if localhost {
 		hst = host.Local{}
 	} else if hostname != "" {
-		hst = host.Ssh{
-			Hostname: hostname,
+		var err error
+		hst, err = host.NewSshAuthority(ctx, hostname)
+		if err != nil {
+			return nil, err
 		}
 	} else {
 		return nil, errors.New("must provide either --localhost or --hostname")
@@ -56,7 +58,7 @@ func AddHostFlags(cmd *cobra.Command) {
 
 	cmd.Flags().StringVarP(
 		&hostname, "hostname", "", defaultHostname,
-		"Applies configuration to given hostname using SSH",
+		"Applies configuration to given hostname using SSH in the format: [<user>[;fingerprint=<host-key fingerprint>]@]<host>[:<port>]",
 	)
 
 	cmd.Flags().BoolVarP(

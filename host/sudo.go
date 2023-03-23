@@ -16,13 +16,17 @@ type Sudo struct {
 }
 
 func (s Sudo) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, error) {
-	cmd.Args = append([]string{cmd.Path}, cmd.Args...)
+	cmd.Args = append([]string{"--non-interactive", "--", cmd.Path}, cmd.Args...)
 	cmd.Path = "sudo"
 	return s.Host.Run(ctx, cmd)
 }
 
 func (s Sudo) String() string {
 	return s.Host.String()
+}
+
+func (s Sudo) Close() error {
+	return s.Host.Close()
 }
 
 func NewSudo(ctx context.Context, host Host) (Sudo, error) {
@@ -37,10 +41,11 @@ func NewSudo(ctx context.Context, host Host) (Sudo, error) {
 
 	// Sudo MAY ask for password once
 	cmd := Cmd{
-		Path:  "true",
+		Path:  "sudo",
+		Args:  []string{"--stdin", "--", "true"},
 		Stdin: os.Stdin,
 	}
-	waitStatus, stdout, stderr, err := sudoHost.Run(nestedCtx, cmd)
+	waitStatus, stdout, stderr, err := sudoHost.Host.Run(nestedCtx, cmd)
 	if err != nil {
 		return Sudo{}, err
 	}

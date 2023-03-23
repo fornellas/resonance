@@ -24,6 +24,7 @@ var Cmd = &cobra.Command{
 		if err != nil {
 			logger.Fatal(err)
 		}
+		defer hst.Close()
 
 		// Load resources
 		_, err = resource.LoadBundle(ctx, hst, root)

@@ -477,6 +477,10 @@ func (bro baseRunOnly) String() string {
 	return bro.Host.String()
 }
 
+func (bro baseRunOnly) Close() error {
+	return bro.Host.Close()
+}
+
 type localRunOnly struct {
 	baseRunOnly
 	Host Host
@@ -512,8 +516,20 @@ func (lrso localRunSudoOnly) Run(ctx context.Context, cmd Cmd) (WaitStatus, stri
 		lrso.T.Fatal(err)
 		return WaitStatus{}, "", "", err
 	}
-	cmd.Path = cmd.Args[0]
-	cmd.Args = cmd.Args[1:]
+	var cmdIdx int
+	for i, arg := range cmd.Args {
+		if arg == "--" {
+			cmdIdx = i + 1
+			break
+		}
+	}
+	if cmdIdx == 0 {
+		err := fmt.Errorf("missing expected sudo argument '--': %s", cmd.Args)
+		lrso.T.Fatal(err)
+		return WaitStatus{}, "", "", err
+	}
+	cmd.Path = cmd.Args[cmdIdx]
+	cmd.Args = cmd.Args[cmdIdx+1:]
 	return lrso.Host.Run(ctx, cmd)
 }
 

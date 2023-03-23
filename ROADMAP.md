@@ -39,10 +39,7 @@
     - ✨`resource/types/apt_package.go`
 - `host/`
     - `local.go`
-        - ✨Use [subreaper to wait on all children](https://github.com/fornellas/rrb/blob/main/runner/runner.go).
-    - `ssh.go`
-        - 📈Implement using Go Ssh libraries.
-    - ✨Ensure execution environment is always the same.
+        - 💡Use [subreaper to wait on all children](https://github.com/fornellas/rrb/blob/main/runner/runner.go). Can it be done over ssh?
 - `resource/`
     - `bundle.go`
         - `LoadResourceBundles`

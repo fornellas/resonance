@@ -203,4 +203,7 @@ type Host interface {
 
 	// A string representation of the host which uniquely identifies it, eg, its FQDN.
 	String() string
+
+	// Close any pending connections (if applicable).
+	Close() error
 }

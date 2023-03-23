@@ -131,3 +131,7 @@ func (l Local) WriteFile(ctx context.Context, name string, data []byte, perm os.
 func (l Local) String() string {
 	return "localhost"
 }
+
+func (l Local) Close() error {
+	return nil
+}
