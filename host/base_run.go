@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/alessio/shellescape"
+
+	"github.com/fornellas/resonance/log"
 )
 
 type FileInfo struct {
@@ -50,6 +52,8 @@ type baseRun struct {
 }
 
 func (br baseRun) Chmod(ctx context.Context, name string, mode os.FileMode) error {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("Chmod %v %s", mode, name)
 	cmd := Cmd{
 		Path: "chmod",
 		Args: []string{fmt.Sprintf("%o", mode), name},
@@ -77,6 +81,8 @@ func (br baseRun) Chmod(ctx context.Context, name string, mode os.FileMode) erro
 }
 
 func (br baseRun) Chown(ctx context.Context, name string, uid, gid int) error {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("Chown %v %v %s", uid, gid, name)
 	cmd := Cmd{
 		Path: "chown",
 		Args: []string{fmt.Sprintf("%d.%d", uid, gid), name},
@@ -104,6 +110,8 @@ func (br baseRun) Chown(ctx context.Context, name string, uid, gid int) error {
 }
 
 func (br baseRun) Lookup(ctx context.Context, username string) (*user.User, error) {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("Lookup %s", username)
 	cmd := Cmd{
 		Path: "cat",
 		Args: []string{"/etc/passwd"},
@@ -127,15 +135,15 @@ func (br baseRun) Lookup(ctx context.Context, username string) (*user.User, erro
 			return nil, fmt.Errorf("/etc/passwd:%d: unexpected number of columns %d: %#v", i, len(columns), line)
 		}
 		login := columns[0]
+		if login != username {
+			continue
+		}
 		// password := columns[1]
 		uid := columns[2]
 		gid := columns[3]
 		name := columns[4]
 		home := columns[5]
 		// interpreter := columns[6]
-		if name != username {
-			continue
-		}
 		return &user.User{
 			Uid:      uid,
 			Gid:      gid,
@@ -148,6 +156,8 @@ func (br baseRun) Lookup(ctx context.Context, username string) (*user.User, erro
 }
 
 func (br baseRun) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("LookupGroup %s", name)
 	cmd := Cmd{
 		Path: "cat",
 		Args: []string{"/etc/group"},
@@ -210,6 +220,8 @@ func (br baseRun) stat(ctx context.Context, name string) (string, error) {
 }
 
 func (br baseRun) Lstat(ctx context.Context, name string) (os.FileInfo, error) {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("Lstat %s", name)
 	stdout, err := br.stat(ctx, name)
 	if err != nil {
 		return nil, err
@@ -305,6 +317,8 @@ func (br baseRun) Lstat(ctx context.Context, name string) (os.FileInfo, error) {
 }
 
 func (br baseRun) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("Mkdir %s", name)
 	cmd := Cmd{
 		Path: "mkdir",
 		Args: []string{name},
@@ -333,6 +347,8 @@ func (br baseRun) Mkdir(ctx context.Context, name string, perm os.FileMode) erro
 }
 
 func (br baseRun) ReadFile(ctx context.Context, name string) ([]byte, error) {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("ReadFile %s", name)
 	cmd := Cmd{
 		Path: "cat",
 		Args: []string{name},
@@ -378,6 +394,8 @@ func (br baseRun) rmdir(ctx context.Context, name string) error {
 }
 
 func (br baseRun) Remove(ctx context.Context, name string) error {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("Remove %s", name)
 	cmd := Cmd{
 		Path: "rm",
 		Args: []string{name},
@@ -405,6 +423,8 @@ func (br baseRun) Remove(ctx context.Context, name string) error {
 }
 
 func (br baseRun) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("WriteFile %s %v", name, perm)
 	var chmod bool
 	if _, err := br.Lstat(ctx, name); errors.Is(err, os.ErrNotExist) {
 		chmod = true

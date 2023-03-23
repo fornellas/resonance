@@ -22,7 +22,7 @@ func (s Sudo) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, err
 }
 
 func (s Sudo) String() string {
-	return fmt.Sprintf("%s(sudo)", s.Host.String())
+	return s.Host.String()
 }
 
 func NewSudo(ctx context.Context, host Host) (Sudo, error) {

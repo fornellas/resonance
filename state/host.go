@@ -55,7 +55,7 @@ func (h Host) Load(ctx context.Context) (*[]byte, error) {
 }
 
 func (h Host) String() string {
-	return fmt.Sprintf("%s:%s", h.Host, h.Path)
+	return h.Path
 }
 
 // NewHost creates a new Host instance with Path set as a function of the root directory

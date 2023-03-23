@@ -46,6 +46,8 @@ func (l Local) Lstat(ctx context.Context, name string) (os.FileInfo, error) {
 }
 
 func (l Local) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("Mkdir %s", name)
 	return os.Mkdir(name, perm)
 }
 
