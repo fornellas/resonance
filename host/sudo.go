@@ -21,9 +21,14 @@ func (s Sudo) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, err
 	return s.Host.Run(ctx, cmd)
 }
 
+func (s Sudo) String() string {
+	return fmt.Sprintf("%s(sudo)", s.Host.String())
+}
+
 func NewSudo(ctx context.Context, host Host) (Sudo, error) {
 	logger := log.GetLogger(ctx)
-	logger.Info("Sudo access")
+	logger.Info("⚡ Sudo access")
+	nestedCtx := log.IndentLogger(ctx)
 
 	sudoHost := Sudo{
 		Host: host,
@@ -35,7 +40,7 @@ func NewSudo(ctx context.Context, host Host) (Sudo, error) {
 		Path:  "true",
 		Stdin: os.Stdin,
 	}
-	waitStatus, stdout, stderr, err := sudoHost.Run(ctx, cmd)
+	waitStatus, stdout, stderr, err := sudoHost.Run(nestedCtx, cmd)
 	if err != nil {
 		return Sudo{}, err
 	}
@@ -50,7 +55,7 @@ func NewSudo(ctx context.Context, host Host) (Sudo, error) {
 	cmd = Cmd{
 		Path: "true",
 	}
-	waitStatus, stdout, stderr, err = sudoHost.Run(ctx, cmd)
+	waitStatus, stdout, stderr, err = sudoHost.Run(nestedCtx, cmd)
 	if err != nil {
 		return Sudo{}, err
 	}

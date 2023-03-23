@@ -438,7 +438,3 @@ func (br baseRun) WriteFile(ctx context.Context, name string, data []byte, perm 
 	}
 	return nil
 }
-
-func (br baseRun) String() string {
-	return br.Host.String()
-}

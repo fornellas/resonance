@@ -14,6 +14,10 @@ func (r Run) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, erro
 	return r.Host.Run(ctx, cmd)
 }
 
+func (r Run) String() string {
+	return r.Host.String()
+}
+
 func NewRun(host Host) Run {
 	run := Run{
 		Host: host,
