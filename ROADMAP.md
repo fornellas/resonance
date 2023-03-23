@@ -34,7 +34,6 @@
     - ✨Resources
 - ✨Add TESTS!
     - ✨`RefreshableManageableResource`
-    - ✨`host/local.go`
     - ✨`resource/types/file.go`
     - ✨`resource/types/apt_package.go`
 - `host/`
