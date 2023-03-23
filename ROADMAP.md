@@ -32,7 +32,8 @@
     - ✨README.md
       - ✨Usage example.
     - ✨Resources
-- ✨Add TESTS!
+- Add TESTS!
+    - 💡Run tests for all `GOARCH`, eg: find all modules with `go list github.com/fornellas/resonance/...`, compile each with `go test -c $package -o $package_path.$GOARCH.test` then run each test. If non-native `GOARCH`, use `qemu-user` (`qemu-arch`, `qemu-aarch64`).
     - ✨`RefreshableManageableResource`
     - ✨`resource/types/file.go`
     - ✨`resource/types/apt_package.go`
