@@ -38,7 +38,6 @@
     - ✨`resource/types/file.go`
     - ✨`resource/types/apt_package.go`
 - `host/`
-    - ✨Add option to use sudo to run commands.
     - `local.go`
         - ✨Use [subreaper to wait on all children](https://github.com/fornellas/rrb/blob/main/runner/runner.go).
     - `ssh.go`
