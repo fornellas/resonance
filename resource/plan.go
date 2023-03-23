@@ -751,7 +751,9 @@ func NewRollbackBundle(
 		}
 	}
 
-	rollbackBundle = append(Bundle{rollbackResources}, rollbackBundle...)
+	if len(rollbackResources) > 0 {
+		rollbackBundle = append(Bundle{rollbackResources}, rollbackBundle...)
+	}
 
 	return rollbackBundle
 }
