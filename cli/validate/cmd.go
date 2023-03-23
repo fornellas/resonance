@@ -20,7 +20,7 @@ var Cmd = &cobra.Command{
 		root := args[0]
 
 		// Host
-		hst, err := lib.GetHost()
+		hst, err := lib.GetHost(ctx)
 		if err != nil {
 			logger.Fatal(err)
 		}

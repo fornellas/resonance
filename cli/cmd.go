@@ -10,6 +10,7 @@ import (
 	"github.com/fornellas/resonance/cli/check"
 	"github.com/fornellas/resonance/cli/destroy"
 	"github.com/fornellas/resonance/cli/graph"
+	"github.com/fornellas/resonance/cli/lib"
 	"github.com/fornellas/resonance/cli/plan"
 	"github.com/fornellas/resonance/cli/refresh"
 	"github.com/fornellas/resonance/cli/restore"
@@ -53,6 +54,7 @@ func Reset() {
 	for _, resetFunc := range resetFuncs {
 		resetFunc()
 	}
+	lib.Reset()
 }
 
 func init() {
