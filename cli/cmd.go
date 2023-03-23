@@ -33,7 +33,9 @@ var Cmd = &cobra.Command{
 	Short: "Resonance is a configuration management tool.",
 	Args:  cobra.NoArgs,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		color.NoColor = !forceColor
+		if forceColor {
+			color.NoColor = false
+		}
 		cmd.SetContext(log.SetLoggerValue(
 			cmd.Context(), cmd.OutOrStderr(), logLevelStr, ExitFunc,
 		))
