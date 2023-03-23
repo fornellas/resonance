@@ -411,67 +411,126 @@ func TestLocal(t *testing.T) {
 	testHost(t, host)
 }
 
-type localRunOnly struct {
+type baseRunOnly struct {
 	T    *testing.T
 	Host Host
 }
 
-func (lro localRunOnly) Chmod(ctx context.Context, name string, mode os.FileMode) error {
+func (bro baseRunOnly) Chmod(ctx context.Context, name string, mode os.FileMode) error {
 	err := errors.New("unexpected call received: Chmod")
-	lro.T.Fatal(err)
+	bro.T.Fatal(err)
 	return err
 }
-func (lro localRunOnly) Chown(ctx context.Context, name string, uid, gid int) error {
+
+func (bro baseRunOnly) Chown(ctx context.Context, name string, uid, gid int) error {
 	err := errors.New("unexpected call received: Chown")
-	lro.T.Fatal(err)
+	bro.T.Fatal(err)
 	return err
 }
-func (lro localRunOnly) Lookup(ctx context.Context, username string) (*user.User, error) {
+
+func (bro baseRunOnly) Lookup(ctx context.Context, username string) (*user.User, error) {
 	err := errors.New("unexpected call received: Lookup")
-	lro.T.Fatal(err)
+	bro.T.Fatal(err)
 	return nil, err
 }
-func (lro localRunOnly) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
+
+func (bro baseRunOnly) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
 	err := errors.New("unexpected call received: LookupGroup")
-	lro.T.Fatal(err)
+	bro.T.Fatal(err)
 	return nil, err
 }
-func (lro localRunOnly) Lstat(ctx context.Context, name string) (os.FileInfo, error) {
+
+func (bro baseRunOnly) Lstat(ctx context.Context, name string) (os.FileInfo, error) {
 	err := errors.New("unexpected call received: Lstat")
-	lro.T.Fatal(err)
+	bro.T.Fatal(err)
 	return nil, err
 }
-func (lro localRunOnly) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
+
+func (bro baseRunOnly) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
 	err := errors.New("unexpected call received: Mkdir")
-	lro.T.Fatal(err)
+	bro.T.Fatal(err)
 	return err
 }
-func (lro localRunOnly) ReadFile(ctx context.Context, name string) ([]byte, error) {
+
+func (bro baseRunOnly) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	err := errors.New("unexpected call received: ReadFile")
-	lro.T.Fatal(err)
+	bro.T.Fatal(err)
 	return nil, err
 }
-func (lro localRunOnly) Remove(ctx context.Context, name string) error {
+
+func (bro baseRunOnly) Remove(ctx context.Context, name string) error {
 	err := errors.New("unexpected call received: Remove")
-	lro.T.Fatal(err)
+	bro.T.Fatal(err)
 	return err
 }
+
+func (bro baseRunOnly) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
+	err := errors.New("unexpected call received: WriteFile")
+	bro.T.Fatal(err)
+	return err
+}
+
+func (bro baseRunOnly) String() string {
+	return bro.Host.String()
+}
+
+type localRunOnly struct {
+	baseRunOnly
+	Host Host
+}
+
 func (lro localRunOnly) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, error) {
 	return lro.Host.Run(ctx, cmd)
 }
-func (lro localRunOnly) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
-	err := errors.New("unexpected call received: WriteFile")
-	lro.T.Fatal(err)
-	return err
-}
-func (lro localRunOnly) String() string {
-	return lro.Host.String()
+
+func newLocalRunOnly(t *testing.T, host Host) localRunOnly {
+	run := localRunOnly{
+		Host: host,
+	}
+	run.baseRunOnly.T = t
+	run.baseRunOnly.Host = host
+	return run
 }
 
 func TestRun(t *testing.T) {
-	host := Run{Host: localRunOnly{
+	host := NewRun(newLocalRunOnly(t, Local{}))
+	testHost(t, host)
+}
+
+type localRunSudoOnly struct {
+	baseRunOnly
+	T    *testing.T
+	Host Host
+}
+
+func (lrso localRunSudoOnly) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, error) {
+	if cmd.Path != "sudo" {
+		err := fmt.Errorf("attempted to run non-sudo command: %s", cmd.Path)
+		lrso.T.Fatal(err)
+		return WaitStatus{}, "", "", err
+	}
+	cmd.Path = cmd.Args[0]
+	cmd.Args = cmd.Args[1:]
+	return lrso.Host.Run(ctx, cmd)
+}
+
+func newLocalRunSudoOnly(t *testing.T, host Host) localRunSudoOnly {
+	run := localRunSudoOnly{
 		T:    t,
-		Host: Local{},
-	}}
+		Host: host,
+	}
+	run.baseRunOnly.T = t
+	run.baseRunOnly.Host = host
+	return run
+}
+
+func TestSudo(t *testing.T) {
+	ctx := context.Background()
+	ctx = log.SetLoggerValue(ctx, os.Stderr, "info", func(code int) {
+		t.Fatalf("exit called with %d", code)
+	})
+
+	host, err := NewSudo(ctx, newLocalRunSudoOnly(t, Local{}))
+	require.NoError(t, err)
 	testHost(t, host)
 }
