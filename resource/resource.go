@@ -300,15 +300,9 @@ func (r *Resource) UnmarshalYAML(node *yaml.Node) error {
 		panic(fmt.Errorf("Type %s missing from ManageableResourcesStateMap", tpe))
 	}
 	state := reflect.New(reflect.TypeOf(stateInstance)).Interface().(State)
-	if unmarshalSchema.Destroy {
-		if unmarshalSchema.StateNode.Content != nil {
-			return fmt.Errorf("line %d: can not set state when destroy is set", node.Line)
-		}
-	} else {
-		err := unmarshalSchema.StateNode.Decode(state)
-		if err != nil {
-			return fmt.Errorf("line %d: %w", unmarshalSchema.StateNode.Line, err)
-		}
+	err := unmarshalSchema.StateNode.Decode(state)
+	if err != nil {
+		return fmt.Errorf("line %d: %w", unmarshalSchema.StateNode.Line, err)
 	}
 
 	*r = NewResource(

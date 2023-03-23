@@ -174,7 +174,12 @@ func (b Bundle) IsClean(
 				panic(fmt.Sprintf("TypeNameStateMap missing %s", resource.TypeName))
 			}
 
-			chunks := Diff(currentState, resource.State)
+			var chunks Chunks
+			if resource.Destroy {
+				chunks = Diff(currentState, nil)
+			} else {
+				chunks = Diff(currentState, resource.State)
+			}
 
 			if chunks.HaveChanges() {
 				nestedLogger.WithField(
