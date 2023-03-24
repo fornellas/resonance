@@ -26,6 +26,7 @@ func Reset() {
 }
 
 func GetHost(ctx context.Context) (host.Host, error) {
+	nestedCtx := log.IndentLogger(ctx)
 	var hst host.Host
 	if localhost {
 		hst = host.Local{}
@@ -41,7 +42,7 @@ func GetHost(ctx context.Context) (host.Host, error) {
 
 	if sudo {
 		var err error
-		hst, err = host.NewSudo(ctx, hst)
+		hst, err = host.NewSudo(nestedCtx, hst)
 		if err != nil {
 			return nil, err
 		}
