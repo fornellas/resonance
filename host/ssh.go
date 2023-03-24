@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"net"
 	"os"
+	"os/user"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -353,7 +354,7 @@ func NewSsh(
 	return sshHost, nil
 }
 
-var authorityRegexp = regexp.MustCompile(`^(?:(?P<user>[^;@]+)(?:;fingerprint=(?P<fingerprint>[^@]+))?)?@(?P<host>[^:]+)(?::(?P<port>\d+))?$`)
+var authorityRegexp = regexp.MustCompile(`^(|((?P<user>[^;@]+)(|;fingerprint=(?P<fingerprint>[^@]+))@))(?P<host>[^:]+)(|:(?P<port>[0-9]+))$`)
 
 func parseAuthority(authority string) (string, string, string, int, error) {
 	matches := authorityRegexp.FindStringSubmatch(authority)
@@ -363,6 +364,13 @@ func parseAuthority(authority string) (string, string, string, int, error) {
 		)
 	}
 	usr := matches[authorityRegexp.SubexpIndex("user")]
+	if usr == "" {
+		currentUser, err := user.Current()
+		if err != nil {
+			return "", "", "", 0, err
+		}
+		usr = currentUser.Username
+	}
 	fingerprint := matches[authorityRegexp.SubexpIndex("fingerprint")]
 	host := matches[authorityRegexp.SubexpIndex("host")]
 	port := 22
