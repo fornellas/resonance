@@ -42,17 +42,10 @@ func (s Ssh) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
 	}
 	defer session.Close()
 
-	if err := session.RequestPty("xterm", 40, 80, ssh.TerminalModes{
-		ssh.ECHO:          1,
-		ssh.TTY_OP_ISPEED: 14400,
-		ssh.TTY_OP_OSPEED: 14400,
-	}); err != nil {
-		return WaitStatus{}, fmt.Errorf("failed to request pty: %w", err)
-	}
-
 	session.Stdin = cmd.Stdin
 	session.Stdout = cmd.Stdout
 	session.Stderr = cmd.Stderr
+
 	env := cmd.Env
 	if len(env) == 0 {
 		env = []string{"LANG=en_US.UTF-8"}
@@ -131,6 +124,12 @@ func sshKeyboardInteractiveChallenge(
 			fmt.Printf("%s: ", question)
 			_, _ = fmt.Scan(&answers[i])
 		} else {
+			state, err := term.MakeRaw(int(os.Stdin.Fd()))
+			if err != nil {
+				return nil, err
+			}
+			defer term.Restore(int(os.Stdin.Fd()), state)
+
 			var answerBytes []byte
 			fmt.Printf("%s", question)
 			answerBytes, err = (term.ReadPassword(int(os.Stdin.Fd())))
