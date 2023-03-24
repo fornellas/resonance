@@ -499,8 +499,33 @@ func newLocalRunOnly(t *testing.T, host Host) localRunOnly {
 	return run
 }
 
-func TestRunner(t *testing.T) {
-	host := NewRunner(newLocalRunOnly(t, Local{}))
+type runner struct {
+	baseRun
+	Host Host
+}
+
+func (r runner) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
+	return r.Host.Run(ctx, cmd)
+}
+
+func (r runner) String() string {
+	return r.Host.String()
+}
+
+func (r runner) Close() error {
+	return r.Host.Close()
+}
+
+func newRunner(host Host) runner {
+	run := runner{
+		Host: host,
+	}
+	run.baseRun.Host = host
+	return run
+}
+
+func TestBaseRun(t *testing.T) {
+	host := newRunner(newLocalRunOnly(t, Local{}))
 	testHost(t, host)
 }
 
