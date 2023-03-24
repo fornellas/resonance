@@ -279,6 +279,7 @@ func sshGetHostKeyCallback(
 		if !errors.Is(err, os.ErrNotExist) {
 			return nil, nil, err
 		}
+		logger.Debugf("Not found %s", systemKnownHosts)
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -292,6 +293,7 @@ func sshGetHostKeyCallback(
 		if !errors.Is(err, os.ErrNotExist) {
 			return nil, nil, err
 		}
+		logger.Debugf("Not found %s", userKnownHosts)
 	}
 	knownHostsHostKeyCallback, err := knownhosts.New(files...)
 	if err != nil {
