@@ -42,7 +42,7 @@ func NewSudo(ctx context.Context, host Host) (Sudo, error) {
 	// Sudo MAY ask for password once
 	cmd := Cmd{
 		Path:  "sudo",
-		Args:  []string{"--stdin", "--", "true"},
+		Args:  []string{"--", "true"},
 		Stdin: os.Stdin,
 	}
 	waitStatus, stdout, stderr, err := sudoHost.Host.Run(nestedCtx, cmd)
