@@ -47,7 +47,7 @@ func (ap APTPackage) GetStates(
 	for _, name := range names {
 		hostCmd.Args = append(hostCmd.Args, string(name))
 	}
-	waitStatus, stdout, stderr, err := hst.Run(ctx, hostCmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, hst, hostCmd)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (ap APTPackage) ConfigureAll(
 		Path: "apt-get",
 		Args: append([]string{"install"}, pkgs...),
 	}
-	waitStatus, stdout, stderr, err := hst.Run(ctx, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, hst, cmd)
 	if err != nil {
 		return fmt.Errorf("failed to run '%s': %s", cmd, err)
 	}

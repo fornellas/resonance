@@ -1,6 +1,7 @@
 package host
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -36,19 +37,17 @@ type Cmd struct {
 	Dir string
 
 	// Stdin specifies the process's standard input.
-	//
-	// If Stdin is nil, the process reads from the null device (os.DevNull).
-	//
-	// If Stdin is an *os.File, the process's standard input is connected
-	// directly to that file.
-	//
-	// Otherwise, during the execution of the command a separate
-	// goroutine reads from Stdin and delivers that data to the command
-	// over a pipe. In this case, Wait does not complete until the goroutine
-	// stops copying, either because it has reached the end of Stdin
-	// (EOF or a read error), or because writing to the pipe returned an error,
-	// or because a nonzero WaitDelay was set and expired.
+	// If Stdin is nil, the remote process reads from an empty
+	// bytes.Buffer.
 	Stdin io.Reader
+
+	// Stdout and Stderr specify the remote process's standard
+	// output and error.
+	// If either is nil, Run connects the corresponding file
+	// descriptor to an instance of io.Discard.
+	// command to block.
+	Stdout io.Writer
+	Stderr io.Writer
 }
 
 func (c Cmd) String() string {
@@ -192,8 +191,7 @@ type Host interface {
 	Remove(ctx context.Context, name string) error
 
 	// Run starts the specified command and waits for it to complete.
-	// Returns WaitStatus, stdout, stderr, error
-	Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, error)
+	Run(ctx context.Context, cmd Cmd) (WaitStatus, error)
 
 	// // Symlink works similar to os.Symlink.
 	// Symlink(ctx context.Context, oldname, newname string) error
@@ -206,4 +204,23 @@ type Host interface {
 
 	// Close any pending connections (if applicable).
 	Close() error
+}
+
+// Run starts the specified command and waits for it to complete.
+// Returns WaitStatus, stdout and stderr.
+func Run(ctx context.Context, hst Host, cmd Cmd) (WaitStatus, string, string, error) {
+	if cmd.Stdout != nil {
+		panic(fmt.Errorf("can not set Cmd.Stdout: %s", cmd))
+	}
+	stdoutBuffer := bytes.Buffer{}
+	cmd.Stdout = &stdoutBuffer
+
+	if cmd.Stderr != nil {
+		panic(fmt.Errorf("can not set Cmd.Stderr: %s", cmd))
+	}
+	stderrBuffer := bytes.Buffer{}
+	cmd.Stderr = &stderrBuffer
+
+	waitStatus, err := hst.Run(ctx, cmd)
+	return waitStatus, stdoutBuffer.String(), stderrBuffer.String(), err
 }

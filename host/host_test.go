@@ -251,7 +251,7 @@ func testHost(t *testing.T, host Host) {
 	t.Run("Run", func(t *testing.T) {
 		t.Run("Args, output and failure", func(t *testing.T) {
 			outputBuffer.Reset()
-			waitStatus, stdout, stderr, err := host.Run(ctx, Cmd{
+			waitStatus, stdout, stderr, err := Run(ctx, host, Cmd{
 				Path: "ls",
 				Args: []string{"-d", "../tmp", "/non-existent"},
 			})
@@ -272,7 +272,7 @@ func testHost(t *testing.T, host Host) {
 		t.Run("Env", func(t *testing.T) {
 			t.Run("Empty", func(t *testing.T) {
 				outputBuffer.Reset()
-				waitStatus, stdout, stderr, err := host.Run(ctx, Cmd{
+				waitStatus, stdout, stderr, err := Run(ctx, host, Cmd{
 					Path: "env",
 				})
 				require.NoError(t, err)
@@ -286,7 +286,7 @@ func testHost(t *testing.T, host Host) {
 			t.Run("Set", func(t *testing.T) {
 				outputBuffer.Reset()
 				env := "FOO=bar"
-				waitStatus, stdout, stderr, err := host.Run(ctx, Cmd{
+				waitStatus, stdout, stderr, err := Run(ctx, host, Cmd{
 					Path: "env",
 					Env:  []string{env},
 				})
@@ -309,7 +309,7 @@ func testHost(t *testing.T, host Host) {
 			outputBuffer.Reset()
 			wd, err := os.Getwd()
 			require.NoError(t, err)
-			waitStatus, stdout, stderr, err := host.Run(ctx, Cmd{
+			waitStatus, stdout, stderr, err := Run(ctx, host, Cmd{
 				Path: "pwd",
 				Dir:  wd,
 			})
@@ -330,7 +330,7 @@ func testHost(t *testing.T, host Host) {
 		t.Run("Stdin", func(t *testing.T) {
 			outputBuffer.Reset()
 			stdin := "hello"
-			waitStatus, stdout, stderr, err := host.Run(ctx, Cmd{
+			waitStatus, stdout, stderr, err := Run(ctx, host, Cmd{
 				Path:  "sh",
 				Args:  []string{"-c", "read v && echo =$v="},
 				Stdin: strings.NewReader(fmt.Sprintf("%s\n", stdin)),
@@ -486,7 +486,7 @@ type localRunOnly struct {
 	Host Host
 }
 
-func (lro localRunOnly) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, error) {
+func (lro localRunOnly) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
 	return lro.Host.Run(ctx, cmd)
 }
 
@@ -499,8 +499,8 @@ func newLocalRunOnly(t *testing.T, host Host) localRunOnly {
 	return run
 }
 
-func TestRun(t *testing.T) {
-	host := NewRun(newLocalRunOnly(t, Local{}))
+func TestRunner(t *testing.T) {
+	host := NewRunner(newLocalRunOnly(t, Local{}))
 	testHost(t, host)
 }
 
@@ -510,11 +510,11 @@ type localRunSudoOnly struct {
 	Host Host
 }
 
-func (lrso localRunSudoOnly) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, error) {
+func (lrso localRunSudoOnly) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
 	if cmd.Path != "sudo" {
 		err := fmt.Errorf("attempted to run non-sudo command: %s", cmd.Path)
 		lrso.T.Fatal(err)
-		return WaitStatus{}, "", "", err
+		return WaitStatus{}, err
 	}
 	var cmdIdx int
 	for i, arg := range cmd.Args {
@@ -526,7 +526,7 @@ func (lrso localRunSudoOnly) Run(ctx context.Context, cmd Cmd) (WaitStatus, stri
 	if cmdIdx == 0 {
 		err := fmt.Errorf("missing expected sudo argument '--': %s", cmd.Args)
 		lrso.T.Fatal(err)
-		return WaitStatus{}, "", "", err
+		return WaitStatus{}, err
 	}
 	cmd.Path = cmd.Args[cmdIdx]
 	cmd.Args = cmd.Args[cmdIdx+1:]

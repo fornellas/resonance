@@ -1,7 +1,6 @@
 package host
 
 import (
-	"bytes"
 	"context"
 	"crypto/rsa"
 	"errors"
@@ -33,13 +32,13 @@ type Ssh struct {
 	client   *ssh.Client
 }
 
-func (s Ssh) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, error) {
+func (s Ssh) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Run %s", cmd)
 
 	session, err := s.client.NewSession()
 	if err != nil {
-		return WaitStatus{}, "", "", fmt.Errorf("failed to create session: %w", err)
+		return WaitStatus{}, fmt.Errorf("failed to create session: %w", err)
 	}
 	defer session.Close()
 
@@ -48,17 +47,18 @@ func (s Ssh) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, erro
 		ssh.TTY_OP_ISPEED: 14400,
 		ssh.TTY_OP_OSPEED: 14400,
 	}); err != nil {
-		return WaitStatus{}, "", "", fmt.Errorf("failed to request pty: %w", err)
+		return WaitStatus{}, fmt.Errorf("failed to request pty: %w", err)
 	}
 
 	session.Stdin = cmd.Stdin
-	var stdoutBuffer bytes.Buffer
-	session.Stdout = &stdoutBuffer
-	var stderrBuffer bytes.Buffer
-	session.Stderr = &stderrBuffer
+	session.Stdout = cmd.Stdout
+	session.Stderr = cmd.Stderr
 
 	var cmdStrBdr strings.Builder
-	fmt.Fprintf(&cmdStrBdr, "%s", shellescape.Quote(cmd.Path))
+	if cmd.Dir == "" {
+		cmd.Dir = "/tmp"
+	}
+	fmt.Fprintf(&cmdStrBdr, "cd %s && %s", shellescape.Quote(cmd.Dir), shellescape.Quote(cmd.Path))
 	for _, arg := range cmd.Args {
 		fmt.Fprintf(&cmdStrBdr, " %s", shellescape.Quote(arg))
 	}
@@ -67,7 +67,6 @@ func (s Ssh) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, erro
 	var exited bool
 	var signal string
 	// TODO cmd.Env
-	// TODO cmd.Dir
 	if err := session.Run(cmdStrBdr.String()); err == nil {
 		exitCode = 0
 		exited = true
@@ -79,10 +78,7 @@ func (s Ssh) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, erro
 			signal = exitError.Signal()
 		} else {
 			fmt.Printf("err: %#v\n", err)
-			return WaitStatus{}, "", "", fmt.Errorf(
-				"failed to run %v: %w\nstdout:\n%s\nstderr:\n%s",
-				cmd, err, stdoutBuffer.String(), stderrBuffer.String(),
-			)
+			return WaitStatus{}, fmt.Errorf("failed to run %v: %w", cmd, err)
 		}
 	}
 
@@ -90,7 +86,7 @@ func (s Ssh) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, erro
 		ExitCode: exitCode,
 		Exited:   exited,
 		Signal:   signal,
-	}, stdoutBuffer.String(), stderrBuffer.String(), nil
+	}, nil
 }
 
 func (s Ssh) String() string {

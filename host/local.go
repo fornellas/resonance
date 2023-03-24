@@ -1,7 +1,6 @@
 package host
 
 import (
-	"bytes"
 	"context"
 	"os"
 	"os/exec"
@@ -77,12 +76,9 @@ func (l Local) Remove(ctx context.Context, name string) error {
 	return os.Remove(name)
 }
 
-func (l Local) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, error) {
+func (l Local) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Run %s", cmd)
-
-	stdoutBuffer := bytes.Buffer{}
-	stderrBuffer := bytes.Buffer{}
 
 	execCmd := exec.CommandContext(log.IndentLogger(ctx), cmd.Path, cmd.Args...)
 	if len(cmd.Env) == 0 {
@@ -94,8 +90,8 @@ func (l Local) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, er
 	}
 	execCmd.Dir = cmd.Dir
 	execCmd.Stdin = cmd.Stdin
-	execCmd.Stdout = &stdoutBuffer
-	execCmd.Stderr = &stderrBuffer
+	execCmd.Stdout = cmd.Stdout
+	execCmd.Stderr = cmd.Stderr
 	execCmd.Cancel = func() error {
 		if err := execCmd.Process.Signal(syscall.SIGTERM); err != nil {
 			return err
@@ -110,7 +106,7 @@ func (l Local) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, er
 	err := execCmd.Run()
 	if err != nil {
 		if _, ok := err.(*exec.ExitError); !ok {
-			return waitStatus, stdoutBuffer.String(), stderrBuffer.String(), err
+			return waitStatus, err
 		}
 	}
 	waitStatus.ExitCode = execCmd.ProcessState.ExitCode()
@@ -119,7 +115,7 @@ func (l Local) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, er
 	if signal > 0 {
 		waitStatus.Signal = signal.String()
 	}
-	return waitStatus, stdoutBuffer.String(), stderrBuffer.String(), nil
+	return waitStatus, nil
 }
 
 func (l Local) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {

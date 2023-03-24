@@ -30,7 +30,7 @@ func (br baseRun) Chmod(ctx context.Context, name string, mode os.FileMode) erro
 		Path: "chmod",
 		Args: []string{fmt.Sprintf("%o", mode), name},
 	}
-	waitStatus, stdout, stderr, err := br.Host.Run(ctx, cmd)
+	waitStatus, stdout, stderr, err := Run(ctx, br.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -59,7 +59,7 @@ func (br baseRun) Chown(ctx context.Context, name string, uid, gid int) error {
 		Path: "chown",
 		Args: []string{fmt.Sprintf("%d.%d", uid, gid), name},
 	}
-	waitStatus, stdout, stderr, err := br.Host.Run(ctx, cmd)
+	waitStatus, stdout, stderr, err := Run(ctx, br.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func (br baseRun) Lookup(ctx context.Context, username string) (*user.User, erro
 		Path: "cat",
 		Args: []string{"/etc/passwd"},
 	}
-	waitStatus, stdout, stderr, err := br.Host.Run(ctx, cmd)
+	waitStatus, stdout, stderr, err := Run(ctx, br.Host, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (br baseRun) LookupGroup(ctx context.Context, name string) (*user.Group, er
 		Path: "cat",
 		Args: []string{"/etc/group"},
 	}
-	waitStatus, stdout, stderr, err := br.Host.Run(ctx, cmd)
+	waitStatus, stdout, stderr, err := Run(ctx, br.Host, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +172,7 @@ func (br baseRun) stat(ctx context.Context, name string) (string, error) {
 		Path: "stat",
 		Args: []string{"--format=%d,%i,%h,%f,%u,%g,%t,%T,%s,%o,%b,%x,%y,%z", name},
 	}
-	waitStatus, stdout, stderr, err := br.Host.Run(ctx, cmd)
+	waitStatus, stdout, stderr, err := Run(ctx, br.Host, cmd)
 	if err != nil {
 		return "", err
 	}
@@ -284,7 +284,7 @@ func (br baseRun) Mkdir(ctx context.Context, name string, perm os.FileMode) erro
 		Path: "mkdir",
 		Args: []string{name},
 	}
-	waitStatus, stdout, stderr, err := br.Host.Run(ctx, cmd)
+	waitStatus, stdout, stderr, err := Run(ctx, br.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -314,7 +314,7 @@ func (br baseRun) ReadFile(ctx context.Context, name string) ([]byte, error) {
 		Path: "cat",
 		Args: []string{name},
 	}
-	waitStatus, stdout, stderr, err := br.Host.Run(ctx, cmd)
+	waitStatus, stdout, stderr, err := Run(ctx, br.Host, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -338,7 +338,7 @@ func (br baseRun) rmdir(ctx context.Context, name string) error {
 		Path: "rmdir",
 		Args: []string{name},
 	}
-	waitStatus, stdout, stderr, err := br.Host.Run(ctx, cmd)
+	waitStatus, stdout, stderr, err := Run(ctx, br.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -361,7 +361,7 @@ func (br baseRun) Remove(ctx context.Context, name string) error {
 		Path: "rm",
 		Args: []string{name},
 	}
-	waitStatus, stdout, stderr, err := br.Host.Run(ctx, cmd)
+	waitStatus, stdout, stderr, err := Run(ctx, br.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -395,7 +395,7 @@ func (br baseRun) WriteFile(ctx context.Context, name string, data []byte, perm 
 		Args:  []string{"-c", fmt.Sprintf("cat > %s", shellescape.Quote(name))},
 		Stdin: bytes.NewReader(data),
 	}
-	waitStatus, stdout, stderr, err := br.Host.Run(ctx, cmd)
+	waitStatus, stdout, stderr, err := Run(ctx, br.Host, cmd)
 	if err != nil {
 		return err
 	}
