@@ -56,6 +56,8 @@ func NewSudo(ctx context.Context, host Host) (Sudo, error) {
 		)
 	}
 
+	logger.Debug("pass!")
+
 	// Sudo must NOT ask for password again
 	cmd = Cmd{
 		Path: "true",
@@ -66,8 +68,8 @@ func NewSudo(ctx context.Context, host Host) (Sudo, error) {
 	}
 	if !waitStatus.Success() {
 		return Sudo{}, fmt.Errorf(
-			"failed to run %s: %v\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus, stdout, stderr,
+			"sudo is still asking for a password: failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
 		)
 	}
 

@@ -71,12 +71,13 @@ func (s Ssh) Run(ctx context.Context, cmd Cmd) (WaitStatus, string, string, erro
 		exitCode = 0
 		exited = true
 	} else {
-		if errors.Is(err, &ssh.ExitError{}) {
-			exitError := err.(*ssh.ExitError)
+		var exitError *ssh.ExitError
+		if errors.As(err, &exitError) {
 			exitCode = exitError.ExitStatus()
 			exited = exitError.Signal() == ""
 			signal = exitError.Signal()
 		} else {
+			fmt.Printf("err: %#v\n", err)
 			return WaitStatus{}, "", "", fmt.Errorf(
 				"failed to run %v: %w\nstdout:\n%s\nstderr:\n%s",
 				cmd, err, stdoutBuffer.String(), stderrBuffer.String(),
@@ -301,6 +302,7 @@ func sshGetHostKeyCallback(
 	}
 
 	hostKeyAlgorithms := getHostKeyAlgorithms(host, port, knownHostsHostKeyCallback)
+	logger.Debugf("Host key algorithms: %v", hostKeyAlgorithms)
 
 	return hostKeyCallback, hostKeyAlgorithms, nil
 }
@@ -314,15 +316,18 @@ func NewSsh(
 	timeout time.Duration,
 ) (Ssh, error) {
 	logger := log.GetLogger(ctx)
-	signers, err := sshGetSigners(ctx)
+	logger.Infof("🖧 Connecting to %s@%s:%d", user, host, port)
+	nestedCtx := log.IndentLogger(ctx)
+
+	signers, err := sshGetSigners(nestedCtx)
 	if err != nil {
 		return Ssh{}, err
 	}
-	hostKeyCallback, hostKeyAlgorithms, err := sshGetHostKeyCallback(ctx, host, port, fingerprint)
+	hostKeyCallback, hostKeyAlgorithms, err := sshGetHostKeyCallback(nestedCtx, host, port, fingerprint)
 	if err != nil {
 		return Ssh{}, err
 	}
-	logger.Debugf("Host key algorithms: %v", hostKeyAlgorithms)
+
 	retries := 3
 	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", host, port), &ssh.ClientConfig{
 		User: user,
