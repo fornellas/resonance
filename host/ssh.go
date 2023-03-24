@@ -53,6 +53,21 @@ func (s Ssh) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
 	session.Stdin = cmd.Stdin
 	session.Stdout = cmd.Stdout
 	session.Stderr = cmd.Stderr
+	env := cmd.Env
+	if len(env) == 0 {
+		env = []string{"LANG=en_US.UTF-8"}
+	}
+	for _, nameValue := range env {
+		equalsIdx := strings.Index(nameValue, "=")
+		if equalsIdx == -1 {
+			return WaitStatus{}, fmt.Errorf("invalid environment: %s", nameValue)
+		}
+		name := nameValue[:equalsIdx]
+		value := nameValue[equalsIdx+1:]
+		if err := session.Setenv(name, value); err != nil {
+			return WaitStatus{}, err
+		}
+	}
 
 	var cmdStrBdr strings.Builder
 	if cmd.Dir == "" {
@@ -66,7 +81,6 @@ func (s Ssh) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
 	var exitCode int
 	var exited bool
 	var signal string
-	// TODO cmd.Env
 	if err := session.Run(cmdStrBdr.String()); err == nil {
 		exitCode = 0
 		exited = true
