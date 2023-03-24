@@ -47,8 +47,8 @@ func (br baseRun) Chmod(ctx context.Context, name string, mode os.FileMode) erro
 	}
 
 	return fmt.Errorf(
-		"failed to run %s: %v\nstdout:\n%s\nstderr:\n%s",
-		cmd, waitStatus, stdout, stderr,
+		"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+		cmd, waitStatus.String(), stdout, stderr,
 	)
 }
 
@@ -76,8 +76,8 @@ func (br baseRun) Chown(ctx context.Context, name string, uid, gid int) error {
 	}
 
 	return fmt.Errorf(
-		"failed to run %s: %v\nstdout:\n%s\nstderr:\n%s",
-		cmd, waitStatus, stdout, stderr,
+		"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+		cmd, waitStatus.String(), stdout, stderr,
 	)
 }
 
@@ -94,8 +94,8 @@ func (br baseRun) Lookup(ctx context.Context, username string) (*user.User, erro
 	}
 	if !waitStatus.Success() {
 		return nil, fmt.Errorf(
-			"failed to run %s: %v\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus, stdout, stderr,
+			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
 		)
 	}
 	for i, line := range strings.Split(stdout, "\n") {
@@ -140,8 +140,8 @@ func (br baseRun) LookupGroup(ctx context.Context, name string) (*user.Group, er
 	}
 	if !waitStatus.Success() {
 		return nil, fmt.Errorf(
-			"failed to run %s: %v\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus, stdout, stderr,
+			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
 		)
 	}
 	for i, line := range strings.Split(stdout, "\n") {
@@ -184,8 +184,8 @@ func (br baseRun) stat(ctx context.Context, name string) (string, error) {
 			return "", os.ErrNotExist
 		}
 		return "", fmt.Errorf(
-			"failed to run %s: %v\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus, stdout, stderr,
+			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
 		)
 	}
 	return stdout, nil
@@ -299,8 +299,8 @@ func (br baseRun) Mkdir(ctx context.Context, name string, perm os.FileMode) erro
 			return os.ErrNotExist
 		}
 		return fmt.Errorf(
-			"failed to run %s: %v\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus, stdout, stderr,
+			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
 		)
 	}
 
@@ -326,8 +326,8 @@ func (br baseRun) ReadFile(ctx context.Context, name string) ([]byte, error) {
 			return nil, os.ErrNotExist
 		}
 		return nil, fmt.Errorf(
-			"failed to run %s: %v\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus, stdout, stderr,
+			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
 		)
 	}
 	return []byte(stdout), nil
@@ -347,8 +347,8 @@ func (br baseRun) rmdir(ctx context.Context, name string) error {
 			return os.ErrPermission
 		}
 		return fmt.Errorf(
-			"failed to run %s: %v\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus, stdout, stderr,
+			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
 		)
 	}
 	return nil
@@ -376,8 +376,8 @@ func (br baseRun) Remove(ctx context.Context, name string) error {
 			return os.ErrNotExist
 		}
 		return fmt.Errorf(
-			"failed to run %s: %v\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus, stdout, stderr,
+			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
 		)
 	}
 	return nil
@@ -410,8 +410,8 @@ func (br baseRun) WriteFile(ctx context.Context, name string, data []byte, perm 
 			return os.ErrNotExist
 		}
 		return fmt.Errorf(
-			"failed to run %s: %v\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus, stdout, stderr,
+			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
 		)
 	}
 	if chmod {
