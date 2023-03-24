@@ -115,6 +115,9 @@
         - `PersistantState`
             - ✨Save history of states: enable to rollback to any previous state.
             - ✨Support `refreshed_by`, to enable resources to subscribe to others (eg: `SystemdUnit[nginx.service]` is `refreshed_by` `File[/etc/nginx/.+]`)
+- `state/`
+    - `state.go`
+        - ✨Use host FQDN as key for saving state (eg: run `hostname -f`, compare with DNS name)
 - `cli/`
     - `**/cmd.go`
         - ✨^C cancel context
