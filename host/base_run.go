@@ -26,11 +26,13 @@ type baseRun struct {
 func (br baseRun) Chmod(ctx context.Context, name string, mode os.FileMode) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Chmod %v %s", mode, name)
+	nestedCtx := log.IndentLogger(ctx)
+
 	cmd := Cmd{
 		Path: "chmod",
 		Args: []string{fmt.Sprintf("%o", mode), name},
 	}
-	waitStatus, stdout, stderr, err := Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := Run(nestedCtx, br.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -55,11 +57,13 @@ func (br baseRun) Chmod(ctx context.Context, name string, mode os.FileMode) erro
 func (br baseRun) Chown(ctx context.Context, name string, uid, gid int) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Chown %v %v %s", uid, gid, name)
+	nestedCtx := log.IndentLogger(ctx)
+
 	cmd := Cmd{
 		Path: "chown",
 		Args: []string{fmt.Sprintf("%d.%d", uid, gid), name},
 	}
-	waitStatus, stdout, stderr, err := Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := Run(nestedCtx, br.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -84,11 +88,13 @@ func (br baseRun) Chown(ctx context.Context, name string, uid, gid int) error {
 func (br baseRun) Lookup(ctx context.Context, username string) (*user.User, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Lookup %s", username)
+	nestedCtx := log.IndentLogger(ctx)
+
 	cmd := Cmd{
 		Path: "cat",
 		Args: []string{"/etc/passwd"},
 	}
-	waitStatus, stdout, stderr, err := Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := Run(nestedCtx, br.Host, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -130,11 +136,13 @@ func (br baseRun) Lookup(ctx context.Context, username string) (*user.User, erro
 func (br baseRun) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("LookupGroup %s", name)
+	nestedCtx := log.IndentLogger(ctx)
+
 	cmd := Cmd{
 		Path: "cat",
 		Args: []string{"/etc/group"},
 	}
-	waitStatus, stdout, stderr, err := Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := Run(nestedCtx, br.Host, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +202,9 @@ func (br baseRun) stat(ctx context.Context, name string) (string, error) {
 func (br baseRun) Lstat(ctx context.Context, name string) (HostFileInfo, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Lstat %s", name)
-	stdout, err := br.stat(ctx, name)
+	nestedCtx := log.IndentLogger(ctx)
+
+	stdout, err := br.stat(nestedCtx, name)
 	if err != nil {
 		return HostFileInfo{}, err
 	}
@@ -280,11 +290,13 @@ func (br baseRun) Lstat(ctx context.Context, name string) (HostFileInfo, error) 
 func (br baseRun) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Mkdir %s", name)
+	nestedCtx := log.IndentLogger(ctx)
+
 	cmd := Cmd{
 		Path: "mkdir",
 		Args: []string{name},
 	}
-	waitStatus, stdout, stderr, err := Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := Run(nestedCtx, br.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -310,11 +322,13 @@ func (br baseRun) Mkdir(ctx context.Context, name string, perm os.FileMode) erro
 func (br baseRun) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("ReadFile %s", name)
+	nestedCtx := log.IndentLogger(ctx)
+
 	cmd := Cmd{
 		Path: "cat",
 		Args: []string{name},
 	}
-	waitStatus, stdout, stderr, err := Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := Run(nestedCtx, br.Host, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -357,17 +371,19 @@ func (br baseRun) rmdir(ctx context.Context, name string) error {
 func (br baseRun) Remove(ctx context.Context, name string) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Remove %s", name)
+	nestedCtx := log.IndentLogger(ctx)
+
 	cmd := Cmd{
 		Path: "rm",
 		Args: []string{name},
 	}
-	waitStatus, stdout, stderr, err := Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := Run(nestedCtx, br.Host, cmd)
 	if err != nil {
 		return err
 	}
 	if !waitStatus.Success() {
 		if strings.Contains(stderr, "Is a directory") {
-			return br.rmdir(ctx, name)
+			return br.rmdir(nestedCtx, name)
 		}
 		if strings.Contains(stderr, "Permission denied") {
 			return os.ErrPermission
@@ -386,8 +402,10 @@ func (br baseRun) Remove(ctx context.Context, name string) error {
 func (br baseRun) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("WriteFile %s %v", name, perm)
+	nestedCtx := log.IndentLogger(ctx)
+
 	var chmod bool
-	if _, err := br.Lstat(ctx, name); errors.Is(err, os.ErrNotExist) {
+	if _, err := br.Lstat(nestedCtx, name); errors.Is(err, os.ErrNotExist) {
 		chmod = true
 	}
 	cmd := Cmd{
@@ -395,7 +413,7 @@ func (br baseRun) WriteFile(ctx context.Context, name string, data []byte, perm 
 		Args:  []string{"-c", fmt.Sprintf("cat > %s", shellescape.Quote(name))},
 		Stdin: bytes.NewReader(data),
 	}
-	waitStatus, stdout, stderr, err := Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := Run(nestedCtx, br.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -415,7 +433,7 @@ func (br baseRun) WriteFile(ctx context.Context, name string, data []byte, perm 
 		)
 	}
 	if chmod {
-		return br.Chmod(ctx, name, perm)
+		return br.Chmod(nestedCtx, name, perm)
 	}
 	return nil
 }
