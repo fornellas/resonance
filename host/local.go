@@ -104,6 +104,7 @@ func (l Local) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
 
 	waitStatus := WaitStatus{}
 	err := execCmd.Run()
+
 	if err != nil {
 		if _, ok := err.(*exec.ExitError); !ok {
 			return waitStatus, err

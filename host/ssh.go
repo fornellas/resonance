@@ -84,7 +84,6 @@ func (s Ssh) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
 			exited = exitError.Signal() == ""
 			signal = exitError.Signal()
 		} else {
-			fmt.Printf("err: %#v\n", err)
 			return WaitStatus{}, fmt.Errorf("failed to run %v: %w", cmd, err)
 		}
 	}
