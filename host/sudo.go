@@ -1,9 +1,17 @@
 package host
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
-	"os"
+	"io"
+	"strings"
+	"sync"
+
+	"github.com/alessio/shellescape"
 
 	"github.com/fornellas/resonance/log"
 )
@@ -16,27 +24,136 @@ type Sudo struct {
 	// password *string
 }
 
-// func getRandomPrompt() string {
-// 	bytes := make([]byte, 64)
-// 	_, err := rand.Read(bytes)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	hash := sha512.Sum512(bytes)
-// 	return hex.EncodeToString(hash[:])
-// }
+// stdinSudo prevents stdin from being read, before we can detect output
+// from sudo on stdout. This is required because os/exec and ssh buffer stdin
+// before there's any read, meaning we can't intercept the sudo prompt
+// reliably
+type stdinSudo struct {
+	Unlock   chan struct{}
+	SendPass chan string
+	Reader   io.Reader
+	mutex    sync.Mutex
+	unlocked bool
+}
+
+func (sis *stdinSudo) Read(p []byte) (int, error) {
+	sis.mutex.Lock()
+	defer sis.mutex.Unlock()
+
+	if !sis.unlocked {
+		select {
+		case <-sis.Unlock:
+			sis.unlocked = true
+		case password := <-sis.SendPass:
+			passwordBytes := []byte(password)
+			if len(passwordBytes) > len(p) {
+				return 0, fmt.Errorf(
+					"password is longer (%d) than read buffer (%d)", len(passwordBytes), len(p),
+				)
+			}
+			copy(p, passwordBytes)
+			return len(passwordBytes), nil
+		}
+	}
+
+	return sis.Reader.Read(p)
+}
+
+// stderrSudo waits for either write:
+// - sudo prompt: asks for password, caches it, and send to stdin.
+// - sudo ok: unlocks stdin.
+type stderrSudo struct {
+	Unlock   chan struct{}
+	SendPass chan string
+	Prompt   []byte
+	SudoOk   []byte
+	Writer   io.Writer
+	unlocked bool
+}
+
+func (ses *stderrSudo) Write(p []byte) (int, error) {
+	if !ses.unlocked {
+		if bytes.Equal(p, ses.Prompt) {
+			panic("prompt")
+			// return len(p), nil
+		} else if bytes.Equal(p, ses.SudoOk) {
+			ses.Unlock <- struct{}{}
+			ses.unlocked = true
+			return len(p), nil
+		} else {
+			return 0, fmt.Errorf("unexpected write to stderr: %#v", string(p))
+		}
+	}
+
+	return ses.Writer.Write(p)
+}
+
+func getRandomString() string {
+	bytes := make([]byte, 32)
+	_, err := rand.Read(bytes)
+	if err != nil {
+		panic(err)
+	}
+	hash := sha256.Sum256(bytes)
+	return hex.EncodeToString(hash[:])
+}
 
 func (s Sudo) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
-	// prompt := getRandomPrompt()
-	prompt := "sudo password: "
-	cmd.Args = append([]string{"--stdin", "--prompt", prompt, "--", cmd.Path}, cmd.Args...)
+	prompt := fmt.Sprintf("sudo password (%s)", getRandomString())
+	sudoOk := fmt.Sprintf("sudo ok (%s)", getRandomString())
+	shellCmdArgs := []string{shellescape.Quote(cmd.Path)}
+	for _, arg := range cmd.Args {
+		shellCmdArgs = append(shellCmdArgs, shellescape.Quote(arg))
+	}
+	shellCmdStr := strings.Join(shellCmdArgs, " ")
+	if len(cmd.Env) == 0 {
+		cmd.Env = []string{"LANG=en_US.UTF-8"}
+	}
+	envStrs := []string{}
+	for _, nameValue := range cmd.Env {
+		envStrs = append(envStrs, shellescape.Quote(nameValue))
+	}
+	cmd.Args = []string{
+		"--stdin",
+		"--prompt", prompt,
+		"--", "sh", "-c",
+		fmt.Sprintf(
+			"echo -n %s 1>&2 && exec env --ignore-environment %s %s",
+			shellescape.Quote(sudoOk),
+			strings.Join(envStrs, " "),
+			shellCmdStr,
+		),
+	}
 	cmd.Path = "sudo"
 
-	// stderr
-	// if first bytes == prompt
-	//   if s.password == nil
-	//     s.password = readPassword()
-	//   fmt.Fprintf(stdin, "%s\n", s.password)
+	unlockStdin := make(chan struct{}, 1)
+	sendPassStdin := make(chan string, 1)
+
+	var stdin io.Reader
+	if cmd.Stdin != nil {
+		stdin = cmd.Stdin
+	} else {
+		stdin = &bytes.Buffer{}
+	}
+	cmd.Stdin = &stdinSudo{
+		Unlock:   unlockStdin,
+		SendPass: sendPassStdin,
+		Reader:   stdin,
+	}
+
+	var stderr io.Writer
+	if cmd.Stderr != nil {
+		stderr = cmd.Stderr
+	} else {
+		stderr = io.Discard
+	}
+	cmd.Stderr = &stderrSudo{
+		Unlock:   unlockStdin,
+		SendPass: sendPassStdin,
+		Prompt:   []byte(prompt),
+		SudoOk:   []byte(sudoOk),
+		Writer:   stderr,
+	}
 
 	return s.Host.Run(ctx, cmd)
 }
@@ -59,16 +176,13 @@ func NewSudo(ctx context.Context, host Host) (Sudo, error) {
 	}
 	sudoHost.baseRun.Host = sudoHost
 
-	cmd := Cmd{
-		Path:  "true",
-		Stdin: os.Stdin,
-	}
+	cmd := Cmd{Path: "true"}
 	waitStatus, err := sudoHost.Run(nestedCtx, cmd)
 	if err != nil {
 		return Sudo{}, err
 	}
 	if !waitStatus.Success() {
-		return Sudo{}, fmt.Errorf("failed to run %s: %s", cmd, waitStatus.String())
+		return Sudo{}, fmt.Errorf("failed to run %s: %v", cmd, waitStatus)
 	}
 
 	return sudoHost, nil
