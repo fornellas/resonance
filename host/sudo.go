@@ -65,18 +65,20 @@ func (sis *stdinSudo) Read(p []byte) (int, error) {
 // - sudo prompt: asks for password, caches it, and send to stdin.
 // - sudo ok: unlocks stdin.
 type stderrSudo struct {
-	Unlock   chan struct{}
-	SendPass chan string
-	Prompt   []byte
-	SudoOk   []byte
-	Writer   io.Writer
-	Password **string
-	unlocked bool
+	Unlock          chan struct{}
+	SendPass        chan string
+	Prompt          []byte
+	SudoOk          []byte
+	Writer          io.Writer
+	Password        **string
+	unlocked        bool
+	passwordAttempt *string
 }
 
 func (ses *stderrSudo) Write(p []byte) (int, error) {
 	if !ses.unlocked {
 		if bytes.Equal(p, ses.Prompt) {
+			var password string
 			if *ses.Password == nil {
 				state, err := term.MakeRaw(int(os.Stdin.Fd()))
 				if err != nil {
@@ -91,17 +93,22 @@ func (ses *stderrSudo) Write(p []byte) (int, error) {
 					return 0, err
 				}
 				fmt.Printf("\n\r")
-				password := string(passwordBytes)
-				*ses.Password = &password
+				password = string(passwordBytes)
+				ses.passwordAttempt = &password
+			} else {
+				password = **ses.Password
 			}
-			ses.SendPass <- **ses.Password
+			ses.SendPass <- password
 			return len(p), nil
 		} else if bytes.Equal(p, ses.SudoOk) {
+			if ses.passwordAttempt != nil {
+				*ses.Password = ses.passwordAttempt
+			}
 			ses.Unlock <- struct{}{}
 			ses.unlocked = true
 			return len(p), nil
 		} else {
-			return 0, fmt.Errorf("unexpected write to stderr: %#v", string(p))
+			return fmt.Fprintf(os.Stderr, "%s", string(p))
 		}
 	}
 
@@ -118,7 +125,7 @@ func getRandomString() string {
 	return hex.EncodeToString(hash[:])
 }
 
-func (s Sudo) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
+func (s *Sudo) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
 	prompt := fmt.Sprintf("sudo password (%s)", getRandomString())
 	sudoOk := fmt.Sprintf("sudo ok (%s)", getRandomString())
 	shellCmdArgs := []string{shellescape.Quote(cmd.Path)}
@@ -175,7 +182,6 @@ func (s Sudo) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
 		Writer:   stderr,
 		Password: &s.Password,
 	}
-
 	return s.Host.Run(ctx, cmd)
 }
 
@@ -187,7 +193,7 @@ func (s Sudo) Close() error {
 	return s.Host.Close()
 }
 
-func NewSudo(ctx context.Context, host Host) (Sudo, error) {
+func NewSudo(ctx context.Context, host Host) (*Sudo, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("⚡ Sudo")
 	nestedCtx := log.IndentLogger(ctx)
@@ -195,16 +201,16 @@ func NewSudo(ctx context.Context, host Host) (Sudo, error) {
 	sudoHost := Sudo{
 		Host: host,
 	}
-	sudoHost.baseRun.Host = sudoHost
+	sudoHost.baseRun.Host = &sudoHost
 
 	cmd := Cmd{Path: "true"}
 	waitStatus, err := sudoHost.Run(nestedCtx, cmd)
 	if err != nil {
-		return Sudo{}, err
+		return nil, err
 	}
 	if !waitStatus.Success() {
-		return Sudo{}, fmt.Errorf("failed to run %s: %v", cmd, waitStatus)
+		return nil, fmt.Errorf("failed to run %s: %v", cmd, waitStatus)
 	}
 
-	return sudoHost, nil
+	return &sudoHost, nil
 }
