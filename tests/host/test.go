@@ -11,49 +11,49 @@ import (
 	"github.com/fornellas/resonance/log"
 )
 
-type IndividualFuncChmod struct {
+type FuncChmod struct {
 	Name        string
 	FileModeode os.FileMode
 	ReturnError error
 }
 
-type IndividualFuncChown struct {
+type FuncChown struct {
 	Name        string
 	Uid         int
 	Gid         int
 	ReturnError error
 }
 
-type IndividualFuncLookup struct {
+type FuncLookup struct {
 	Username    string
 	ReturnUser  *user.User
 	ReturnError error
 }
 
-type IndividualFuncLookupGroup struct {
+type FuncLookupGroup struct {
 	Name        string
 	ReturnGroup *user.Group
 	ReturnError error
 }
 
-type IndividualFuncLstat struct {
+type FuncLstat struct {
 	Name           string
 	ReturnFileInfo os.FileInfo
 	ReturnError    error
 }
 
-type IndividualFuncReadFile struct {
+type FuncReadFile struct {
 	Name        string
 	ReturnBytes []byte
 	ReturnError error
 }
 
-type IndividualFuncRemove struct {
+type FuncRemove struct {
 	Name        string
 	ReturnError error
 }
 
-type IndividualFuncRun struct {
+type FuncRun struct {
 	Cmd              host.Cmd
 	ReturnWaitStatus host.WaitStatus
 	ReturnStdout     string
@@ -61,38 +61,38 @@ type IndividualFuncRun struct {
 	ReturnError      error
 }
 
-type IndividualFuncWriteFile struct {
+type FuncWriteFile struct {
 	Name        string
 	Data        []byte
 	Perm        os.FileMode
 	ReturnError error
 }
 
-type IndividualFuncCall struct {
-	Chmod       *IndividualFuncChmod
-	Chown       *IndividualFuncChown
-	Lookup      *IndividualFuncLookup
-	LookupGroup *IndividualFuncLookupGroup
-	Lstat       *IndividualFuncLstat
-	ReadFile    *IndividualFuncReadFile
-	Remove      *IndividualFuncRemove
-	Run         *IndividualFuncRun
-	WriteFile   *IndividualFuncWriteFile
+type FuncCall struct {
+	Chmod       *FuncChmod
+	Chown       *FuncChown
+	Lookup      *FuncLookup
+	LookupGroup *FuncLookupGroup
+	Lstat       *FuncLstat
+	ReadFile    *FuncReadFile
+	Remove      *FuncRemove
+	Run         *FuncRun
+	WriteFile   *FuncWriteFile
 }
 
 // Test aids testing by enabling mocking of host functions.
 type Test struct {
-	T                           *testing.T
-	ExpectedIndividualFuncCalls []IndividualFuncCall
+	T                 *testing.T
+	ExpectedFuncCalls []FuncCall
 }
 
-func (t *Test) getFuncCall() *IndividualFuncCall {
-	if len(t.ExpectedIndividualFuncCalls) == 0 {
+func (t *Test) getFuncCall() *FuncCall {
+	if len(t.ExpectedFuncCalls) == 0 {
 		t.T.Fail() // FIXME use T.Fatalf()
 		return nil
 	}
-	testFuncCall, expectedIndividualFuncCalls := t.ExpectedIndividualFuncCalls[0], t.ExpectedIndividualFuncCalls[1:]
-	t.ExpectedIndividualFuncCalls = expectedIndividualFuncCalls
+	testFuncCall, expectedFuncCalls := t.ExpectedFuncCalls[0], t.ExpectedFuncCalls[1:]
+	t.ExpectedFuncCalls = expectedFuncCalls
 	return &testFuncCall
 }
 
