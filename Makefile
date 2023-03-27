@@ -149,6 +149,12 @@ go-mod-tidy: go-generate goimports
 	$(GO) mod tidy
 lint: go-mod-tidy
 
+# go
+.PHONY: go-get-u
+go-get-u: go-mod-tidy
+	$(GO) get -u ./...
+lint: go-get-u
+
 # staticcheck
 
 .PHONY: install-deps-staticcheck
