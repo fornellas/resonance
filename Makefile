@@ -307,13 +307,17 @@ build-help:
 	@echo 'build: build everything'
 help: build-help
 
-.PHONY: build-%
-build-%: go-generate
-	GOARCH=$* $(GO) build -o resonance.$$(go env GOOS).$* $(GO_BUILD_FLAGS) .
-
 .PHONY: build-goarchs
 build-goarchs:
 	@echo $(foreach GOARCH,$(GOARCHS),$(GOARCH))
+
+.PHONY: build-agent-%
+build-agent-%: go-generate
+	GOARCH=$* $(GO) build -o host/agent/agent.$$(go env GOOS).$* $(GO_BUILD_FLAGS) ./host/agent/
+
+.PHONY: build-%
+build-%: go-generate build-agent-%
+	GOARCH=$* $(GO) build -o resonance.$$(go env GOOS).$* $(GO_BUILD_FLAGS) .
 
 .PHONY: build
 build: $(foreach GOARCH,$(GOARCHS),build-$(GOARCH))

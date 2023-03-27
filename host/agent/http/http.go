@@ -9,7 +9,7 @@ import (
 
 	"golang.org/x/net/http2"
 
-	aNet "github.com/fornellas/resonance/agent/net"
+	aNet "github.com/fornellas/resonance/host/agent/net"
 )
 
 // NewClient creates an http.Client over io.ReadCloser / writer io.WriteCloser

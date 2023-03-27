@@ -1,5 +1,6 @@
 /.cache/
 /cover.html
 /cover.txt
+/host/agent/agent.*.*
 /resonance.*.*
 /version/.version

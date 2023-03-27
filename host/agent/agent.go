@@ -9,7 +9,7 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
-	"github.com/fornellas/resonance/agent/net"
+	aNet "github.com/fornellas/resonance/host/agent/net"
 )
 
 func main() {
@@ -17,7 +17,7 @@ func main() {
 		MaxHandlers: 1,
 	}
 
-	conn := net.Conn{
+	conn := aNet.Conn{
 		Reader: os.Stdin,
 		Writer: os.Stdout,
 	}

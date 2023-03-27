@@ -51,7 +51,7 @@ func (s Sudo) Close() error {
 
 func NewSudo(ctx context.Context, host Host) (Sudo, error) {
 	logger := log.GetLogger(ctx)
-	logger.Info("⚡ Sudo access")
+	logger.Info("⚡ Sudo")
 	nestedCtx := log.IndentLogger(ctx)
 
 	sudoHost := Sudo{
