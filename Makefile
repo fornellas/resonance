@@ -3,6 +3,7 @@ help:
 MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 
 SHELL := /bin/bash
+.ONESHELL:
 
 XDG_CACHE_HOME ?= $(HOME)/.cache
 CACHE_DIR ?= $(XDG_CACHE_HOME)/resonance/build-cache
@@ -313,7 +314,26 @@ build-goarchs:
 
 .PHONY: build-agent-%
 build-agent-%: go-generate
-	GOARCH=$* $(GO) build -o host/agent/agent.$$(go env GOOS).$* $(GO_BUILD_FLAGS) ./host/agent/
+	GOARCH=$* $(GO) build -o host/agent/agent_$$(go env GOOS)_$* $(GO_BUILD_FLAGS) ./host/agent/
+	gzip --force host/agent/agent_$$(go env GOOS)_$*
+	cat << EOF > host/agent_$$(go env GOOS)_$*_gz.go
+	package host
+	import _ "embed"
+	//go:embed agent/agent_$$(go env GOOS)_$*.gz
+	var agent_$$(go env GOOS)_$* []byte
+	func init() {
+		AgentBinGz["$$(go env GOOS).$*"] = agent_$$(go env GOOS)_$*
+	}
+	EOF
+
+.PHONY: clean-build-agent-%
+clean-build-agent-%:
+	rm \
+		-f host/agent/agent_$$(go env GOOS)_$* \
+		-f host/agent/agent_$$(go env GOOS)_$*.gz \
+		host/agent_$$(go env GOOS)_$*_gz.go
+
+clean: $(foreach GOARCH,$(GOARCHS),clean-build-agent-$(GOARCH))
 
 .PHONY: build-%
 build-%: go-generate build-agent-%
@@ -325,9 +345,10 @@ build: $(foreach GOARCH,$(GOARCHS),build-$(GOARCH))
 .PHONY: clean-build-%
 clean-build-%:
 	rm -f resonance.$$(go env GOOS).$*
+clean: $(foreach GOARCH,$(GOARCHS),clean-build-$(GOARCH))
 
 .PHONY: clean-build
-clean-build: $(foreach GOARCH,$(GOARCHS),clean-build-$(GOARCH))
+clean-build:
 	$(GO) clean -r -cache -modcache
 	rm -f version/.version
 clean: clean-build
@@ -374,6 +395,7 @@ rrb-ci-no-install-deps:
 	rrb \
 		--debounce $(RRB_DEBOUNCE) \
 		--ignore-pattern '.cache/**/*' \
+		--ignore-pattern 'host/agent_*_*_gz.go' \
 		--log-level $(RRB_LOG_LEVEL) \
 		--pattern $(RRB_PATTERN) \
 		-- \

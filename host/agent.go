@@ -7,6 +7,8 @@ import (
 	"os/user"
 )
 
+var AgentBinGz = map[string][]byte{}
+
 // Agent interacts with a given Host using an agent that's copied and ran at the
 // host.
 type Agent struct {
