@@ -8,10 +8,12 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"sync"
 
 	"github.com/alessio/shellescape"
+	"golang.org/x/term"
 
 	"github.com/fornellas/resonance/log"
 )
@@ -20,8 +22,8 @@ import (
 // preceding all commands with sudo.
 type Sudo struct {
 	baseRun
-	Host Host
-	// password *string
+	Host     Host
+	Password *string
 }
 
 // stdinSudo prevents stdin from being read, before we can detect output
@@ -45,7 +47,7 @@ func (sis *stdinSudo) Read(p []byte) (int, error) {
 		case <-sis.Unlock:
 			sis.unlocked = true
 		case password := <-sis.SendPass:
-			passwordBytes := []byte(password)
+			passwordBytes := []byte(fmt.Sprintf("%s\n", password))
 			if len(passwordBytes) > len(p) {
 				return 0, fmt.Errorf(
 					"password is longer (%d) than read buffer (%d)", len(passwordBytes), len(p),
@@ -68,14 +70,32 @@ type stderrSudo struct {
 	Prompt   []byte
 	SudoOk   []byte
 	Writer   io.Writer
+	Password **string
 	unlocked bool
 }
 
 func (ses *stderrSudo) Write(p []byte) (int, error) {
 	if !ses.unlocked {
 		if bytes.Equal(p, ses.Prompt) {
-			panic("prompt")
-			// return len(p), nil
+			if *ses.Password == nil {
+				state, err := term.MakeRaw(int(os.Stdin.Fd()))
+				if err != nil {
+					return 0, err
+				}
+				defer term.Restore(int(os.Stdin.Fd()), state)
+
+				var passwordBytes []byte
+				fmt.Printf("sudo password: ")
+				passwordBytes, err = (term.ReadPassword(int(os.Stdin.Fd())))
+				if err != nil {
+					return 0, err
+				}
+				fmt.Printf("\n\r")
+				password := string(passwordBytes)
+				*ses.Password = &password
+			}
+			ses.SendPass <- **ses.Password
+			return len(p), nil
 		} else if bytes.Equal(p, ses.SudoOk) {
 			ses.Unlock <- struct{}{}
 			ses.unlocked = true
@@ -153,6 +173,7 @@ func (s Sudo) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
 		Prompt:   []byte(prompt),
 		SudoOk:   []byte(sudoOk),
 		Writer:   stderr,
+		Password: &s.Password,
 	}
 
 	return s.Host.Run(ctx, cmd)
