@@ -314,24 +314,24 @@ build-goarchs:
 
 .PHONY: build-agent-%
 build-agent-%: go-generate
-	GOARCH=$* $(GO) build -o host/agent/agent_$$(go env GOOS)_$* $(GO_BUILD_FLAGS) ./host/agent/
-	gzip --force host/agent/agent_$$(go env GOOS)_$*
-	cat << EOF > host/agent_$$(go env GOOS)_$*_gz.go
+	GOARCH=$* GOOS=linux $(GO) build -o host/agent/agent_linux_$* $(GO_BUILD_FLAGS) ./host/agent/
+	gzip --force host/agent/agent_linux_$*
+	cat << EOF > host/agent_linux_$*_gz.go
 	package host
 	import _ "embed"
-	//go:embed agent/agent_$$(go env GOOS)_$*.gz
-	var agent_$$(go env GOOS)_$* []byte
+	//go:embed agent/agent_linux_$*.gz
+	var agent_linux_$* []byte
 	func init() {
-		AgentBinGz["$$(go env GOOS).$*"] = agent_$$(go env GOOS)_$*
+		AgentBinGz["linux.$*"] = agent_linux_$*
 	}
 	EOF
 
 .PHONY: clean-build-agent-%
 clean-build-agent-%:
 	rm \
-		-f host/agent/agent_$$(go env GOOS)_$* \
-		-f host/agent/agent_$$(go env GOOS)_$*.gz \
-		host/agent_$$(go env GOOS)_$*_gz.go
+		-f host/agent/agent_linux_$* \
+		-f host/agent/agent_linux_$*.gz \
+		host/agent_linux_$*_gz.go
 
 clean: $(foreach GOARCH,$(GOARCHS),clean-build-agent-$(GOARCH))
 
