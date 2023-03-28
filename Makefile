@@ -312,10 +312,32 @@ help: build-help
 build-goarchs:
 	@echo $(foreach GOARCH,$(GOARCHS),$(GOARCH))
 
-.PHONY: build-agent-%
-build-agent-%: go-generate
+.PHONY: build-agent
+build-agent:
+
+.PHONY: host/agent/agent_linux_%
+host/agent/agent_linux_%: go-generate
 	GOARCH=$* GOOS=linux $(GO) build -o host/agent/agent_linux_$* $(GO_BUILD_FLAGS) ./host/agent/
-	gzip --force host/agent/agent_linux_$*
+build-agent: $(foreach GOARCH,$(GOARCHS),host/agent/agent_linux_$(GOARCH))
+
+.PHONY: clean-host/agent/agent_linux_%
+clean-host/agent/agent_linux_%:
+	rm -f host/agent/agent_linux_$*
+clean: $(foreach GOARCH,$(GOARCHS),clean-host/agent/agent_linux_-$(GOARCH))
+
+
+.PHONY: host/agent/agent_linux_%.gz
+host/agent/agent_linux_%.gz: host/agent/agent_linux_%
+	gzip < host/agent/agent_linux_$* > host/agent/agent_linux_$*.gz
+build-agent: $(foreach GOARCH,$(GOARCHS),host/agent/agent_linux_$(GOARCH).gz)
+
+.PHONY: clean-host/agent/agent_linux_%.gz
+clean-host/agent/agent_linux_%.gz:
+	rm -f host/agent/agent_linux_$*.gz
+clean: $(foreach GOARCH,$(GOARCHS),clean-host/agent/agent_linux_-$(GOARCH).gz)
+
+.PHONY: host/agent_linux_%_gz.go
+host/agent_linux_%_gz.go: host/agent/agent_linux_%.gz
 	cat << EOF > host/agent_linux_$*_gz.go
 	package host
 	import _ "embed"
@@ -325,26 +347,21 @@ build-agent-%: go-generate
 		AgentBinGz["linux.$*"] = agent_linux_$*
 	}
 	EOF
-.PHONY: build-agent
-build-agent: $(foreach GOARCH,$(GOARCHS),build-agent-$(GOARCH))
+build-agent: $(foreach GOARCH,$(GOARCHS),host/agent_linux_$(GOARCH)_gz.go)
 
-.PHONY: clean-build-agent-%
-clean-build-agent-%:
-	rm \
-		-f host/agent/agent_linux_$* \
-		-f host/agent/agent_linux_$*.gz \
-		host/agent_linux_$*_gz.go
-clean-build-agent: $(foreach GOARCH,$(GOARCHS),clean-build-agent-$(GOARCH))
-clean: clean-build-agent
-build: clean-build-agent
-go-generate: clean-build-agent
-goimports: clean-build-agent
-go-mod-tidy: clean-build-agent
-go-get-u: clean-build-agent
-staticcheck: clean-build-agent
-misspell: clean-build-agent
-gocyclo: clean-build-agent
-go-vet: clean-build-agent
+.PHONY: clean-host/agent_linux_%_gz.go
+clean-host/agent_linux_%_gz.go:
+	rm -f host/agent_linux_$*_gz.go
+clean: $(foreach GOARCH,$(GOARCHS),clean-host/agent_linux_$(GOARCH)_gz.go)
+build: $(foreach GOARCH,$(GOARCHS),clean-host/agent_linux_$(GOARCH)_gz.go)
+go-generate: $(foreach GOARCH,$(GOARCHS),clean-host/agent_linux_$(GOARCH)_gz.go)
+goimports: $(foreach GOARCH,$(GOARCHS),clean-host/agent_linux_$(GOARCH)_gz.go)
+go-mod-tidy: $(foreach GOARCH,$(GOARCHS),clean-host/agent_linux_$(GOARCH)_gz.go)
+go-get-u: $(foreach GOARCH,$(GOARCHS),clean-host/agent_linux_$(GOARCH)_gz.go)
+staticcheck: $(foreach GOARCH,$(GOARCHS),clean-host/agent_linux_$(GOARCH)_gz.go)
+misspell: $(foreach GOARCH,$(GOARCHS),clean-host/agent_linux_$(GOARCH)_gz.go)
+gocyclo: $(foreach GOARCH,$(GOARCHS),clean-host/agent_linux_$(GOARCH)_gz.go)
+go-vet: $(foreach GOARCH,$(GOARCHS),clean-host/agent_linux_$(GOARCH)_gz.go)
 
 .PHONY: build-%
 build-%: go-generate build-agent
