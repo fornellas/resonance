@@ -325,6 +325,8 @@ build-agent-%: go-generate
 		AgentBinGz["linux.$*"] = agent_linux_$*
 	}
 	EOF
+.PHONY: build-agent
+build-agent: $(foreach GOARCH,$(GOARCHS),build-agent-$(GOARCH))
 
 .PHONY: clean-build-agent-%
 clean-build-agent-%:
@@ -345,7 +347,7 @@ gocyclo: clean-build-agent
 go-vet: clean-build-agent
 
 .PHONY: build-%
-build-%: go-generate build-agent-%
+build-%: go-generate build-agent
 	GOARCH=$* $(GO) build -o resonance.$$(go env GOOS).$* $(GO_BUILD_FLAGS) .
 
 .PHONY: build
