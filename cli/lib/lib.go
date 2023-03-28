@@ -38,12 +38,6 @@ func GetHost(ctx context.Context) (host.Host, error) {
 		if err != nil {
 			return nil, err
 		}
-		if !disableAgent {
-			hst, err = host.NewAgent(ctx, hst)
-			if err != nil {
-				return nil, err
-			}
-		}
 	} else {
 		return nil, errors.New("must provide either --localhost or --hostname")
 	}
@@ -51,6 +45,14 @@ func GetHost(ctx context.Context) (host.Host, error) {
 	if sudo {
 		var err error
 		hst, err = host.NewSudo(ctx, hst)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if !disableAgent && hostname != "" {
+		var err error
+		hst, err = host.NewAgent(ctx, hst)
 		if err != nil {
 			return nil, err
 		}
