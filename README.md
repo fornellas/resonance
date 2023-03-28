@@ -35,3 +35,15 @@ Pick the [latest release](https://github.com/fornellas/resonance/releases) with:
 GOARCH=$(case $(uname -m) in i[23456]86) echo 386;; x86_64) echo amd64;; armv6l|armv7l) echo arm;; aarch64) echo arm64;; *) echo Unknown machine $(uname -m) 1>&2 ; exit 1 ;; esac) && wget -O- https://github.com/fornellas/resonance/releases/latest/download/resonance.linux.$GOARCH.gz | gunzip > resonance && chmod 755 resonance
 ./resonance --help
 ```
+
+## Development
+
+[Docker](https://www.docker.com/) is used to create a reproducible development environment on any machine:
+
+```bash
+git clone git@github.com:fornellas/resonance.git
+cd resonance/
+./devshell.sh
+```
+
+Typically you'll want to stick to `make rrb`, as it enables you to edit files as preferred, and the build will automatically be triggered on any file changes.
