@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
 
 	aNet "github.com/fornellas/resonance/host/agent/net"
 
@@ -31,7 +32,11 @@ var AgentBinGz = map[string][]byte{}
 type Agent struct {
 	Host   Host
 	Path   string
-	Client http.Client
+	Client *http.Client
+}
+
+func (a Agent) get(path string) (*http.Response, error) {
+	return a.Client.Get(fmt.Sprintf("http://resonance_agent%s", path))
 }
 
 func (a Agent) Chmod(ctx context.Context, name string, mode os.FileMode) error {
@@ -43,11 +48,47 @@ func (a Agent) Chown(ctx context.Context, name string, uid, gid int) error {
 }
 
 func (a Agent) Lookup(ctx context.Context, username string) (*user.User, error) {
-	return nil, fmt.Errorf("TODO Agent.Lookup")
+	logger := log.GetLogger(ctx)
+	logger.Debugf("Lookup %s", username)
+	resp, err := a.get(fmt.Sprintf("/user/%s", username))
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code %d", resp.StatusCode)
+	}
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var u user.User
+	if err := yaml.Unmarshal(bodyBytes, &u); err != nil {
+		return nil, err
+	}
+	return &u, nil
 }
 
 func (a Agent) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
-	return nil, fmt.Errorf("TODO Agent.LookupGroup")
+	logger := log.GetLogger(ctx)
+	logger.Debugf("LookupGroup %s", name)
+	resp, err := a.get(fmt.Sprintf("/group/%s", name))
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code %d", resp.StatusCode)
+	}
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var g user.Group
+	if err := yaml.Unmarshal(bodyBytes, &g); err != nil {
+		return nil, err
+	}
+	return &g, nil
 }
 
 func (a Agent) Lstat(ctx context.Context, name string) (HostFileInfo, error) {
@@ -88,11 +129,17 @@ type writerLogger struct {
 }
 
 func (wl writerLogger) Write(b []byte) (int, error) {
-	wl.Logger.Errorf("Agent: %#v", string(b))
+	lines := strings.Split(string(b), "\n")
+	for i, line := range lines {
+		if len(line) == 0 && i+1 == len(lines) {
+			break
+		}
+		wl.Logger.Errorf("Agent: %s", line)
+	}
 	return len(b), nil
 }
 
-func (a Agent) spawnAgent(ctx context.Context) error {
+func (a *Agent) spawnAgent(ctx context.Context) error {
 	logger := log.GetLogger(ctx)
 
 	// TODO handle closing
@@ -107,7 +154,7 @@ func (a Agent) spawnAgent(ctx context.Context) error {
 		return err
 	}
 
-	a.Client = http.Client{
+	a.Client = &http.Client{
 		Transport: &http2.Transport{
 			DialTLSContext: func(
 				ctx context.Context, network, addr string, cfg *tls.Config,
@@ -136,9 +183,11 @@ func (a Agent) spawnAgent(ctx context.Context) error {
 		if !waitStatus.Success() {
 			logger.Errorf("agent exited with error: %s", waitStatus.String())
 		}
+		stdinWriter.Close()
+		stdoutReader.Close()
 	}()
 
-	resp, err := a.Client.Get("http://resonance_agent/ping")
+	resp, err := a.get("/ping")
 	if err != nil {
 		// TODO handle stop agent
 		return err
@@ -146,6 +195,15 @@ func (a Agent) spawnAgent(ctx context.Context) error {
 	if resp.StatusCode != http.StatusOK {
 		// TODO handle stop agent
 		return fmt.Errorf("pinging agent failed: status code %d", resp.StatusCode)
+	}
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		// TODO handle stop agent
+		return err
+	}
+	if string(bodyBytes) != "Pong" {
+		// TODO handle stop agent
+		return fmt.Errorf("pinging agent failed: unexpected body %#v", string(bodyBytes))
 	}
 
 	return nil
