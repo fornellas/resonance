@@ -332,8 +332,17 @@ clean-build-agent-%:
 		-f host/agent/agent_linux_$* \
 		-f host/agent/agent_linux_$*.gz \
 		host/agent_linux_$*_gz.go
-
-clean: $(foreach GOARCH,$(GOARCHS),clean-build-agent-$(GOARCH))
+clean-build-agent: $(foreach GOARCH,$(GOARCHS),clean-build-agent-$(GOARCH))
+clean: clean-build-agent
+build: clean-build-agent
+go-generate: clean-build-agent
+goimports: clean-build-agent
+go-mod-tidy: clean-build-agent
+go-get-u: clean-build-agent
+staticcheck: clean-build-agent
+misspell: clean-build-agent
+gocyclo: clean-build-agent
+go-vet: clean-build-agent
 
 .PHONY: build-%
 build-%: go-generate build-agent-%
