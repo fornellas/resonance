@@ -32,7 +32,8 @@ GOMODCACHE:
 # osusergo have Lookup and LookupGroup to use pure Go implementation to enable
 # management of local users
 GO_BUILD_FLAGS := -tags osusergo
-GOARCHS := 386 amd64 arm arm64
+GOARCHS_AGENT := 386 amd64 arm arm64
+GOARCHS_BUILD := 386 amd64 arm arm64
 
 GOIMPORTS_VERSION := 0.3.0
 GOIMPORTS := goimports
@@ -310,7 +311,7 @@ help: build-help
 
 .PHONY: build-goarchs
 build-goarchs:
-	@echo $(foreach GOARCH,$(GOARCHS),$(GOARCH))
+	@echo $(foreach GOARCH,$(GOARCHS_BUILD),$(GOARCH))
 
 .PHONY: build-agent
 build-agent:
@@ -318,23 +319,22 @@ build-agent:
 .PHONY: host/agent/agent_linux_%
 host/agent/agent_linux_%: go-generate
 	GOARCH=$* GOOS=linux $(GO) build -o host/agent/agent_linux_$* $(GO_BUILD_FLAGS) ./host/agent/
-build-agent: $(foreach GOARCH,$(GOARCHS),host/agent/agent_linux_$(GOARCH))
+build-agent: $(foreach GOARCH,$(GOARCHS_AGENT),host/agent/agent_linux_$(GOARCH))
 
 .PHONY: clean-host/agent/agent_linux_%
 clean-host/agent/agent_linux_%:
 	rm -f host/agent/agent_linux_$*
-clean: $(foreach GOARCH,$(GOARCHS),clean-host/agent/agent_linux_-$(GOARCH))
-
+clean: $(foreach GOARCH,$(GOARCHS_AGENT),clean-host/agent/agent_linux_-$(GOARCH))
 
 .PHONY: host/agent/agent_linux_%.gz
 host/agent/agent_linux_%.gz: host/agent/agent_linux_%
 	gzip < host/agent/agent_linux_$* > host/agent/agent_linux_$*.gz
-build-agent: $(foreach GOARCH,$(GOARCHS),host/agent/agent_linux_$(GOARCH).gz)
+build-agent: $(foreach GOARCH,$(GOARCHS_AGENT),host/agent/agent_linux_$(GOARCH).gz)
 
 .PHONY: clean-host/agent/agent_linux_%.gz
 clean-host/agent/agent_linux_%.gz:
 	rm -f host/agent/agent_linux_$*.gz
-clean: $(foreach GOARCH,$(GOARCHS),clean-host/agent/agent_linux_-$(GOARCH).gz)
+clean: $(foreach GOARCH,$(GOARCHS_AGENT),clean-host/agent/agent_linux_-$(GOARCH).gz)
 
 .PHONY: host/agent_linux_%_gz.go
 host/agent_linux_%_gz.go: host/agent/agent_linux_%.gz
@@ -347,33 +347,33 @@ host/agent_linux_%_gz.go: host/agent/agent_linux_%.gz
 		AgentBinGz["linux.$*"] = agent_linux_$*
 	}
 	EOF
-build-agent: $(foreach GOARCH,$(GOARCHS),host/agent_linux_$(GOARCH)_gz.go)
+build-agent: $(foreach GOARCH,$(GOARCHS_AGENT),host/agent_linux_$(GOARCH)_gz.go)
 
 .PHONY: clean-host/agent_linux_%_gz.go
 clean-host/agent_linux_%_gz.go:
 	rm -f host/agent_linux_$*_gz.go
-clean: $(foreach GOARCH,$(GOARCHS),clean-host/agent_linux_$(GOARCH)_gz.go)
-build: $(foreach GOARCH,$(GOARCHS),clean-host/agent_linux_$(GOARCH)_gz.go)
-go-generate: $(foreach GOARCH,$(GOARCHS),clean-host/agent_linux_$(GOARCH)_gz.go)
-goimports: $(foreach GOARCH,$(GOARCHS),clean-host/agent_linux_$(GOARCH)_gz.go)
-go-mod-tidy: $(foreach GOARCH,$(GOARCHS),clean-host/agent_linux_$(GOARCH)_gz.go)
-go-get-u: $(foreach GOARCH,$(GOARCHS),clean-host/agent_linux_$(GOARCH)_gz.go)
-staticcheck: $(foreach GOARCH,$(GOARCHS),clean-host/agent_linux_$(GOARCH)_gz.go)
-misspell: $(foreach GOARCH,$(GOARCHS),clean-host/agent_linux_$(GOARCH)_gz.go)
-gocyclo: $(foreach GOARCH,$(GOARCHS),clean-host/agent_linux_$(GOARCH)_gz.go)
-go-vet: $(foreach GOARCH,$(GOARCHS),clean-host/agent_linux_$(GOARCH)_gz.go)
+clean: $(foreach GOARCH,$(GOARCHS_AGENT),clean-host/agent_linux_$(GOARCH)_gz.go)
+build: $(foreach GOARCH,$(GOARCHS_AGENT),clean-host/agent_linux_$(GOARCH)_gz.go)
+go-generate: $(foreach GOARCH,$(GOARCHS_AGENT),clean-host/agent_linux_$(GOARCH)_gz.go)
+goimports: $(foreach GOARCH,$(GOARCHS_AGENT),clean-host/agent_linux_$(GOARCH)_gz.go)
+go-mod-tidy: $(foreach GOARCH,$(GOARCHS_AGENT),clean-host/agent_linux_$(GOARCH)_gz.go)
+go-get-u: $(foreach GOARCH,$(GOARCHS_AGENT),clean-host/agent_linux_$(GOARCH)_gz.go)
+staticcheck: $(foreach GOARCH,$(GOARCHS_AGENT),clean-host/agent_linux_$(GOARCH)_gz.go)
+misspell: $(foreach GOARCH,$(GOARCHS_AGENT),clean-host/agent_linux_$(GOARCH)_gz.go)
+gocyclo: $(foreach GOARCH,$(GOARCHS_AGENT),clean-host/agent_linux_$(GOARCH)_gz.go)
+go-vet: $(foreach GOARCH,$(GOARCHS_AGENT),clean-host/agent_linux_$(GOARCH)_gz.go)
 
 .PHONY: build-%
 build-%: go-generate build-agent
 	GOARCH=$* $(GO) build -o resonance.$$(go env GOOS).$* $(GO_BUILD_FLAGS) .
 
 .PHONY: build
-build: $(foreach GOARCH,$(GOARCHS),build-$(GOARCH))
+build: $(foreach GOARCH,$(GOARCHS_BUILD),build-$(GOARCH))
 
 .PHONY: clean-build-%
 clean-build-%:
 	rm -f resonance.$$(go env GOOS).$*
-clean: $(foreach GOARCH,$(GOARCHS),clean-build-$(GOARCH))
+clean: $(foreach GOARCH,$(GOARCHS_BUILD),clean-build-$(GOARCH))
 
 .PHONY: clean-build
 clean-build:
