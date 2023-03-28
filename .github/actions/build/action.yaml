@@ -71,7 +71,7 @@ runs:
         restore-keys: ${{ runner.os }}-bindir-
     # Build
     - name: Build
-      run: make ci
+      run: make go-get-u ci
       shell: bash
     # Git Status
     - name: git status

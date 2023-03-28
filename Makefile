@@ -155,7 +155,6 @@ lint: go-mod-tidy
 .PHONY: go-get-u
 go-get-u: go-mod-tidy
 	$(GO) get -u ./...
-lint: go-get-u
 
 # staticcheck
 
