@@ -81,10 +81,8 @@ func (ses *stderrSudo) Write(p []byte) (int, error) {
 	defer ses.mutex.Unlock()
 
 	if !ses.unlocked {
-		// TODO if bytes contains prompt
-		// remove prompt from bytes
-		// send bytes to stderr
-		if bytes.Equal(p, ses.Prompt) {
+		if bytes.Contains(p, ses.Prompt) {
+			fmt.Fprintf(os.Stderr, "%s", string(bytes.ReplaceAll(p, ses.Prompt, []byte{})))
 			var password string
 			if *ses.Password == nil {
 				state, err := term.MakeRaw(int(os.Stdin.Fd()))
