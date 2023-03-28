@@ -327,7 +327,7 @@ func NewSsh(
 	timeout time.Duration,
 ) (Ssh, error) {
 	logger := log.GetLogger(ctx)
-	logger.Infof("🖧 Connecting to %s@%s:%d", user, host, port)
+	logger.Infof("🖧 SSH %s@%s:%d", user, host, port)
 	nestedCtx := log.IndentLogger(ctx)
 
 	signers, err := sshGetSigners(nestedCtx)

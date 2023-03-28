@@ -71,11 +71,15 @@ type stderrSudo struct {
 	SudoOk          []byte
 	Writer          io.Writer
 	Password        **string
+	mutex           sync.Mutex
 	unlocked        bool
 	passwordAttempt *string
 }
 
 func (ses *stderrSudo) Write(p []byte) (int, error) {
+	ses.mutex.Lock()
+	defer ses.mutex.Unlock()
+
 	if !ses.unlocked {
 		if bytes.Equal(p, ses.Prompt) {
 			var password string
