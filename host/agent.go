@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/user"
 	"regexp"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 
@@ -87,7 +88,7 @@ type writerLogger struct {
 }
 
 func (wl writerLogger) Write(b []byte) (int, error) {
-	wl.Logger.Errorf("Agent: %s", b)
+	wl.Logger.Errorf("Agent: %#v", string(b))
 	return len(b), nil
 }
 
@@ -179,7 +180,7 @@ func getGoArch(machine string) (string, error) {
 	if matched {
 		return "arm64", nil
 	}
-	return "", fmt.Errorf("machine %s not supported by agent", machine)
+	return "", fmt.Errorf("machine %#v not supported by agent", machine)
 }
 
 func getAgentBinGz(ctx context.Context, hst Host) ([]byte, error) {
@@ -197,7 +198,7 @@ func getAgentBinGz(ctx context.Context, hst Host) ([]byte, error) {
 			cmd, waitStatus.String(), stdout, stderr,
 		)
 	}
-	goarch, err := getGoArch(stdout)
+	goarch, err := getGoArch(strings.TrimRight(stdout, "\n"))
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +226,7 @@ func getTmpFile(ctx context.Context, hst Host, template string) (string, error) 
 			cmd, waitStatus.String(), stdout, stderr,
 		)
 	}
-	return stdout, nil
+	return strings.TrimRight(stdout, "\n"), nil
 }
 
 func copyReader(ctx context.Context, hst Host, reader io.Reader, path string) error {
