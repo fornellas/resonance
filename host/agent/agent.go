@@ -32,5 +32,9 @@ func main() {
 		Handler: h2c.NewHandler(handler, server),
 	}
 
+	defer func() {
+		os.Remove(os.Args[0])
+	}()
+
 	server.ServeConn(conn, serveConnOpts)
 }
