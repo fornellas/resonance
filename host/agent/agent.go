@@ -19,8 +19,17 @@ func Ping(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Pong")
 }
 
-// func Chmod(ctx context.Context, name string, mode os.FileMode) error {}
-// func Chown(ctx context.Context, name string, uid, gid int) error {}
+// func GetChmodFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+// 	return func(w http.ResponseWriter, r *http.Request) {
+// 		// Chmod(ctx context.Context, name string, mode os.FileMode) error {}
+// 	}
+// }
+
+// func GetChownFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+// 	return func(w http.ResponseWriter, r *http.Request) {
+// 		// Chown(ctx context.Context, name string, uid, gid int) error {}
+// 	}
+// }
 
 func GetLookupFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -56,13 +65,53 @@ func GetLookupGroupFn(ctx context.Context) func(http.ResponseWriter, *http.Reque
 	}
 }
 
-// func LookupGroup(ctx context.Context, name string) (*user.Group, error) {}
-// func Lstat(ctx context.Context, name string) (HostFileInfo, error) {}
-// func Mkdir(ctx context.Context, name string, perm os.FileMode) error {}
-// func ReadFile(ctx context.Context, name string) ([]byte, error) {}
-// func Remove(ctx context.Context, name string) error {}
-// func Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {}
-// func WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {}
+// func GetLookupGroupFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+// 	return func(w http.ResponseWriter, r *http.Request) {
+// 		// LookupGroup(ctx context.Context, name string) (*user.Group, error) {}
+// 	}
+// }
+
+// func GetLstatFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+// 	return func(w http.ResponseWriter, r *http.Request) {
+// 		// Lstat(ctx context.Context, name string) (HostFileInfo, error) {}
+// 	}
+// }
+
+// func GetMkdirFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+// 	return func(w http.ResponseWriter, r *http.Request) {
+// 		// Mkdir(ctx context.Context, name string, perm os.FileMode) error {}
+// 	}
+// }
+
+func GetReadFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name := mux.Vars(r)["name"]
+		bytes, err := os.ReadFile(name)
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte(fmt.Sprintf("%s", err)))
+		}
+		w.Write(bytes)
+	}
+}
+
+// func GetRemoveFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+// 	return func(w http.ResponseWriter, r *http.Request) {
+// 		// Remove(ctx context.Context, name string) error {}
+// 	}
+// }
+
+// func GetRunFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+// 	return func(w http.ResponseWriter, r *http.Request) {
+// 		// Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {}
+// 	}
+// }
+
+// func GetWriteFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+// 	return func(w http.ResponseWriter, r *http.Request) {
+// 		// WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {}
+// 	}
+// }
 
 func main() {
 
@@ -80,12 +129,12 @@ func main() {
 	// router.HandleFunc(Chown(ctx context.Context, name string, uid, gid int) error
 	router.Methods("GET").Path("/user/{username}").HandlerFunc(GetLookupFn(ctx))
 	router.Methods("GET").Path("/group/{name}").HandlerFunc(GetLookupGroupFn(ctx))
-	// router.HandleFunc(Lstat(ctx context.Context, name string) (HostFileInfo, error)
-	// router.HandleFunc(Mkdir(ctx context.Context, name string, perm os.FileMode) error
-	// router.HandleFunc(ReadFile(ctx context.Context, name string) ([]byte, error)
-	// router.HandleFunc(Remove(ctx context.Context, name string) error
-	// router.HandleFunc(Run(ctx context.Context, cmd Cmd) (WaitStatus, error)
-	// router.HandleFunc(WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error
+	// router.Methods("TBD").Path("/tbd").HandlerFunc(GetLstatFn(ctx))
+	// router.Methods("TBD").Path("/tbd").HandlerFunc(GetMkdirFn(ctx))
+	router.Methods("GET").Path("/file/{name:.+}").HandlerFunc(GetReadFileFn(ctx))
+	// router.Methods("TBD").Path("/tbd").HandlerFunc(GetRemoveFn(ctx))
+	// router.Methods("TBD").Path("/tbd").HandlerFunc(GetRunFn(ctx))
+	// router.Methods("TBD").Path("/tbd").HandlerFunc(GetWriteFileFn(ctx))
 
 	server := &http2.Server{
 		MaxHandlers: 1,

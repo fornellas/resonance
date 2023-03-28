@@ -81,6 +81,9 @@ func (ses *stderrSudo) Write(p []byte) (int, error) {
 	defer ses.mutex.Unlock()
 
 	if !ses.unlocked {
+		// TODO if bytes contains prompt
+		// remove prompt from bytes
+		// send bytes to stderr
 		if bytes.Equal(p, ses.Prompt) {
 			var password string
 			if *ses.Password == nil {

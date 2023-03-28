@@ -40,10 +40,14 @@ func (a Agent) get(path string) (*http.Response, error) {
 }
 
 func (a Agent) Chmod(ctx context.Context, name string, mode os.FileMode) error {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("Chmod %v %s", mode, name)
 	return fmt.Errorf("TODO Agent.Chmod")
 }
 
 func (a Agent) Chown(ctx context.Context, name string, uid, gid int) error {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("Chown %v %v %s", uid, gid, name)
 	return fmt.Errorf("TODO Agent.Chown")
 }
 
@@ -92,26 +96,47 @@ func (a Agent) LookupGroup(ctx context.Context, name string) (*user.Group, error
 }
 
 func (a Agent) Lstat(ctx context.Context, name string) (HostFileInfo, error) {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("Lstat %s", name)
 	return HostFileInfo{}, fmt.Errorf("TODO Agent.Lstat")
 }
 
 func (a Agent) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("Mkdir %s", name)
 	return fmt.Errorf("TODO Agent.Mkdir")
 }
 
 func (a Agent) ReadFile(ctx context.Context, name string) ([]byte, error) {
-	return nil, fmt.Errorf("TODO Agent.ReadFile")
+	logger := log.GetLogger(ctx)
+	logger.Debugf("ReadFile %s", name)
+
+	resp, err := a.get(fmt.Sprintf("/file/%s", name))
+	// resp, err := a.get(fmt.Sprintf("/file/%s", url.QueryEscape(name)))
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code %d", resp.StatusCode)
+	}
+	return io.ReadAll(resp.Body)
 }
 
 func (a Agent) Remove(ctx context.Context, name string) error {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("Remove %s", name)
 	return fmt.Errorf("TODO Agent.Remove")
 }
 
 func (a Agent) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("Run %s", cmd)
 	return WaitStatus{}, fmt.Errorf("TODO Agent.Run")
 }
 
 func (a Agent) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("WriteFile %s %v", name, perm)
 	return fmt.Errorf("TODO Agent.WriteFile")
 }
 
