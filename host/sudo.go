@@ -213,7 +213,7 @@ func NewSudo(ctx context.Context, host Host) (*Sudo, error) {
 		return nil, err
 	}
 	if !waitStatus.Success() {
-		return nil, fmt.Errorf("failed to run %s: %v", cmd, waitStatus)
+		return nil, fmt.Errorf("failed to run %s: %s", cmd, waitStatus.String())
 	}
 
 	return &sudoHost, nil
