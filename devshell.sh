@@ -22,6 +22,8 @@ fi
 
 NAME="resonance-$$"
 
+HOME="/home/${USER}"
+
 function kill_container() {
 	docker kill --signal SIGKILL "${NAME}" &>/dev/null || true
 }
@@ -41,12 +43,23 @@ docker run \
 	golang:${GO_VERSION}-bullseye \
 	/bin/bash -c "$(cat <<EOF
 set -e
+set -o pipefail
 
-# User
 passwd -d root > /dev/null
-addgroup --gid ${GID} ${GROUP} > /dev/null
-useradd --home-dir ${HOME} --gid ${GID} --no-create-home --shell /bin/bash --uid ${UID} ${USER}
+
+if getent group ${GID} > /dev/null; then
+	groupmod --new-name ${GROUP} \$(getent group ${GID} | cut -d: -f1)
+else
+	addgroup --gid ${GID} ${GROUP} > /dev/null
+fi
+
+if getent passwd ${UID} > /dev/null; then
+	usermod --badnames --home ${HOME} --gid ${GID} --login ${USER} --shell /bin/bash \$(getent passwd ${UID} | cut -d: -f1)
+else
+	useradd --badnames --home-dir ${HOME} --gid ${GID} --no-create-home --shell /bin/bash --uid ${UID} ${USER}
+fi
 ln -s ${HOME}/resonance/.bashrc ${HOME}/.bashrc
+
 chown ${UID}:${GID} ${HOME}
 
 # Shell
