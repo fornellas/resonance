@@ -6,7 +6,7 @@ require (
 	github.com/alessio/shellescape v1.4.1
 	github.com/client9/misspell v0.3.4
 	github.com/fatih/color v1.15.0
-	github.com/fornellas/rrb v0.0.0-20230405125044-819834f93644
+	github.com/fornellas/rrb v0.1.0
 	github.com/fzipp/gocyclo v0.6.0
 	github.com/jandelgado/gcov2lcov v1.0.5
 	github.com/kylelemons/godebug v1.1.0
@@ -15,6 +15,7 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.2
+	golang.org/x/crypto v0.7.0
 	golang.org/x/term v0.7.0
 	golang.org/x/tools v0.7.0
 	gopkg.in/yaml.v3 v3.0.1
