@@ -12,7 +12,7 @@ fi
 DOCKER_PLATFORM="linux/amd64"
 
 GID="$(id -g)"
-GROUP="$(getent group $(getent passwd $USER | cut -d: -f4) | cut -d: -f1)"
+GROUP="$(id -gn)"
 GO_VERSION="$(awk '/^go /{print $2}' go.mod)"
 
 GIT_ROOT="$(cd $(dirname $0) && git rev-parse --show-toplevel)"
