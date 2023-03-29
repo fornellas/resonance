@@ -15,10 +15,13 @@ var hostname string
 var defaultHostname = ""
 var sudo bool
 var defaultSudo = false
+var disableAgent bool
+var defaultDisableAgent = false
 
 func resetCommon() {
 	hostname = defaultHostname
 	sudo = defaultSudo
+	disableAgent = defaultDisableAgent
 }
 
 func addHostFlagsCommon(cmd *cobra.Command) {
@@ -30,6 +33,11 @@ func addHostFlagsCommon(cmd *cobra.Command) {
 	cmd.Flags().BoolVarP(
 		&sudo, "sudo", "", defaultSudo,
 		"Use sudo when interacting with host",
+	)
+
+	cmd.Flags().BoolVarP(
+		&disableAgent, "disable-agent", "", defaultDisableAgent,
+		"Disables copying temporary a small agent to remote hosts. This can make things very slow, as without the agent, iteraction require running multiple commands. The only (unusual) use case for this is when the host GOARCH is not supported by the agent.",
 	)
 }
 

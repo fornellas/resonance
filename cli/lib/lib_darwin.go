@@ -28,6 +28,14 @@ func GetHost(ctx context.Context) (host.Host, error) {
 		}
 	}
 
+	if !disableAgent && hostname != "" {
+		var err error
+		hst, err = host.NewAgent(ctx, hst)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return hst, nil
 }
 
