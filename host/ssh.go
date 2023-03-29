@@ -14,12 +14,11 @@ import (
 	"time"
 
 	"github.com/alessio/shellescape"
-
-	"github.com/fornellas/resonance/log"
-
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 	"golang.org/x/term"
+
+	"github.com/fornellas/resonance/log"
 )
 
 // Ssh interacts with a remote machine connecting to it via SSH protocol.
