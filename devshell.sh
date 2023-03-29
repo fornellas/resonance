@@ -9,8 +9,6 @@ if [ $# != 0 ] ; then
 	exit 1
 fi
 
-DOCKER_PLATFORM="linux/amd64"
-
 GID="$(id -g)"
 GROUP="$(id -gn)"
 GO_VERSION="$(awk '/^go /{print $2}' go.mod)"
@@ -32,7 +30,7 @@ trap kill_container EXIT
 
 docker run \
 	--name "${NAME}" \
-	--platform ${DOCKER_PLATFORM} \
+	--platform linux \
 	--rm \
 	--tty \
 	--interactive \
