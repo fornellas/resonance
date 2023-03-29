@@ -14,11 +14,14 @@ import (
 
 var localhost bool
 var defaultLocalhost = false
+var hostname string
+var defaultHostname = ""
 var sudo bool
 var defaultSudo = false
 
 func Reset() {
 	localhost = defaultLocalhost
+	hostname = defaultHostname
 	sudo = defaultSudo
 }
 
@@ -26,6 +29,12 @@ func GetHost(ctx context.Context) (host.Host, error) {
 	var hst host.Host
 	if localhost {
 		hst = host.Local{}
+	} else if hostname != "" {
+		var err error
+		hst, err = host.NewSshAuthority(ctx, hostname)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		return nil, errors.New("must provide either --localhost or --hostname")
 	}
@@ -45,6 +54,11 @@ func AddHostFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVarP(
 		&localhost, "localhost", "", defaultLocalhost,
 		"Applies configuration to the same machine running the command",
+	)
+
+	cmd.Flags().StringVarP(
+		&hostname, "hostname", "", defaultHostname,
+		"Applies configuration to given hostname using SSH in the format: [<user>[;fingerprint=<host-key fingerprint>]@]<host>[:<port>]",
 	)
 
 	cmd.Flags().BoolVarP(
