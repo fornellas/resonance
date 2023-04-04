@@ -2,16 +2,13 @@ package host
 
 import (
 	"context"
-	"crypto/rsa"
 	"errors"
 	"fmt"
-	"math/big"
 	"net"
 	"os"
 	"os/user"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -219,50 +216,15 @@ func sshGetSigners(ctx context.Context) ([]ssh.Signer, error) {
 	return signers, nil
 }
 
-func getHostKeyAlgorithms(
-	host string, port int, knownHostsHostKeyCallback ssh.HostKeyCallback,
-) []string {
-	// https://github.com/golang/go/issues/29286#issuecomment-1160958614
-	hostKeyAlgorithms := []string{}
-	var keyErr *knownhosts.KeyError
-	publicKey, err := ssh.NewPublicKey(&rsa.PublicKey{
-		N: big.NewInt(0),
-	})
-	if err != nil {
-		panic(err)
-	}
-	err = knownHostsHostKeyCallback(
-		fmt.Sprintf("%s:%d", host, port),
-		&net.TCPAddr{IP: []byte{0, 0, 0, 0}},
-		publicKey,
-	)
-	if errors.As(err, &keyErr) {
-		knownKeys := append([]knownhosts.KnownKey{}, keyErr.Want...)
-
-		knownKeysLess := func(i, j int) bool {
-			if knownKeys[i].Filename < knownKeys[j].Filename {
-				return true
-			}
-			return (knownKeys[i].Filename == knownKeys[j].Filename && knownKeys[i].Line < knownKeys[j].Line)
-		}
-		sort.Slice(knownKeys, knownKeysLess)
-
-		for _, knownKey := range keyErr.Want {
-			hostKeyAlgorithms = append(hostKeyAlgorithms, knownKey.Key.Type())
-		}
-	}
-	return hostKeyAlgorithms
-}
-
 func sshGetHostKeyCallback(
 	ctx context.Context, host string, port int, fingerprint string,
-) (ssh.HostKeyCallback, []string, error) {
+) (ssh.HostKeyCallback, error) {
 	logger := log.GetLogger(ctx)
 	var fingerprintHostKeyCallback ssh.HostKeyCallback
 	if fingerprint != "" {
 		publicKey, err := ssh.ParsePublicKey([]byte(fingerprint))
 		if err != nil {
-			return nil, nil, fmt.Errorf("fail to parse fingerprint: %w", err)
+			return nil, fmt.Errorf("fail to parse fingerprint: %w", err)
 		}
 		logger.Debug("Using fingerprint")
 		fingerprintHostKeyCallback = ssh.FixedHostKey(publicKey)
@@ -275,13 +237,13 @@ func sshGetHostKeyCallback(
 		files = append(files, systemKnownHosts)
 	} else {
 		if !errors.Is(err, os.ErrNotExist) {
-			return nil, nil, err
+			return nil, err
 		}
 		logger.Debugf("Not found %s", systemKnownHosts)
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	userKnownHosts := filepath.Join(home, ".ssh/known_hosts")
 	if _, err := os.Stat(userKnownHosts); err == nil {
@@ -289,13 +251,13 @@ func sshGetHostKeyCallback(
 		files = append(files, userKnownHosts)
 	} else {
 		if !errors.Is(err, os.ErrNotExist) {
-			return nil, nil, err
+			return nil, err
 		}
 		logger.Debugf("Not found %s", userKnownHosts)
 	}
 	knownHostsHostKeyCallback, err := knownhosts.New(files...)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	hostKeyCallback := func(hostname string, remote net.Addr, key ssh.PublicKey) error {
@@ -312,10 +274,7 @@ func sshGetHostKeyCallback(
 		return err
 	}
 
-	hostKeyAlgorithms := getHostKeyAlgorithms(host, port, knownHostsHostKeyCallback)
-	logger.Debugf("Host key algorithms: %v", hostKeyAlgorithms)
-
-	return hostKeyCallback, hostKeyAlgorithms, nil
+	return hostKeyCallback, nil
 }
 
 func NewSsh(
@@ -334,7 +293,7 @@ func NewSsh(
 	if err != nil {
 		return Ssh{}, err
 	}
-	hostKeyCallback, hostKeyAlgorithms, err := sshGetHostKeyCallback(nestedCtx, host, port, fingerprint)
+	hostKeyCallback, err := sshGetHostKeyCallback(nestedCtx, host, port, fingerprint)
 	if err != nil {
 		return Ssh{}, err
 	}
@@ -347,9 +306,8 @@ func NewSsh(
 			ssh.RetryableAuthMethod(ssh.PasswordCallback(sshGetPasswordCallbackPromptFn()), retries),
 			ssh.RetryableAuthMethod(ssh.KeyboardInteractive(sshKeyboardInteractiveChallenge), retries),
 		},
-		HostKeyCallback:   hostKeyCallback,
-		HostKeyAlgorithms: hostKeyAlgorithms,
-		Timeout:           timeout,
+		HostKeyCallback: hostKeyCallback,
+		Timeout:         timeout,
 	})
 	if err != nil {
 		return Ssh{}, fmt.Errorf("failed to connect: %w", err)
