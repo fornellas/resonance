@@ -364,7 +364,7 @@ func NewSsh(
 	return sshHost, nil
 }
 
-var authorityRegexp = regexp.MustCompile(`^(|((?P<user>[^;@]+)(|;fingerprint=(?P<fingerprint>[^@]+))@))(?P<host>[^:]+)(|:(?P<port>[0-9]+))$`)
+var authorityRegexp = regexp.MustCompile(`(|((?P<user>[^;@]+)(|;fingerprint=(?P<fingerprint>[^@]+))@))(?P<host>[^:|@]+)(|:(?P<port>[0-9]+))$`)
 
 func parseAuthority(authority string) (string, string, string, int, error) {
 	matches := authorityRegexp.FindStringSubmatch(authority)
