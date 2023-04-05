@@ -43,7 +43,7 @@ GOARCH=$(case $(uname -m) in i[23456]86) echo 386;; x86_64) echo amd64;; armv6l|
 ```bash
 git clone git@github.com:fornellas/resonance.git
 cd resonance/
-./devshell.sh
+./build.sh
 ```
 
-Typically you'll want to stick to `make rrb`, as it enables you to edit files as preferred, and the build will automatically be triggered on any file changes.
+Typically you'll want to stick to `./build.sh rrb`, as it enables you to edit files as preferred, and the build will automatically be triggered on any file changes.
