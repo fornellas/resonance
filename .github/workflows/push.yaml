@@ -2,43 +2,67 @@ name: push
 on:
   push:
     branches:
-      - 'master'
+      - 'main'
     tags:
       - "v*"
-concurrency: push
 jobs:
-  push:
-    runs-on: ubuntu-22.04
+  linux_386:
+    uses: ./.github/workflows/build.yaml
+    with:
+      GOOS: linux
+      GOARCH: 386
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  linux_amd64:
+    uses: ./.github/workflows/build.yaml
+    with:
+      GOOS: linux
+      GOARCH: amd64
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  linux_arm:
+    uses: ./.github/workflows/build.yaml
+    with:
+      GOOS: linux
+      GOARCH: arm
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  linux_arm64:
+    uses: ./.github/workflows/build.yaml
+    with:
+      GOOS: linux
+      GOARCH: arm64
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  release:
+    concurrency: release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: write
+    needs:
+      - linux_386
+      - linux_amd64
+      - linux_arm
+      - linux_arm64
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Build
-        uses: ./.github/actions/build
+      - uses: actions/download-artifact@v3
         with:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      - name: Compile
-        id: compile
-        if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          set -e
-          echo 'files<<EOF' >> $GITHUB_OUTPUT
-          GOOS=$(go env GOOS)
-          for GOARCH in $(make build-goarchs)
-          do
-            gzip resonance.${GOOS}.${GOARCH}
-            echo resonance.${GOOS}.${GOARCH}.gz >> $GITHUB_OUTPUT
-          done
-          echo EOF >> $GITHUB_OUTPUT
-        shell: bash
+          name: ${{ needs.linux_386.outputs.artifact }}
+      - uses: actions/download-artifact@v3
+        with:
+          name: ${{ needs.linux_amd64.outputs.artifact }}
+      - uses: actions/download-artifact@v3
+        with:
+          name: ${{ needs.linux_arm.outputs.artifact }}
+      - uses: actions/download-artifact@v3
+        with:
+          name: ${{ needs.linux_arm64.outputs.artifact }}
       - name: Release
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: ${{ steps.compile.outputs.files }}
+          files: |
+            ${{ needs.linux_386.outputs.artifact }}
+            ${{ needs.linux_amd64.outputs.artifact }}
+            ${{ needs.linux_arm.outputs.artifact }}
+            ${{ needs.linux_arm64.outputs.artifact }}
       - name: Add to pkg.go.dev
-        if: startsWith(github.ref, 'refs/tags/')
         # https://pkg.go.dev/about#adding-a-package
         run: |
           set -e

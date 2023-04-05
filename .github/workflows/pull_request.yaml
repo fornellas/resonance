@@ -4,12 +4,27 @@ on:
     branches:
       - '*'
 jobs:
-  pull_request:
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Build
-        uses: ./.github/actions/build
-        with:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  linux_386:
+    uses: ./.github/workflows/build.yaml
+    with:
+      GOOS: linux
+      GOARCH: 386
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  linux_amd64:
+    uses: ./.github/workflows/build.yaml
+    with:
+      GOOS: linux
+      GOARCH: amd64
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  linux_arm:
+    uses: ./.github/workflows/build.yaml
+    with:
+      GOOS: linux
+      GOARCH: arm
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  linux_arm64:
+    uses: ./.github/workflows/build.yaml
+    with:
+      GOOS: linux
+      GOARCH: arm64
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
