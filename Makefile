@@ -193,22 +193,9 @@ test:
 
 # gotest
 
-.PHONY: install-deps-gotest
-install-deps-gotest: $(BINDIR)
-	@if [ $(BINDIR)/gotest -ot $(MAKEFILE_PATH) ] ; then \
-		echo Installing gotest ; \
-		$(GO) install github.com/rakyll/gotest@$(GOTEST_VERSION) ; \
-	fi
-install-deps: install-deps-gotest
-
-.PHONY: uninstall-deps-gotest
-uninstall-deps-gotest:
-	rm -f $(BINDIR)/gotest
-uninstall-deps: uninstall-deps-gotest
-
 .PHONY: gotest
-gotest: install-deps-gotest go-generate
-	$(GO_TEST) ./... $(GO_TEST_FLAGS) $(GO_BUILD_FLAGS)
+gotest: go-generate
+	$(GO) run github.com/rakyll/gotest ./... $(GO_TEST_FLAGS) $(GO_BUILD_FLAGS)
 test: gotest
 
 .PHONY: clean-gotest

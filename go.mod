@@ -9,6 +9,7 @@ require (
 	github.com/fzipp/gocyclo v0.6.0
 	github.com/kylelemons/godebug v1.1.0
 	github.com/openconfig/goyang v1.2.0
+	github.com/rakyll/gotest v0.0.6
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.2
