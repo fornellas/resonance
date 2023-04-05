@@ -122,24 +122,19 @@ lint:
 go-generate:
 	$(GO) generate ./...
 
-# goimports
-
-.PHONY: goimports
-goimports:
-	$(GOIMPORTS) -w -local $(GOIMPORTS_LOCAL) $$(find . -name \*.go ! -path './.cache/*')
-lint: goimports
-
 # go mod tidy
 
 .PHONY: go-mod-tidy
-go-mod-tidy: go-generate goimports
+go-mod-tidy: go-generate
 	$(GO) mod tidy
 lint: go-mod-tidy
 
-# go get -u
-.PHONY: go-get-u
-go-get-u: go-mod-tidy
-	$(GO) get -u ./...
+# goimports
+
+.PHONY: goimports
+goimports: go-mod-tidy
+	$(GOIMPORTS) -w -local $(GOIMPORTS_LOCAL) $$(find . -name \*.go ! -path './.cache/*')
+lint: goimports
 
 # staticcheck
 
@@ -178,6 +173,12 @@ lint: gocyclo
 go-vet: go-mod-tidy go-generate
 	$(GO) vet ./...
 lint: go-vet
+
+# go get -u
+
+.PHONY: go-get-u
+go-get-u: go-mod-tidy
+	$(GO) get -u ./...
 
 ##
 ## Test
