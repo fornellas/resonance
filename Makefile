@@ -56,7 +56,10 @@ export GOMODCACHE := $(RESONANCE_CACHE)/GOMODCACHE
 .PHONY: GOMODCACHE
 GOMODCACHE:
 	@echo $(GOMODCACHE)
-GO_BUILD_FLAGS :=
+
+# osusergo have Lookup and LookupGroup to use pure Go implementation to enable
+# management of local users
+GO_BUILD_FLAGS := -tags osusergo
 
 GOIMPORTS := $(GO) run golang.org/x/tools/cmd/goimports
 GOIMPORTS_LOCAL := github.com/fornellas/resonance/
