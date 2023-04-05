@@ -44,9 +44,6 @@ GOIMPORTS_LOCAL := github.com/fornellas/resonance/
 
 STATICCHECK_CACHE := $(CACHE_DIR)/staticcheck
 
-MISSPELL_VERSION := v0.3.4
-MISSPELL := misspell
-
 GOCYCLO := gocyclo
 GOCYCLO_VERSION := v0.6.0
 GOCYCLO_OVER := 15
@@ -158,22 +155,9 @@ clean: clean-staticcheck
 
 # misspell
 
-.PHONY: install-deps-misspell
-install-deps-misspell: $(BINDIR)
-	@if [ $(BINDIR)/misspell -ot $(MAKEFILE_PATH) ] ; then \
-		echo Installing misspell ; \
-		$(GO) install github.com/client9/misspell/cmd/misspell@$(MISSPELL_VERSION) ; \
-	fi
-install-deps: install-deps-misspell
-
-.PHONY: uninstall-deps-misspell
-uninstall-deps-misspell:
-	rm -f $(BINDIR)/misspell
-uninstall-deps: uninstall-deps-misspell
-
 .PHONY: misspell
-misspell: install-deps-misspell go-mod-tidy go-generate
-	$(MISSPELL) -error .
+misspell: go-mod-tidy go-generate
+	$(GO) run github.com/client9/misspell/cmd/misspell -error .
 lint: misspell
 
 .PHONY: clean-misspell
