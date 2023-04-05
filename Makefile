@@ -40,18 +40,22 @@ endif
 GO_BUILD_FLAGS := -tags osusergo
 GOARCHS_BUILD := 386 amd64 arm arm64
 
+GOIMPORTS := $(GO) run golang.org/x/tools/cmd/goimports
 GOIMPORTS_LOCAL := github.com/fornellas/resonance/
 
+STATICCHECK := $(GO) run honnef.co/go/tools/cmd/staticcheck
 STATICCHECK_CACHE := $(CACHE_DIR)/staticcheck
 
+GOCYCLO := $(GO) run github.com/fzipp/gocyclo/cmd/gocyclo
 GOCYCLO_OVER := 15
 
-GO_TEST := gotest
+GO_TEST := $(GO) run github.com/rakyll/gotest ./...
 GO_TEST_FLAGS := -race -coverprofile cover.txt -coverpkg ./... -count=1 -failfast
 ifeq ($(V),1)
 GO_TEST_FLAGS := -v $(GO_TEST_FLAGS)
 endif
 
+RRB := $(GO) run github.com/fornellas/rrb
 RRB_DEBOUNCE ?= 500ms
 RRB_LOG_LEVEL ?= info
 RRB_PATTERN ?= '**/*.{go}'
@@ -122,7 +126,7 @@ go-generate:
 
 .PHONY: goimports
 goimports:
-	$(GO) run golang.org/x/tools/cmd/goimports -w -local $(GOIMPORTS_LOCAL) $$(find . -name \*.go ! -path './.cache/*')
+	$(GOIMPORTS) -w -local $(GOIMPORTS_LOCAL) $$(find . -name \*.go ! -path './.cache/*')
 lint: goimports
 
 # go mod tidy
@@ -141,7 +145,7 @@ go-get-u: go-mod-tidy
 
 .PHONY: staticcheck
 staticcheck: go-mod-tidy go-generate goimports
-	$(GO) run honnef.co/go/tools/cmd/staticcheck ./...
+	$(STATICCHECK) ./...
 lint: staticcheck
 
 .PHONY: clean-staticcheck
@@ -165,7 +169,7 @@ clean: clean-misspell
 
 .PHONY: gocyclo
 gocyclo: go-generate go-mod-tidy
-	$(GO) run github.com/fzipp/gocyclo/cmd/gocyclo -over $(GOCYCLO_OVER) -avg .
+	$(GOCYCLO) -over $(GOCYCLO_OVER) -avg .
 lint: gocyclo
 
 # go vet
@@ -193,7 +197,7 @@ test:
 
 .PHONY: gotest
 gotest: go-generate
-	$(GO) run github.com/rakyll/gotest ./... $(GO_TEST_FLAGS) $(GO_BUILD_FLAGS)
+	$(GO_TEST) $(GO_TEST_FLAGS) $(GO_BUILD_FLAGS)
 test: gotest
 
 .PHONY: clean-gotest
@@ -279,7 +283,7 @@ help: rrb-help
 
 .PHONY: rrb-ci-no-install-deps
 rrb-ci-no-install-deps:
-	$(GO) run github.com/fornellas/rrb \
+	$(RRB) \
 		--debounce $(RRB_DEBOUNCE) \
 		--ignore-pattern '.cache/**/*' \
 		--log-level $(RRB_LOG_LEVEL) \
@@ -289,7 +293,7 @@ rrb-ci-no-install-deps:
 
 .PHONY: rrb
 rrb:
-	$(GO) run github.com/fornellas/rrb \
+	$(RRB) \
 		--debounce $(RRB_DEBOUNCE) \
 		--log-level $(RRB_LOG_LEVEL) \
 		--pattern Makefile \
