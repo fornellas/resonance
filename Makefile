@@ -14,8 +14,6 @@ BINDIR:
 	@echo $(BINDIR)
 PATH := $(BINDIR):$(PATH)
 
-ARCH := amd64
-
 GO := go
 export GOBIN := $(BINDIR)
 .PHONY: GOBIN
@@ -29,6 +27,14 @@ export GOMODCACHE := $(CACHE_DIR)/go-mod
 .PHONY: GOMODCACHE
 GOMODCACHE:
 	@echo $(GOMODCACHE)
+GOARCH := $(shell go env GOARCH)
+ifneq ($(.SHELLSTATUS),0)
+  $(error shell command failed! output was $(var))
+endif
+GOOS := $(shell go env GOOS)
+ifneq ($(.SHELLSTATUS),0)
+  $(error shell command failed! output was $(var))
+endif
 # osusergo have Lookup and LookupGroup to use pure Go implementation to enable
 # management of local users
 GO_BUILD_FLAGS := -tags osusergo
@@ -162,7 +168,7 @@ install-deps-staticcheck: $(BINDIR)
 	@if [ $(BINDIR)/staticcheck -ot $(MAKEFILE_PATH) ] || ! [ -f $(BINDIR)/staticcheck ]; then \
 		echo Installing staticcheck ; \
 		rm -rf $(BINDIR)/staticcheck $(BINDIR)/staticcheck.tmp && \
-			curl -sSfL  https://github.com/dominikh/go-tools/releases/download/$(STATICCHECK_VERSION)/staticcheck_linux_$(ARCH).tar.gz | \
+			curl -sSfL  https://github.com/dominikh/go-tools/releases/download/$(STATICCHECK_VERSION)/staticcheck_linux_$(GOARCH).tar.gz | \
 			tar -zx -C $(BINDIR) staticcheck/staticcheck && \
 			mv $(BINDIR)/staticcheck $(BINDIR)/staticcheck.tmp && \
 			touch $(BINDIR)/staticcheck.tmp/staticcheck && \
@@ -313,14 +319,14 @@ build-goarchs:
 
 .PHONY: build-%
 build-%: go-generate
-	GOARCH=$* $(GO) build -o resonance.$$(go env GOOS).$* $(GO_BUILD_FLAGS) .
+	GOARCH=$* $(GO) build -o resonance.$(GOOS).$* $(GO_BUILD_FLAGS) .
 
 .PHONY: build
 build: $(foreach GOARCH,$(GOARCHS_BUILD),build-$(GOARCH))
 
 .PHONY: clean-build-%
 clean-build-%:
-	rm -f resonance.$$(go env GOOS).$*
+	rm -f resonance.$(GOOS).$*
 clean: $(foreach GOARCH,$(GOARCHS_BUILD),clean-build-$(GOARCH))
 
 .PHONY: clean-build
