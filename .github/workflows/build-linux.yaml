@@ -7,7 +7,7 @@ on:
         type: string
     outputs:
       artifact:
-        value: resonance.${{ inputs.GOOS }}.${{ inputs.GOARCH }}.gz
+        value: resonance.linux.${{ inputs.GOARCH }}.gz
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -29,13 +29,13 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ${{ github.workspace }}/.cache/
-          key: ${{ inputs.GOOS }}-${{ inputs.GOARCH }}-${{ hashFiles('**/go.sum', '**/*.go') }}
-          restore-keys: ${{ inputs.GOOS }}-${{ inputs.GOARCH }}-
+          key: linux-${{ inputs.GOARCH }}-${{ hashFiles('**/go.sum', '**/*.go') }}
+          restore-keys: linux-${{ inputs.GOARCH }}-
       # Build
       - name: Build
         run: |
-          DOCKER_PLATFORM=${{ inputs.GOOS }}/${{ inputs.GOARCH }} ./build.sh ci GOOS=${{ inputs.GOOS }} GOARCH=${{ inputs.GOARCH }}
-          gzip resonance.${{ inputs.GOOS }}.${{ inputs.GOARCH }}
+          DOCKER_PLATFORM=linux/${{ inputs.GOARCH }} ./build.sh ci GOOS=linux GOARCH=${{ inputs.GOARCH }}
+          gzip resonance.linux.${{ inputs.GOARCH }}
         shell: bash
       # Git Status
       - name: git status
@@ -52,8 +52,8 @@ jobs:
       # Upload
       - uses: actions/upload-artifact@v3
         with:
-          name: resonance.${{ inputs.GOOS }}.${{ inputs.GOARCH }}.gz
-          path: resonance.${{ inputs.GOOS }}.${{ inputs.GOARCH }}.gz
+          name: resonance.linux.${{ inputs.GOARCH }}.gz
+          path: resonance.linux.${{ inputs.GOARCH }}.gz
       # codecov
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
