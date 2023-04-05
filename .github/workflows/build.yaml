@@ -8,9 +8,6 @@ on:
       GOARCH:
         required: true
         type: string
-    CODECOV_TOKEN:
-      description: 'CODECOV_TOKEN'
-      required: true
     outputs:
       artifact:
         value: resonance.${{ inputs.GOOS }}.${{ inputs.GOARCH }}.gz

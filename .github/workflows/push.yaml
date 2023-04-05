@@ -11,25 +11,29 @@ jobs:
     with:
       GOOS: linux
       GOARCH: 386
-      CODECOV_TOKEN: ${{ secret.CODECOV_TOKEN }}
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
   linux_amd64:
     uses: ./.github/workflows/build.yaml
     with:
       GOOS: linux
       GOARCH: amd64
-      CODECOV_TOKEN: ${{ secret.CODECOV_TOKEN }}
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
   linux_arm:
     uses: ./.github/workflows/build.yaml
     with:
       GOOS: linux
       GOARCH: arm
-      CODECOV_TOKEN: ${{ secret.CODECOV_TOKEN }}
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
   linux_arm64:
     uses: ./.github/workflows/build.yaml
     with:
       GOOS: linux
       GOARCH: arm64
-      CODECOV_TOKEN: ${{ secret.CODECOV_TOKEN }}
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
   release:
     concurrency: release
     runs-on: ubuntu-latest
