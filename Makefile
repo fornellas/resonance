@@ -44,8 +44,6 @@ GOIMPORTS_LOCAL := github.com/fornellas/resonance/
 
 STATICCHECK_CACHE := $(CACHE_DIR)/staticcheck
 
-GOCYCLO := gocyclo
-GOCYCLO_VERSION := v0.6.0
 GOCYCLO_OVER := 15
 
 GO_TEST := gotest
@@ -167,22 +165,9 @@ clean: clean-misspell
 
 # gocyclo
 
-.PHONY: install-deps-gocyclo
-install-deps-gocyclo: $(BINDIR)
-	@if [ $(BINDIR)/gocyclo -ot $(MAKEFILE_PATH) ] ; then \
-		echo Installing gocyclo ; \
-		$(GO) install github.com/fzipp/gocyclo/cmd/gocyclo@$(GOCYCLO_VERSION) ; \
-	fi
-install-deps: install-deps-gocyclo
-
-.PHONY: uninstall-deps-gocyclo
-uninstall-deps-gocyclo:
-	rm -f $(BINDIR)/gocyclo
-uninstall-deps: uninstall-deps-gocyclo
-
 .PHONY: gocyclo
 gocyclo: install-deps-gocyclo go-generate go-mod-tidy
-	$(BINDIR)/$(GOCYCLO) -over $(GOCYCLO_OVER) -avg .
+	$(GO) run github.com/fzipp/gocyclo/cmd/gocyclo -over $(GOCYCLO_OVER) -avg .
 lint: gocyclo
 
 # go vet
