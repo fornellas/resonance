@@ -1,0 +1,66 @@
+name: build-linux
+on:
+  workflow_call:
+    inputs:
+      GOOS:
+        required: true
+        type: string
+      GOARCH:
+        required: true
+        type: string
+    outputs:
+      artifact:
+        value: resonance.${{ inputs.GOOS }}.${{ inputs.GOARCH }}.gz
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+        GOOS: ${{ inputs.GOOS }}
+        GOARCH: ${{ inputs.GOARCH }}
+    steps:
+      # Checkout
+      - name: Checkout
+        uses: actions/checkout@v3
+      # Architecture support
+      - name: Architecture support
+        if: ${{ inputs.GOARCH != '386' && inputs.GOARCH != 'amd64' }}
+        run: |
+          sudo apt-get -y install binfmt-support qemu-user-static
+        shell: bash
+      # Cache
+      - name: Cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/.cache/
+          key: ${{ inputs.GOOS }}-${{ inputs.GOARCH }}-${{ hashFiles('**/go.sum', '**/*.go') }}
+          restore-keys: ${{ inputs.GOOS }}-${{ inputs.GOARCH }}-
+      # Build
+      - name: Build
+        run: |
+          DOCKER_PLATFORM=${{ inputs.GOOS }}/${{ inputs.GOARCH }} ./build.sh ci GOOS=${{ inputs.GOOS }} GOARCH=${{ inputs.GOARCH }}
+          gzip resonance.${{ inputs.GOOS }}.${{ inputs.GOARCH }}
+        shell: bash
+      # Git Status
+      - name: git status
+        run: |
+          GIT_STATUS="$(git status --porcelain)"
+          if [ -n "$GIT_STATUS" ] ; then
+            echo git status
+            echo "$GIT_STATUS"
+            echo git diff
+            git diff
+            exit 1
+          fi
+        shell: bash
+      # Upload
+      - uses: actions/upload-artifact@v3
+        with:
+          name: resonance.${{ inputs.GOOS }}.${{ inputs.GOARCH }}.gz
+          path: resonance.${{ inputs.GOOS }}.${{ inputs.GOARCH }}.gz
+      # codecov
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ inputs.CODECOV_TOKEN }}
+          files: cover.txt
+          fail_ci_if_error: true

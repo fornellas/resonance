@@ -5,26 +5,22 @@ on:
       - '*'
 jobs:
   linux_386:
-    uses: ./.github/workflows/build.yaml
+    uses: ./.github/workflows/build-linux.yaml
     with:
-      GOOS: linux
       GOARCH: 386
     secrets: inherit
   linux_amd64:
-    uses: ./.github/workflows/build.yaml
+    uses: ./.github/workflows/build-linux.yaml
     with:
-      GOOS: linux
       GOARCH: amd64
     secrets: inherit
   linux_arm:
-    uses: ./.github/workflows/build.yaml
+    uses: ./.github/workflows/build-linux.yaml
     with:
-      GOOS: linux
       GOARCH: arm
     secrets: inherit
   linux_arm64:
-    uses: ./.github/workflows/build.yaml
+    uses: ./.github/workflows/build-linux.yaml
     with:
-      GOOS: linux
       GOARCH: arm64
     secrets: inherit
