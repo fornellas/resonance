@@ -78,9 +78,10 @@ endif
 ifeq ($(GOOS)/$(GOARCH),linux/ppc64le)
 GO_TEST_FLAGS := -race $(GO_TEST_FLAGS)
 endif
-ifeq ($(GOOS)/$(GOARCH),linux/arm64)
-GO_TEST_FLAGS := -race $(GO_TEST_FLAGS)
-endif
+# https://github.com/golang/go/issues/29948
+# ifeq ($(GOOS)/$(GOARCH),linux/arm64)
+# GO_TEST_FLAGS := -race $(GO_TEST_FLAGS)
+# endif
 ifeq ($(GOOS)/$(GOARCH),freebsd/amd64)
 GO_TEST_FLAGS := -race $(GO_TEST_FLAGS)
 endif
