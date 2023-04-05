@@ -4,28 +4,13 @@ Status: experimental. Please check the [roadmap](./ROADMAP.md). Help welcome ðŸ™
 
 # resonance
 
-A configuration management tool, somewhat similar to Ansible, Chef or Puppet, but with some notable features:
+A configuration management tool with novel features to Ansible, Chef or Puppet:
 
-- Stateful: Host state is persisted, enabling:
-  - Detecting external changes that may break automation.
-  - Deletion of resources that are not required anymore.
-  - Automatic rollback on failures: apply all changes successfully or rollback to previous state.
-- Transactional resource changes.
-  - Resources such as packages (eg: APT) can conflict if applied individually.
-  - Resonance merges all of such resources and applies them together, preventing any conflicts.
-- Painless refresh.
-  - In memory state (eg: a daemon) must be refreshed when its dependencies change (eg: its configuration file).
-  - By simply declaring first the configuration then the service, the service will be automatically reloaded only when required.
-  - Resources may subscribe to any resources it depends on:
-    - Eg: an app service is dependant on any configuration file at `/etc/app/**/*.conf`.
-    - It is not required to fiddle with multiple individual dependecies declaration.
-  - No more "forgot to declare to restart service".
-- Painless dependencies.
-  - Order in which resources are declared is used for applying them.
-  - Merged resources are considered and do not break declared order.
-- Speed
-  - All read-only checks are run in parallel.
-  - All actions that can happen concurrently are done like so (eg: changing multiple files).
+- **Stateful**: Persistent host state enables deletion of old resources, rollback to previous state (on failures) and detection of external changes.
+- **Transactional changes**: things such as APT packages are done "all together or nothing" (single `apt` call), eliminating isses with conflicting packages.
+- **Painless refresh**: no need to manually tell "please restart the service after changes" as these are implicitly declared so things "just work".
+- **Painless dependencies**: declared order is always respected.
+- **Speed**: read-only checks and possible changes happen concurrently; a lightweight agent is used so things fly even via SSH.
 
 ## Install
 
