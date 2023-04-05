@@ -37,6 +37,7 @@
     - ✨`RefreshableManageableResource`
     - ✨`resource/types/file.go`
     - ✨`resource/types/apt_package.go`
+- ✨MacOS build
 - `host/`
     - `local.go`
         - 💡Use [subreaper to wait on all children](https://github.com/fornellas/rrb/blob/main/runner/runner.go). Can it be done over ssh?
