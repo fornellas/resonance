@@ -42,8 +42,6 @@ GOARCHS_BUILD := 386 amd64 arm arm64
 
 GOIMPORTS_LOCAL := github.com/fornellas/resonance/
 
-STATICCHECK_VERSION := 2023.1
-STATICCHECK := staticcheck
 STATICCHECK_CACHE := $(CACHE_DIR)/staticcheck
 
 MISSPELL_VERSION := v0.3.4
@@ -148,28 +146,9 @@ go-get-u: go-mod-tidy
 
 # staticcheck
 
-.PHONY: install-deps-staticcheck
-install-deps-staticcheck: $(BINDIR)
-	@if [ $(BINDIR)/staticcheck -ot $(MAKEFILE_PATH) ] || ! [ -f $(BINDIR)/staticcheck ]; then \
-		echo Installing staticcheck ; \
-		rm -rf $(BINDIR)/staticcheck $(BINDIR)/staticcheck.tmp && \
-			curl -sSfL  https://github.com/dominikh/go-tools/releases/download/$(STATICCHECK_VERSION)/staticcheck_linux_$(GOARCH).tar.gz | \
-			tar -zx -C $(BINDIR) staticcheck/staticcheck && \
-			mv $(BINDIR)/staticcheck $(BINDIR)/staticcheck.tmp && \
-			touch $(BINDIR)/staticcheck.tmp/staticcheck && \
-			mv $(BINDIR)/staticcheck.tmp/staticcheck $(BINDIR)/ && \
-			rmdir $(BINDIR)/staticcheck.tmp ; \
-	fi
-install-deps: install-deps-staticcheck
-
-.PHONY: uninstall-deps-staticcheck
-uninstall-deps-staticcheck:
-	rm -f $(BINDIR)/staticcheck
-uninstall-deps: uninstall-deps-staticcheck
-
 .PHONY: staticcheck
-staticcheck: install-deps-staticcheck go-mod-tidy go-generate goimports
-	$(STATICCHECK) ./...
+staticcheck: go-mod-tidy go-generate goimports
+	$(GO) run honnef.co/go/tools/cmd/staticcheck ./...
 lint: staticcheck
 
 .PHONY: clean-staticcheck
