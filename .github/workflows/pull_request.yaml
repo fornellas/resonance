@@ -24,3 +24,8 @@ jobs:
     with:
       GOARCH: arm64
     secrets: inherit
+  darwin_amd64:
+    uses: ./.github/workflows/build-darwin.yaml
+    with:
+      GOARCH: amd64
+    secrets: inherit

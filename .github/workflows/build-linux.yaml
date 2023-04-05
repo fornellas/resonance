@@ -2,9 +2,6 @@ name: build-linux
 on:
   workflow_call:
     inputs:
-      GOOS:
-        required: true
-        type: string
       GOARCH:
         required: true
         type: string
@@ -15,7 +12,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-        GOOS: ${{ inputs.GOOS }}
+        GOOS: linux
         GOARCH: ${{ inputs.GOARCH }}
     steps:
       # Checkout
