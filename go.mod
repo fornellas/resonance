@@ -6,6 +6,7 @@ require (
 	github.com/alessio/shellescape v1.4.1
 	github.com/client9/misspell v0.3.4
 	github.com/fatih/color v1.15.0
+	github.com/fornellas/rrb v0.0.0-20221224192553-0402a465ddd5
 	github.com/fzipp/gocyclo v0.6.0
 	github.com/kylelemons/godebug v1.1.0
 	github.com/openconfig/goyang v1.2.0
@@ -21,13 +22,18 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
+	github.com/bmatcuk/doublestar/v4 v4.6.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.18 // indirect
+	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/williammartin/subreaper v0.0.0-20181101193406-731d9ece6883 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20230321023759-10a507213a29 // indirect
 	golang.org/x/mod v0.10.0 // indirect
 	golang.org/x/sys v0.7.0 // indirect

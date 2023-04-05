@@ -51,9 +51,7 @@ GO_TEST_FLAGS := -race -coverprofile cover.txt -coverpkg ./... -count=1 -failfas
 ifeq ($(V),1)
 GO_TEST_FLAGS := -v $(GO_TEST_FLAGS)
 endif
-GOTEST_VERSION := v0.0.6
 
-RRB_VERSION := latest
 RRB_DEBOUNCE ?= 500ms
 RRB_LOG_LEVEL ?= info
 RRB_PATTERN ?= '**/*.{go}'
@@ -134,7 +132,7 @@ go-mod-tidy: go-generate goimports
 	$(GO) mod tidy
 lint: go-mod-tidy
 
-# go
+# go get -u
 .PHONY: go-get-u
 go-get-u: go-mod-tidy
 	$(GO) get -u ./...
@@ -274,19 +272,6 @@ ci: install-deps ci-no-install-deps
 ## rrb
 ##
 
-.PHONY: install-deps-rrb
-install-deps-rrb: $(BINDIR)
-	@if [ $(BINDIR)/rrb -ot $(MAKEFILE_PATH) ] ; then \
-		echo Installing rrb ; \
-		$(GO) install github.com/fornellas/rrb@$(RRB_VERSION) ; \
-	fi
-install-deps: install-deps-rrb
-
-.PHONY: uninstall-deps-rrb
-uninstall-deps-rrb:
-	rm -f $(BINDIR)/rrb
-uninstall-deps: uninstall-deps-rrb
-
 .PHONY: rrb-help
 rrb-help:
 	@echo 'rrb: rerun build automatically on file changes then runs RRB_EXTRA_CMD'
@@ -294,7 +279,7 @@ help: rrb-help
 
 .PHONY: rrb-ci-no-install-deps
 rrb-ci-no-install-deps:
-	rrb \
+	$(GO) run github.com/fornellas/rrb \
 		--debounce $(RRB_DEBOUNCE) \
 		--ignore-pattern '.cache/**/*' \
 		--log-level $(RRB_LOG_LEVEL) \
@@ -303,8 +288,8 @@ rrb-ci-no-install-deps:
 		sh -c "$(MAKE) $(MFLAGS) ci-no-install-deps && $(RRB_EXTRA_CMD)"
 
 .PHONY: rrb
-rrb: install-deps-rrb
-	rrb \
+rrb:
+	$(GO) run github.com/fornellas/rrb \
 		--debounce $(RRB_DEBOUNCE) \
 		--log-level $(RRB_LOG_LEVEL) \
 		--pattern Makefile \
