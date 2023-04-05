@@ -19,8 +19,8 @@ github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7
 github.com/fatih/color v1.9.0/go.mod h1:eQcE1qtQxscV5RaZvpXrrb8Drkc3/DdQ+uUYCNjL+zU=
 github.com/fatih/color v1.15.0 h1:kOqh6YHBtK8aywxGerMG2Eq3H6Qgoqeo13Bk2Mv/nBs=
 github.com/fatih/color v1.15.0/go.mod h1:0h5ZqXfHYED7Bhv2ZJamyIOUej9KtShiJESRwBDUSsw=
-github.com/fornellas/rrb v0.0.0-20221224192553-0402a465ddd5 h1:b4fV0q0sbtRQKFe125dKvATfSrjfzHN+Jio1RWoka0E=
-github.com/fornellas/rrb v0.0.0-20221224192553-0402a465ddd5/go.mod h1:Rj69+ksyqe80XS7O87KIWy3N6sdO0+lICtc84vUBpiA=
+github.com/fornellas/rrb v0.0.0-20230405114724-4acccfd2d177 h1:8PrKjLfwezsR1OSLSTbmDjSqYZROc7VLaDAZTrHl5gM=
+github.com/fornellas/rrb v0.0.0-20230405114724-4acccfd2d177/go.mod h1:SM6ZOhNCIoqGsQm+ShOxDWIogQDidlhZTr/dxEYEJ0k=
 github.com/fornellas/yaml v0.0.0-20230305130802-4e6a4cc61a50 h1:XHTqZJ4K15OOoSLSI3D34rUCURahsKcYWb/LYXcBFJU=
 github.com/fornellas/yaml v0.0.0-20230305130802-4e6a4cc61a50/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4IgpuI1SZQ=

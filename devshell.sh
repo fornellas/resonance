@@ -64,10 +64,6 @@ chown ${UID}:${GID} ${HOME}
 exec su --group ${GROUP} --pty ${USER} sh -c "
 	set -e
 
-	export BINDIR=\\\$(make BINDIR)
-	PATH=\\\$BINDIR:\\\$PATH
-	export GOBIN=\\\$(make GOBIN)
-	PATH=\\\$GOBIN:\\\$PATH
 	export GOCACHE=\\\$(make GOCACHE)
 	export GOMODCACHE=\\\$(make GOMODCACHE)
   

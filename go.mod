@@ -6,7 +6,7 @@ require (
 	github.com/alessio/shellescape v1.4.1
 	github.com/client9/misspell v0.3.4
 	github.com/fatih/color v1.15.0
-	github.com/fornellas/rrb v0.0.0-20221224192553-0402a465ddd5
+	github.com/fornellas/rrb v0.0.0-20230405114724-4acccfd2d177
 	github.com/fzipp/gocyclo v0.6.0
 	github.com/kylelemons/godebug v1.1.0
 	github.com/openconfig/goyang v1.2.0
