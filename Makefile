@@ -40,8 +40,6 @@ endif
 GO_BUILD_FLAGS := -tags osusergo
 GOARCHS_BUILD := 386 amd64 arm arm64
 
-GOIMPORTS_VERSION := 0.3.0
-GOIMPORTS := goimports
 GOIMPORTS_LOCAL := github.com/fornellas/resonance/
 
 STATICCHECK_VERSION := 2023.1
@@ -131,22 +129,9 @@ go-generate:
 
 # goimports
 
-.PHONY: install-deps-goimports
-install-deps-goimports: $(BINDIR)
-	@if [ $(BINDIR)/goimports -ot $(MAKEFILE_PATH) ] ; then \
-		echo Installing goimports ; \
-		$(GO) install golang.org/x/tools/cmd/goimports@v$(GOIMPORTS_VERSION) ; \
-	fi
-install-deps: install-deps-goimports
-
-.PHONY: uninstall-deps-goimports
-uninstall-deps-goimports:
-	rm -f $(BINDIR)/goimports
-uninstall-deps: uninstall-deps-goimports
-
 .PHONY: goimports
-goimports: install-deps-goimports
-	$(BINDIR)/$(GOIMPORTS) -w -local $(GOIMPORTS_LOCAL) $$(find . -name \*.go ! -path './.cache/*')
+goimports:
+	$(GO) run golang.org/x/tools/cmd/goimports -w -local $(GOIMPORTS_LOCAL) $$(find . -name \*.go ! -path './.cache/*')
 lint: goimports
 
 # go mod tidy
