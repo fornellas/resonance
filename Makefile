@@ -166,7 +166,7 @@ clean: clean-misspell
 # gocyclo
 
 .PHONY: gocyclo
-gocyclo: install-deps-gocyclo go-generate go-mod-tidy
+gocyclo: go-generate go-mod-tidy
 	$(GO) run github.com/fzipp/gocyclo/cmd/gocyclo -over $(GOCYCLO_OVER) -avg .
 lint: gocyclo
 
