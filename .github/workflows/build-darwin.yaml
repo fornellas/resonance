@@ -10,7 +10,7 @@ on:
         value: resonance.darwin.${{ inputs.GOARCH }}.gz
 jobs:
   build:
-    runs-on: macos-latest-xl
+    runs-on: macos-latest
     env:
         GOOS: darwin
         GOARCH: ${{ inputs.GOARCH }}
