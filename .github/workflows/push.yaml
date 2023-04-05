@@ -42,7 +42,7 @@ jobs:
       - linux_amd64
       - linux_arm
       - linux_arm64
-      - darwin_amd64
+      # - darwin_amd64
     steps:
       - uses: actions/download-artifact@v3
         with:
@@ -56,9 +56,9 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: ${{ needs.linux_arm64.outputs.artifact }}
-      - uses: actions/download-artifact@v3
-        with:
-          name: ${{ needs.darwin_amd64.outputs.artifact }}
+      # - uses: actions/download-artifact@v3
+      #   with:
+      #     name: ${{ needs.darwin_amd64.outputs.artifact }}
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
@@ -67,7 +67,7 @@ jobs:
             ${{ needs.linux_amd64.outputs.artifact }}
             ${{ needs.linux_arm.outputs.artifact }}
             ${{ needs.linux_arm64.outputs.artifact }}
-            ${{ needs.darwin_amd64.outputs.artifact }}
+          # ${{ needs.darwin_amd64.outputs.artifact }}
       - name: Add to pkg.go.dev
         # https://pkg.go.dev/about#adding-a-package
         run: |
