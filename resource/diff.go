@@ -35,7 +35,7 @@ func (cs Chunks) added(i int, lines []string, buff *bytes.Buffer) {
 		} else {
 			reset := color.New(color.Reset)
 			reset.Fprintf(buff, "")
-			color.New(color.FgHiGreen).Fprintf(buff, "+%s", line)
+			color.New(color.FgGreen).Fprintf(buff, "+%s", line)
 			reset.Fprintf(buff, "")
 			fmt.Fprintf(buff, "\n")
 		}
@@ -51,7 +51,7 @@ func (cs Chunks) deleted(i int, lines []string, buff *bytes.Buffer) {
 		} else {
 			reset := color.New(color.Reset)
 			reset.Fprintf(buff, "")
-			color.New(color.FgHiRed).Fprintf(buff, "-%s", line)
+			color.New(color.FgRed).Fprintf(buff, "-%s", line)
 			reset.Fprintf(buff, "")
 			fmt.Fprintf(buff, "\n")
 		}
