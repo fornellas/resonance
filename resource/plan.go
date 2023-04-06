@@ -515,12 +515,11 @@ func (p Plan) Print(ctx context.Context, hst host.Host) error {
 
 func (p Plan) addBundleSteps(
 	ctx context.Context,
-	hst host.Host,
 	newBundle Bundle,
 	intendedAction Action,
 ) (Plan, error) {
 	logger := log.GetLogger(ctx)
-	logger.Info("👷 Building plan")
+	logger.Debug("👷 Building plan")
 
 	var lastBundleLastStep *Step
 	for _, newResources := range newBundle {
@@ -597,7 +596,7 @@ func addDestroyStepsToPlan(
 	previousBundle Bundle,
 ) []*Step {
 	logger := log.GetLogger(ctx)
-	logger.Info("💀 Determining resources to destroy")
+	logger.Debug("💀 Determining resources to destroy")
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 	previousResources := previousBundle.Resources()
@@ -632,7 +631,7 @@ func addDestroyStepsToPlan(
 			},
 			prerequisiteFor: prerequisiteFor,
 		}
-		nestedLogger.Infof("%s", step)
+		nestedLogger.Debugf("%s", step)
 		steps = append(steps, step)
 	}
 	return steps
@@ -640,7 +639,7 @@ func addDestroyStepsToPlan(
 
 func mergePlanSteps(ctx context.Context, steps []*Step) []*Step {
 	logger := log.GetLogger(ctx)
-	logger.Info("📦 Merging resources")
+	logger.Debug("📦 Merging resources")
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 
@@ -674,7 +673,7 @@ func mergePlanSteps(ctx context.Context, steps []*Step) []*Step {
 	}
 
 	for _, step := range mergedSteps {
-		nestedLogger.Infof("%s", step)
+		nestedLogger.Debugf("%s", step)
 	}
 
 	return newSteps
@@ -682,14 +681,13 @@ func mergePlanSteps(ctx context.Context, steps []*Step) []*Step {
 
 func NewPlan(
 	ctx context.Context,
-	hst host.Host,
 	newBundle Bundle,
 	previousBundle *Bundle,
 	typeNameStateMap TypeNameStateMap,
 	intendedAction Action,
 ) (Plan, error) {
 	logger := log.GetLogger(ctx)
-	logger.Info("📝 Planning changes")
+	logger.Debug("📝 Planning changes")
 	nestedCtx := log.IndentLogger(ctx)
 
 	// Plan
@@ -700,7 +698,7 @@ func NewPlan(
 
 	// Add Bundle Steps
 	var err error
-	plan, err = plan.addBundleSteps(nestedCtx, hst, newBundle, intendedAction)
+	plan, err = plan.addBundleSteps(nestedCtx, newBundle, intendedAction)
 	if err != nil {
 		return Plan{}, err
 	}

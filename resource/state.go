@@ -61,7 +61,7 @@ func (hs HostState) IsClean(
 	hst host.Host,
 	typeNameStateMap TypeNameStateMap,
 ) (string, error) {
-	previousBundleIsClean, err := hs.PreviousBundle.IsClean(ctx, hst, typeNameStateMap)
+	previousBundleIsClean, err := hs.PreviousBundle.IsClean(ctx, typeNameStateMap)
 	if err != nil {
 		return "", err
 	}

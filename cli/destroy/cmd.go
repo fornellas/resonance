@@ -67,7 +67,7 @@ var Cmd = &cobra.Command{
 
 		// Plan
 		plan, err := resource.NewPlan(
-			ctx, hst, hostState.PreviousBundle, nil, typeNameStateMap, resource.ActionDestroy,
+			ctx, hostState.PreviousBundle, nil, typeNameStateMap, resource.ActionDestroy,
 		)
 		if err != nil {
 			logger.Fatal(err)

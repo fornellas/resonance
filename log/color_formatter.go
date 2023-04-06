@@ -23,8 +23,8 @@ var logColorMap = map[logrus.Level]*color.Color{
 	logrus.ErrorLevel: color.New(color.FgRed),
 	logrus.WarnLevel:  color.New(color.FgYellow),
 	logrus.InfoLevel:  color.New(color.FgHiWhite),
-	logrus.DebugLevel: color.New(color.FgCyan),
-	logrus.TraceLevel: color.New(color.FgHiCyan),
+	logrus.DebugLevel: color.New(color.FgCyan, color.Faint),
+	logrus.TraceLevel: color.New(color.FgMagenta),
 }
 
 var logEmojiMap = map[logrus.Level]string{

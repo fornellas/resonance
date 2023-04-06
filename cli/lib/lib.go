@@ -80,7 +80,7 @@ func Rollback(ctx context.Context, hst host.Host, rollbackBundle resource.Bundle
 
 	// Rollback Plan
 	rollbackPlan, err := resource.NewPlan(
-		nestedCtx, hst, rollbackBundle, nil, typeNameStateMap, resource.ActionConfigure,
+		nestedCtx, rollbackBundle, nil, typeNameStateMap, resource.ActionConfigure,
 	)
 	if err != nil {
 		return err
@@ -170,7 +170,7 @@ func Plan(
 
 	// Plan
 	plan, err := resource.NewPlan(
-		ctx, hst, newBundle, previousBundle, typeNameStateMap, resource.ActionConfigure,
+		ctx, newBundle, previousBundle, typeNameStateMap, resource.ActionConfigure,
 	)
 	if err != nil {
 		logger.Fatal(err)

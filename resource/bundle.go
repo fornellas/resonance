@@ -157,11 +157,10 @@ func (b Bundle) TypeNames() []TypeName {
 // IsClean checks whether all resources at Bundle are clean.
 func (b Bundle) IsClean(
 	ctx context.Context,
-	hst host.Host,
 	typeNameStateMap TypeNameStateMap,
 ) (bool, error) {
 	logger := log.GetLogger(ctx)
-	logger.Info("🕵️ Checking if state is clean")
+	logger.Debug("🕵️ Checking if state is clean")
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 
@@ -184,10 +183,10 @@ func (b Bundle) IsClean(
 			if chunks.HaveChanges() {
 				nestedLogger.WithField(
 					"", chunks.String(),
-				).Infof("%s %s", ActionConfigure.Emoji(), resource)
+				).Debugf("%s %s", ActionConfigure.Emoji(), resource)
 				clean = false
 			} else {
-				nestedLogger.Infof("%s %s", ActionOk.Emoji(), resource)
+				nestedLogger.Debugf("%s %s", ActionOk.Emoji(), resource)
 			}
 		}
 	}
