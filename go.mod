@@ -8,6 +8,7 @@ require (
 	github.com/fatih/color v1.15.0
 	github.com/fornellas/rrb v0.1.0
 	github.com/fzipp/gocyclo v0.6.0
+	github.com/gliderlabs/ssh v0.3.5
 	github.com/jandelgado/gcov2lcov v1.0.5
 	github.com/kylelemons/godebug v1.1.0
 	github.com/openconfig/goyang v1.2.0
@@ -15,7 +16,7 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.2
-	golang.org/x/crypto v0.7.0
+	golang.org/x/crypto v0.8.0
 	golang.org/x/term v0.7.0
 	golang.org/x/tools v0.7.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -24,6 +25,7 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
+	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
 	github.com/bmatcuk/doublestar/v4 v4.6.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect

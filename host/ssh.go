@@ -43,28 +43,32 @@ func (s Ssh) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
 	session.Stdout = cmd.Stdout
 	session.Stderr = cmd.Stderr
 
-	env := cmd.Env
-	if len(env) == 0 {
-		env = []string{"LANG=en_US.UTF-8"}
+	if len(cmd.Env) == 0 {
+		cmd.Env = []string{"LANG=en_US.UTF-8"}
 	}
-	for _, nameValue := range env {
-		equalsIdx := strings.Index(nameValue, "=")
-		if equalsIdx == -1 {
-			return WaitStatus{}, fmt.Errorf("invalid environment: %s", nameValue)
-		}
-		name := nameValue[:equalsIdx]
-		value := nameValue[equalsIdx+1:]
-		if err := session.Setenv(name, value); err != nil {
-			return WaitStatus{}, err
-		}
+	envStrs := []string{}
+	for _, nameValue := range cmd.Env {
+		envStrs = append(envStrs, shellescape.Quote(nameValue))
 	}
+	envStr := strings.Join(envStrs, " ")
 
-	var cmdStrBdr strings.Builder
+	shellCmdArgs := []string{shellescape.Quote(cmd.Path)}
+	for _, arg := range cmd.Args {
+		shellCmdArgs = append(shellCmdArgs, shellescape.Quote(arg))
+	}
+	shellCmdStr := strings.Join(shellCmdArgs, " ")
+
 	if cmd.Dir == "" {
 		cmd.Dir = "/tmp"
 	}
-	fmt.Fprintf(&cmdStrBdr, "cd %s && %s", shellescape.Quote(cmd.Dir), shellescape.Quote(cmd.Path))
-	for _, arg := range cmd.Args {
+
+	args := []string{"sh", "-c", fmt.Sprintf(
+		"cd %s && exec env --ignore-environment %s %s", shellescape.Quote(cmd.Dir), envStr, shellCmdStr,
+	)}
+
+	var cmdStrBdr strings.Builder
+	fmt.Fprintf(&cmdStrBdr, "%s", shellescape.Quote(args[0]))
+	for _, arg := range args[1:] {
 		fmt.Fprintf(&cmdStrBdr, " %s", shellescape.Quote(arg))
 	}
 
@@ -220,14 +224,23 @@ func sshGetHostKeyCallback(
 	ctx context.Context, host string, port int, fingerprint string,
 ) (ssh.HostKeyCallback, error) {
 	logger := log.GetLogger(ctx)
+
 	var fingerprintHostKeyCallback ssh.HostKeyCallback
 	if fingerprint != "" {
-		publicKey, err := ssh.ParsePublicKey([]byte(fingerprint))
-		if err != nil {
-			return nil, fmt.Errorf("fail to parse fingerprint: %w", err)
+		if !strings.HasPrefix(fingerprint, "SHA256:") {
+			return nil, fmt.Errorf(
+				"fingerprint must be an unpadded base64 encoded sha256 hash as introduced by https://www.openssh.com/txt/release-6.8, eg: %s",
+				"SHA256:uwhOoCVTS7b3wlX1popZs5k609OaD1vQurHU34cCWPk",
+			)
 		}
 		logger.Debug("Using fingerprint")
-		fingerprintHostKeyCallback = ssh.FixedHostKey(publicKey)
+		fingerprintHostKeyCallback = func(hostname string, remote net.Addr, hostPublicKey ssh.PublicKey) error {
+			hostFingerprint := ssh.FingerprintSHA256(hostPublicKey)
+			if fingerprint != hostFingerprint {
+				return fmt.Errorf("expected host fingerprint %s, got %s", fingerprint, hostFingerprint)
+			}
+			return nil
+		}
 	}
 
 	files := []string{}
@@ -245,6 +258,7 @@ func sshGetHostKeyCallback(
 	if err != nil {
 		return nil, err
 	}
+
 	userKnownHosts := filepath.Join(home, ".ssh/known_hosts")
 	if _, err := os.Stat(userKnownHosts); err == nil {
 		logger.Debugf("Using %s", userKnownHosts)
