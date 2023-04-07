@@ -323,6 +323,8 @@ ci: lint test build
 ## rrb
 ##
 
+ifeq ($(GOOS),linux)
+
 .PHONY: rrb-help
 rrb-help:
 	@echo 'rrb: rerun build automatically on file changes then runs RRB_EXTRA_CMD'
@@ -358,3 +360,5 @@ shell:
 		GOCACHE=$(GOCACHE) \
 		GOMODCACHE=$(GOMODCACHE) \
 		bash --rcfile .bashrc
+
+endif

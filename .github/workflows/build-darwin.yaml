@@ -35,9 +35,15 @@ jobs:
           key: darwin-${{ inputs.GOARCH }}-${{ hashFiles('**/go.sum', '**/*.go') }}
           restore-keys: darwin-${{ inputs.GOARCH }}-
       # Build
-      - name: Build
+      - name: Build (native)
+        if: ${{ inputs.GOARCH == "amd64" }}
         run: |
           GOOS=darwin GOARCH=${{ inputs.GOARCH }} gmake ci V=1
+        shell: bash
+      - name: Build (cross compile only)
+        if: ${{ inputs.GOARCH == "arm64" }}
+        run: |
+          GOOS=darwin GOARCH=${{ inputs.GOARCH }} gmake build V=1
         shell: bash
       # Git Status
       - name: git status

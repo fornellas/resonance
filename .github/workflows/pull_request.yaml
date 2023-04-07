@@ -24,18 +24,24 @@ jobs:
     with:
       GOARCH: arm64
     secrets: inherit
-  # darwin_amd64:
-  #   uses: ./.github/workflows/build-darwin.yaml
-  #   with:
-  #     GOARCH: amd64
-  #   secrets: inherit
+  darwin_amd64:
+    uses: ./.github/workflows/build-darwin.yaml
+    with:
+      GOARCH: amd64
+    secrets: inherit
+  darwin_arm64:
+    uses: ./.github/workflows/build-darwin.yaml
+    with:
+      GOARCH: arm64
+    secrets: inherit
   coveralls:
     needs:
       - linux_386
       - linux_amd64
       - linux_arm
       - linux_arm64
-      # - darwin_amd64
+      - darwin_amd64
+      - darwin_arm64
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

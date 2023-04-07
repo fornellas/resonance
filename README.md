@@ -32,3 +32,12 @@ cd resonance/
 ```
 
 Typically you'll want to stick to `./build.sh rrb`, as it enables you to edit files as preferred, and the build will automatically be triggered on any file changes.
+
+### Native build
+
+The official build relies on `./build.sh`, but in some circunstances (eg: Docker being super slow on Mac) it may be useful to run the build without Docker, which requires manual configuration that is easy to get wrong / be outdated.
+
+- [Install Go](https://go.dev/doc/install) (version from `go.mod`).
+- Install [GNU Make](https://www.gnu.org/software/make/).
+  - In MacOS this can be done with [Homebrew](https://formulae.brew.sh/formula/make): `brew install make`. Note that the GNU Make binary will be called `gmake`, and this is how it should be invoked. `make` is Apple's ancient provided Make which will NOT work!
+- `make ci`
