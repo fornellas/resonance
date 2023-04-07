@@ -101,6 +101,8 @@ ifeq ($(GOOS)/$(GOARCH),windows/amd64)
 GO_TEST_FLAGS := -race $(GO_TEST_FLAGS)
 endif
 
+GCOV2LCOV := $(GO) run github.com/jandelgado/gcov2lcov
+
 RRB := $(GO) run github.com/fornellas/rrb
 RRB_DEBOUNCE ?= 500ms
 RRB_LOG_LEVEL ?= info
@@ -264,6 +266,12 @@ test: cover.html
 clean-cover.html:
 	rm -f cover.html
 clean: clean-cover.html
+
+# cover.lcov
+.PHONY: cover.lcov
+cover.lcov: go gotest
+	$(GCOV2LCOV) -infile cover.txt -outfile cover.lcov
+test: cover.lcov
 
 # cover-func
 

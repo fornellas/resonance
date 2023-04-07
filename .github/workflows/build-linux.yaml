@@ -54,3 +54,10 @@ jobs:
         with:
           name: resonance.linux.${{ inputs.GOARCH }}.gz
           path: resonance.linux.${{ inputs.GOARCH }}.gz
+      # Coveralls
+      - name: Coveralls
+        uses: coverallsapp/github-action@v1
+        with:
+          path-to-lcov: cover.lcov
+          flag-name: linux.${{ inputs.GOARCH }}
+          parallel: true
