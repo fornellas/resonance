@@ -37,7 +37,7 @@ jobs:
       # Build
       - name: Build
         run: |
-          GOOS=darwin GOARCH=${{ inputs.GOARCH }} gmake ci
+          GOOS=darwin GOARCH=${{ inputs.GOARCH }} gmake ci V=1
         shell: bash
       # Git Status
       - name: git status
