@@ -3,8 +3,8 @@ package tests
 import (
 	"testing"
 
+	"github.com/fornellas/resonance/cli/tests/resources"
 	"github.com/fornellas/resonance/resource"
-	"github.com/fornellas/resonance/tests/resources"
 )
 
 func TestValidate(t *testing.T) {

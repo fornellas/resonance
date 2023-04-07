@@ -4,15 +4,15 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/fornellas/resonance/cli/tests/resources"
 	"github.com/fornellas/resonance/resource"
-	"github.com/fornellas/resonance/tests/resources"
 )
 
-func TestRollbackNoPreviousState(t *testing.T) {
+func TestDestroyNoPreviousState(t *testing.T) {
 	stateRoot, _ := setupDirs(t)
 
 	args := []string{
-		"rollback",
+		"destroy",
 		"--log-level=trace",
 		"--force-color",
 		"--localhost",
@@ -22,11 +22,11 @@ func TestRollbackNoPreviousState(t *testing.T) {
 	runCommand(t, Cmd{
 		Args:             args,
 		ExpectedCode:     1,
-		ExpectedInOutput: "No previously saved host state available to rollback from",
+		ExpectedInOutput: "No previously saved host state available to be destroyed",
 	})
 }
 
-func TestRollbackNoPreviousRollbackState(t *testing.T) {
+func TestDestroy(t *testing.T) {
 	stateRoot, resourcesRoot := setupDirs(t)
 
 	fooState := resources.IndividualState{
@@ -80,151 +80,7 @@ func TestRollbackNoPreviousRollbackState(t *testing.T) {
 		return
 	}
 
-	t.Run("rollback not required", func(t *testing.T) {
-		args := []string{
-			"rollback",
-			"--log-level=trace",
-			"--force-color",
-			"--localhost",
-			"--state-root", stateRoot,
-		}
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
-			// Loading resources
-			{ValidateName: &resources.IndividualFuncValidateName{
-				Name: "foo",
-			}},
-		})
-		runCommand(t, Cmd{
-			Args:             args,
-			ExpectedCode:     1,
-			ExpectedInOutput: "No rollback required for saved host state",
-		})
-	})
-}
-
-func TestRollback(t *testing.T) {
-	stateRoot, resourcesRoot := setupDirs(t)
-
-	fooState := resources.IndividualState{
-		Value: "foo",
-	}
-
-	fooStateNew := resources.IndividualState{
-		Value: "fooNew",
-	}
-
-	fooStateBroken := resources.IndividualState{
-		Value: "fooBroken",
-	}
-
-	t.Run("apply", func(t *testing.T) {
-		setupBundles(t, resourcesRoot, map[string]resource.Resources{
-			"test.yaml": resource.Resources{
-				{
-					TypeName: "Individual[foo]",
-					State:    fooState,
-				},
-			},
-		})
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
-			// Loading resources
-			{ValidateName: &resources.IndividualFuncValidateName{
-				Name: "foo",
-			}},
-			// Reading Host State
-			{GetState: &resources.IndividualFuncGetState{
-				Name:        "foo",
-				ReturnState: nil,
-			}},
-			// Executing plan
-			{Configure: &resources.IndividualFuncConfigure{
-				Name:  "foo",
-				State: fooState,
-			}},
-			{GetState: &resources.IndividualFuncGetState{
-				Name:        "foo",
-				ReturnState: fooState,
-			}},
-		})
-		args := []string{
-			"apply",
-			"--log-level=trace",
-			"--force-color",
-			"--localhost",
-			"--state-root", stateRoot,
-			resourcesRoot,
-		}
-		runCommand(t, Cmd{
-			Args:             args,
-			ExpectedInOutput: "Apply successful",
-		})
-	})
-
-	if t.Failed() {
-		return
-	}
-
-	t.Run("apply broken rollback", func(t *testing.T) {
-		setupBundles(t, resourcesRoot, map[string]resource.Resources{
-			"test.yaml": resource.Resources{
-				{
-					TypeName: "Individual[foo]",
-					State:    fooStateNew,
-				},
-			},
-		})
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
-			// Loading resources
-			{ValidateName: &resources.IndividualFuncValidateName{
-				Name: "foo",
-			}},
-			// Loading saved state
-			{ValidateName: &resources.IndividualFuncValidateName{
-				Name: "foo",
-			}},
-			// Reading Host State
-			{GetState: &resources.IndividualFuncGetState{
-				Name:        "foo",
-				ReturnState: fooState,
-			}},
-			// Executing plan
-			{Configure: &resources.IndividualFuncConfigure{
-				Name:        "foo",
-				State:       fooStateNew,
-				ReturnError: errors.New("fooFail"),
-			}},
-			// Rollback: Reading host state
-			{GetState: &resources.IndividualFuncGetState{
-				Name:        "foo",
-				ReturnState: fooStateBroken,
-			}},
-			// Rollback: Executing plan
-			{Configure: &resources.IndividualFuncConfigure{
-				Name:        "foo",
-				State:       fooState,
-				ReturnError: errors.New("fooFailAgain"),
-			}},
-		})
-		args := []string{
-			"apply",
-			"--log-level=trace",
-			"--force-color",
-			"--localhost",
-			"--state-root", stateRoot,
-			resourcesRoot,
-		}
-		runCommand(t, Cmd{
-			Args:             args,
-			ExpectedCode:     1,
-			ExpectedInOutput: "Rollback failed",
-		})
-	})
-
-	if t.Failed() {
-		return
-	}
-
-	t.Run("rollback", func(t *testing.T) {
+	t.Run("destroy", func(t *testing.T) {
 		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
 			// Loading saved host state
 			{ValidateName: &resources.IndividualFuncValidateName{
@@ -233,7 +89,75 @@ func TestRollback(t *testing.T) {
 			// Reading Host State
 			{GetState: &resources.IndividualFuncGetState{
 				Name:        "foo",
-				ReturnState: fooStateBroken,
+				ReturnState: fooState,
+			}},
+			// Executing plan
+			{Destroy: &resources.IndividualFuncDestroy{
+				Name: "foo",
+			}},
+		})
+		args := []string{
+			"destroy",
+			"--log-level=trace",
+			"--force-color",
+			"--localhost",
+			"--state-root", stateRoot,
+		}
+		runCommand(t, Cmd{
+			Args:             args,
+			ExpectedInOutput: "Success",
+		})
+	})
+}
+
+func TestDestroyDirtyState(t *testing.T) {
+	stateRoot, resourcesRoot := setupDirs(t)
+
+	fooState := resources.IndividualState{
+		Value: "foo",
+	}
+
+	barState := resources.IndividualState{
+		Value: "bar",
+	}
+
+	fooNewState := resources.IndividualState{
+		Value: "fooNew",
+	}
+
+	barNewState := resources.IndividualState{
+		Value: "barNew",
+	}
+
+	t.Run("apply", func(t *testing.T) {
+		setupBundles(t, resourcesRoot, map[string]resource.Resources{
+			"test.yaml": resource.Resources{
+				{
+					TypeName: "Individual[foo]",
+					State:    fooState,
+				},
+				{
+					TypeName: "Individual[bar]",
+					State:    barState,
+				},
+			},
+		})
+		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+			// Loading resources
+			{ValidateName: &resources.IndividualFuncValidateName{
+				Name: "foo",
+			}},
+			{ValidateName: &resources.IndividualFuncValidateName{
+				Name: "bar",
+			}},
+			// Reading Host State
+			{GetState: &resources.IndividualFuncGetState{
+				Name:        "foo",
+				ReturnState: nil,
+			}},
+			{GetState: &resources.IndividualFuncGetState{
+				Name:        "bar",
+				ReturnState: nil,
 			}},
 			// Executing plan
 			{Configure: &resources.IndividualFuncConfigure{
@@ -244,9 +168,54 @@ func TestRollback(t *testing.T) {
 				Name:        "foo",
 				ReturnState: fooState,
 			}},
+			{Configure: &resources.IndividualFuncConfigure{
+				Name:  "bar",
+				State: barState,
+			}},
+			{GetState: &resources.IndividualFuncGetState{
+				Name:        "bar",
+				ReturnState: barState,
+			}},
 		})
 		args := []string{
-			"rollback",
+			"apply",
+			"--log-level=trace",
+			"--force-color",
+			"--localhost",
+			"--state-root", stateRoot,
+			resourcesRoot,
+		}
+		runCommand(t, Cmd{
+			Args:             args,
+			ExpectedInOutput: "Apply successful",
+		})
+	})
+
+	if t.Failed() {
+		return
+	}
+
+	t.Run("destroy with dirty state", func(t *testing.T) {
+		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+			// Loading saved host state
+			{ValidateName: &resources.IndividualFuncValidateName{
+				Name: "foo",
+			}},
+			{ValidateName: &resources.IndividualFuncValidateName{
+				Name: "bar",
+			}},
+			// Reading Host State
+			{GetState: &resources.IndividualFuncGetState{
+				Name:        "foo",
+				ReturnState: fooNewState,
+			}},
+			{GetState: &resources.IndividualFuncGetState{
+				Name:        "bar",
+				ReturnState: barNewState,
+			}},
+		})
+		args := []string{
+			"destroy",
 			"--log-level=trace",
 			"--force-color",
 			"--localhost",
@@ -254,12 +223,17 @@ func TestRollback(t *testing.T) {
 		}
 		runCommand(t, Cmd{
 			Args:             args,
-			ExpectedInOutput: "Rollback successful",
+			ExpectedCode:     1,
+			ExpectedInOutput: "Previous host state is not clean:",
 		})
 	})
+}
 
-	if t.Failed() {
-		return
+func TestDestroyFailureWithSuccessfulRollback(t *testing.T) {
+	stateRoot, resourcesRoot := setupDirs(t)
+
+	fooState := resources.IndividualState{
+		Value: "foo",
 	}
 
 	t.Run("apply", func(t *testing.T) {
@@ -276,11 +250,16 @@ func TestRollback(t *testing.T) {
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
 			}},
-			// Loading resources
-			{ValidateName: &resources.IndividualFuncValidateName{
-				Name: "foo",
-			}},
 			// Reading Host State
+			{GetState: &resources.IndividualFuncGetState{
+				Name:        "foo",
+				ReturnState: nil,
+			}},
+			// Executing plan
+			{Configure: &resources.IndividualFuncConfigure{
+				Name:  "foo",
+				State: fooState,
+			}},
 			{GetState: &resources.IndividualFuncGetState{
 				Name:        "foo",
 				ReturnState: fooState,
@@ -297,6 +276,57 @@ func TestRollback(t *testing.T) {
 		runCommand(t, Cmd{
 			Args:             args,
 			ExpectedInOutput: "Apply successful",
+		})
+	})
+
+	if t.Failed() {
+		return
+	}
+
+	t.Run("destroy with rollback", func(t *testing.T) {
+		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+			// Loading saved host state
+			{ValidateName: &resources.IndividualFuncValidateName{
+				Name: "foo",
+			}},
+			// Reading Host State
+			{GetState: &resources.IndividualFuncGetState{
+				Name:        "foo",
+				ReturnState: fooState,
+			}},
+			// Executing plan
+			{Destroy: &resources.IndividualFuncDestroy{
+				Name:        "foo",
+				ReturnError: errors.New("fooError"),
+			}},
+			// Rollback: Reading host state
+			{GetState: &resources.IndividualFuncGetState{
+				Name: "foo",
+				ReturnState: resources.IndividualState{
+					Value: "fooError",
+				},
+			}},
+			// Rollback: Applying changes
+			{Configure: &resources.IndividualFuncConfigure{
+				Name:  "foo",
+				State: fooState,
+			}},
+			{GetState: &resources.IndividualFuncGetState{
+				Name:        "foo",
+				ReturnState: fooState,
+			}},
+		})
+		args := []string{
+			"destroy",
+			"--log-level=trace",
+			"--force-color",
+			"--localhost",
+			"--state-root", stateRoot,
+		}
+		runCommand(t, Cmd{
+			Args:             args,
+			ExpectedCode:     1,
+			ExpectedInOutput: "Failed, rollback to previously saved state successful",
 		})
 	})
 }
