@@ -80,9 +80,10 @@ func (ses *stderrSudo) Write(p []byte) (int, error) {
 	ses.mutex.Lock()
 	defer ses.mutex.Unlock()
 
+	var extraLen int
+
 	if !ses.unlocked {
 		if bytes.Contains(p, ses.Prompt) {
-			fmt.Fprintf(os.Stderr, "%s", string(bytes.ReplaceAll(p, ses.Prompt, []byte{})))
 			var password string
 			if *ses.Password == nil {
 				state, err := term.MakeRaw(int(os.Stdin.Fd()))
@@ -104,20 +105,21 @@ func (ses *stderrSudo) Write(p []byte) (int, error) {
 				password = **ses.Password
 			}
 			ses.SendPass <- password
-			return len(p), nil
-		} else if bytes.Equal(p, ses.SudoOk) {
+			extraLen = len(ses.Prompt)
+			p = bytes.ReplaceAll(p, ses.Prompt, []byte{})
+		} else if bytes.Contains(p, ses.SudoOk) {
 			if ses.passwordAttempt != nil {
 				*ses.Password = ses.passwordAttempt
 			}
 			ses.Unlock <- struct{}{}
 			ses.unlocked = true
-			return len(p), nil
-		} else {
-			return fmt.Fprintf(os.Stderr, "%s", string(p))
+			extraLen = len(ses.SudoOk)
+			p = bytes.ReplaceAll(p, ses.SudoOk, []byte{})
 		}
 	}
 
-	return ses.Writer.Write(p)
+	len, err := ses.Writer.Write(p)
+	return len + extraLen, err
 }
 
 func getRandomString() string {
@@ -187,6 +189,7 @@ func (s *Sudo) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
 		Writer:   stderr,
 		Password: &s.Password,
 	}
+
 	return s.Host.Run(ctx, cmd)
 }
 
