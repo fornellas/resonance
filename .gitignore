@@ -1,5 +1,6 @@
 /.cache/
 /cover.html
+/cover.lcov
 /cover.txt
 /host/agent/agent_*_*
 /host/agent/agent_*_*.gz
