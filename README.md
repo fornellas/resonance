@@ -35,7 +35,7 @@ Typically you'll want to stick to `./build.sh rrb`, as it enables you to edit fi
 
 ### Native build
 
-The official build relies on `./build.sh`, but in some circunstances (eg: Docker being super slow on Mac) it may be useful to run the build without Docker, which requires manual configuration that is easy to get wrong / be outdated.
+The official build relies on `./build.sh`, but in some circumstances (eg: Docker being super slow on Mac) it may be useful to run the build without Docker, which requires manual configuration that is easy to get wrong / be outdated.
 
 - [Install Go](https://go.dev/doc/install) (version from `go.mod`).
 - Install [GNU Make](https://www.gnu.org/software/make/).
