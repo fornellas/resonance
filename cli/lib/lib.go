@@ -37,7 +37,7 @@ func addHostFlagsCommon(cmd *cobra.Command) {
 
 	cmd.Flags().BoolVarP(
 		&disableAgent, "disable-agent", "", defaultDisableAgent,
-		"Disables copying temporary a small agent to remote hosts. This can make things very slow, as without the agent, iteraction require running multiple commands. The only (unusual) use case for this is when the host GOARCH is not supported by the agent.",
+		"Disables copying temporary a small agent to remote hosts. This can make things very slow, as without the agent, iteraction require running multiple commands. The only (unusual) use case for this is when the host architecture is not supported by the agent.",
 	)
 }
 
