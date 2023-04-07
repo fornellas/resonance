@@ -20,12 +20,9 @@ endif
 GOOS:
 	@echo $(GOOS)
 
-GOARCH_SHELL := case $$(uname -m) in i[23456]86) echo 386;; x86_64) echo amd64;; armv6l|armv7l) echo arm;; aarch64) echo arm64;; *) echo Unknown machine $$(uname -m) 1>&2 ; exit 1 ;; esac
-export GOARCH ?= $(shell $(GOARCH_SHELL))
-ifneq ($(.SHELLSTATUS),0)
-  $(error GOARCH failed! output was $(GOARCH))
-endif
-export GOARCH ?= $(shell $(GOARCH_SHELL))
+GOARCH_NATIVE_SHELL := case $$(uname -m) in i[23456]86) echo 386;; x86_64) echo amd64;; armv6l|armv7l) echo arm;; aarch64) echo arm64;; *) echo Unknown machine $$(uname -m) 1>&2 ; exit 1 ;; esac
+GOARCH_NATIVE := $(shell $(GOARCH_NATIVE_SHELL))
+export GOARCH ?= $(GOARCH_NATIVE)
 ifneq ($(.SHELLSTATUS),0)
   $(error GOARCH failed! output was $(GOARCH))
 endif
@@ -33,8 +30,8 @@ endif
 GOARCH:
 	@echo $(GOARCH)
 
-GOARCH_DOWNLOAD_SHELL := case $(GOARCH) in 386) echo 386;; amd64) echo amd64;; arm) echo armv6l;; arm64) echo arm64;; *) echo Unknown GOARCH=$(GOARCH) 1>&2 ; exit 1 ;; esac
-GOARCH_DOWNLOAD ?= $(shell $(GOARCH_DOWNLOAD_SHELL))
+GOARCH_DOWNLOAD_SHELL := case $(GOARCH_NATIVE) in 386) echo 386;; amd64) echo amd64;; arm) echo armv6l;; arm64) echo arm64;; *) echo Unknown GOARCH=$(GOARCH_NATIVE) 1>&2 ; exit 1 ;; esac
+GOARCH_DOWNLOAD := $(shell $(GOARCH_DOWNLOAD_SHELL))
 ifneq ($(.SHELLSTATUS),0)
   $(error GOARCH_DOWNLOAD_SHELL failed! output was $(GOARCH_DOWNLOAD))
 endif
