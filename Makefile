@@ -268,10 +268,16 @@ clean-cover.html:
 clean: clean-cover.html
 
 # cover.lcov
+
 .PHONY: cover.lcov
 cover.lcov: go gotest
 	$(GCOV2LCOV) -infile cover.txt -outfile cover.lcov
 test: cover.lcov
+
+.PHONY: clean-cover.lcov
+clean-cover.lcov:
+	rm -f cover.lcov
+clean: clean-cover.lcov
 
 # cover-func
 
