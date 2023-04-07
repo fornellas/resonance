@@ -56,10 +56,3 @@ jobs:
         with:
           name: resonance.darwin.${{ inputs.GOARCH }}.gz
           path: resonance.darwin.${{ inputs.GOARCH }}.gz
-      # codecov
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ inputs.CODECOV_TOKEN }}
-          files: cover.txt
-          fail_ci_if_error: true
