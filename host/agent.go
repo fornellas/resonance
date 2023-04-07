@@ -15,7 +15,6 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
 
 	aNet "github.com/fornellas/resonance/host/agent/net"
 
@@ -54,45 +53,51 @@ func (a Agent) Chown(ctx context.Context, name string, uid, gid int) error {
 func (a Agent) Lookup(ctx context.Context, username string) (*user.User, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Lookup %s", username)
-	resp, err := a.get(fmt.Sprintf("/user/%s", username))
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status code %d", resp.StatusCode)
-	}
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
+	return nil, fmt.Errorf("TODO Agent.Lookup")
+	// logger := log.GetLogger(ctx)
+	// logger.Debugf("Lookup %s", username)
+	// resp, err := a.get(fmt.Sprintf("/user/%s", username))
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// if resp.StatusCode != http.StatusOK {
+	// 	return nil, fmt.Errorf("status code %d", resp.StatusCode)
+	// }
+	// bodyBytes, err := io.ReadAll(resp.Body)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	var u user.User
-	if err := yaml.Unmarshal(bodyBytes, &u); err != nil {
-		return nil, err
-	}
-	return &u, nil
+	// var u user.User
+	// if err := yaml.Unmarshal(bodyBytes, &u); err != nil {
+	// 	return nil, err
+	// }
+	// return &u, nil
 }
 
 func (a Agent) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("LookupGroup %s", name)
-	resp, err := a.get(fmt.Sprintf("/group/%s", name))
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status code %d", resp.StatusCode)
-	}
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
+	return nil, fmt.Errorf("TODO Agent.LookupGroup")
+	// logger := log.GetLogger(ctx)
+	// logger.Debugf("LookupGroup %s", name)
+	// resp, err := a.get(fmt.Sprintf("/group/%s", name))
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// if resp.StatusCode != http.StatusOK {
+	// 	return nil, fmt.Errorf("status code %d", resp.StatusCode)
+	// }
+	// bodyBytes, err := io.ReadAll(resp.Body)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	var g user.Group
-	if err := yaml.Unmarshal(bodyBytes, &g); err != nil {
-		return nil, err
-	}
-	return &g, nil
+	// var g user.Group
+	// if err := yaml.Unmarshal(bodyBytes, &g); err != nil {
+	// 	return nil, err
+	// }
+	// return &g, nil
 }
 
 func (a Agent) Lstat(ctx context.Context, name string) (HostFileInfo, error) {
@@ -110,16 +115,19 @@ func (a Agent) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
 func (a Agent) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("ReadFile %s", name)
+	return nil, fmt.Errorf("TODO Agent.ReadFile")
+	// logger := log.GetLogger(ctx)
+	// logger.Debugf("ReadFile %s", name)
 
-	resp, err := a.get(fmt.Sprintf("/file/%s", name))
-	// resp, err := a.get(fmt.Sprintf("/file/%s", url.QueryEscape(name)))
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status code %d", resp.StatusCode)
-	}
-	return io.ReadAll(resp.Body)
+	// resp, err := a.get(fmt.Sprintf("/file/%s", name))
+	// // resp, err := a.get(fmt.Sprintf("/file/%s", url.QueryEscape(name)))
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// if resp.StatusCode != http.StatusOK {
+	// 	return nil, fmt.Errorf("status code %d", resp.StatusCode)
+	// }
+	// return io.ReadAll(resp.Body)
 }
 
 func (a Agent) Remove(ctx context.Context, name string) error {
