@@ -54,6 +54,7 @@ jobs:
         with:
           name: resonance.linux.${{ inputs.GOARCH }}.gz
           path: resonance.linux.${{ inputs.GOARCH }}.gz
+          if-no-files-found: error
       # Coveralls
       - name: Coveralls
         uses: coverallsapp/github-action@v1

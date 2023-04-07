@@ -56,6 +56,7 @@ jobs:
         with:
           name: resonance.darwin.${{ inputs.GOARCH }}.gz
           path: resonance.darwin.${{ inputs.GOARCH }}.gz
+          if-no-files-found: error
       # Coveralls
       - name: Coveralls
         uses: coverallsapp/github-action@v1
