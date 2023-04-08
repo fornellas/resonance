@@ -33,16 +33,16 @@ if ! test -d "$GIT_ROOT"/.cache ; then
 	mkdir "$GIT_ROOT"/.cache
 fi
 
-docker build \
+DOCKER_IMAGE="$(docker build \
 	--platform ${DOCKER_PLATFORM} \
 	--build-arg USER="$USER" \
 	--build-arg UID="$UID" \
 	--build-arg GROUP="$GROUP" \
 	--build-arg GID="$GID" \
 	--build-arg HOME="$HOME" \
-	--tag resonance:local \
 	--quiet \
-	. > /dev/null
+	.
+)"
 
 NAME="resonance-$$"
 
@@ -63,5 +63,5 @@ docker run \
 	--volume ${GIT_ROOT}/.cache:${HOME}/.cache \
 	--volume ${HOME}/resonance/.cache \
 	--workdir ${HOME}/resonance \
-	resonance:local \
+	${DOCKER_IMAGE} \
 	make --no-print-directory "${@}"
