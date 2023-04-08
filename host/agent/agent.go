@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
+	"os/user"
 	"path/filepath"
 
 	"github.com/gorilla/mux"
@@ -31,13 +32,16 @@ func internalServerError(w http.ResponseWriter, err error) {
 		apiErr.Type = "ErrPermission"
 	} else if errors.Is(err, fs.ErrNotExist) {
 		apiErr.Type = "ErrNotExist"
+	} else if _, ok := err.(user.UnknownUserError); ok {
+		apiErr.Type = "UnknownUserError"
+		apiErr.Message = err.Error()
 	} else {
 		apiErr.Message = err.Error()
 	}
 
 	apiErrBytes, err := yaml.Marshal(&apiErr)
 	if err != nil {
-		panic(fmt.Sprintf("failed to marshall error: %s", err))
+		panic(fmt.Sprintf("failed to marshal error: %s", err))
 	}
 
 	w.Write(apiErrBytes)
@@ -79,22 +83,27 @@ func PostFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-// func GetLookupFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
-// 	return func(w http.ResponseWriter, r *http.Request) {
-// 		username := mux.Vars(r)["username"]
-// 		u, err := user.Lookup(username)
-// 		if err != nil {
-// 			w.WriteHeader(500)
-// 			w.Write([]byte(fmt.Sprintf("%s", err)))
-// 		}
-// 		body, err := yaml.Marshal(u)
-// 		if err != nil {
-// 			w.WriteHeader(500)
-// 			w.Write([]byte(fmt.Sprintf("%s", err)))
-// 		}
-// 		w.Write(body)
-// 	}
-// }
+func GetLookupFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		username, ok := mux.Vars(r)["username"]
+		if !ok {
+			panic("username not found in Vars")
+		}
+
+		u, err := user.Lookup(username)
+		if err != nil {
+			internalServerError(w, err)
+			return
+		}
+
+		body, err := yaml.Marshal(u)
+		if err != nil {
+			panic(fmt.Sprintf("failed to marshal user: %s", err))
+		}
+		w.Header().Set("Content-Type", "application/yaml")
+		w.Write(body)
+	}
+}
 
 // func GetLookupGroupFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 // 	return func(w http.ResponseWriter, r *http.Request) {
@@ -174,7 +183,10 @@ func main() {
 		Path("/file/{name:.+}").
 		Headers("Content-Type", "application/yaml").
 		HandlerFunc(PostFileFn(ctx))
-	// router.Methods("GET").Path("/user/{username}").HandlerFunc(GetLookupFn(ctx))
+	router.
+		Methods("GET").
+		Path("/user/{username}").
+		HandlerFunc(GetLookupFn(ctx))
 	// router.Methods("GET").Path("/group/{name}").HandlerFunc(GetLookupGroupFn(ctx))
 	// router.Methods("TBD").Path("/tbd").HandlerFunc(GetLstatFn(ctx))
 	// router.Methods("TBD").Path("/tbd").HandlerFunc(GetMkdirFn(ctx))

@@ -3,6 +3,8 @@ package api
 import (
 	"errors"
 	"os"
+	"os/user"
+	"strings"
 	// "gopkg.in/yaml.v3"
 )
 
@@ -33,6 +35,8 @@ func (e Error) Error() error {
 		return os.ErrPermission
 	case "ErrNotExist":
 		return os.ErrNotExist
+	case "UnknownUserError":
+		return user.UnknownUserError(strings.TrimPrefix(e.Message, user.UnknownUserError("").Error()))
 	default:
 		return errors.New(e.Message)
 	}

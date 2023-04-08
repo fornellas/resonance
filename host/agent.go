@@ -38,7 +38,7 @@ type Agent struct {
 	Client *http.Client
 }
 
-func (a Agent) checkResponse(resp *http.Response) error {
+func (a Agent) checkResponseStatus(resp *http.Response) error {
 	if resp.StatusCode == http.StatusOK {
 		return nil
 	} else if resp.StatusCode == http.StatusInternalServerError {
@@ -58,13 +58,22 @@ func (a Agent) checkResponse(resp *http.Response) error {
 	}
 }
 
+func (a Agent) unmarshalResponse(resp *http.Response, bodyInterface interface{}) error {
+	decoder := yaml.NewDecoder(resp.Body)
+	decoder.KnownFields(true)
+	if err := decoder.Decode(bodyInterface); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (a Agent) get(path string) (*http.Response, error) {
 	resp, err := a.Client.Get(fmt.Sprintf("http://agent%s", path))
 	if err != nil {
 		return nil, err
 	}
 
-	if err := a.checkResponse(resp); err != nil {
+	if err := a.checkResponseStatus(resp); err != nil {
 		return nil, err
 	}
 
@@ -87,7 +96,7 @@ func (a Agent) post(path string, bodyInterface interface{}) error {
 		return err
 	}
 
-	return a.checkResponse(resp)
+	return a.checkResponseStatus(resp)
 }
 
 func (a Agent) Chmod(ctx context.Context, name string, mode os.FileMode) error {
@@ -122,26 +131,17 @@ func (a Agent) Chown(ctx context.Context, name string, uid, gid int) error {
 func (a Agent) Lookup(ctx context.Context, username string) (*user.User, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Lookup %s", username)
-	return nil, fmt.Errorf("TODO Agent.Lookup")
-	// logger := log.GetLogger(ctx)
-	// logger.Debugf("Lookup %s", username)
-	// resp, err := a.get(fmt.Sprintf("/user/%s", username))
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// if resp.StatusCode != http.StatusOK {
-	// 	return nil, fmt.Errorf("status code %d", resp.StatusCode)
-	// }
-	// bodyBytes, err := io.ReadAll(resp.Body)
-	// if err != nil {
-	// 	return nil, err
-	// }
 
-	// var u user.User
-	// if err := yaml.Unmarshal(bodyBytes, &u); err != nil {
-	// 	return nil, err
-	// }
-	// return &u, nil
+	resp, err := a.get(fmt.Sprintf("/user/%s", username))
+	if err != nil {
+		return nil, err
+	}
+
+	var u user.User
+	if err := a.unmarshalResponse(resp, &u); err != nil {
+		return nil, err
+	}
+	return &u, nil
 }
 
 func (a Agent) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
