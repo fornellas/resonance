@@ -19,9 +19,9 @@ import (
 	"golang.org/x/net/http2/h2c"
 	"gopkg.in/yaml.v3"
 
-	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/host/agent/api"
 	aNet "github.com/fornellas/resonance/host/agent/net"
+	"github.com/fornellas/resonance/host/local"
 	"github.com/fornellas/resonance/host/types"
 	"github.com/fornellas/resonance/log"
 )
@@ -230,7 +230,7 @@ func PostRunFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 			Stderr: stderrBuff,
 		}
 
-		waitStatus, err := host.LocalRun(ctx, cmd)
+		waitStatus, err := local.Run(ctx, cmd)
 		if err != nil {
 			internalServerError(w, err)
 			return
