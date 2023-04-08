@@ -2,8 +2,5 @@
 /cover.html
 /cover.lcov
 /cover.txt
-/host/agent/agent_*_*
-/host/agent/agent_*_*.gz
-/host/agent_*_*_gz.go
 /resonance.*.*
 /version/.version
