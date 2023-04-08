@@ -21,6 +21,7 @@ import (
 
 	"github.com/fornellas/resonance/host/agent/api"
 	aNet "github.com/fornellas/resonance/host/agent/net"
+	"github.com/fornellas/resonance/host/types"
 
 	"github.com/alessio/shellescape"
 	"golang.org/x/net/http2"
@@ -80,23 +81,42 @@ func (a Agent) get(path string) (*http.Response, error) {
 	return resp, nil
 }
 
-func (a Agent) post(path string, bodyInterface interface{}) error {
+func (a Agent) post(path string, bodyInterface interface{}) (*http.Response, error) {
 	url := fmt.Sprintf("http://agent%s", path)
 
 	contentType := "application/yaml"
 
 	bodyData, err := yaml.Marshal(bodyInterface)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	body := bytes.NewBuffer(bodyData)
 
 	resp, err := a.Client.Post(url, contentType, body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return a.checkResponseStatus(resp)
+	return resp, a.checkResponseStatus(resp)
+}
+
+func (a Agent) delete(path string) (*http.Response, error) {
+	url := fmt.Sprintf("http://agent%s", path)
+	req, err := http.NewRequest("DELETE", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := a.Client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := a.checkResponseStatus(resp); err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }
 
 func (a Agent) Chmod(ctx context.Context, name string, mode os.FileMode) error {
@@ -107,10 +127,12 @@ func (a Agent) Chmod(ctx context.Context, name string, mode os.FileMode) error {
 		return fmt.Errorf("path must be absolute: %s", name)
 	}
 
-	return a.post(fmt.Sprintf("/file%s", name), api.File{
+	_, err := a.post(fmt.Sprintf("/file%s", name), api.File{
 		Action: api.Chmod,
 		Mode:   mode,
 	})
+
+	return err
 }
 
 func (a Agent) Chown(ctx context.Context, name string, uid, gid int) error {
@@ -121,11 +143,13 @@ func (a Agent) Chown(ctx context.Context, name string, uid, gid int) error {
 		return fmt.Errorf("path must be absolute: %s", name)
 	}
 
-	return a.post(fmt.Sprintf("/file%s", name), api.File{
+	_, err := a.post(fmt.Sprintf("/file%s", name), api.File{
 		Action: api.Chown,
 		Uid:    uid,
 		Gid:    gid,
 	})
+
+	return err
 }
 
 func (a Agent) Lookup(ctx context.Context, username string) (*user.User, error) {
@@ -160,22 +184,22 @@ func (a Agent) LookupGroup(ctx context.Context, name string) (*user.Group, error
 	return &g, nil
 }
 
-func (a Agent) Lstat(ctx context.Context, name string) (HostFileInfo, error) {
+func (a Agent) Lstat(ctx context.Context, name string) (types.HostFileInfo, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Lstat %s", name)
 
 	if !filepath.IsAbs(name) {
-		return HostFileInfo{}, fmt.Errorf("path must be absolute: %s", name)
+		return types.HostFileInfo{}, fmt.Errorf("path must be absolute: %s", name)
 	}
 
 	resp, err := a.get(fmt.Sprintf("/file%s?lstat=true", name))
 	if err != nil {
-		return HostFileInfo{}, err
+		return types.HostFileInfo{}, err
 	}
 
-	var hfi HostFileInfo
+	var hfi types.HostFileInfo
 	if err := a.unmarshalResponse(resp, &hfi); err != nil {
-		return HostFileInfo{}, err
+		return types.HostFileInfo{}, err
 	}
 	hfi.ModTime = hfi.ModTime.Local()
 	return hfi, nil
@@ -189,10 +213,12 @@ func (a Agent) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
 		return fmt.Errorf("path must be absolute: %s", name)
 	}
 
-	return a.post(fmt.Sprintf("/file%s", name), api.File{
+	_, err := a.post(fmt.Sprintf("/file%s", name), api.File{
 		Action: api.Mkdir,
 		Mode:   perm,
 	})
+
+	return err
 }
 
 func (a Agent) ReadFile(ctx context.Context, name string) ([]byte, error) {
@@ -219,13 +245,75 @@ func (a Agent) ReadFile(ctx context.Context, name string) ([]byte, error) {
 func (a Agent) Remove(ctx context.Context, name string) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Remove %s", name)
-	return fmt.Errorf("TODO Agent.Remove")
+
+	if !filepath.IsAbs(name) {
+		return fmt.Errorf("path must be absolute: %s", name)
+	}
+
+	_, err := a.delete(fmt.Sprintf("/file%s", name))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (a Agent) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
+func (a Agent) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Run %s", cmd)
-	return WaitStatus{}, fmt.Errorf("TODO Agent.Run")
+
+	var stdin []byte
+	if cmd.Stdin != nil {
+		var err error
+		stdin, err = io.ReadAll(cmd.Stdin)
+		if err != nil {
+			return types.WaitStatus{}, err
+		}
+	}
+
+	var stdout bool
+	if cmd.Stdout != nil {
+		stdout = true
+	}
+
+	var stderr bool
+	if cmd.Stderr != nil {
+		stderr = true
+	}
+
+	resp, err := a.post("/run", api.Cmd{
+		Path:   cmd.Path,
+		Args:   cmd.Args,
+		Env:    cmd.Env,
+		Dir:    cmd.Dir,
+		Stdin:  stdin,
+		Stdout: stdout,
+		Stderr: stderr,
+	})
+	if err != nil {
+		return types.WaitStatus{}, err
+	}
+
+	var cs api.CmdResponse
+	if err := a.unmarshalResponse(resp, &cs); err != nil {
+		return types.WaitStatus{}, err
+	}
+
+	if cmd.Stdout != nil {
+		_, err := io.Copy(cmd.Stdout, bytes.NewReader(cs.Stdout))
+		if err != nil {
+			return types.WaitStatus{}, err
+		}
+	}
+
+	if cmd.Stderr != nil {
+		_, err := io.Copy(cmd.Stderr, bytes.NewReader(cs.Stderr))
+		if err != nil {
+			return types.WaitStatus{}, err
+		}
+	}
+
+	return cs.WaitStatus, nil
 }
 
 func (a Agent) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
@@ -288,7 +376,7 @@ func (a *Agent) spawnAgent(ctx context.Context) error {
 	}
 
 	go func() {
-		waitStatus, err := a.Host.Run(ctx, Cmd{
+		waitStatus, err := a.Host.Run(ctx, types.Cmd{
 			Path:   a.Path,
 			Stdin:  stdinReader,
 			Stdout: stdoutWriter,
@@ -358,7 +446,7 @@ func getGoArch(machine string) (string, error) {
 }
 
 func getAgentBinGz(ctx context.Context, hst Host) ([]byte, error) {
-	cmd := Cmd{
+	cmd := types.Cmd{
 		Path: "uname",
 		Args: []string{"-m"},
 	}
@@ -386,7 +474,7 @@ func getAgentBinGz(ctx context.Context, hst Host) ([]byte, error) {
 }
 
 func getTmpFile(ctx context.Context, hst Host, template string) (string, error) {
-	cmd := Cmd{
+	cmd := types.Cmd{
 		Path: "mktemp",
 		Args: []string{"-t", fmt.Sprintf("%s.XXXXXXXX", template)},
 	}
@@ -404,7 +492,7 @@ func getTmpFile(ctx context.Context, hst Host, template string) (string, error) 
 }
 
 func copyReader(ctx context.Context, hst Host, reader io.Reader, path string) error {
-	cmd := Cmd{
+	cmd := types.Cmd{
 		Path:  "sh",
 		Args:  []string{"-c", fmt.Sprintf("cat > %s", shellescape.Quote(path))},
 		Stdin: reader,

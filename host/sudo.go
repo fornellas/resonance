@@ -15,6 +15,7 @@ import (
 	"github.com/alessio/shellescape"
 	"golang.org/x/term"
 
+	"github.com/fornellas/resonance/host/types"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -132,7 +133,7 @@ func getRandomString() string {
 	return hex.EncodeToString(hash[:])
 }
 
-func (s *Sudo) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
+func (s *Sudo) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
 	prompt := fmt.Sprintf("sudo password (%s)", getRandomString())
 	sudoOk := fmt.Sprintf("sudo ok (%s)", getRandomString())
 
@@ -219,7 +220,9 @@ func NewSudo(ctx context.Context, host Host) (*Sudo, error) {
 	}
 	sudoHost.baseRun.Host = &sudoHost
 
-	cmd := Cmd{Path: "true"}
+	cmd := types.Cmd{
+		Path: "true",
+	}
 	waitStatus, err := sudoHost.Run(nestedCtx, cmd)
 	if err != nil {
 		return nil, err

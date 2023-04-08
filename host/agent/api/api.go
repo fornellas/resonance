@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/user"
 	"strings"
+
+	"github.com/fornellas/resonance/host/types"
 )
 
 type FileAction int
@@ -42,4 +44,20 @@ func (e Error) Error() error {
 	default:
 		return errors.New(e.Message)
 	}
+}
+
+type Cmd struct {
+	Path   string
+	Args   []string
+	Env    []string
+	Dir    string
+	Stdin  []byte
+	Stdout bool
+	Stderr bool
+}
+
+type CmdResponse struct {
+	WaitStatus types.WaitStatus
+	Stdout     []byte
+	Stderr     []byte
 }

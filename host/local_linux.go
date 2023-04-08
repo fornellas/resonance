@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/fornellas/resonance/host/types"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -39,15 +40,15 @@ func (l Local) LookupGroup(ctx context.Context, name string) (*user.Group, error
 	return user.LookupGroup(name)
 }
 
-func (l Local) Lstat(ctx context.Context, name string) (HostFileInfo, error) {
+func (l Local) Lstat(ctx context.Context, name string) (types.HostFileInfo, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Lstat %s", name)
 	fileInfo, err := os.Lstat(name)
 	if err != nil {
-		return HostFileInfo{}, err
+		return types.HostFileInfo{}, err
 	}
 	stat_t := fileInfo.Sys().(*syscall.Stat_t)
-	return HostFileInfo{
+	return types.HostFileInfo{
 		Name:    filepath.Base(name),
 		Size:    fileInfo.Size(),
 		Mode:    fileInfo.Mode(),
@@ -76,7 +77,7 @@ func (l Local) Remove(ctx context.Context, name string) error {
 	return os.Remove(name)
 }
 
-func (l Local) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
+func (l Local) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Run %s", cmd)
 
@@ -102,7 +103,7 @@ func (l Local) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
 		return nil
 	}
 
-	waitStatus := WaitStatus{}
+	waitStatus := types.WaitStatus{}
 	err := execCmd.Run()
 
 	if err != nil {

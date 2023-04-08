@@ -14,6 +14,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/fornellas/resonance/host/types"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -249,7 +250,7 @@ func testHost(t *testing.T, host Host) {
 	t.Run("Run", func(t *testing.T) {
 		t.Run("Args, output and failure", func(t *testing.T) {
 			outputBuffer.Reset()
-			waitStatus, stdout, stderr, err := Run(ctx, host, Cmd{
+			waitStatus, stdout, stderr, err := Run(ctx, host, types.Cmd{
 				Path: "ls",
 				Args: []string{"-d", "../tmp", "/non-existent"},
 			})
@@ -270,7 +271,7 @@ func testHost(t *testing.T, host Host) {
 		t.Run("Env", func(t *testing.T) {
 			t.Run("Empty", func(t *testing.T) {
 				outputBuffer.Reset()
-				waitStatus, stdout, stderr, err := Run(ctx, host, Cmd{
+				waitStatus, stdout, stderr, err := Run(ctx, host, types.Cmd{
 					Path: "env",
 				})
 				require.NoError(t, err)
@@ -284,7 +285,7 @@ func testHost(t *testing.T, host Host) {
 			t.Run("Set", func(t *testing.T) {
 				outputBuffer.Reset()
 				env := "FOO=bar"
-				waitStatus, stdout, stderr, err := Run(ctx, host, Cmd{
+				waitStatus, stdout, stderr, err := Run(ctx, host, types.Cmd{
 					Path: "env",
 					Env:  []string{env},
 				})
@@ -306,7 +307,7 @@ func testHost(t *testing.T, host Host) {
 		t.Run("Dir", func(t *testing.T) {
 			outputBuffer.Reset()
 			dir := t.TempDir()
-			waitStatus, stdout, stderr, err := Run(ctx, host, Cmd{
+			waitStatus, stdout, stderr, err := Run(ctx, host, types.Cmd{
 				Path: "pwd",
 				Dir:  dir,
 			})
@@ -327,7 +328,7 @@ func testHost(t *testing.T, host Host) {
 		t.Run("Stdin", func(t *testing.T) {
 			outputBuffer.Reset()
 			stdin := "hello"
-			waitStatus, stdout, stderr, err := Run(ctx, host, Cmd{
+			waitStatus, stdout, stderr, err := Run(ctx, host, types.Cmd{
 				Path:  "sh",
 				Args:  []string{"-c", "read v && echo =$v="},
 				Stdin: strings.NewReader(fmt.Sprintf("%s\n", stdin)),

@@ -18,6 +18,7 @@ import (
 	"golang.org/x/crypto/ssh/knownhosts"
 	"golang.org/x/term"
 
+	"github.com/fornellas/resonance/host/types"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -28,13 +29,13 @@ type Ssh struct {
 	client   *ssh.Client
 }
 
-func (s Ssh) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
+func (s Ssh) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Run %s", cmd)
 
 	session, err := s.client.NewSession()
 	if err != nil {
-		return WaitStatus{}, fmt.Errorf("failed to create session: %w", err)
+		return types.WaitStatus{}, fmt.Errorf("failed to create session: %w", err)
 	}
 	defer session.Close()
 
@@ -84,11 +85,11 @@ func (s Ssh) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
 			exited = exitError.Signal() == ""
 			signal = exitError.Signal()
 		} else {
-			return WaitStatus{}, fmt.Errorf("failed to run %v: %w", cmd, err)
+			return types.WaitStatus{}, fmt.Errorf("failed to run %v: %w", cmd, err)
 		}
 	}
 
-	return WaitStatus{
+	return types.WaitStatus{
 		ExitCode: exitCode,
 		Exited:   exited,
 		Signal:   signal,

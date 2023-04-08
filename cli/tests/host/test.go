@@ -7,7 +7,7 @@ import (
 	"os/user"
 	"testing"
 
-	"github.com/fornellas/resonance/host"
+	"github.com/fornellas/resonance/host/types"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -54,8 +54,8 @@ type FuncRemove struct {
 }
 
 type FuncRun struct {
-	Cmd              host.Cmd
-	ReturnWaitStatus host.WaitStatus
+	Cmd              types.Cmd
+	ReturnWaitStatus types.WaitStatus
 	ReturnStdout     string
 	ReturnStderr     string
 	ReturnError      error
@@ -186,7 +186,7 @@ func (t Test) Remove(ctx context.Context, name string) error {
 	return funcCall.Remove.ReturnError
 }
 
-func (t Test) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, string, string, error) {
+func (t Test) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, string, string, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Run %s", cmd)
 	funcCall := t.getFuncCall()

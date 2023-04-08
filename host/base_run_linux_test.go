@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/user"
 	"testing"
+
+	"github.com/fornellas/resonance/host/types"
 )
 
 type baseRunOnly struct {
@@ -37,10 +39,10 @@ func (bro baseRunOnly) LookupGroup(ctx context.Context, name string) (*user.Grou
 	return nil, err
 }
 
-func (bro baseRunOnly) Lstat(ctx context.Context, name string) (HostFileInfo, error) {
+func (bro baseRunOnly) Lstat(ctx context.Context, name string) (types.HostFileInfo, error) {
 	err := errors.New("unexpected call received: Lstat")
 	bro.T.Fatal(err)
-	return HostFileInfo{}, err
+	return types.HostFileInfo{}, err
 }
 
 func (bro baseRunOnly) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
@@ -80,7 +82,7 @@ type localRunOnly struct {
 	Host Host
 }
 
-func (lro localRunOnly) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
+func (lro localRunOnly) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
 	return lro.Host.Run(ctx, cmd)
 }
 
@@ -98,7 +100,7 @@ type runner struct {
 	Host Host
 }
 
-func (r runner) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
+func (r runner) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
 	return r.Host.Run(ctx, cmd)
 }
 
