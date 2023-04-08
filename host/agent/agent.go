@@ -229,7 +229,7 @@ func PostRunFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 			Stderr: stderrBuff,
 		}
 
-		waitStatus, err := host.Local{}.Run(ctx, cmd)
+		waitStatus, err := host.LocalRun(ctx, cmd)
 		if err != nil {
 			internalServerError(w, err)
 			return

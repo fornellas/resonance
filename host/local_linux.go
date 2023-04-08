@@ -82,6 +82,24 @@ func (l Local) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error)
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Run %s", cmd)
 
+	return LocalRun(ctx, cmd)
+}
+
+func (l Local) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("WriteFile %s %v", name, perm)
+	return os.WriteFile(name, data, perm)
+}
+
+func (l Local) String() string {
+	return "localhost"
+}
+
+func (l Local) Close() error {
+	return nil
+}
+
+func LocalRun(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
 	execCmd := exec.CommandContext(log.IndentLogger(ctx), cmd.Path, cmd.Args...)
 	if len(cmd.Env) == 0 {
 		cmd.Env = []string{"LANG=en_US.UTF-8"}
@@ -128,18 +146,4 @@ func (l Local) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error)
 		waitStatus.Signal = signal.String()
 	}
 	return waitStatus, nil
-}
-
-func (l Local) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("WriteFile %s %v", name, perm)
-	return os.WriteFile(name, data, perm)
-}
-
-func (l Local) String() string {
-	return "localhost"
-}
-
-func (l Local) Close() error {
-	return nil
 }
