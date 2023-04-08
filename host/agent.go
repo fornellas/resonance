@@ -198,19 +198,22 @@ func (a Agent) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
 func (a Agent) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("ReadFile %s", name)
-	return nil, fmt.Errorf("TODO Agent.ReadFile")
-	// logger := log.GetLogger(ctx)
-	// logger.Debugf("ReadFile %s", name)
 
-	// resp, err := a.get(fmt.Sprintf("/file/%s", name))
-	// // resp, err := a.get(fmt.Sprintf("/file/%s", url.QueryEscape(name)))
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// if resp.StatusCode != http.StatusOK {
-	// 	return nil, fmt.Errorf("status code %d", resp.StatusCode)
-	// }
-	// return io.ReadAll(resp.Body)
+	if !filepath.IsAbs(name) {
+		return nil, fmt.Errorf("path must be absolute: %s", name)
+	}
+
+	resp, err := a.get(fmt.Sprintf("/file%s", name))
+	if err != nil {
+		return nil, err
+	}
+
+	contents, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return contents, nil
 }
 
 func (a Agent) Remove(ctx context.Context, name string) error {

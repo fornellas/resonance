@@ -5,10 +5,8 @@ import (
 	"os"
 	"os/user"
 	"strings"
-	// "gopkg.in/yaml.v3"
 )
 
-// Action to be executed for a resource.
 type FileAction int
 
 const (

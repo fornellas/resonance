@@ -164,11 +164,13 @@ func GetFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 			marshalResponse(w, hfi)
 			return
 		} else {
-			internalServerError(w, errors.New("unknown parameters"))
-			return
+			contexts, err := os.ReadFile(name)
+			if err != nil {
+				internalServerError(w, err)
+				return
+			}
+			w.Write(contexts)
 		}
-
-		// panic("GetFileFn")
 	}
 }
 
