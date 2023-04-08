@@ -35,6 +35,9 @@ func internalServerError(w http.ResponseWriter, err error) {
 	} else if _, ok := err.(user.UnknownUserError); ok {
 		apiErr.Type = "UnknownUserError"
 		apiErr.Message = err.Error()
+	} else if _, ok := err.(user.UnknownGroupError); ok {
+		apiErr.Type = "UnknownGroupError"
+		apiErr.Message = err.Error()
 	} else {
 		apiErr.Message = err.Error()
 	}
@@ -105,22 +108,27 @@ func GetLookupFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-// func GetLookupGroupFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
-// 	return func(w http.ResponseWriter, r *http.Request) {
-// 		name := mux.Vars(r)["name"]
-// 		g, err := user.LookupGroup(name)
-// 		if err != nil {
-// 			w.WriteHeader(500)
-// 			w.Write([]byte(fmt.Sprintf("%s", err)))
-// 		}
-// 		body, err := yaml.Marshal(g)
-// 		if err != nil {
-// 			w.WriteHeader(500)
-// 			w.Write([]byte(fmt.Sprintf("%s", err)))
-// 		}
-// 		w.Write(body)
-// 	}
-// }
+func GetLookupGroupFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name, ok := mux.Vars(r)["name"]
+		if !ok {
+			panic("name not found in Vars")
+		}
+
+		g, err := user.LookupGroup(name)
+		if err != nil {
+			internalServerError(w, err)
+			return
+		}
+
+		body, err := yaml.Marshal(g)
+		if err != nil {
+			panic(fmt.Sprintf("failed to marshal group: %s", err))
+		}
+		w.Header().Set("Content-Type", "application/yaml")
+		w.Write(body)
+	}
+}
 
 // func GetLookupGroupFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 // 	return func(w http.ResponseWriter, r *http.Request) {
@@ -176,8 +184,10 @@ func main() {
 	ctx := context.Background()
 
 	router := mux.NewRouter()
-	router.Methods("GET").Path("/ping").HandlerFunc(Ping)
-	// router.HandleFunc(Chmod(ctx context.Context, name string, mode os.FileMode) error
+	router.
+		Methods("GET").
+		Path("/ping").
+		HandlerFunc(Ping)
 	router.
 		Methods("POST").
 		Path("/file/{name:.+}").
@@ -187,7 +197,10 @@ func main() {
 		Methods("GET").
 		Path("/user/{username}").
 		HandlerFunc(GetLookupFn(ctx))
-	// router.Methods("GET").Path("/group/{name}").HandlerFunc(GetLookupGroupFn(ctx))
+	router.
+		Methods("GET").
+		Path("/group/{name}").
+		HandlerFunc(GetLookupGroupFn(ctx))
 	// router.Methods("TBD").Path("/tbd").HandlerFunc(GetLstatFn(ctx))
 	// router.Methods("TBD").Path("/tbd").HandlerFunc(GetMkdirFn(ctx))
 	// router.Methods("GET").Path("/file/{name:.+}").HandlerFunc(GetReadFileFn(ctx))
