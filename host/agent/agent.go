@@ -50,6 +50,15 @@ func internalServerError(w http.ResponseWriter, err error) {
 	w.Write(apiErrBytes)
 }
 
+func marshalResponse(w http.ResponseWriter, bodyInterface interface{}) {
+	body, err := yaml.Marshal(bodyInterface)
+	if err != nil {
+		panic(fmt.Sprintf("failed to marshal group: %s", err))
+	}
+	w.Header().Set("Content-Type", "application/yaml")
+	w.Write(body)
+}
+
 func PostFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name, ok := mux.Vars(r)["name"]
@@ -99,12 +108,7 @@ func GetLookupFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		body, err := yaml.Marshal(u)
-		if err != nil {
-			panic(fmt.Sprintf("failed to marshal user: %s", err))
-		}
-		w.Header().Set("Content-Type", "application/yaml")
-		w.Write(body)
+		marshalResponse(w, u)
 	}
 }
 
@@ -121,12 +125,7 @@ func GetLookupGroupFn(ctx context.Context) func(http.ResponseWriter, *http.Reque
 			return
 		}
 
-		body, err := yaml.Marshal(g)
-		if err != nil {
-			panic(fmt.Sprintf("failed to marshal group: %s", err))
-		}
-		w.Header().Set("Content-Type", "application/yaml")
-		w.Write(body)
+		marshalResponse(w, g)
 	}
 }
 
