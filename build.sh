@@ -40,6 +40,7 @@ DOCKER_IMAGE="$(docker build \
 	--build-arg GROUP="$GROUP" \
 	--build-arg GID="$GID" \
 	--build-arg HOME="$HOME" \
+	--output=type=docker \
 	--quiet \
 	.
 )"
