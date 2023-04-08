@@ -62,3 +62,17 @@ jobs:
           path-to-lcov: cover.lcov
           flag-name: linux.${{ inputs.GOARCH }}
           parallel: true
+      # Clean
+      - name: Clean
+        run: DOCKER_PLATFORM=linux/${{ inputs.GOARCH }} ./build.sh clean
+        shell: bash
+      # Git ls-files --others
+      - name: git ls-files --others
+        run: |
+          GIT_LS_FILES_OTHERS="$(git ls-files --others)"
+          if [ -n "$GIT_LS_FILES_OTHERS" ] ; then
+            echo git ls-files --others
+            echo "$GIT_LS_FILES_OTHERS"
+            exit 1
+          fi
+        shell: bash
