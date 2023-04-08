@@ -11,11 +11,15 @@ import (
 	"net/http"
 	"os"
 	"os/user"
+	"path/filepath"
 	"regexp"
 	"strings"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/sirupsen/logrus"
 
+	"github.com/fornellas/resonance/host/agent/api"
 	aNet "github.com/fornellas/resonance/host/agent/net"
 
 	"github.com/alessio/shellescape"
@@ -35,13 +39,55 @@ type Agent struct {
 }
 
 func (a Agent) get(path string) (*http.Response, error) {
-	return a.Client.Get(fmt.Sprintf("http://resonance_agent%s", path))
+	return a.Client.Get(fmt.Sprintf("http://agent%s", path))
+}
+
+func (a Agent) post(path string, bodyInterface interface{}) error {
+	url := fmt.Sprintf("http://agent%s", path)
+
+	contentType := "application/yaml"
+
+	bodyData, err := yaml.Marshal(bodyInterface)
+	if err != nil {
+		return err
+	}
+	body := bytes.NewBuffer(bodyData)
+
+	resp, err := a.Client.Post(url, contentType, body)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode == http.StatusOK {
+		return nil
+	} else if resp.StatusCode == http.StatusInternalServerError {
+		decoder := yaml.NewDecoder(resp.Body)
+		decoder.KnownFields(true)
+		var apiErr api.Error
+		if err := decoder.Decode(&apiErr); err != nil {
+			return err
+		}
+		return apiErr.Error()
+	} else {
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("unexpected status code %d: failed to read body: %s", resp.StatusCode, err)
+		}
+		return fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, string(bodyBytes))
+	}
 }
 
 func (a Agent) Chmod(ctx context.Context, name string, mode os.FileMode) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Chmod %v %s", mode, name)
-	return fmt.Errorf("TODO Agent.Chmod")
+
+	if !filepath.IsAbs(name) {
+		return fmt.Errorf("path must be absolute: %s", name)
+	}
+
+	return a.post(fmt.Sprintf("/file%s", name), api.File{
+		Mode:   mode,
+		Action: api.Chmod,
+	})
 }
 
 func (a Agent) Chown(ctx context.Context, name string, uid, gid int) error {
@@ -297,7 +343,7 @@ func getAgentBinGz(ctx context.Context, hst Host) ([]byte, error) {
 
 	agentBinGz, ok := AgentBinGz[osArch]
 	if !ok {
-		return nil, fmt.Errorf("GOOS.GOARCH not supported by agent: %s", osArch)
+		return nil, fmt.Errorf("%s not supported by agent", osArch)
 	}
 	return agentBinGz, nil
 }

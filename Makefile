@@ -241,7 +241,7 @@ test-help:
 help: test-help
 
 .PHONY: test
-test:
+test: build-agent
 
 # gotest
 
