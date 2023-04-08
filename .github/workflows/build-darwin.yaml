@@ -42,7 +42,7 @@ jobs:
           GOOS=darwin GOARCH=${{ inputs.GOARCH }} gmake ci V=1
         shell: bash
       - name: Build (cross compile only)
-        if: ${{ inputs.GOARCH == 'arm64' }}
+        if: ${{ inputs.GOARCH != 'amd64' }}
         run: |
           GOOS=darwin GOARCH=${{ inputs.GOARCH }} gmake build V=1
         shell: bash
@@ -71,6 +71,7 @@ jobs:
       # Coveralls
       - name: Coveralls
         uses: coverallsapp/github-action@v2
+        if: ${{ inputs.GOARCH == 'amd64' }}
         with:
           file: cover.lcov
           flag-name: darwin.${{ inputs.GOARCH }}
