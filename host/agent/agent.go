@@ -22,17 +22,26 @@ func Ping(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Pong")
 }
 
-// func GetChmodFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
-// 	return func(w http.ResponseWriter, r *http.Request) {
-// 		// Chmod(ctx context.Context, name string, mode os.FileMode) error {}
-// 	}
-// }
+func internalServerError(w http.ResponseWriter, err error) {
+	w.WriteHeader(500)
 
-// func GetChownFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
-// 	return func(w http.ResponseWriter, r *http.Request) {
-// 		// Chown(ctx context.Context, name string, uid, gid int) error {}
-// 	}
-// }
+	var apiErr api.Error
+
+	if errors.Is(err, fs.ErrPermission) {
+		apiErr.Type = "ErrPermission"
+	} else if errors.Is(err, fs.ErrNotExist) {
+		apiErr.Type = "ErrNotExist"
+	} else {
+		apiErr.Message = err.Error()
+	}
+
+	apiErrBytes, err := yaml.Marshal(&apiErr)
+	if err != nil {
+		panic(fmt.Sprintf("failed to marshall error: %s", err))
+	}
+
+	w.Write(apiErrBytes)
+}
 
 func PostFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -43,9 +52,7 @@ func PostFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 		name = fmt.Sprintf("%c%s", os.PathSeparator, name)
 
 		if !filepath.IsAbs(name) {
-			w.WriteHeader(500)
-			//  FIXME
-			w.Write([]byte(fmt.Sprintf("must be an absolute path: %s", name)))
+			internalServerError(w, fmt.Errorf("must be an absolute path: %s", name))
 			return
 		}
 
@@ -53,38 +60,21 @@ func PostFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 		decoder.KnownFields(true)
 		var file api.File
 		if err := decoder.Decode(&file); err != nil {
-			w.WriteHeader(500)
-			//  FIXME
-			w.Write([]byte(fmt.Sprintf("fail to unmarshal body: %s", err)))
+			internalServerError(w, fmt.Errorf("fail to unmarshal body: %w", err))
 			return
 		}
 
 		switch file.Action {
 		case api.Chmod:
 			if err := os.Chmod(name, file.Mode); err != nil {
-				w.WriteHeader(500)
-
-				var apiErr api.Error
-
-				if errors.Is(err, fs.ErrPermission) {
-					apiErr.Type = "ErrPermission"
-				} else if errors.Is(err, fs.ErrNotExist) {
-					apiErr.Type = "ErrNotExist"
-				} else {
-					apiErr.Message = err.Error()
-				}
-
-				apiErrBytes, err := yaml.Marshal(&apiErr)
-				if err != nil {
-					panic(fmt.Sprintf("failed to marshall error: %s", err))
-				}
-
-				w.Write(apiErrBytes)
+				internalServerError(w, err)
+			}
+		case api.Chown:
+			if err := os.Chown(name, file.Uid, file.Gid); err != nil {
+				internalServerError(w, err)
 			}
 		default:
-			w.WriteHeader(500)
-			//  FIXME
-			w.Write([]byte(fmt.Sprintf("invalid action: %d", file.Action)))
+			internalServerError(w, fmt.Errorf("invalid action: %d", file.Action))
 		}
 	}
 }

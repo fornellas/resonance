@@ -38,25 +38,7 @@ type Agent struct {
 	Client *http.Client
 }
 
-func (a Agent) get(path string) (*http.Response, error) {
-	return a.Client.Get(fmt.Sprintf("http://agent%s", path))
-}
-
-func (a Agent) post(path string, bodyInterface interface{}) error {
-	url := fmt.Sprintf("http://agent%s", path)
-
-	contentType := "application/yaml"
-
-	bodyData, err := yaml.Marshal(bodyInterface)
-	if err != nil {
-		return err
-	}
-	body := bytes.NewBuffer(bodyData)
-
-	resp, err := a.Client.Post(url, contentType, body)
-	if err != nil {
-		return err
-	}
+func (a Agent) checkResponse(resp *http.Response) error {
 	if resp.StatusCode == http.StatusOK {
 		return nil
 	} else if resp.StatusCode == http.StatusInternalServerError {
@@ -76,6 +58,38 @@ func (a Agent) post(path string, bodyInterface interface{}) error {
 	}
 }
 
+func (a Agent) get(path string) (*http.Response, error) {
+	resp, err := a.Client.Get(fmt.Sprintf("http://agent%s", path))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := a.checkResponse(resp); err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (a Agent) post(path string, bodyInterface interface{}) error {
+	url := fmt.Sprintf("http://agent%s", path)
+
+	contentType := "application/yaml"
+
+	bodyData, err := yaml.Marshal(bodyInterface)
+	if err != nil {
+		return err
+	}
+	body := bytes.NewBuffer(bodyData)
+
+	resp, err := a.Client.Post(url, contentType, body)
+	if err != nil {
+		return err
+	}
+
+	return a.checkResponse(resp)
+}
+
 func (a Agent) Chmod(ctx context.Context, name string, mode os.FileMode) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Chmod %v %s", mode, name)
@@ -85,15 +99,24 @@ func (a Agent) Chmod(ctx context.Context, name string, mode os.FileMode) error {
 	}
 
 	return a.post(fmt.Sprintf("/file%s", name), api.File{
-		Mode:   mode,
 		Action: api.Chmod,
+		Mode:   mode,
 	})
 }
 
 func (a Agent) Chown(ctx context.Context, name string, uid, gid int) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Chown %v %v %s", uid, gid, name)
-	return fmt.Errorf("TODO Agent.Chown")
+
+	if !filepath.IsAbs(name) {
+		return fmt.Errorf("path must be absolute: %s", name)
+	}
+
+	return a.post(fmt.Sprintf("/file%s", name), api.File{
+		Action: api.Chown,
+		Uid:    uid,
+		Gid:    gid,
+	})
 }
 
 func (a Agent) Lookup(ctx context.Context, username string) (*user.User, error) {
@@ -271,10 +294,7 @@ func (a *Agent) spawnAgent(ctx context.Context) error {
 		// TODO handle stop agent
 		return err
 	}
-	if resp.StatusCode != http.StatusOK {
-		// TODO handle stop agent
-		return fmt.Errorf("pinging agent failed: status code %d", resp.StatusCode)
-	}
+
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		// TODO handle stop agent
