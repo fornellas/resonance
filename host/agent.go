@@ -184,7 +184,15 @@ func (a Agent) Lstat(ctx context.Context, name string) (HostFileInfo, error) {
 func (a Agent) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Mkdir %s", name)
-	return fmt.Errorf("TODO Agent.Mkdir")
+
+	if !filepath.IsAbs(name) {
+		return fmt.Errorf("path must be absolute: %s", name)
+	}
+
+	return a.post(fmt.Sprintf("/file%s", name), api.File{
+		Action: api.Mkdir,
+		Mode:   perm,
+	})
 }
 
 func (a Agent) ReadFile(ctx context.Context, name string) ([]byte, error) {

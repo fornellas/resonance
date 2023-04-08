@@ -40,6 +40,8 @@ func internalServerError(w http.ResponseWriter, err error) {
 	} else if _, ok := err.(user.UnknownGroupError); ok {
 		apiErr.Type = "UnknownGroupError"
 		apiErr.Message = err.Error()
+	} else if errors.Is(err, fs.ErrExist) {
+		apiErr.Type = "ErrExist"
 	} else {
 		apiErr.Message = err.Error()
 	}
@@ -89,6 +91,10 @@ func PostFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 			}
 		case api.Chown:
 			if err := os.Chown(name, file.Uid, file.Gid); err != nil {
+				internalServerError(w, err)
+			}
+		case api.Mkdir:
+			if err := os.Mkdir(name, file.Mode); err != nil {
 				internalServerError(w, err)
 			}
 		default:

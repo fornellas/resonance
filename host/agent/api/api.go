@@ -39,6 +39,8 @@ func (e Error) Error() error {
 		return user.UnknownUserError(strings.TrimPrefix(e.Message, user.UnknownUserError("").Error()))
 	case "UnknownGroupError":
 		return user.UnknownGroupError(strings.TrimPrefix(e.Message, user.UnknownGroupError("").Error()))
+	case "ErrExist":
+		return os.ErrExist
 	default:
 		return errors.New(e.Message)
 	}
