@@ -274,12 +274,20 @@ func testHost(t *testing.T, host Host) {
 				waitStatus, stdout, stderr, err := Run(ctx, host, types.Cmd{
 					Path: "env",
 				})
+				var envPath string
+				for _, value := range os.Environ() {
+					if strings.HasPrefix(value, "PATH=") {
+						envPath = value
+						break
+					}
+				}
+				require.True(t, strings.HasPrefix(envPath, "PATH="))
 				require.NoError(t, err)
 				require.True(t, waitStatus.Success())
 				require.Equal(t, 0, waitStatus.ExitCode)
 				require.True(t, waitStatus.Exited)
 				require.Equal(t, "", waitStatus.Signal)
-				require.Equal(t, "LANG=en_US.UTF-8\n", stdout)
+				require.Equal(t, fmt.Sprintf("LANG=en_US.UTF-8\n%s\n", envPath), stdout)
 				require.Empty(t, stderr)
 			})
 			t.Run("Set", func(t *testing.T) {

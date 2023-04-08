@@ -346,7 +346,7 @@ func (wl writerLogger) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
-func (a *Agent) spawnAgent(ctx context.Context) error {
+func (a *Agent) spawn(ctx context.Context) error {
 	logger := log.GetLogger(ctx)
 
 	// TODO handle closing
@@ -543,7 +543,7 @@ func NewAgent(ctx context.Context, hst Host) (*Agent, error) {
 		Path: agentPath,
 	}
 
-	if err := agent.spawnAgent(ctx); err != nil {
+	if err := agent.spawn(ctx); err != nil {
 		return nil, err
 	}
 

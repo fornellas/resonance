@@ -25,6 +25,7 @@ type Sudo struct {
 	baseRun
 	Host     Host
 	Password *string
+	envPath  string
 }
 
 // stdinSudo prevents stdin from being read, before we can detect output
@@ -133,7 +134,7 @@ func getRandomString() string {
 	return hex.EncodeToString(hash[:])
 }
 
-func (s *Sudo) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
+func (s *Sudo) runEnv(ctx context.Context, cmd types.Cmd, ignoreCmdEnv bool) (types.WaitStatus, error) {
 	prompt := fmt.Sprintf("sudo password (%s)", getRandomString())
 	sudoOk := fmt.Sprintf("sudo ok (%s)", getRandomString())
 
@@ -143,31 +144,43 @@ func (s *Sudo) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error)
 	}
 	shellCmdStr := strings.Join(shellCmdArgs, " ")
 
-	if len(cmd.Env) == 0 {
-		cmd.Env = []string{"LANG=en_US.UTF-8"}
-	}
-	envStrs := []string{}
-	for _, nameValue := range cmd.Env {
-		envStrs = append(envStrs, shellescape.Quote(nameValue))
-	}
-
 	if cmd.Dir == "" {
 		cmd.Dir = "/tmp"
 	}
 
-	cmd.Args = []string{
-		"--stdin",
-		"--prompt", prompt,
-		"--", "sh", "-c",
-		fmt.Sprintf(
-			"echo -n %s 1>&2 && cd %s && exec env --ignore-environment %s %s",
-			shellescape.Quote(sudoOk),
-			cmd.Dir,
-			strings.Join(envStrs, " "),
-			shellCmdStr,
-		),
-	}
 	cmd.Path = "sudo"
+
+	if !ignoreCmdEnv {
+		if len(cmd.Env) == 0 {
+			cmd.Env = []string{"LANG=en_US.UTF-8"}
+			if s.envPath != "" {
+				cmd.Env = append(cmd.Env, s.envPath)
+			}
+		}
+		envStrs := []string{}
+		for _, nameValue := range cmd.Env {
+			envStrs = append(envStrs, shellescape.Quote(nameValue))
+		}
+		cmd.Args = []string{
+			"--stdin",
+			"--prompt", prompt,
+			"--", "sh", "-c",
+			fmt.Sprintf(
+				"echo -n %s 1>&2 && cd %s && exec env --ignore-environment %s %s",
+				shellescape.Quote(sudoOk), cmd.Dir, strings.Join(envStrs, " "), shellCmdStr,
+			),
+		}
+	} else {
+		cmd.Args = []string{
+			"--stdin",
+			"--prompt", prompt,
+			"--", "sh", "-c",
+			fmt.Sprintf(
+				"echo -n %s 1>&2 && cd %s && exec %s",
+				shellescape.Quote(sudoOk), cmd.Dir, shellCmdStr,
+			),
+		}
+	}
 
 	unlockStdin := make(chan struct{}, 1)
 	sendPassStdin := make(chan string, 1)
@@ -202,12 +215,44 @@ func (s *Sudo) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error)
 	return s.Host.Run(ctx, cmd)
 }
 
+func (s *Sudo) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
+	return s.runEnv(ctx, cmd, false)
+}
+
 func (s Sudo) String() string {
 	return s.Host.String()
 }
 
 func (s Sudo) Close() error {
 	return s.Host.Close()
+}
+
+func (s *Sudo) setEnvPath(ctx context.Context) error {
+	stdoutBuffer := bytes.Buffer{}
+	stderrBuffer := bytes.Buffer{}
+	cmd := types.Cmd{
+		Path:   "env",
+		Stdout: &stdoutBuffer,
+		Stderr: &stderrBuffer,
+	}
+	waitStatus, err := s.runEnv(ctx, cmd, true)
+	if err != nil {
+		return err
+	}
+	if !waitStatus.Success() {
+		return fmt.Errorf(
+			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdoutBuffer.String(), stderrBuffer.String(),
+		)
+	}
+	for _, value := range strings.Split(stdoutBuffer.String(), "\n") {
+		fmt.Fprintf(os.Stderr, "value: %#v\n", value)
+		if strings.HasPrefix(value, "PATH=") {
+			s.envPath = value
+			break
+		}
+	}
+	return nil
 }
 
 func NewSudo(ctx context.Context, host Host) (*Sudo, error) {
@@ -229,6 +274,10 @@ func NewSudo(ctx context.Context, host Host) (*Sudo, error) {
 	}
 	if !waitStatus.Success() {
 		return nil, fmt.Errorf("failed to run %s: %s", cmd, waitStatus.String())
+	}
+
+	if err := sudoHost.setEnvPath(nestedCtx); err != nil {
+		return nil, err
 	}
 
 	return &sudoHost, nil

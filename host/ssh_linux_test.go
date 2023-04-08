@@ -44,7 +44,7 @@ func getSshHandler(t *testing.T, username string) func(session ssh.Session) {
 		}
 
 		cmd := exec.Command(session.Command()[0], session.Command()[1:]...)
-		cmd.Env = session.Environ()
+		cmd.Env = append(os.Environ(), session.Environ()...)
 		cmd.Stdin = session
 		cmd.Stdout = session
 		cmd.Stderr = session.Stderr()

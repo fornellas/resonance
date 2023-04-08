@@ -23,7 +23,8 @@ type Cmd struct {
 
 	// Env specifies the environment of the process.
 	// Each entry is of the form "key=value".
-	// If Env is nil, the new process uses LANG=en_US.UTF-8
+	// If Env is nil, the new process uses LANG=en_US.UTF-8 and PATH set to the
+	// default path.
 	// If Env contains duplicate environment keys, only the last
 	// value in the slice for each duplicate key is used.
 	Env []string
