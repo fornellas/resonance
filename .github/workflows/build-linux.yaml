@@ -64,7 +64,7 @@ jobs:
           parallel: true
       # Clean
       - name: Clean
-        run: ./build.sh clean
+        run: DOCKER_PLATFORM=linux/${{ inputs.GOARCH }} ./build.sh clean
         shell: bash
       # Git ls-files --others
       - name: git ls-files --others
