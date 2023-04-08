@@ -51,6 +51,19 @@ jobs:
             exit 1
           fi
         shell: bash
+      # Upload
+      - uses: actions/upload-artifact@v3
+        with:
+          name: resonance.darwin.${{ inputs.GOARCH }}.gz
+          path: resonance.darwin.${{ inputs.GOARCH }}.gz
+          if-no-files-found: error
+      # Coveralls
+      - name: Coveralls
+        uses: coverallsapp/github-action@v1
+        with:
+          path-to-lcov: cover.lcov
+          flag-name: darwin.${{ inputs.GOARCH }}
+          parallel: true
       # Clean
       - name: Clean
         run: gmake clean
@@ -65,16 +78,3 @@ jobs:
             exit 1
           fi
         shell: bash
-      # Upload
-      - uses: actions/upload-artifact@v3
-        with:
-          name: resonance.darwin.${{ inputs.GOARCH }}.gz
-          path: resonance.darwin.${{ inputs.GOARCH }}.gz
-          if-no-files-found: error
-      # Coveralls
-      - name: Coveralls
-        uses: coverallsapp/github-action@v1
-        with:
-          path-to-lcov: cover.lcov
-          flag-name: darwin.${{ inputs.GOARCH }}
-          parallel: true

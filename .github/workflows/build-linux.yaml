@@ -49,6 +49,19 @@ jobs:
             exit 1
           fi
         shell: bash
+      # Upload
+      - uses: actions/upload-artifact@v3
+        with:
+          name: resonance.linux.${{ inputs.GOARCH }}.gz
+          path: resonance.linux.${{ inputs.GOARCH }}.gz
+          if-no-files-found: error
+      # Coveralls
+      - name: Coveralls
+        uses: coverallsapp/github-action@v1
+        with:
+          path-to-lcov: cover.lcov
+          flag-name: linux.${{ inputs.GOARCH }}
+          parallel: true
       # Clean
       - name: Clean
         run: ./build.sh clean
@@ -63,16 +76,3 @@ jobs:
             exit 1
           fi
         shell: bash
-      # Upload
-      - uses: actions/upload-artifact@v3
-        with:
-          name: resonance.linux.${{ inputs.GOARCH }}.gz
-          path: resonance.linux.${{ inputs.GOARCH }}.gz
-          if-no-files-found: error
-      # Coveralls
-      - name: Coveralls
-        uses: coverallsapp/github-action@v1
-        with:
-          path-to-lcov: cover.lcov
-          flag-name: linux.${{ inputs.GOARCH }}
-          parallel: true
