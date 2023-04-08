@@ -88,65 +88,13 @@ func (ws *WaitStatus) String() string {
 }
 
 type HostFileInfo struct {
-	name    string
-	size    int64
-	mode    fs.FileMode
-	modTime time.Time
-	isDir   bool
-	uid     uint32
-	gid     uint32
-}
-
-func (hfi HostFileInfo) Name() string {
-	return hfi.name
-}
-
-func (hfi HostFileInfo) Size() int64 {
-	return hfi.size
-}
-
-func (hfi HostFileInfo) Mode() fs.FileMode {
-	return hfi.mode
-}
-
-func (hfi HostFileInfo) ModTime() time.Time {
-	return hfi.modTime
-}
-
-func (hfi HostFileInfo) IsDir() bool {
-	return hfi.isDir
-}
-
-func (hfi HostFileInfo) Sys() any {
-	return nil
-}
-
-func (hfi HostFileInfo) Uid() uint32 {
-	return hfi.uid
-}
-
-func (hfi HostFileInfo) Gid() uint32 {
-	return hfi.gid
-}
-
-func NewHostFileInfo(
-	name string,
-	size int64,
-	mode fs.FileMode,
-	modTime time.Time,
-	isDir bool,
-	uid uint32,
-	gid uint32,
-) HostFileInfo {
-	return HostFileInfo{
-		name:    name,
-		size:    size,
-		mode:    mode,
-		modTime: modTime,
-		isDir:   isDir,
-		uid:     uid,
-		gid:     gid,
-	}
+	Name    string
+	Size    int64
+	Mode    fs.FileMode
+	ModTime time.Time
+	IsDir   bool
+	Uid     uint32
+	Gid     uint32
 }
 
 // Host defines an interface for interacting with a host.

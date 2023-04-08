@@ -9,12 +9,14 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"syscall"
 
 	"github.com/gorilla/mux"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"gopkg.in/yaml.v3"
 
+	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/host/agent/api"
 	aNet "github.com/fornellas/resonance/host/agent/net"
 )
@@ -129,33 +131,44 @@ func GetLookupGroupFn(ctx context.Context) func(http.ResponseWriter, *http.Reque
 	}
 }
 
-// func GetLookupGroupFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
-// 	return func(w http.ResponseWriter, r *http.Request) {
-// 		// LookupGroup(ctx context.Context, name string) (*user.Group, error) {}
-// 	}
-// }
+func GetFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name, ok := mux.Vars(r)["name"]
+		if !ok {
+			panic("name not found in Vars")
+		}
+		name = fmt.Sprintf("%c%s", os.PathSeparator, name)
 
-// func GetLstatFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
-// 	return func(w http.ResponseWriter, r *http.Request) {
-// 		// Lstat(ctx context.Context, name string) (HostFileInfo, error) {}
-// 	}
-// }
+		if lstat, ok := r.URL.Query()["lstat"]; ok && len(lstat) == 1 && lstat[0] == "true" {
+			fileInfo, err := os.Lstat(name)
+			if err != nil {
+				internalServerError(w, err)
+				return
+			}
+			stat_t := fileInfo.Sys().(*syscall.Stat_t)
+			hfi := host.HostFileInfo{
+				Name:    filepath.Base(name),
+				Size:    fileInfo.Size(),
+				Mode:    fileInfo.Mode(),
+				ModTime: fileInfo.ModTime(),
+				IsDir:   fileInfo.IsDir(),
+				Uid:     stat_t.Uid,
+				Gid:     stat_t.Gid,
+			}
+			marshalResponse(w, hfi)
+			return
+		} else {
+			internalServerError(w, errors.New("unknown parameters"))
+			return
+		}
+
+		// panic("GetFileFn")
+	}
+}
 
 // func GetMkdirFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 // 	return func(w http.ResponseWriter, r *http.Request) {
 // 		// Mkdir(ctx context.Context, name string, perm os.FileMode) error {}
-// 	}
-// }
-
-// func GetReadFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
-// 	return func(w http.ResponseWriter, r *http.Request) {
-// 		name := mux.Vars(r)["name"]
-// 		bytes, err := os.ReadFile(name)
-// 		if err != nil {
-// 			w.WriteHeader(500)
-// 			w.Write([]byte(fmt.Sprintf("%s", err)))
-// 		}
-// 		w.Write(bytes)
 // 	}
 // }
 
@@ -200,6 +213,10 @@ func main() {
 		Methods("GET").
 		Path("/group/{name}").
 		HandlerFunc(GetLookupGroupFn(ctx))
+	router.
+		Methods("GET").
+		Path("/file/{name:.+}").
+		HandlerFunc(GetFileFn(ctx))
 	// router.Methods("TBD").Path("/tbd").HandlerFunc(GetLstatFn(ctx))
 	// router.Methods("TBD").Path("/tbd").HandlerFunc(GetMkdirFn(ctx))
 	// router.Methods("GET").Path("/file/{name:.+}").HandlerFunc(GetReadFileFn(ctx))

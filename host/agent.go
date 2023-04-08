@@ -163,7 +163,22 @@ func (a Agent) LookupGroup(ctx context.Context, name string) (*user.Group, error
 func (a Agent) Lstat(ctx context.Context, name string) (HostFileInfo, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Lstat %s", name)
-	return HostFileInfo{}, fmt.Errorf("TODO Agent.Lstat")
+
+	if !filepath.IsAbs(name) {
+		return HostFileInfo{}, fmt.Errorf("path must be absolute: %s", name)
+	}
+
+	resp, err := a.get(fmt.Sprintf("/file%s?lstat=true", name))
+	if err != nil {
+		return HostFileInfo{}, err
+	}
+
+	var hfi HostFileInfo
+	if err := a.unmarshalResponse(resp, &hfi); err != nil {
+		return HostFileInfo{}, err
+	}
+	hfi.ModTime = hfi.ModTime.Local()
+	return hfi, nil
 }
 
 func (a Agent) Mkdir(ctx context.Context, name string, perm os.FileMode) error {

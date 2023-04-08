@@ -276,15 +276,15 @@ func (br baseRun) Lstat(ctx context.Context, name string) (HostFileInfo, error) 
 	// 	return HostFileInfo{}, fmt.Errorf("unable to parse ctim: %s: %w", tokens[13], err)
 	// }
 
-	return NewHostFileInfo(
-		filepath.Base(name),
-		size,
-		mode,
-		modTime,
-		isDir,
-		uint32(uid),
-		uint32(gid),
-	), nil
+	return HostFileInfo{
+		Name:    filepath.Base(name),
+		Size:    size,
+		Mode:    mode,
+		ModTime: modTime,
+		IsDir:   isDir,
+		Uid:     uint32(uid),
+		Gid:     uint32(gid),
+	}, nil
 }
 
 func (br baseRun) Mkdir(ctx context.Context, name string, perm os.FileMode) error {

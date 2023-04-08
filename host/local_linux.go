@@ -47,15 +47,15 @@ func (l Local) Lstat(ctx context.Context, name string) (HostFileInfo, error) {
 		return HostFileInfo{}, err
 	}
 	stat_t := fileInfo.Sys().(*syscall.Stat_t)
-	return NewHostFileInfo(
-		filepath.Base(name),
-		fileInfo.Size(),
-		fileInfo.Mode(),
-		fileInfo.ModTime(),
-		fileInfo.IsDir(),
-		stat_t.Uid,
-		stat_t.Gid,
-	), nil
+	return HostFileInfo{
+		Name:    filepath.Base(name),
+		Size:    fileInfo.Size(),
+		Mode:    fileInfo.Mode(),
+		ModTime: fileInfo.ModTime(),
+		IsDir:   fileInfo.IsDir(),
+		Uid:     stat_t.Uid,
+		Gid:     stat_t.Gid,
+	}, nil
 }
 
 func (l Local) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
