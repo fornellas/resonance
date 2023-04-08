@@ -119,6 +119,25 @@ func (a Agent) delete(path string) (*http.Response, error) {
 	return resp, nil
 }
 
+func (a Agent) put(path string, body io.Reader) (*http.Response, error) {
+	url := fmt.Sprintf("http://agent%s", path)
+	req, err := http.NewRequest("PUT", url, body)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := a.Client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := a.checkResponseStatus(resp); err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
 func (a Agent) Chmod(ctx context.Context, name string, mode os.FileMode) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Chmod %v %s", mode, name)
@@ -319,7 +338,17 @@ func (a Agent) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error)
 func (a Agent) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("WriteFile %s %v", name, perm)
-	return fmt.Errorf("TODO Agent.WriteFile")
+
+	if !filepath.IsAbs(name) {
+		return fmt.Errorf("path must be absolute: %s", name)
+	}
+
+	_, err := a.put(fmt.Sprintf("/file%s?perm=%d", name, perm), bytes.NewReader(data))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (a Agent) String() string {

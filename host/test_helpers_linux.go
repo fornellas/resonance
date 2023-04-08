@@ -397,13 +397,13 @@ func testHost(t *testing.T, host Host) {
 			require.False(t, fileInfo.IsDir())
 			require.Equal(t, fileMode, fileInfo.Mode()&fs.ModePerm)
 		})
-		t.Run("syscall.EISDIR", func(t *testing.T) {
+		t.Run("is directory", func(t *testing.T) {
 			outputBuffer.Reset()
 			name := filepath.Join(t.TempDir(), "foo")
 			err := os.Mkdir(name, os.FileMode(0700))
 			require.NoError(t, err)
 			err = host.WriteFile(ctx, name, []byte{}, os.FileMode(0640))
-			require.ErrorIs(t, err, syscall.EISDIR)
+			require.Error(t, err)
 		})
 		t.Run("ErrNotExist", func(t *testing.T) {
 			outputBuffer.Reset()

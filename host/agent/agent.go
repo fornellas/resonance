@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strconv"
 	"syscall"
 
 	"github.com/gorilla/mux"
@@ -251,11 +252,42 @@ func PostRunFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-// func GetWriteFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
-// 	return func(w http.ResponseWriter, r *http.Request) {
-// 		// WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {}
-// 	}
-// }
+func PutWriteFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name, ok := mux.Vars(r)["name"]
+		if !ok {
+			panic("name not found in Vars")
+		}
+		name = fmt.Sprintf("%c%s", os.PathSeparator, name)
+
+		perms, ok := r.URL.Query()["perm"]
+		if !ok {
+			internalServerError(w, errors.New("missing perm from query"))
+			return
+		}
+		if len(perms) != 1 {
+			internalServerError(w, fmt.Errorf("received multiple perm: %#v", perms))
+			return
+		}
+		permInt, err := strconv.ParseInt(perms[0], 10, 32)
+		if err != nil {
+			internalServerError(w, fmt.Errorf("failed to parse perm: %#v: %s", perms[0], err))
+			return
+		}
+		perm := os.FileMode(permInt)
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			internalServerError(w, err)
+			return
+		}
+
+		if err := os.WriteFile(name, body, perm); err != nil {
+			internalServerError(w, err)
+			return
+		}
+	}
+}
 
 func main() {
 	os.Remove(os.Args[0])
@@ -294,7 +326,10 @@ func main() {
 		Path("/run").
 		Headers("Content-Type", "application/yaml").
 		HandlerFunc(PostRunFn(ctx))
-	// router.Methods("TBD").Path("/tbd").HandlerFunc(GetWriteFileFn(ctx))
+	router.
+		Methods("PUT").
+		Path("/file/{name:.+}").
+		HandlerFunc(PutWriteFileFn(ctx))
 
 	server := &http2.Server{}
 
