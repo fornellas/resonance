@@ -51,7 +51,7 @@ jobs:
         shell: bash
       # Clean
       - name: Clean
-        run: make clean
+        run: ./build.sh clean
         shell: bash
       # Git ls-files --others
       - name: git ls-files --others
