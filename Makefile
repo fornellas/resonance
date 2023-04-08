@@ -297,11 +297,8 @@ build-help:
 	@echo 'build: build everything'
 help: build-help
 
-.PHONY: build-agent
-build-agent:
-
-.PHONY: host/agent/agent_linux_%
-host/agent/agent_linux_%: go-generate
+.PHONY: build-agent-%
+build-agent-%: go-generate
 	GOARCH=$* GOOS=linux $(GO) build -o host/agent/agent_linux_$* $(GO_BUILD_FLAGS) ./host/agent/
 	gzip < host/agent/agent_linux_$* > host/agent/agent_linux_$*.gz
 	cat << EOF > host/agent_linux_$*_gz.go
@@ -313,14 +310,14 @@ host/agent/agent_linux_%: go-generate
 		AgentBinGz["linux.$*"] = agent_linux_$*
 	}
 	EOF
-build-agent: $(foreach GOARCH,$(GOARCHS_AGENT),host/agent/agent_linux_$(GOARCH))
+build-agent: $(foreach GOARCH,$(GOARCHS_AGENT),build-agent-$(GOARCH))
 
-.PHONY: clean-host/agent/agent_linux_%
-clean-host/agent/agent_linux_%:
+.PHONY: clean-agent-%
+clean-agent-%:
 	rm -f host/agent/agent_linux_$*
 	rm -f host/agent/agent_linux_$*.gz
 	rm -rf host/agent_linux_$*_gz.go
-clean-agent: $(foreach GOARCH,$(GOARCHS_AGENT),clean-host/agent/agent_linux_-$(GOARCH))
+clean-agent: $(foreach GOARCH,$(GOARCHS_AGENT),clean-agent-$(GOARCH))
 clean: clean-agent
 build: clean-agent
 go-generate: clean-agent
