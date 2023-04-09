@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"sort"
 	"strings"
 	"syscall"
 	"testing"
@@ -287,7 +288,20 @@ func testHost(t *testing.T, host Host) {
 				require.Equal(t, 0, waitStatus.ExitCode)
 				require.True(t, waitStatus.Exited)
 				require.Equal(t, "", waitStatus.Signal)
-				require.Equal(t, fmt.Sprintf("LANG=en_US.UTF-8\n%s\n", envPath), stdout)
+				expectedEnv := []string{
+					"LANG=en_US.UTF-8",
+					envPath,
+				}
+				sort.Strings(expectedEnv)
+				receivedEnv := []string{}
+				for _, value := range strings.Split(stdout, "\n") {
+					if value == "" {
+						continue
+					}
+					receivedEnv = append(receivedEnv, value)
+				}
+				sort.Strings(receivedEnv)
+				require.Equal(t, expectedEnv, receivedEnv)
 				require.Empty(t, stderr)
 			})
 			t.Run("Set", func(t *testing.T) {
