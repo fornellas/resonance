@@ -241,7 +241,7 @@ test-help:
 help: test-help
 
 .PHONY: test
-test: build-agent
+test: build-agent-$(GOARCH)
 
 # gotest
 
