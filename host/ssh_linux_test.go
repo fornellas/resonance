@@ -97,6 +97,7 @@ func TestSsh(t *testing.T) {
 		username, serverFingerprint, port,
 	))
 	require.NoError(t, err)
+	defer func() { require.NoError(t, host.Close()) }()
 
 	testHost(t, host)
 }

@@ -17,6 +17,7 @@ func TestAgent(t *testing.T) {
 	})
 
 	host, err := NewAgent(ctx, Local{})
+	defer func() { require.NoError(t, host.Close()) }()
 	require.NoError(t, err)
 	testHost(t, host)
 }

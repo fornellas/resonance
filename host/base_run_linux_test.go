@@ -7,6 +7,8 @@ import (
 	"os/user"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/fornellas/resonance/host/types"
 )
 
@@ -123,4 +125,6 @@ func newRunner(host Host) runner {
 func TestBaseRun(t *testing.T) {
 	host := newRunner(newLocalRunOnly(t, Local{}))
 	testHost(t, host)
+	defer func() { require.NoError(t, host.Close()) }()
+	require.NoError(t, host.Close())
 }
