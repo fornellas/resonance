@@ -23,7 +23,6 @@ import (
 	aNet "github.com/fornellas/resonance/host/agent/net"
 	"github.com/fornellas/resonance/host/local"
 	"github.com/fornellas/resonance/host/types"
-	"github.com/fornellas/resonance/log"
 )
 
 func Ping(w http.ResponseWriter, r *http.Request) {
@@ -293,7 +292,6 @@ func main() {
 	os.Remove(os.Args[0])
 
 	ctx := context.Background()
-	ctx = log.SetLoggerValue(ctx, os.Stderr, "error", func(code int) { os.Exit(code) })
 
 	router := mux.NewRouter()
 	router.

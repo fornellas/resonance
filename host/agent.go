@@ -37,6 +37,7 @@ type Agent struct {
 	Host   Host
 	Path   string
 	Client *http.Client
+	waitCn chan struct{}
 }
 
 func (a Agent) checkResponseStatus(resp *http.Response) error {
@@ -355,8 +356,9 @@ func (a Agent) String() string {
 	return a.Host.String()
 }
 
-func (a Agent) Close() error {
-	// TODO tell agent to exit
+func (a *Agent) Close() error {
+	a.Client.CloseIdleConnections()
+	<-a.waitCn
 	return a.Host.Close()
 }
 
@@ -405,6 +407,7 @@ func (a *Agent) spawn(ctx context.Context) error {
 	}
 
 	go func() {
+		defer func() { a.waitCn <- struct{}{} }()
 		waitStatus, err := a.Host.Run(ctx, types.Cmd{
 			Path:   a.Path,
 			Stdin:  stdinReader,
@@ -568,8 +571,9 @@ func NewAgent(ctx context.Context, hst Host) (*Agent, error) {
 	}
 
 	agent := Agent{
-		Host: hst,
-		Path: agentPath,
+		Host:   hst,
+		Path:   agentPath,
+		waitCn: make(chan struct{}),
 	}
 
 	if err := agent.spawn(ctx); err != nil {

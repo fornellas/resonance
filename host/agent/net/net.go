@@ -6,6 +6,8 @@ import (
 	"net"
 	"os"
 	"time"
+
+	"go.uber.org/multierr"
 )
 
 // Addr implements net.Addr for io.ReadCloser / io.WriteCloser.
@@ -39,7 +41,10 @@ func (c Conn) Write(b []byte) (int, error) {
 }
 
 func (c Conn) Close() error {
-	return nil
+	return multierr.Combine(
+		c.Reader.Close(),
+		c.Writer.Close(),
+	)
 }
 
 func (c Conn) LocalAddr() net.Addr {
