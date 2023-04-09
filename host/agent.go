@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strings"
 
+	"go.uber.org/multierr"
 	"gopkg.in/yaml.v3"
 
 	"github.com/sirupsen/logrus"
@@ -380,13 +381,11 @@ func (wl writerLogger) Write(b []byte) (int, error) {
 func (a *Agent) spawn(ctx context.Context) error {
 	logger := log.GetLogger(ctx)
 
-	// TODO handle closing
 	stdinReader, stdinWriter, err := os.Pipe()
 	if err != nil {
 		return err
 	}
 
-	// TODO handle closing
 	stdoutReader, stdoutWriter, err := os.Pipe()
 	if err != nil {
 		return err
@@ -424,22 +423,24 @@ func (a *Agent) spawn(ctx context.Context) error {
 		}
 		stdinWriter.Close()
 		stdoutReader.Close()
+		stdinReader.Close()
+		stdoutWriter.Close()
 	}()
 
 	resp, err := a.get("/ping")
 	if err != nil {
-		// TODO handle stop agent
-		return err
+		return multierr.Combine(err, a.Close())
 	}
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		// TODO handle stop agent
-		return err
+		return multierr.Combine(err, a.Close())
 	}
 	if string(bodyBytes) != "Pong" {
-		// TODO handle stop agent
-		return fmt.Errorf("pinging agent failed: unexpected body %#v", string(bodyBytes))
+		return multierr.Combine(
+			fmt.Errorf("pinging agent failed: unexpected body %#v", string(bodyBytes)),
+			a.Close(),
+		)
 	}
 
 	return nil
