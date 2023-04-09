@@ -22,6 +22,10 @@ GOOS:
 
 GOARCH_NATIVE_SHELL := case $$(uname -m) in i[23456]86) echo 386;; x86_64) echo amd64;; armv6l|armv7l) echo arm;; aarch64) echo arm64;; *) echo Unknown machine $$(uname -m) 1>&2 ; exit 1 ;; esac
 GOARCH_NATIVE := $(shell $(GOARCH_NATIVE_SHELL))
+ifneq ($(.SHELLSTATUS),0)
+  $(error GOARCH failed! output was $(GOARCH))
+endif
+
 export GOARCH ?= $(GOARCH_NATIVE)
 ifneq ($(.SHELLSTATUS),0)
   $(error GOARCH_NATIVE failed! output was $(GOARCH_NATIVE))
@@ -241,7 +245,7 @@ test-help:
 help: test-help
 
 .PHONY: test
-test: build-agent-$(GOARCH)
+test: build-agent-$(GOARCH_NATIVE)
 
 # gotest
 
