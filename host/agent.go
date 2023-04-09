@@ -358,6 +358,7 @@ func (a Agent) String() string {
 }
 
 func (a *Agent) Close() error {
+	a.post("/shutdown", nil)
 	a.Client.CloseIdleConnections()
 	<-a.waitCn
 	return a.Host.Close()

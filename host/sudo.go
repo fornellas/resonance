@@ -246,7 +246,6 @@ func (s *Sudo) setEnvPath(ctx context.Context) error {
 		)
 	}
 	for _, value := range strings.Split(stdoutBuffer.String(), "\n") {
-		fmt.Fprintf(os.Stderr, "value: %#v\n", value)
 		if strings.HasPrefix(value, "PATH=") {
 			s.envPath = value
 			break

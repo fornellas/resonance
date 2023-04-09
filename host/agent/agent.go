@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/gorilla/mux"
 	"golang.org/x/net/http2"
@@ -288,6 +289,15 @@ func PutWriteFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request
 	}
 }
 
+func PostShutdownFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		go func() {
+			time.Sleep(1 * time.Second)
+			os.Exit(0)
+		}()
+	}
+}
+
 func main() {
 	os.Remove(os.Args[0])
 
@@ -328,6 +338,10 @@ func main() {
 		Methods("PUT").
 		Path("/file/{name:.+}").
 		HandlerFunc(PutWriteFileFn(ctx))
+	router.
+		Methods("POST").
+		Path("/shutdown").
+		HandlerFunc(PostShutdownFn(ctx))
 
 	server := &http2.Server{}
 
