@@ -15,10 +15,33 @@ var hostname string
 var defaultHostname = ""
 var sudo bool
 var defaultSudo = false
+var disableAgent bool
+var defaultDisableAgent = false
 
 func resetCommon() {
 	hostname = defaultHostname
 	sudo = defaultSudo
+	disableAgent = defaultDisableAgent
+}
+
+func wrapHost(ctx context.Context, hst host.Host) (host.Host, error) {
+	var err error
+	if sudo {
+		hst, err = host.NewSudo(ctx, hst)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if !disableAgent && hostname != "" {
+		var err error
+		hst, err = host.NewAgent(ctx, hst)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return hst, nil
 }
 
 func addHostFlagsCommon(cmd *cobra.Command) {
@@ -30,6 +53,11 @@ func addHostFlagsCommon(cmd *cobra.Command) {
 	cmd.Flags().BoolVarP(
 		&sudo, "sudo", "", defaultSudo,
 		"Use sudo when interacting with host",
+	)
+
+	cmd.Flags().BoolVarP(
+		&disableAgent, "disable-agent", "", defaultDisableAgent,
+		"Disables copying temporary a small agent to remote hosts. This can make things very slow, as without the agent, iteraction require running multiple commands. The only (unusual) use case for this is when the host architecture is not supported by the agent.",
 	)
 }
 

@@ -105,13 +105,13 @@ func (f File) GetState(ctx context.Context, hst host.Host, name resource.Name) (
 	}
 
 	// Perm
-	fileState.Perm = fileInfo.Mode()
+	fileState.Perm = fileInfo.Mode
 
 	// Uid
-	fileState.Uid = fileInfo.Uid()
+	fileState.Uid = fileInfo.Uid
 
 	// Gid
-	fileState.Gid = fileInfo.Gid()
+	fileState.Gid = fileInfo.Gid
 
 	return fileState, nil
 }
@@ -141,7 +141,7 @@ func (f File) Configure(
 	}
 
 	// Uid / Gid
-	if fileInfo.Uid() != fileState.Uid || fileInfo.Gid() != fileState.Gid {
+	if fileInfo.Uid != fileState.Uid || fileInfo.Gid != fileState.Gid {
 		if err := hst.Chown(ctx, path, int(fileState.Uid), int(fileState.Gid)); err != nil {
 			return err
 		}

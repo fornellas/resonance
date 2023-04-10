@@ -4,150 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
-	"io/fs"
 	"os"
 	"os/user"
-	"strings"
-	"time"
+
+	"github.com/fornellas/resonance/host/types"
 )
-
-// Cmd represents a command to be run.
-type Cmd struct {
-	// Path is the path of the command to run.
-	//
-	// This is the only field that must be set to a non-zero
-	// value. If Path is relative, it is evaluated relative
-	// to Dir.
-	Path string
-
-	// Args holds command line arguments, including the command as Args[0].
-	// If the Args field is empty or nil, Run uses {Path}.
-	Args []string
-
-	// Env specifies the environment of the process.
-	// Each entry is of the form "key=value".
-	// If Env is nil, the new process uses LANG=en_US.UTF-8
-	// If Env contains duplicate environment keys, only the last
-	// value in the slice for each duplicate key is used.
-	Env []string
-
-	// Dir specifies the working directory of the command.
-	// If Dir is the empty string, Run runs the command in /tmp
-	Dir string
-
-	// Stdin specifies the process's standard input.
-	// If Stdin is nil, the remote process reads from an empty
-	// bytes.Buffer.
-	Stdin io.Reader
-
-	// Stdout and Stderr specify the remote process's standard
-	// output and error.
-	// If either is nil, Run connects the corresponding file
-	// descriptor to an instance of io.Discard.
-	// command to block.
-	Stdout io.Writer
-	Stderr io.Writer
-}
-
-func (c Cmd) String() string {
-	return fmt.Sprintf("%s %s", c.Path, strings.Join(c.Args, " "))
-}
-
-// WaitStatus
-type WaitStatus struct {
-	// ExitCode returns the exit code of the exited process, or -1 if the process hasn't exited or was terminated by a signal.
-	ExitCode int
-	// Exited reports whether the program has exited. On Unix systems this reports true if the program exited due to calling exit, but false if the program terminated due to a signal.
-	Exited bool
-	// Signal describes a process signal.
-	Signal string
-}
-
-// Success reports whether the program exited successfully, such as with exit status 0 on Unix.
-func (ws *WaitStatus) Success() bool {
-	return ws.Exited && ws.ExitCode == 0
-}
-
-func (ws *WaitStatus) String() string {
-	var str string
-
-	if ws.Exited {
-		str = fmt.Sprintf("Process exited with status %v", ws.ExitCode)
-		if ws.Signal != "" {
-			str += fmt.Sprintf(" from signal %v", ws.Signal)
-		}
-	} else {
-		str = "Process did not exit"
-		if ws.Signal != "" {
-			str += fmt.Sprintf(" from signal %v", ws.Signal)
-		}
-	}
-
-	return str
-}
-
-type HostFileInfo struct {
-	name    string
-	size    int64
-	mode    fs.FileMode
-	modTime time.Time
-	isDir   bool
-	uid     uint32
-	gid     uint32
-}
-
-func (hfi HostFileInfo) Name() string {
-	return hfi.name
-}
-
-func (hfi HostFileInfo) Size() int64 {
-	return hfi.size
-}
-
-func (hfi HostFileInfo) Mode() fs.FileMode {
-	return hfi.mode
-}
-
-func (hfi HostFileInfo) ModTime() time.Time {
-	return hfi.modTime
-}
-
-func (hfi HostFileInfo) IsDir() bool {
-	return hfi.isDir
-}
-
-func (hfi HostFileInfo) Sys() any {
-	return nil
-}
-
-func (hfi HostFileInfo) Uid() uint32 {
-	return hfi.uid
-}
-
-func (hfi HostFileInfo) Gid() uint32 {
-	return hfi.gid
-}
-
-func NewHostFileInfo(
-	name string,
-	size int64,
-	mode fs.FileMode,
-	modTime time.Time,
-	isDir bool,
-	uid uint32,
-	gid uint32,
-) HostFileInfo {
-	return HostFileInfo{
-		name:    name,
-		size:    size,
-		mode:    mode,
-		modTime: modTime,
-		isDir:   isDir,
-		uid:     uid,
-		gid:     gid,
-	}
-}
 
 // Host defines an interface for interacting with a host.
 type Host interface {
@@ -176,7 +37,7 @@ type Host interface {
 
 	// Lstat works similar to os.Lstat, but returns HostFileInfo with some
 	// extra methods.
-	Lstat(ctx context.Context, name string) (HostFileInfo, error)
+	Lstat(ctx context.Context, name string) (types.HostFileInfo, error)
 
 	// Mkdir works similar to os.Mkdir.
 	Mkdir(ctx context.Context, name string, perm os.FileMode) error
@@ -191,7 +52,7 @@ type Host interface {
 	Remove(ctx context.Context, name string) error
 
 	// Run starts the specified command and waits for it to complete.
-	Run(ctx context.Context, cmd Cmd) (WaitStatus, error)
+	Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error)
 
 	// // Symlink works similar to os.Symlink.
 	// Symlink(ctx context.Context, oldname, newname string) error
@@ -208,7 +69,7 @@ type Host interface {
 
 // Run starts the specified command and waits for it to complete.
 // Returns WaitStatus, stdout and stderr.
-func Run(ctx context.Context, hst Host, cmd Cmd) (WaitStatus, string, string, error) {
+func Run(ctx context.Context, hst Host, cmd types.Cmd) (types.WaitStatus, string, string, error) {
 	if cmd.Stdout != nil {
 		panic(fmt.Errorf("can not set Cmd.Stdout: %s", cmd))
 	}

@@ -1,6 +1,7 @@
 package host
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 	"golang.org/x/crypto/ssh/knownhosts"
 	"golang.org/x/term"
 
+	"github.com/fornellas/resonance/host/types"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -26,30 +28,22 @@ type Ssh struct {
 	baseRun
 	Hostname string
 	client   *ssh.Client
+	envPath  string
 }
 
-func (s Ssh) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
+func (s Ssh) runEnv(ctx context.Context, cmd types.Cmd, ignoreCmdEnv bool) (types.WaitStatus, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Run %s", cmd)
 
 	session, err := s.client.NewSession()
 	if err != nil {
-		return WaitStatus{}, fmt.Errorf("failed to create session: %w", err)
+		return types.WaitStatus{}, fmt.Errorf("failed to create session: %w", err)
 	}
 	defer session.Close()
 
 	session.Stdin = cmd.Stdin
 	session.Stdout = cmd.Stdout
 	session.Stderr = cmd.Stderr
-
-	if len(cmd.Env) == 0 {
-		cmd.Env = []string{"LANG=en_US.UTF-8"}
-	}
-	envStrs := []string{}
-	for _, nameValue := range cmd.Env {
-		envStrs = append(envStrs, shellescape.Quote(nameValue))
-	}
-	envStr := strings.Join(envStrs, " ")
 
 	shellCmdArgs := []string{shellescape.Quote(cmd.Path)}
 	for _, arg := range cmd.Args {
@@ -61,9 +55,27 @@ func (s Ssh) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
 		cmd.Dir = "/tmp"
 	}
 
-	args := []string{"sh", "-c", fmt.Sprintf(
-		"cd %s && exec env --ignore-environment %s %s", shellescape.Quote(cmd.Dir), envStr, shellCmdStr,
-	)}
+	var args []string
+	if !ignoreCmdEnv {
+		if len(cmd.Env) == 0 {
+			cmd.Env = []string{"LANG=en_US.UTF-8"}
+			if s.envPath != "" {
+				cmd.Env = append(cmd.Env, s.envPath)
+			}
+		}
+		envStrs := []string{}
+		for _, nameValue := range cmd.Env {
+			envStrs = append(envStrs, shellescape.Quote(nameValue))
+		}
+		envStr := strings.Join(envStrs, " ")
+		args = []string{"sh", "-c", fmt.Sprintf(
+			"cd %s && exec env --ignore-environment %s %s", shellescape.Quote(cmd.Dir), envStr, shellCmdStr,
+		)}
+	} else {
+		args = []string{"sh", "-c", fmt.Sprintf(
+			"cd %s && exec env %s", shellescape.Quote(cmd.Dir), shellCmdStr,
+		)}
+	}
 
 	var cmdStrBdr strings.Builder
 	fmt.Fprintf(&cmdStrBdr, "%s", shellescape.Quote(args[0]))
@@ -84,15 +96,46 @@ func (s Ssh) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
 			exited = exitError.Signal() == ""
 			signal = exitError.Signal()
 		} else {
-			return WaitStatus{}, fmt.Errorf("failed to run %v: %w", cmd, err)
+			return types.WaitStatus{}, fmt.Errorf("failed to run %v: %w", cmd, err)
 		}
 	}
 
-	return WaitStatus{
+	return types.WaitStatus{
 		ExitCode: exitCode,
 		Exited:   exited,
 		Signal:   signal,
 	}, nil
+}
+
+func (s Ssh) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
+	return s.runEnv(ctx, cmd, false)
+}
+
+func (s *Ssh) setEnvPath(ctx context.Context) error {
+	stdoutBuffer := bytes.Buffer{}
+	stderrBuffer := bytes.Buffer{}
+	cmd := types.Cmd{
+		Path:   "env",
+		Stdout: &stdoutBuffer,
+		Stderr: &stderrBuffer,
+	}
+	waitStatus, err := s.runEnv(ctx, cmd, true)
+	if err != nil {
+		return err
+	}
+	if !waitStatus.Success() {
+		return fmt.Errorf(
+			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdoutBuffer.String(), stderrBuffer.String(),
+		)
+	}
+	for _, value := range strings.Split(stdoutBuffer.String(), "\n") {
+		if strings.HasPrefix(value, "PATH=") {
+			s.envPath = value
+			break
+		}
+	}
+	return nil
 }
 
 func (s Ssh) String() string {
@@ -331,6 +374,10 @@ func NewSsh(
 		client:   client,
 	}
 	sshHost.baseRun.Host = sshHost
+
+	if err := sshHost.setEnvPath(nestedCtx); err != nil {
+		return Ssh{}, err
+	}
 
 	return sshHost, nil
 }

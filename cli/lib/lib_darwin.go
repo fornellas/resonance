@@ -21,14 +21,7 @@ func GetHost(ctx context.Context) (host.Host, error) {
 		return nil, err
 	}
 
-	if sudo {
-		hst, err = host.NewSudo(ctx, hst)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return hst, nil
+	return wrapHost(ctx, hst)
 }
 
 func AddHostFlags(cmd *cobra.Command) {

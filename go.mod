@@ -9,6 +9,7 @@ require (
 	github.com/fornellas/rrb v0.1.0
 	github.com/fzipp/gocyclo v0.6.0
 	github.com/gliderlabs/ssh v0.3.5
+	github.com/gorilla/mux v1.8.0
 	github.com/jandelgado/gcov2lcov v1.0.5
 	github.com/kylelemons/godebug v1.1.0
 	github.com/openconfig/goyang v1.2.0
@@ -16,9 +17,11 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.2
-	golang.org/x/crypto v0.0.0-20220826181053-bd7e27e6170d
+	go.uber.org/multierr v1.11.0
+	golang.org/x/crypto v0.8.0
+	golang.org/x/net v0.9.0
 	golang.org/x/term v0.7.0
-	golang.org/x/tools v0.7.0
+	golang.org/x/tools v0.8.0
 	gopkg.in/yaml.v3 v3.0.1
 	honnef.co/go/tools v0.4.3
 )
@@ -30,7 +33,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/kr/pretty v0.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.18 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
@@ -41,7 +43,7 @@ require (
 	golang.org/x/exp/typeparams v0.0.0-20230321023759-10a507213a29 // indirect
 	golang.org/x/mod v0.10.0 // indirect
 	golang.org/x/sys v0.7.0 // indirect
-	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
+	golang.org/x/text v0.9.0 // indirect
 )
 
 replace gopkg.in/yaml.v3 v3.0.1 => github.com/fornellas/yaml v0.0.0-20230305130802-4e6a4cc61a50

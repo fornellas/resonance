@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/fornellas/resonance/host"
+	"github.com/fornellas/resonance/host/types"
 	"github.com/fornellas/resonance/resource"
 )
 
@@ -41,9 +42,12 @@ func (ap APTPackage) GetStates(
 	ctx context.Context, hst host.Host, names resource.Names,
 ) (map[resource.Name]resource.State, error) {
 	// Run dpkg
-	hostCmd := host.Cmd{Path: "dpkg-query", Args: []string{
-		"--show", "--showformat", `${Package},${Version}\n`,
-	}}
+	hostCmd := types.Cmd{
+		Path: "dpkg-query",
+		Args: []string{
+			"--show", "--showformat", `${Package},${Version}\n`,
+		},
+	}
 	for _, name := range names {
 		hostCmd.Args = append(hostCmd.Args, string(name))
 	}
@@ -123,7 +127,7 @@ func (ap APTPackage) ConfigureAll(
 	}
 
 	// Run apt
-	cmd := host.Cmd{
+	cmd := types.Cmd{
 		Path: "apt-get",
 		Args: append([]string{"install"}, pkgs...),
 	}

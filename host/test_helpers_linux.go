@@ -8,12 +8,14 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"sort"
 	"strings"
 	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/fornellas/resonance/host/types"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -127,15 +129,14 @@ func testHost(t *testing.T, host Host) {
 			require.NoError(t, err)
 			hostFileInfo, err := host.Lstat(ctx, name)
 			require.NoError(t, err)
-			require.Equal(t, fileInfo.Name(), hostFileInfo.Name())
-			require.Equal(t, fileInfo.Size(), hostFileInfo.Size())
-			require.Equal(t, fileInfo.Mode(), hostFileInfo.Mode())
-			require.Equal(t, fileInfo.ModTime(), hostFileInfo.ModTime())
-			require.Equal(t, fileInfo.IsDir(), hostFileInfo.IsDir())
-			require.Equal(t, nil, hostFileInfo.Sys())
+			require.Equal(t, fileInfo.Name(), hostFileInfo.Name)
+			require.Equal(t, fileInfo.Size(), hostFileInfo.Size)
+			require.Equal(t, fileInfo.Mode(), hostFileInfo.Mode)
+			require.Equal(t, fileInfo.ModTime(), hostFileInfo.ModTime)
+			require.Equal(t, fileInfo.IsDir(), hostFileInfo.IsDir)
 			stat_t := fileInfo.Sys().(*syscall.Stat_t)
-			require.Equal(t, stat_t.Uid, hostFileInfo.Uid())
-			require.Equal(t, stat_t.Gid, hostFileInfo.Gid())
+			require.Equal(t, stat_t.Uid, hostFileInfo.Uid)
+			require.Equal(t, stat_t.Gid, hostFileInfo.Gid)
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()
@@ -250,7 +251,7 @@ func testHost(t *testing.T, host Host) {
 	t.Run("Run", func(t *testing.T) {
 		t.Run("Args, output and failure", func(t *testing.T) {
 			outputBuffer.Reset()
-			waitStatus, stdout, stderr, err := Run(ctx, host, Cmd{
+			waitStatus, stdout, stderr, err := Run(ctx, host, types.Cmd{
 				Path: "ls",
 				Args: []string{"-d", "../tmp", "/non-existent"},
 			})
@@ -271,21 +272,42 @@ func testHost(t *testing.T, host Host) {
 		t.Run("Env", func(t *testing.T) {
 			t.Run("Empty", func(t *testing.T) {
 				outputBuffer.Reset()
-				waitStatus, stdout, stderr, err := Run(ctx, host, Cmd{
+				waitStatus, stdout, stderr, err := Run(ctx, host, types.Cmd{
 					Path: "env",
 				})
+				var envPath string
+				for _, value := range os.Environ() {
+					if strings.HasPrefix(value, "PATH=") {
+						envPath = value
+						break
+					}
+				}
+				require.True(t, strings.HasPrefix(envPath, "PATH="))
 				require.NoError(t, err)
 				require.True(t, waitStatus.Success())
 				require.Equal(t, 0, waitStatus.ExitCode)
 				require.True(t, waitStatus.Exited)
 				require.Equal(t, "", waitStatus.Signal)
-				require.Equal(t, "LANG=en_US.UTF-8\n", stdout)
+				expectedEnv := []string{
+					"LANG=en_US.UTF-8",
+					envPath,
+				}
+				sort.Strings(expectedEnv)
+				receivedEnv := []string{}
+				for _, value := range strings.Split(stdout, "\n") {
+					if value == "" {
+						continue
+					}
+					receivedEnv = append(receivedEnv, value)
+				}
+				sort.Strings(receivedEnv)
+				require.Equal(t, expectedEnv, receivedEnv)
 				require.Empty(t, stderr)
 			})
 			t.Run("Set", func(t *testing.T) {
 				outputBuffer.Reset()
 				env := "FOO=bar"
-				waitStatus, stdout, stderr, err := Run(ctx, host, Cmd{
+				waitStatus, stdout, stderr, err := Run(ctx, host, types.Cmd{
 					Path: "env",
 					Env:  []string{env},
 				})
@@ -307,7 +329,7 @@ func testHost(t *testing.T, host Host) {
 		t.Run("Dir", func(t *testing.T) {
 			outputBuffer.Reset()
 			dir := t.TempDir()
-			waitStatus, stdout, stderr, err := Run(ctx, host, Cmd{
+			waitStatus, stdout, stderr, err := Run(ctx, host, types.Cmd{
 				Path: "pwd",
 				Dir:  dir,
 			})
@@ -328,7 +350,7 @@ func testHost(t *testing.T, host Host) {
 		t.Run("Stdin", func(t *testing.T) {
 			outputBuffer.Reset()
 			stdin := "hello"
-			waitStatus, stdout, stderr, err := Run(ctx, host, Cmd{
+			waitStatus, stdout, stderr, err := Run(ctx, host, types.Cmd{
 				Path:  "sh",
 				Args:  []string{"-c", "read v && echo =$v="},
 				Stdin: strings.NewReader(fmt.Sprintf("%s\n", stdin)),
@@ -389,13 +411,13 @@ func testHost(t *testing.T, host Host) {
 			require.False(t, fileInfo.IsDir())
 			require.Equal(t, fileMode, fileInfo.Mode()&fs.ModePerm)
 		})
-		t.Run("syscall.EISDIR", func(t *testing.T) {
+		t.Run("is directory", func(t *testing.T) {
 			outputBuffer.Reset()
 			name := filepath.Join(t.TempDir(), "foo")
 			err := os.Mkdir(name, os.FileMode(0700))
 			require.NoError(t, err)
 			err = host.WriteFile(ctx, name, []byte{}, os.FileMode(0640))
-			require.ErrorIs(t, err, syscall.EISDIR)
+			require.Error(t, err)
 		})
 		t.Run("ErrNotExist", func(t *testing.T) {
 			outputBuffer.Reset()

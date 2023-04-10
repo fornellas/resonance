@@ -22,6 +22,10 @@ GOOS:
 
 GOARCH_NATIVE_SHELL := case $$(uname -m) in i[23456]86) echo 386;; x86_64) echo amd64;; armv6l|armv7l) echo arm;; aarch64) echo arm64;; *) echo Unknown machine $$(uname -m) 1>&2 ; exit 1 ;; esac
 GOARCH_NATIVE := $(shell $(GOARCH_NATIVE_SHELL))
+ifneq ($(.SHELLSTATUS),0)
+  $(error GOARCH failed! output was $(GOARCH))
+endif
+
 export GOARCH ?= $(GOARCH_NATIVE)
 ifneq ($(.SHELLSTATUS),0)
   $(error GOARCH_NATIVE failed! output was $(GOARCH_NATIVE))
@@ -59,6 +63,8 @@ GOMODCACHE:
 # osusergo have Lookup and LookupGroup to use pure Go implementation to enable
 # management of local users
 GO_BUILD_FLAGS := -tags osusergo
+
+GOARCHS_AGENT := 386 amd64 arm arm64
 
 GOIMPORTS := $(GO) run golang.org/x/tools/cmd/goimports
 GOIMPORTS_LOCAL := github.com/fornellas/resonance/
@@ -105,7 +111,7 @@ GCOV2LCOV := $(GO) run github.com/jandelgado/gcov2lcov
 RRB := $(GO) run github.com/fornellas/rrb
 RRB_DEBOUNCE ?= 500ms
 RRB_LOG_LEVEL ?= info
-RRB_IGNORE_PATTERN ?= '.cache/**/*'
+RRB_IGNORE_PATTERN ?= '.cache/**/*,host/agent_*_*_gz.go'
 RRB_PATTERN ?= '**/*.{go},Makefile'
 RRB_EXTRA_CMD ?= true
 
@@ -239,7 +245,7 @@ test-help:
 help: test-help
 
 .PHONY: test
-test:
+test: build-agent-$(GOARCH_NATIVE)
 
 # gotest
 
@@ -295,8 +301,40 @@ build-help:
 	@echo 'build: build everything'
 help: build-help
 
+.PHONY: build-agent-%
+build-agent-%: go-generate
+	GOARCH=$* GOOS=linux $(GO) build -o host/agent/agent_linux_$* $(GO_BUILD_FLAGS) ./host/agent/
+	gzip < host/agent/agent_linux_$* > host/agent/agent_linux_$*.gz
+	cat << EOF > host/agent_linux_$*_gz.go
+	package host
+	import _ "embed"
+	//go:embed agent/agent_linux_$*.gz
+	var agent_linux_$* []byte
+	func init() {
+		AgentBinGz["linux.$*"] = agent_linux_$*
+	}
+	EOF
+build-agent: $(foreach GOARCH,$(GOARCHS_AGENT),build-agent-$(GOARCH))
+
+.PHONY: clean-agent-%
+clean-agent-%:
+	rm -f host/agent/agent_linux_$*
+	rm -f host/agent/agent_linux_$*.gz
+	rm -rf host/agent_linux_$*_gz.go
+clean-agent: $(foreach GOARCH,$(GOARCHS_AGENT),clean-agent-$(GOARCH))
+clean: clean-agent
+build: clean-agent
+go-generate: clean-agent
+goimports: clean-agent
+go-mod-tidy: clean-agent
+go-get-u: clean-agent
+staticcheck: clean-agent
+misspell: clean-agent
+gocyclo: clean-agent
+go-vet: clean-agent
+
 .PHONY: build
-build: go go-generate
+build: go go-generate build-agent
 	$(GO) build -o resonance.$(GOOS).$(GOARCH) $(GO_BUILD_FLAGS) .
 
 .PHONY: clean-build

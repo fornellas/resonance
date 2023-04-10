@@ -3,12 +3,12 @@ package host
 import (
 	"context"
 	"os"
-	"os/exec"
 	"os/user"
 	"path/filepath"
 	"syscall"
-	"time"
 
+	"github.com/fornellas/resonance/host/local"
+	"github.com/fornellas/resonance/host/types"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -39,23 +39,23 @@ func (l Local) LookupGroup(ctx context.Context, name string) (*user.Group, error
 	return user.LookupGroup(name)
 }
 
-func (l Local) Lstat(ctx context.Context, name string) (HostFileInfo, error) {
+func (l Local) Lstat(ctx context.Context, name string) (types.HostFileInfo, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Lstat %s", name)
 	fileInfo, err := os.Lstat(name)
 	if err != nil {
-		return HostFileInfo{}, err
+		return types.HostFileInfo{}, err
 	}
 	stat_t := fileInfo.Sys().(*syscall.Stat_t)
-	return NewHostFileInfo(
-		filepath.Base(name),
-		fileInfo.Size(),
-		fileInfo.Mode(),
-		fileInfo.ModTime(),
-		fileInfo.IsDir(),
-		stat_t.Uid,
-		stat_t.Gid,
-	), nil
+	return types.HostFileInfo{
+		Name:    filepath.Base(name),
+		Size:    fileInfo.Size(),
+		Mode:    fileInfo.Mode(),
+		ModTime: fileInfo.ModTime(),
+		IsDir:   fileInfo.IsDir(),
+		Uid:     stat_t.Uid,
+		Gid:     stat_t.Gid,
+	}, nil
 }
 
 func (l Local) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
@@ -76,47 +76,11 @@ func (l Local) Remove(ctx context.Context, name string) error {
 	return os.Remove(name)
 }
 
-func (l Local) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
+func (l Local) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Run %s", cmd)
 
-	execCmd := exec.CommandContext(log.IndentLogger(ctx), cmd.Path, cmd.Args...)
-	if len(cmd.Env) == 0 {
-		cmd.Env = []string{"LANG=en_US.UTF-8"}
-	}
-	execCmd.Env = cmd.Env
-	if cmd.Dir == "" {
-		cmd.Dir = "/tmp"
-	}
-	execCmd.Dir = cmd.Dir
-	execCmd.Stdin = cmd.Stdin
-	execCmd.Stdout = cmd.Stdout
-	execCmd.Stderr = cmd.Stderr
-	execCmd.Cancel = func() error {
-		if err := execCmd.Process.Signal(syscall.SIGTERM); err != nil {
-			return err
-		}
-		time.Sleep(3 * time.Second)
-		// process may have exited by now, should be safe-ish to ignore errors here
-		execCmd.Process.Signal(syscall.SIGKILL)
-		return nil
-	}
-
-	waitStatus := WaitStatus{}
-	err := execCmd.Run()
-
-	if err != nil {
-		if _, ok := err.(*exec.ExitError); !ok {
-			return waitStatus, err
-		}
-	}
-	waitStatus.ExitCode = execCmd.ProcessState.ExitCode()
-	waitStatus.Exited = execCmd.ProcessState.Exited()
-	signal := execCmd.ProcessState.Sys().(syscall.WaitStatus).Signal()
-	if signal > 0 {
-		waitStatus.Signal = signal.String()
-	}
-	return waitStatus, nil
+	return local.Run(ctx, cmd)
 }
 
 func (l Local) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
