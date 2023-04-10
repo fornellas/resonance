@@ -24,6 +24,26 @@ func resetCommon() {
 	disableAgent = defaultDisableAgent
 }
 
+func wrapHost(ctx context.Context, hst host.Host) (host.Host, error) {
+	var err error
+	if sudo {
+		hst, err = host.NewSudo(ctx, hst)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if !disableAgent && hostname != "" {
+		var err error
+		hst, err = host.NewAgent(ctx, hst)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return hst, nil
+}
+
 func addHostFlagsCommon(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(
 		&hostname, "hostname", "", defaultHostname,
