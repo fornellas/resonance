@@ -135,11 +135,13 @@ func getRandomString() string {
 func (s *Sudo) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
 	prompt := fmt.Sprintf("sudo password (%s)", getRandomString())
 	sudoOk := fmt.Sprintf("sudo ok (%s)", getRandomString())
+
 	shellCmdArgs := []string{shellescape.Quote(cmd.Path)}
 	for _, arg := range cmd.Args {
 		shellCmdArgs = append(shellCmdArgs, shellescape.Quote(arg))
 	}
 	shellCmdStr := strings.Join(shellCmdArgs, " ")
+
 	if len(cmd.Env) == 0 {
 		cmd.Env = []string{"LANG=en_US.UTF-8"}
 	}
@@ -147,13 +149,19 @@ func (s *Sudo) Run(ctx context.Context, cmd Cmd) (WaitStatus, error) {
 	for _, nameValue := range cmd.Env {
 		envStrs = append(envStrs, shellescape.Quote(nameValue))
 	}
+
+	if cmd.Dir == "" {
+		cmd.Dir = "/tmp"
+	}
+
 	cmd.Args = []string{
 		"--stdin",
 		"--prompt", prompt,
 		"--", "sh", "-c",
 		fmt.Sprintf(
-			"echo -n %s 1>&2 && exec env --ignore-environment %s %s",
+			"echo -n %s 1>&2 && cd %s && exec env --ignore-environment %s %s",
 			shellescape.Quote(sudoOk),
+			cmd.Dir,
 			strings.Join(envStrs, " "),
 			shellCmdStr,
 		),

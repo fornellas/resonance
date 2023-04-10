@@ -306,11 +306,10 @@ func testHost(t *testing.T, host Host) {
 		})
 		t.Run("Dir", func(t *testing.T) {
 			outputBuffer.Reset()
-			wd, err := os.Getwd()
-			require.NoError(t, err)
+			dir := t.TempDir()
 			waitStatus, stdout, stderr, err := Run(ctx, host, Cmd{
 				Path: "pwd",
-				Dir:  wd,
+				Dir:  dir,
 			})
 			require.NoError(t, err)
 			t.Cleanup(func() {
@@ -323,7 +322,7 @@ func testHost(t *testing.T, host Host) {
 			require.Equal(t, 0, waitStatus.ExitCode)
 			require.True(t, waitStatus.Exited)
 			require.Equal(t, "", waitStatus.Signal)
-			require.Equal(t, fmt.Sprintf("%s\n", wd), stdout)
+			require.Equal(t, fmt.Sprintf("%s\n", dir), stdout)
 			require.Equal(t, "", stderr)
 		})
 		t.Run("Stdin", func(t *testing.T) {
