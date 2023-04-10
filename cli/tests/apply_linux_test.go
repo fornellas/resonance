@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/fornellas/resonance/cli/tests/resources"
 	"github.com/fornellas/resonance/resource"
-	"github.com/fornellas/resonance/tests/resources"
 )
 
 func TestApplyNoYamlResourceFiles(t *testing.T) {

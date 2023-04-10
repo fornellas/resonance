@@ -2,7 +2,6 @@ package lib
 
 import (
 	"context"
-	"errors"
 
 	"github.com/spf13/cobra"
 
@@ -12,50 +11,17 @@ import (
 	"github.com/fornellas/resonance/state"
 )
 
-var localhost bool
-var defaultLocalhost = false
 var hostname string
 var defaultHostname = ""
 var sudo bool
 var defaultSudo = false
 
-func Reset() {
-	localhost = defaultLocalhost
+func resetCommon() {
 	hostname = defaultHostname
 	sudo = defaultSudo
 }
 
-func GetHost(ctx context.Context) (host.Host, error) {
-	var hst host.Host
-	if localhost {
-		hst = host.Local{}
-	} else if hostname != "" {
-		var err error
-		hst, err = host.NewSshAuthority(ctx, hostname)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		return nil, errors.New("must provide either --localhost or --hostname")
-	}
-
-	if sudo {
-		var err error
-		hst, err = host.NewSudo(ctx, hst)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return hst, nil
-}
-
-func AddHostFlags(cmd *cobra.Command) {
-	cmd.Flags().BoolVarP(
-		&localhost, "localhost", "", defaultLocalhost,
-		"Applies configuration to the same machine running the command",
-	)
-
+func addHostFlagsCommon(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(
 		&hostname, "hostname", "", defaultHostname,
 		"Applies configuration to given hostname using SSH in the format: [<user>[;fingerprint=<host-key fingerprint>]@]<host>[:<port>]",

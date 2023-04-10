@@ -14,6 +14,7 @@ jobs:
     env:
         GOOS: darwin
         GOARCH: ${{ inputs.GOARCH }}
+        XDG_CACHE_HOME: /tmp/XDG_CACHE_HOME
     steps:
       # Checkout
       - name: Checkout
@@ -31,13 +32,23 @@ jobs:
       - name: Cache
         uses: actions/cache@v3
         with:
-          path: ${{ github.workspace }}/.cache/
+          path: /tmp/XDG_CACHE_HOME
           key: darwin-${{ inputs.GOARCH }}-${{ hashFiles('**/go.sum', '**/*.go') }}
           restore-keys: darwin-${{ inputs.GOARCH }}-
       # Build
-      - name: Build
+      - name: Build (native)
+        if: ${{ inputs.GOARCH == 'amd64' }}
         run: |
           GOOS=darwin GOARCH=${{ inputs.GOARCH }} gmake ci V=1
+        shell: bash
+      - name: Build (cross compile only)
+        if: ${{ inputs.GOARCH != 'amd64' }}
+        run: |
+          GOOS=darwin GOARCH=${{ inputs.GOARCH }} gmake build V=1
+        shell: bash
+      # Gzip
+      - name: Gzip
+        run: gzip resonance.darwin.${{ inputs.GOARCH }}
         shell: bash
       # Git Status
       - name: git status
@@ -60,6 +71,7 @@ jobs:
       # Coveralls
       - name: Coveralls
         uses: coverallsapp/github-action@v2
+        if: ${{ inputs.GOARCH == 'amd64' }}
         with:
           file: cover.lcov
           flag-name: darwin.${{ inputs.GOARCH }}

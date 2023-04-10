@@ -17,7 +17,7 @@ A configuration management tool with novel features to Ansible, Chef or Puppet:
 Pick the [latest release](https://github.com/fornellas/resonance/releases) with:
 
 ```bash
-GOARCH=$(case $(uname -m) in i[23456]86) echo 386;; x86_64) echo amd64;; armv6l|armv7l) echo arm;; aarch64) echo arm64;; *) echo Unknown machine $(uname -m) 1>&2 ; exit 1 ;; esac) && wget -O- https://github.com/fornellas/resonance/releases/latest/download/resonance.linux.$GOARCH.gz | gunzip > resonance && chmod 755 resonance
+GOARCH=$(case $(uname -m) in i[23456]86) echo 386;; x86_64) echo amd64;; armv6l|armv7l) echo arm;; aarch64) echo arm64;; *) echo Unknown machine $(uname -m) 1>&2 ; exit 1 ;; esac) && wget -O- https://github.com/fornellas/resonance/releases/latest/download/resonance.$(uname -s | tr A-Z a-z).$GOARCH.gz | gunzip > resonance && chmod 755 resonance
 ./resonance --help
 ```
 
@@ -32,3 +32,12 @@ cd resonance/
 ```
 
 Typically you'll want to stick to `./build.sh rrb`, as it enables you to edit files as preferred, and the build will automatically be triggered on any file changes.
+
+### Native build
+
+The official build relies on `./build.sh`, but in some circumstances (eg: Docker being super slow on Mac) it may be useful to run the build without Docker, which requires manual configuration that is easy to get wrong / be outdated.
+
+- [Install Go](https://go.dev/doc/install) (version from `go.mod`).
+- Install [GNU Make](https://www.gnu.org/software/make/).
+  - In MacOS this can be done with [Homebrew](https://formulae.brew.sh/formula/make): `brew install make`. Note that the GNU Make binary will be called `gmake`, and this is how it should be invoked. `make` is Apple's ancient provided Make which will NOT work!
+- `make ci`
