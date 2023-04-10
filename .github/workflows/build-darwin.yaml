@@ -59,11 +59,12 @@ jobs:
           if-no-files-found: error
       # Coveralls
       - name: Coveralls
-        uses: coverallsapp/github-action@v1
+        uses: coverallsapp/github-action@v2
         with:
           path-to-lcov: cover.lcov
           flag-name: darwin.${{ inputs.GOARCH }}
           parallel: true
+          allow-empty: true
       # Clean
       - name: Clean
         run: gmake clean
