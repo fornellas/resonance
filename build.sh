@@ -22,9 +22,15 @@ if [ -t 0 ]; then
 	TTY="--tty"
 fi
 
+DOCKER_PLATFORM_ARCH_NATIVE="$(docker system info --format '{{.Architecture}}')"
 if [ -z "$DOCKER_PLATFORM" ] ; then
-	DOCKER_PLATFORM="linux/$(docker system info --format '{{.Architecture}}')"
+	DOCKER_PLATFORM="linux/$DOCKER_PLATFORM_ARCH_NATIVE"
 fi
+GOARCH_DOWNLOAD_ENV=""
+if [ "$DOCKER_PLATFORM" == "linux/386" ] && [ "$DOCKER_PLATFORM_ARCH_NATIVE" == "x86_64" ] ; then
+	GOARCH_DOWNLOAD_ENV="--env GOARCH_DOWNLOAD=386"
+fi
+
 GID="$(id -g)"
 GROUP="$(getent group $(getent passwd $USER | cut -d: -f4) | cut -d: -f1)"
 
@@ -63,5 +69,6 @@ docker run \
 	--volume ${GIT_ROOT}/.cache:${HOME}/.cache \
 	--volume ${HOME}/resonance/.cache \
 	--workdir ${HOME}/resonance \
+	${GOARCH_DOWNLOAD_ENV} \
 	${DOCKER_IMAGE} \
 	make --no-print-directory "${@}"
