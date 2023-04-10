@@ -24,8 +24,16 @@ GOARCH_NATIVE_SHELL := case $$(uname -m) in i[23456]86) echo 386;; x86_64) echo 
 GOARCH_NATIVE := $(shell $(GOARCH_NATIVE_SHELL))
 export GOARCH ?= $(GOARCH_NATIVE)
 ifneq ($(.SHELLSTATUS),0)
-  $(error GOARCH failed! output was $(GOARCH))
+  $(error GOARCH_NATIVE failed! output was $(GOARCH_NATIVE))
 endif
+
+GOARCH_DOWNLOAD_SHELL := case $(GOARCH_NATIVE) in 386) echo 386;; amd64) echo amd64;; arm) echo armv6l;; arm64) echo arm64;; *) echo GOARCH $$(GOARCH_NATIVE) 1>&2 ; exit 1 ;; esac
+GOARCH_DOWNLOAD := $(shell $(GOARCH_DOWNLOAD_SHELL))
+export GOARCH ?= $(GOARCH_DOWNLOAD)
+ifneq ($(.SHELLSTATUS),0)
+  $(error GOARCH_DOWNLOAD failed! output was $(GOARCH_DOWNLOAD))
+endif
+
 .PHONY: GOARCH
 GOARCH:
 	@echo $(GOARCH)
@@ -128,7 +136,7 @@ go:
 	if [ -d $(GOROOT) ] ; then exit ; fi
 	rm -rf $(GOROOT_PREFIX)/go
 	mkdir -p $(GOROOT_PREFIX)
-	curl -sSfL  https://go.dev/dl/$(GOVERSION).$(GOOS)-$(GOARCH_NATIVE).tar.gz | \
+	curl -sSfL  https://go.dev/dl/$(GOVERSION).$(GOOS)-$(GOARCH_DOWNLOAD).tar.gz | \
 		tar -zx -C $(GOROOT_PREFIX) && \
 		touch $(GOROOT_PREFIX)/go &&
 		mv $(GOROOT_PREFIX)/go $(GOROOT)
