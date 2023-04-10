@@ -27,6 +27,7 @@ if [ -z "$DOCKER_PLATFORM" ] ; then
 	DOCKER_PLATFORM="linux/$DOCKER_PLATFORM_ARCH_NATIVE"
 fi
 GOARCH_DOWNLOAD_ENV=""
+# https://github.com/moby/moby/issues/42732
 if [ "$DOCKER_PLATFORM" == "linux/386" ] && [ "$DOCKER_PLATFORM_ARCH_NATIVE" == "x86_64" ] ; then
 	GOARCH_DOWNLOAD_ENV="--env GOARCH_DOWNLOAD=386"
 fi
