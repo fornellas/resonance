@@ -33,7 +33,7 @@
       - ✨Usage example.
     - ✨Resources
 - Add TESTS!
-    - 💡Run tests for all `GOARCH`, eg: find all modules with `go list github.com/fornellas/resonance/...`, compile each with `go test -c $package -o $package_path.$GOARCH.test` then run each test. If non-native `GOARCH`, use `qemu-user` (`qemu-arch`, `qemu-aarch64`).
+    - ✨Add Docker host, and run integration tests at various Linux targets.
     - ✨`RefreshableManageableResource`
     - ✨`resource/types/file.go`
     - ✨`resource/types/apt_package.go`
@@ -103,7 +103,14 @@
         - `sysctl.go`
             - 💡`/etc/sysctl.d/` file and refresh.
         - `systemd_unit.go`
-            - 🧪Manages https://www.freedesktop.org/software/systemd/man/systemd.unit.html
+            - 🧪References
+                - https://www.freedesktop.org/software/systemd/man/systemd.unit.html
+                - https://www.freedesktop.org/software/systemd/man/systemd.unit.html
+                - https://www.freedesktop.org/software/systemd/man/org.freedesktop.systemd1.html#
+                - https://docs.chef.io/resources/systemd_unit/
+                - https://github.com/chef/chef/blob/main/lib/chef/provider/systemd_unit.rb#L224
+                - https://docs.ansible.com/ansible/latest/collections/ansible/builtin/systemd_module.html
+                - https://github.com/ansible/ansible/blob/devel/lib/ansible/modules/systemd_service.py
             - 🧪Calls `systemctl daemon-reload` on change.
             - 🧪On refresh, do `systemctl reload-or-restart $unit`.
         - `user.go`
