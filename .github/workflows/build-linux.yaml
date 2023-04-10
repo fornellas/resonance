@@ -59,7 +59,7 @@ jobs:
       - name: Coveralls
         uses: coverallsapp/github-action@v2
         with:
-          path-to-lcov: cover.lcov
+          file: cover.lcov
           flag-name: linux.${{ inputs.GOARCH }}
           parallel: true
           allow-empty: true
