@@ -41,6 +41,7 @@ func (cs Chunks) added(i int, lines []string, buff *bytes.Buffer) {
 		}
 	}
 }
+
 func (cs Chunks) deleted(i int, lines []string, buff *bytes.Buffer) {
 	for _, line := range lines {
 		if (i == 0 || i == len(cs)-1) && line == "" {
@@ -57,6 +58,7 @@ func (cs Chunks) deleted(i int, lines []string, buff *bytes.Buffer) {
 		}
 	}
 }
+
 func (cs Chunks) equal(i int, lines []string, buff *bytes.Buffer) {
 	for _, line := range lines {
 		if (i == 0 || i == len(cs)-1) && line == "" {
