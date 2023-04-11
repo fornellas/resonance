@@ -65,7 +65,7 @@ func (sai StepActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 		if !ok {
 			panic(fmt.Errorf("TypeNameStateMap missing %s", sai.Resource.TypeName))
 		}
-		chunks := Diff(sai.Resource.State, currentState)
+		chunks := DiffResourceState(sai.Resource.ManageableResource(), currentState, sai.Resource.State)
 		if chunks.HaveChanges() {
 			logger.WithField("", chunks.String()).Errorf("💥 %s", sai.Resource)
 			return errors.New(
@@ -217,7 +217,7 @@ func (sam StepActionMerged) Execute(ctx context.Context, hst host.Host) error {
 		if !ok {
 			panic(fmt.Sprintf("typeNameResourceMap missing %s", typeName))
 		}
-		chunks := Diff(resource.State, currentState)
+		chunks := DiffResourceState(sam.MustMergeableManageableResources(), currentState, resource.State)
 		if chunks.HaveChanges() {
 			logger.WithField("", chunks.String()).Errorf("💥 %s", typeName)
 			return fmt.Errorf(
@@ -445,7 +445,7 @@ func (p Plan) printResource(
 		panic(fmt.Sprintf("State not found at TypeNameStateMap: %s", resource.TypeName))
 	}
 
-	chunks := Diff(currentState, resource.State)
+	chunks := DiffResourceState(resource.ManageableResource(), currentState, resource.State)
 
 	var action Action
 	for actionResources, stepResources := range step.ActionResourcesMap() {
@@ -542,7 +542,7 @@ func (p Plan) addBundleSteps(
 				panic(fmt.Errorf("State missing from TypeNameStateMap: %s", newResource.TypeName))
 			}
 
-			chunks := Diff(currentState, newResource.State)
+			chunks := DiffResourceState(newResource.ManageableResource(), currentState, newResource.State)
 
 			clean := !chunks.HaveChanges()
 

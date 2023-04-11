@@ -175,9 +175,9 @@ func (b Bundle) IsClean(
 
 			var chunks Chunks
 			if resource.Destroy {
-				chunks = Diff(currentState, nil)
+				chunks = DiffResourceState(resource.ManageableResource(), currentState, nil)
 			} else {
-				chunks = Diff(currentState, resource.State)
+				chunks = DiffResourceState(resource.ManageableResource(), currentState, resource.State)
 			}
 
 			if chunks.HaveChanges() {

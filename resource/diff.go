@@ -78,7 +78,8 @@ func (cs Chunks) String() string {
 	return buff.String()
 }
 
-func Diff(a, b interface{}) Chunks {
+// DiffAsYaml converts both interfaces to yaml and diffs them.
+func DiffAsYaml(a, b interface{}) Chunks {
 	var aStr string
 	if a != nil {
 		aBytes, err := yaml.Marshal(a)
@@ -101,4 +102,15 @@ func Diff(a, b interface{}) Chunks {
 		strings.Split(aStr, "\n"),
 		strings.Split(bStr, "\n"),
 	)
+}
+
+// DiffResourceState diffs two resource states, by using DiffableManageableResource if the
+// resource implements this interface, otherwise, use DiffAsYaml.
+func DiffResourceState(manageableResource ManageableResource, a, b State) Chunks {
+	diffableManageableResource, ok := manageableResource.(DiffableManageableResource)
+	if ok {
+		return diffableManageableResource.Diff(a, b)
+	} else {
+		return DiffAsYaml(a, b)
+	}
 }
