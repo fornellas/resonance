@@ -58,6 +58,16 @@ type RefreshableManageableResource interface {
 	Refresh(ctx context.Context, hst host.Host, name Name) error
 }
 
+// DiffableManageableResource defines an interface for resources to implement their own state
+// diff logic.
+type DiffableManageableResource interface {
+	ManageableResource
+
+	// Diff compares the two States. If b is satisfied by a, it returns empty Chunks. Otherwise,
+	// returns the diff between a and b.
+	Diff(a, b State) Chunks
+}
+
 // IndividuallyManageableResource is an interface for managing a single resource name.
 // This is the most common use case, where resources can be individually managed without one resource
 // having dependency on others and changing one resource does not affect the state of another.

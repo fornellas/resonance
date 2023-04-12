@@ -19,7 +19,7 @@ var d = `|-
     world
 `
 
-func TestDiff(t *testing.T) {
-	chunks := Diff(a, b)
+func TestDiffAsYaml(t *testing.T) {
+	chunks := DiffAsYaml(a, b)
 	require.Equal(t, d, chunks.String())
 }

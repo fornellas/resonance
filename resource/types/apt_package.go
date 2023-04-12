@@ -36,6 +36,15 @@ func (ap APTPackage) ValidateName(name resource.Name) error {
 	return nil
 }
 
+func (ap APTPackage) Diff(a, b resource.State) resource.Chunks {
+	aptPackageStateA := a.(APTPackageState)
+	aptPackageStateB := b.(APTPackageState)
+	if aptPackageStateB.Version == "" {
+		aptPackageStateB.Version = aptPackageStateA.Version
+	}
+	return resource.DiffAsYaml(aptPackageStateA, aptPackageStateB)
+}
+
 var aptPackageRegexpNotFound = regexp.MustCompile(`^dpkg-query: no packages found matching (.+)$`)
 
 func (ap APTPackage) GetStates(
