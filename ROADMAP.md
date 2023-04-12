@@ -67,8 +67,6 @@
     - `types/`
         - `*.go`
             - 💡Merge `File` and `FileState` (same for other types).
-        - `alternatives.go`
-            - 📈Implement with `update-alternatives`.
         - `apt_update.go`
             - 📈Calls `apt-get update`.
             - 📈There should be a single resource declaration
