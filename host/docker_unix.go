@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/fornellas/resonance/host/types"
+	"github.com/fornellas/resonance/log"
 )
 
 // Docker uses docker exec to target a running container.
@@ -19,6 +20,9 @@ type Docker struct {
 }
 
 func (d Docker) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("Run %s", cmd)
+
 	if cmd.Dir == "" {
 		cmd.Dir = "/tmp"
 	}
