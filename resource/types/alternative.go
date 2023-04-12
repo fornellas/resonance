@@ -34,6 +34,7 @@ func (as AltertativeState) ValidateAndUpdate(ctx context.Context, hst host.Host)
 }
 
 // Altertatives manages the Debian altertatives system (update-alternatives)
+// https://wiki.debian.org/DebianAlternatives
 type Altertatives struct{}
 
 func (a Altertatives) ValidateName(name resource.Name) error {
