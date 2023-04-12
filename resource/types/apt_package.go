@@ -8,6 +8,7 @@ import (
 
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/host/types"
+	"github.com/fornellas/resonance/log"
 	"github.com/fornellas/resonance/resource"
 )
 
@@ -37,12 +38,16 @@ func (ap APTPackage) ValidateName(name resource.Name) error {
 }
 
 func (ap APTPackage) Diff(a, b resource.State) resource.Chunks {
-	aptPackageStateA := a.(APTPackageState)
-	aptPackageStateB := b.(APTPackageState)
-	if aptPackageStateB.Version == "" {
-		aptPackageStateB.Version = aptPackageStateA.Version
+	if a != nil && b != nil {
+		aptPackageStateA := a.(APTPackageState)
+		aptPackageStateB := b.(APTPackageState)
+		if aptPackageStateB.Version == "" {
+			aptPackageStateB.Version = aptPackageStateA.Version
+		}
+		return resource.DiffAsYaml(aptPackageStateA, aptPackageStateB)
+	} else {
+		return resource.DiffAsYaml(a, b)
 	}
-	return resource.DiffAsYaml(aptPackageStateA, aptPackageStateB)
 }
 
 var aptPackageRegexpNotFound = regexp.MustCompile(`^dpkg-query: no packages found matching (.+)$`)
@@ -50,6 +55,8 @@ var aptPackageRegexpNotFound = regexp.MustCompile(`^dpkg-query: no packages foun
 func (ap APTPackage) GetStates(
 	ctx context.Context, hst host.Host, names resource.Names,
 ) (map[resource.Name]resource.State, error) {
+	logger := log.GetLogger(ctx)
+
 	// Run dpkg
 	hostCmd := types.Cmd{
 		Path: "dpkg-query",
@@ -86,9 +93,13 @@ func (ap APTPackage) GetStates(
 
 	if !waitStatus.Success() {
 		if waitStatus.Exited && waitStatus.ExitCode == 1 {
-			for _, line := range strings.Split(stdout, "\n") {
+			for _, line := range strings.Split(stderr, "\n") {
+				if len(line) == 0 {
+					continue
+				}
 				matches := aptPackageRegexpNotFound.FindStringSubmatch(line)
 				if len(matches) != 2 {
+					logger.Debugf("unexpected line: %#v", line)
 					return nil, fmt.Errorf(
 						"failed to run '%s': %s\nstdout:\n%s\nstderr:\n%s",
 						hostCmd.String(), waitStatus.String(), stdout, stderr,
@@ -117,7 +128,7 @@ func (ap APTPackage) ConfigureAll(
 		switch action {
 		case resource.ActionOk:
 		case resource.ActionConfigure:
-			pkgAction = "+"
+			pkgAction = ""
 		case resource.ActionDestroy:
 			pkgAction = "-"
 		default:
@@ -138,7 +149,7 @@ func (ap APTPackage) ConfigureAll(
 	// Run apt
 	cmd := types.Cmd{
 		Path: "apt-get",
-		Args: append([]string{"install"}, pkgs...),
+		Args: append([]string{"--yes", "install"}, pkgs...),
 	}
 	waitStatus, stdout, stderr, err := host.Run(ctx, hst, cmd)
 	if err != nil {
