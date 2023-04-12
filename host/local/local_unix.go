@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/fornellas/resonance/host/types"
 )
@@ -32,16 +31,6 @@ func Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
 	execCmd.Stdin = cmd.Stdin
 	execCmd.Stdout = cmd.Stdout
 	execCmd.Stderr = cmd.Stderr
-
-	execCmd.Cancel = func() error {
-		if err := execCmd.Process.Signal(syscall.SIGTERM); err != nil {
-			return err
-		}
-		time.Sleep(3 * time.Second)
-		// process may have exited by now, should be safe-ish to ignore errors here
-		execCmd.Process.Signal(syscall.SIGKILL)
-		return nil
-	}
 
 	err := execCmd.Run()
 	if err != nil {
