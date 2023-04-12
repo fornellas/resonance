@@ -76,8 +76,10 @@ func (d Docker) Close() error {
 }
 
 func NewDocker(ctx context.Context, container, user string) (Docker, error) {
-	return Docker{
+	dockerHst := Docker{
 		Container: container,
 		User:      user,
-	}, nil
+	}
+	dockerHst.baseRun.Host = &dockerHst
+	return dockerHst, nil
 }
