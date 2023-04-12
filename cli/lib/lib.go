@@ -13,8 +13,15 @@ import (
 
 var ssh string
 var defaultSsh = ""
+
+var dockerContainer string
+var defaultDockerContainer = ""
+var dockerUser string
+var defaultDockerUser = "0:0"
+
 var sudo bool
 var defaultSudo = false
+
 var disableAgent bool
 var defaultDisableAgent = false
 
@@ -48,6 +55,16 @@ func addHostFlagsCommon(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(
 		&ssh, "ssh", "", defaultSsh,
 		"Applies configuration to given hostname using SSH in the format: [<user>[;fingerprint=<host-key fingerprint>]@]<host>[:<port>]",
+	)
+
+	cmd.Flags().StringVarP(
+		&dockerContainer, "docker-container", "", defaultDockerContainer,
+		"Applies configuration to given Docker container name",
+	)
+
+	cmd.Flags().StringVarP(
+		&dockerUser, "docker-user", "", defaultDockerUser,
+		"Use given user/group in the format '<name|uid>[:<group|gid>]'",
 	)
 
 	cmd.Flags().BoolVarP(

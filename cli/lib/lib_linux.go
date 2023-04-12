@@ -28,8 +28,13 @@ func GetHost(ctx context.Context) (host.Host, error) {
 		if err != nil {
 			return nil, err
 		}
+	} else if dockerContainer != "" {
+		hst, err = host.NewDocker(ctx, dockerContainer, dockerUser)
+		if err != nil {
+			return nil, err
+		}
 	} else {
-		return nil, errors.New("must provide either --localhost or --ssh")
+		return nil, errors.New("no target host specified: must pass either --localhost, --ssh or --docker-container")
 	}
 
 	return wrapHost(ctx, hst)
