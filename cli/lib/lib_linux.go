@@ -23,13 +23,13 @@ func GetHost(ctx context.Context) (host.Host, error) {
 
 	if localhost {
 		hst = host.Local{}
-	} else if hostname != "" {
-		hst, err = host.NewSshAuthority(ctx, hostname)
+	} else if ssh != "" {
+		hst, err = host.NewSshAuthority(ctx, ssh)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		return nil, errors.New("must provide either --localhost or --hostname")
+		return nil, errors.New("must provide either --localhost or --ssh")
 	}
 
 	return wrapHost(ctx, hst)

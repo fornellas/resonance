@@ -16,7 +16,7 @@ func GetHost(ctx context.Context) (host.Host, error) {
 	var hst host.Host
 	var err error
 
-	hst, err = host.NewSshAuthority(ctx, hostname)
+	hst, err = host.NewSshAuthority(ctx, ssh)
 	if err != nil {
 		return nil, err
 	}

@@ -11,15 +11,15 @@ import (
 	"github.com/fornellas/resonance/state"
 )
 
-var hostname string
-var defaultHostname = ""
+var ssh string
+var defaultSsh = ""
 var sudo bool
 var defaultSudo = false
 var disableAgent bool
 var defaultDisableAgent = false
 
 func resetCommon() {
-	hostname = defaultHostname
+	ssh = defaultSsh
 	sudo = defaultSudo
 	disableAgent = defaultDisableAgent
 }
@@ -33,7 +33,7 @@ func wrapHost(ctx context.Context, hst host.Host) (host.Host, error) {
 		}
 	}
 
-	if !disableAgent && hostname != "" {
+	if !disableAgent && ssh != "" {
 		var err error
 		hst, err = host.NewAgent(ctx, hst)
 		if err != nil {
@@ -46,7 +46,7 @@ func wrapHost(ctx context.Context, hst host.Host) (host.Host, error) {
 
 func addHostFlagsCommon(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(
-		&hostname, "hostname", "", defaultHostname,
+		&ssh, "ssh", "", defaultSsh,
 		"Applies configuration to given hostname using SSH in the format: [<user>[;fingerprint=<host-key fingerprint>]@]<host>[:<port>]",
 	)
 
