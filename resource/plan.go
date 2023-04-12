@@ -139,13 +139,10 @@ func (sam StepActionMerged) buildParameters() (
 				add := false
 				var state State
 
-				if resource.Destroy {
+				if action == ActionDestroy {
 					state = nil
 					add = true
 				} else {
-					if action == ActionDestroy {
-						panic(fmt.Errorf("action is destroy but resonance.Destroy is false: %s", resource))
-					}
 					if action.Actionable() {
 						state = resource.State
 						add = true

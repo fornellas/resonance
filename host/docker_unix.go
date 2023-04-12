@@ -37,7 +37,9 @@ func (d Docker) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error
 	for _, value := range cmd.Env {
 		args = append(args, []string{"--env", value}...)
 	}
-	args = append(args, "--interactive")
+	if cmd.Stdin != nil {
+		args = append(args, "--interactive")
+	}
 	args = append(args, []string{"--user", d.User}...)
 	args = append(args, []string{"--workdir", cmd.Dir}...)
 	args = append(args, d.Container)
