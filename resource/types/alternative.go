@@ -122,7 +122,7 @@ func (a Altertatives) Configure(
 }
 
 func (a Altertatives) Destroy(ctx context.Context, hst host.Host, name resource.Name) error {
-	// TODO
+	// TODO restore to previous state
 	return nil
 }
 
