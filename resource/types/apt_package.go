@@ -2,13 +2,13 @@ package resource
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/host/types"
-	"github.com/fornellas/resonance/log"
 	"github.com/fornellas/resonance/resource"
 )
 
@@ -50,71 +50,80 @@ func (ap APTPackage) Diff(a, b resource.State) resource.Chunks {
 	}
 }
 
-var aptPackageRegexpNotFound = regexp.MustCompile(`^dpkg-query: no packages found matching (.+)$`)
+var aptCachePackageRegexp = regexp.MustCompile(`^(.+):$`)
+var aptCachePackageInstalledRegexp = regexp.MustCompile(`^  Installed: (.+)$`)
+var aptCachePackageCandidateRegexp = regexp.MustCompile(`^  Candidate: (.+)$`)
+var aptCacheUnableToLocateRegexp = regexp.MustCompile(`^N: Unable to locate package (.+)$`)
 
 func (ap APTPackage) GetStates(
 	ctx context.Context, hst host.Host, names resource.Names,
 ) (map[resource.Name]resource.State, error) {
-	logger := log.GetLogger(ctx)
-
-	// Run dpkg
 	hostCmd := types.Cmd{
-		Path: "dpkg-query",
-		Args: []string{
-			"--show", "--showformat", `${Package},${Version}\n`,
-		},
+		Path: "apt-cache",
+		Args: []string{"policy"},
 	}
 	for _, name := range names {
 		hostCmd.Args = append(hostCmd.Args, string(name))
 	}
+
 	waitStatus, stdout, stderr, err := host.Run(ctx, hst, hostCmd)
 	if err != nil {
 		return nil, err
 	}
+	if !waitStatus.Success() {
+		return nil, fmt.Errorf(
+			"failed to run '%s': %s\nstdout:\n%s\nstderr:\n%s",
+			hostCmd.String(), waitStatus.String(), stdout, stderr,
+		)
+	}
 
-	// process stdout
-	nameStateMap := map[resource.Name]resource.State{}
+	pkgInstalledMap := map[string]string{}
+	pkgCandidateMap := map[string]string{}
+	var pkg string
 	for _, line := range strings.Split(stdout, "\n") {
-		if len(line) == 0 {
+		matches := aptCachePackageRegexp.FindStringSubmatch(line)
+		if len(matches) == 2 {
+			pkg = matches[1]
 			continue
 		}
-		tokens := strings.Split(line, ",")
-		if len(tokens) != 2 {
-			panic(fmt.Errorf(
-				"failed to parse output, expected 2 tokens '%s': %s\nstdout:\n%s\nstderr:\n%s",
-				hostCmd.String(), waitStatus.String(), stdout, stderr,
-			))
+
+		matches = aptCacheUnableToLocateRegexp.FindStringSubmatch(line)
+		if len(matches) == 2 {
+			return nil, errors.New(line)
 		}
-		//lint:ignore S1021 we need the variable to be of type State, to enable it to be added to nameStateMap
-		var state resource.State
-		state = APTPackageState{Version: tokens[1]}
-		nameStateMap[resource.Name(tokens[0])] = state
+
+		if pkg != "" {
+			matches := aptCachePackageInstalledRegexp.FindStringSubmatch(line)
+			if len(matches) == 2 {
+				pkgInstalledMap[pkg] = matches[1]
+				continue
+			}
+			matches = aptCachePackageCandidateRegexp.FindStringSubmatch(line)
+			if len(matches) == 2 {
+				pkgCandidateMap[pkg] = matches[1]
+				continue
+			}
+		}
 	}
 
-	if !waitStatus.Success() {
-		if waitStatus.Exited && waitStatus.ExitCode == 1 {
-			for _, line := range strings.Split(stderr, "\n") {
-				if len(line) == 0 {
-					continue
-				}
-				matches := aptPackageRegexpNotFound.FindStringSubmatch(line)
-				if len(matches) != 2 {
-					logger.Debugf("unexpected line: %#v", line)
-					return nil, fmt.Errorf(
-						"failed to run '%s': %s\nstdout:\n%s\nstderr:\n%s",
-						hostCmd.String(), waitStatus.String(), stdout, stderr,
-					)
-				}
-				nameStateMap[resource.Name(matches[1])] = nil
-			}
-		} else {
+	nameStateMap := map[resource.Name]resource.State{}
+	for _, name := range names {
+		installedVersion, ok := pkgInstalledMap[string(name)]
+		if !ok {
 			return nil, fmt.Errorf(
-				"failed to run '%s': %s\nstdout:\n%s\nstderr:\n%s",
-				hostCmd.String(), waitStatus.String(), stdout, stderr,
+				"failed to get %s package version: %s:\n%s",
+				name, hostCmd.String(), stdout,
 			)
 		}
-	}
 
+		var state resource.State
+		if installedVersion != "(none)" {
+			state = APTPackageState{
+				Version: installedVersion,
+			}
+		}
+		nameStateMap[name] = state
+	}
 	return nameStateMap, nil
 }
 

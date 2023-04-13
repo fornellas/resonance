@@ -6,6 +6,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
 	"github.com/fornellas/resonance/version"
@@ -85,6 +87,64 @@ func NewHostState(previousBundle Bundle, rollback bool) HostState {
 
 type TypeNameStateMap map[TypeName]State
 
+func addIndividualState(
+	ctx context.Context,
+	hst host.Host,
+	typeNameStateMap TypeNameStateMap,
+	individuallyManageableResourcesTypeNames []TypeName,
+	shouldLog bool,
+	logger *logrus.Logger,
+) (TypeNameStateMap, error) {
+	for _, typeName := range individuallyManageableResourcesTypeNames {
+		state, err := typeName.MustIndividuallyManageableResource().GetState(
+			ctx, hst, typeName.Name(),
+		)
+		if err != nil {
+			if shouldLog {
+				logger.Errorf("%s", typeName)
+			}
+			return nil, err
+		}
+		if shouldLog {
+			logger.Infof("%s", typeName)
+		}
+
+		typeNameStateMap[typeName] = state
+	}
+	return typeNameStateMap, nil
+}
+
+func addMergeableState(
+	ctx context.Context,
+	hst host.Host,
+	typeNameStateMap TypeNameStateMap,
+	mergeableManageableResourcesTypeNameMap map[Type]Names,
+	shouldLog bool,
+	logger *logrus.Logger,
+) (TypeNameStateMap, error) {
+	for tpe, names := range mergeableManageableResourcesTypeNameMap {
+		typeNamesStr := fmt.Sprintf("%s[%s]", tpe, names)
+		nameStateMap, err := tpe.MustMergeableManageableResources().GetStates(ctx, hst, names)
+		if err != nil {
+			if shouldLog {
+				logger.Errorf("%s", typeNamesStr)
+			}
+			return nil, err
+		}
+		if shouldLog {
+			logger.Infof("%s", typeNamesStr)
+		}
+		for name, state := range nameStateMap {
+			typeName, err := NewTypeName(tpe, name)
+			if err != nil {
+				panic(fmt.Sprintf("failed to create new TypeName %s %s: %s", tpe, name, err))
+			}
+			typeNameStateMap[typeName] = state
+		}
+	}
+	return typeNameStateMap, nil
+}
+
 // GetTypeNameStateMap gets current state for all given TypeName.
 func GetTypeNameStateMap(
 	ctx context.Context, hst host.Host, typeNames []TypeName, shouldLog bool,
@@ -121,42 +181,39 @@ func GetTypeNameStateMap(
 	typeNameStateMap := TypeNameStateMap{}
 
 	// Get state for individual
-	for _, typeName := range individuallyManageableResourcesTypeNames {
-		state, err := typeName.MustIndividuallyManageableResource().GetState(
-			getStateCtx, hst, typeName.Name(),
-		)
-		if err != nil {
-			if shouldLog {
-				nestedLogger.Errorf("%s", typeName)
-			}
-			return nil, err
-		}
-		if shouldLog {
-			nestedLogger.Infof("%s", typeName)
-		}
-		typeNameStateMap[typeName] = state
+	var err error
+	typeNameStateMap, err = addIndividualState(
+		getStateCtx, hst, typeNameStateMap,
+		individuallyManageableResourcesTypeNames,
+		shouldLog, nestedLogger,
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	// Get state for mergeable
-	for tpe, names := range mergeableManageableResourcesTypeNameMap {
-		typeNamesStr := fmt.Sprintf("%s[%s]", tpe, names)
-		nameStateMap, err := tpe.MustMergeableManageableResources().GetStates(getStateCtx, hst, names)
+	typeNameStateMap, err = addMergeableState(
+		getStateCtx, hst, typeNameStateMap,
+		mergeableManageableResourcesTypeNameMap,
+		shouldLog, nestedLogger,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	for typeName, state := range typeNameStateMap {
+		stateBytes, err := yaml.Marshal(state)
 		if err != nil {
-			if shouldLog {
-				nestedLogger.Errorf("%s", typeNamesStr)
-			}
-			return nil, err
+			panic(fmt.Errorf("failed to yaml.Marshal state: %w", err))
 		}
+		var log *logrus.Logger
 		if shouldLog {
-			nestedLogger.Infof("%s", typeNamesStr)
+			log = nestedLogger
+		} else {
+			log = logger
 		}
-		for name, state := range nameStateMap {
-			typeName, err := NewTypeName(tpe, name)
-			if err != nil {
-				panic(fmt.Sprintf("failed to create new TypeName %s %s: %s", tpe, name, err))
-			}
-			typeNameStateMap[typeName] = state
-		}
+
+		log.WithField("", string(stateBytes)).Tracef("%s", typeName)
 	}
 
 	return typeNameStateMap, nil
