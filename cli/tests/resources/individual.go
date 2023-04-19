@@ -49,20 +49,10 @@ func (ifc IndividualFuncConfigure) String() string {
 	return fmt.Sprintf("(%#v, %#v) (%#v)", ifc.Name, ifc.State, ifc.ReturnError)
 }
 
-type IndividualFuncDestroy struct {
-	Name        resource.Name
-	ReturnError error
-}
-
-func (ifd IndividualFuncDestroy) String() string {
-	return fmt.Sprintf("(%#v) (%#v)", ifd.Name, ifd.ReturnError)
-}
-
 type IndividualFuncCall struct {
 	ValidateName *IndividualFuncValidateName
 	GetState     *IndividualFuncGetState
 	Configure    *IndividualFuncConfigure
-	Destroy      *IndividualFuncDestroy
 }
 
 func (ifc IndividualFuncCall) String() string {
@@ -158,25 +148,6 @@ func (i Individual) Configure(
 		)
 	}
 	return funcCall.Configure.ReturnError
-}
-
-func (i Individual) Destroy(ctx context.Context, hst host.Host, name resource.Name) error {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Test.Destroy(%#v)", name)
-	funcCall := i.getFuncCall()
-	if funcCall == nil {
-		IndividualT.Fatalf("no more calls expected, got Destroy(%#v)", name)
-	}
-	if funcCall.Destroy == nil {
-		IndividualT.Fatalf("unexpected call: got Destroy(%#v), expected %#v", name, funcCall)
-	}
-	if funcCall.Destroy.Name != name {
-		IndividualT.Fatalf(
-			"unexpected arguments: got Destroy(%#v), expected Destroy(%#v)",
-			name, funcCall.Destroy.Name,
-		)
-	}
-	return funcCall.Destroy.ReturnError
 }
 
 func SetupIndividualType(t *testing.T, individualFuncCalls []IndividualFuncCall) {

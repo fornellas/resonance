@@ -14,6 +14,7 @@ import (
 )
 
 // State is a Type specific interface for defining resource state as configured by users.
+// If nil, it means the resource is not configured (eg: file does not exist, package not installed).
 type State interface {
 	// ValidateAndUpdate validates and updates the state with any required information from the host.
 	// Eg: transform username into UID.

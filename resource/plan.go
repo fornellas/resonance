@@ -74,7 +74,7 @@ func (sai StepActionIndividual) Execute(ctx context.Context, hst host.Host) erro
 		}
 		logger.Infof("%s", sai)
 	case ActionDestroy:
-		err := individuallyManageableResource.Destroy(ctx, hst, name)
+		err := individuallyManageableResource.Configure(ctx, hst, name, nil)
 		if err != nil {
 			logger.Errorf("💥 %s", sai.Resource)
 			return err

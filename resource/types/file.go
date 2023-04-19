@@ -121,6 +121,14 @@ func (f File) Configure(
 ) error {
 	path := string(name)
 
+	if state == nil {
+		err := hst.Remove(ctx, path)
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
 	// FileState
 	fileState := state.(FileState)
 
@@ -148,16 +156,6 @@ func (f File) Configure(
 	}
 
 	return nil
-}
-
-func (f File) Destroy(ctx context.Context, hst host.Host, name resource.Name) error {
-	nestedCtx := log.IndentLogger(ctx)
-	path := string(name)
-	err := hst.Remove(nestedCtx, path)
-	if os.IsNotExist(err) {
-		return nil
-	}
-	return err
 }
 
 func init() {

@@ -169,8 +169,9 @@ func TestApplyIndividual(t *testing.T) {
 				ReturnState: barState,
 			}},
 			// Executing plan
-			{Destroy: &resources.IndividualFuncDestroy{
-				Name: "bar",
+			{Configure: &resources.IndividualFuncConfigure{
+				Name:  "bar",
+				State: nil,
 			}},
 		})
 		runCommand(t, Cmd{
@@ -529,8 +530,9 @@ func TestApplyIndividualAndMergeable(t *testing.T) {
 				ReturnState: fooIndividualState,
 			}},
 			// Executing plan
-			{Destroy: &resources.IndividualFuncDestroy{
-				Name: "foo",
+			{Configure: &resources.IndividualFuncConfigure{
+				Name:  "foo",
+				State: nil,
 			}},
 		})
 		resources.SetupMergeableType(t, []resources.MergeableFuncCall{

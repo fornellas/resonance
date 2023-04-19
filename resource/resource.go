@@ -77,13 +77,10 @@ type IndividuallyManageableResource interface {
 	// GetState gets the state of the resource, or nil if not present.
 	GetState(ctx context.Context, hst host.Host, name Name) (State, error)
 
-	// Configure configures the resource to given state.
+	// Configure configures the resource to given State.
+	// If State is nil, it means the resource is to be unconfigured (eg: for a file, remove it).
 	// Must be idempotent.
 	Configure(ctx context.Context, hst host.Host, name Name, state State) error
-
-	// Destroy a configured resource at given host.
-	// Must be idempotent.
-	Destroy(ctx context.Context, hst host.Host, name Name) error
 }
 
 // MergeableManageableResources is an interface for managing multiple resources together.
@@ -94,10 +91,11 @@ type IndividuallyManageableResource interface {
 type MergeableManageableResources interface {
 	ManageableResource
 
-	// GetStates gets the state of all resources, or nil if not present.
+	// GetStates gets the State of all resources, or nil if not present.
 	GetStates(ctx context.Context, hst host.Host, names Names) (map[Name]State, error)
 
-	// ConfigureAll configures all resource to given state.
+	// ConfigureAll configures all resource to given State.
+	// If State is nil, it means the resource is to be unconfigured (eg: for a file, remove it).
 	// Must be idempotent.
 	ConfigureAll(
 		ctx context.Context, hst host.Host, actionNameStateMap map[Action]map[Name]State,

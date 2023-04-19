@@ -92,8 +92,9 @@ func TestDestroy(t *testing.T) {
 				ReturnState: fooState,
 			}},
 			// Executing plan
-			{Destroy: &resources.IndividualFuncDestroy{
-				Name: "foo",
+			{Configure: &resources.IndividualFuncConfigure{
+				Name:  "foo",
+				State: nil,
 			}},
 		})
 		args := []string{
@@ -295,7 +296,7 @@ func TestDestroyFailureWithSuccessfulRollback(t *testing.T) {
 				ReturnState: fooState,
 			}},
 			// Executing plan
-			{Destroy: &resources.IndividualFuncDestroy{
+			{Configure: &resources.IndividualFuncConfigure{
 				Name:        "foo",
 				ReturnError: errors.New("fooError"),
 			}},
