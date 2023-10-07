@@ -150,7 +150,7 @@ func (i Individual) Configure(
 	return funcCall.Configure.ReturnError
 }
 
-func SetupIndividualType(t *testing.T, individualFuncCalls []IndividualFuncCall) {
+func SetupIndividualTypeMock(t *testing.T, individualFuncCalls []IndividualFuncCall) {
 	IndividualT = t
 	IndividualExpectedFuncCalls = individualFuncCalls
 	t.Cleanup(func() {

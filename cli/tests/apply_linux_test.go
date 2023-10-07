@@ -57,7 +57,7 @@ func TestApplyIndividual(t *testing.T) {
 				},
 			},
 		})
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -103,7 +103,7 @@ func TestApplyIndividual(t *testing.T) {
 	}
 
 	t.Run("Idempotency", func(t *testing.T) {
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -147,7 +147,7 @@ func TestApplyIndividual(t *testing.T) {
 				},
 			},
 		})
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -185,7 +185,7 @@ func TestApplyIndividual(t *testing.T) {
 	}
 
 	t.Run("Idempotency", func(t *testing.T) {
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -223,7 +223,7 @@ func TestApplyIndividual(t *testing.T) {
 				},
 			},
 		})
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -265,7 +265,7 @@ func TestApplyIndividual(t *testing.T) {
 	}
 
 	t.Run("Idempotency", func(t *testing.T) {
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -348,7 +348,7 @@ func TestApplyIndividualAndMergeable(t *testing.T) {
 				},
 			},
 		})
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -431,7 +431,7 @@ func TestApplyIndividualAndMergeable(t *testing.T) {
 	}
 
 	t.Run("Idempotency", func(t *testing.T) {
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -508,7 +508,7 @@ func TestApplyIndividualAndMergeable(t *testing.T) {
 				},
 			},
 		})
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "bar",
@@ -586,7 +586,7 @@ func TestApplyIndividualAndMergeable(t *testing.T) {
 	}
 
 	t.Run("Idempotency", func(t *testing.T) {
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "bar",
@@ -653,7 +653,7 @@ func TestApplyIndividualAndMergeable(t *testing.T) {
 				},
 			},
 		})
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -734,7 +734,7 @@ func TestApplyIndividualAndMergeable(t *testing.T) {
 	}
 
 	t.Run("Idempotency", func(t *testing.T) {
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -834,7 +834,7 @@ func TestApplyDirtyState(t *testing.T) {
 				},
 			},
 		})
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -880,7 +880,7 @@ func TestApplyDirtyState(t *testing.T) {
 	}
 
 	t.Run("apply with dirty state", func(t *testing.T) {
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -946,7 +946,7 @@ func TestApplyFailureWithRollback(t *testing.T) {
 				},
 			},
 		})
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -1012,7 +1012,7 @@ func TestApplyFailureWithRollback(t *testing.T) {
 				},
 			},
 		})
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",

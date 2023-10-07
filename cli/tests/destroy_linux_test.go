@@ -42,7 +42,7 @@ func TestDestroy(t *testing.T) {
 				},
 			},
 		})
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -81,7 +81,7 @@ func TestDestroy(t *testing.T) {
 	}
 
 	t.Run("destroy", func(t *testing.T) {
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading saved host state
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -143,7 +143,7 @@ func TestDestroyDirtyState(t *testing.T) {
 				},
 			},
 		})
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -197,7 +197,7 @@ func TestDestroyDirtyState(t *testing.T) {
 	}
 
 	t.Run("destroy with dirty state", func(t *testing.T) {
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading saved host state
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -246,7 +246,7 @@ func TestDestroyFailureWithSuccessfulRollback(t *testing.T) {
 				},
 			},
 		})
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -285,7 +285,7 @@ func TestDestroyFailureWithSuccessfulRollback(t *testing.T) {
 	}
 
 	t.Run("destroy with rollback", func(t *testing.T) {
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading saved host state
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",

@@ -30,7 +30,7 @@ func TestValidate(t *testing.T) {
 			},
 		},
 	})
-	resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+	resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 		// Loading resources
 		{ValidateName: &resources.IndividualFuncValidateName{
 			Name: "foo",

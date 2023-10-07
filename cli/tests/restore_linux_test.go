@@ -46,7 +46,7 @@ func TestRestore(t *testing.T) {
 				},
 			},
 		})
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -85,7 +85,7 @@ func TestRestore(t *testing.T) {
 	}
 
 	t.Run("restore", func(t *testing.T) {
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading saved host state
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -123,7 +123,7 @@ func TestRestore(t *testing.T) {
 	}
 
 	t.Run("apply", func(t *testing.T) {
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -177,7 +177,7 @@ func TestRestoreFailureWithRollback(t *testing.T) {
 				},
 			},
 		})
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -216,7 +216,7 @@ func TestRestoreFailureWithRollback(t *testing.T) {
 	}
 
 	t.Run("restore", func(t *testing.T) {
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading saved host state
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -267,7 +267,7 @@ func TestRestoreFailureWithRollback(t *testing.T) {
 	}
 
 	t.Run("apply", func(t *testing.T) {
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",

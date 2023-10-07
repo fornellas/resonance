@@ -32,7 +32,7 @@ func TestGraph(t *testing.T) {
 	})
 
 	t.Run("plan link", func(t *testing.T) {
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -66,7 +66,7 @@ func TestGraph(t *testing.T) {
 	})
 
 	t.Run("plan dot", func(t *testing.T) {
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",

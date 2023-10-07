@@ -41,7 +41,7 @@ func TestCheckClean(t *testing.T) {
 				},
 			},
 		})
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -81,7 +81,7 @@ func TestCheckClean(t *testing.T) {
 
 	t.Run("check is clean", func(t *testing.T) {
 
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading saved host state
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -122,7 +122,7 @@ func TestCheckDirty(t *testing.T) {
 				},
 			},
 		})
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
@@ -162,7 +162,7 @@ func TestCheckDirty(t *testing.T) {
 
 	t.Run("check is dirty", func(t *testing.T) {
 
-		resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading saved host state
 			{ValidateName: &resources.IndividualFuncValidateName{
 				Name: "foo",
