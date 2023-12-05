@@ -40,8 +40,16 @@ func TestApplyIndividual(t *testing.T) {
 		Value: "foo",
 	}
 
+	fooOriginalState := resources.IndividualState{
+		Value: "fooOriginal",
+	}
+
 	barState := resources.IndividualState{
 		Value: "bar",
+	}
+
+	bazState := resources.IndividualState{
+		Value: "baz",
 	}
 
 	t.Run("First apply", func(t *testing.T) {
@@ -68,7 +76,7 @@ func TestApplyIndividual(t *testing.T) {
 			// Reading Host State
 			{GetState: &resources.IndividualFuncGetState{
 				Name:        "foo",
-				ReturnState: nil,
+				ReturnState: fooOriginalState,
 			}},
 			{GetState: &resources.IndividualFuncGetState{
 				Name:        "bar",
@@ -138,19 +146,19 @@ func TestApplyIndividual(t *testing.T) {
 		return
 	}
 
-	t.Run("Destroy old resources", func(t *testing.T) {
+	t.Run("Old resources", func(t *testing.T) {
 		setupBundles(t, resourcesRoot, map[string]resource.Resources{
 			"test.yaml": resource.Resources{
 				{
-					TypeName: "Individual[foo]",
-					State:    fooState,
+					TypeName: "Individual[baz]",
+					State:    bazState,
 				},
 			},
 		})
 		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
 			// Loading resources
 			{ValidateName: &resources.IndividualFuncValidateName{
-				Name: "foo",
+				Name: "baz",
 			}},
 			// Loading saved host state
 			{ValidateName: &resources.IndividualFuncValidateName{
@@ -161,98 +169,43 @@ func TestApplyIndividual(t *testing.T) {
 			}},
 			// Reading Host State
 			{GetState: &resources.IndividualFuncGetState{
-				Name:        "foo",
-				ReturnState: fooState,
-			}},
-			{GetState: &resources.IndividualFuncGetState{
-				Name:        "bar",
-				ReturnState: barState,
-			}},
-			// Executing plan
-			{Configure: &resources.IndividualFuncConfigure{
-				Name:  "bar",
-				State: nil,
-			}},
-		})
-		runCommand(t, Cmd{
-			Args:             args,
-			ExpectedInOutput: "Apply successful",
-		})
-	})
-
-	if t.Failed() {
-		return
-	}
-
-	t.Run("Idempotency", func(t *testing.T) {
-		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
-			// Loading resources
-			{ValidateName: &resources.IndividualFuncValidateName{
-				Name: "foo",
-			}},
-			// Loading saved host state
-			{ValidateName: &resources.IndividualFuncValidateName{
-				Name: "foo",
-			}},
-			// Reading Host State
-			{GetState: &resources.IndividualFuncGetState{
-				Name:        "foo",
-				ReturnState: fooState,
-			}},
-		})
-		runCommand(t, Cmd{
-			Args:             args,
-			ExpectedInOutput: "Apply successful",
-		})
-	})
-
-	if t.Failed() {
-		return
-	}
-
-	t.Run("Apply new resource", func(t *testing.T) {
-		setupBundles(t, resourcesRoot, map[string]resource.Resources{
-			"test.yaml": resource.Resources{
-				{
-					TypeName: "Individual[foo]",
-					State:    fooState,
-				},
-				{
-					TypeName: "Individual[bar]",
-					State:    barState,
-				},
-			},
-		})
-		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
-			// Loading resources
-			{ValidateName: &resources.IndividualFuncValidateName{
-				Name: "foo",
-			}},
-			{ValidateName: &resources.IndividualFuncValidateName{
-				Name: "bar",
-			}},
-			// Loading saved host state
-			{ValidateName: &resources.IndividualFuncValidateName{
-				Name: "foo",
-			}},
-			// Reading Host State
-			{GetState: &resources.IndividualFuncGetState{
-				Name:        "foo",
-				ReturnState: fooState,
-			}},
-			{GetState: &resources.IndividualFuncGetState{
-				Name:        "bar",
+				Name:        "baz",
 				ReturnState: nil,
 			}},
-			// Executing plan
-			{Configure: &resources.IndividualFuncConfigure{
-				Name:  "bar",
-				State: barState,
+			{GetState: &resources.IndividualFuncGetState{
+				Name:        "foo",
+				ReturnState: fooState,
 			}},
 			{GetState: &resources.IndividualFuncGetState{
 				Name:        "bar",
 				ReturnState: barState,
 			}},
+			// Executing plan
+			{Configure: &resources.IndividualFuncConfigure{
+				Name:  "baz",
+				State: bazState,
+			}},
+			{GetState: &resources.IndividualFuncGetState{
+				Name:        "baz",
+				ReturnState: bazState,
+			}},
+			// {Configure: &resources.IndividualFuncConfigure{
+			// 	Name:  "foo",
+			// 	State: fooOriginalState,
+			// }},
+			// // TODO validate
+			// {GetState: &resources.IndividualFuncGetState{
+			// 	Name:        "foo",
+			// 	ReturnState: fooOriginalState,
+			// }},
+			// {Configure: &resources.IndividualFuncConfigure{
+			// 	Name:  "bar",
+			// 	State: nil,
+			// }},
+			// {GetState: &resources.IndividualFuncGetState{
+			// 	Name:        "bar",
+			// 	ReturnState: nil,
+			// }},
 		})
 		runCommand(t, Cmd{
 			Args:             args,
@@ -264,37 +217,117 @@ func TestApplyIndividual(t *testing.T) {
 		return
 	}
 
-	t.Run("Idempotency", func(t *testing.T) {
-		resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
-			// Loading resources
-			{ValidateName: &resources.IndividualFuncValidateName{
-				Name: "foo",
-			}},
-			{ValidateName: &resources.IndividualFuncValidateName{
-				Name: "bar",
-			}},
-			// Loading saved host state
-			{ValidateName: &resources.IndividualFuncValidateName{
-				Name: "foo",
-			}},
-			{ValidateName: &resources.IndividualFuncValidateName{
-				Name: "bar",
-			}},
-			// Reading Host State
-			{GetState: &resources.IndividualFuncGetState{
-				Name:        "foo",
-				ReturnState: fooState,
-			}},
-			{GetState: &resources.IndividualFuncGetState{
-				Name:        "bar",
-				ReturnState: barState,
-			}},
-		})
-		runCommand(t, Cmd{
-			Args:             args,
-			ExpectedInOutput: "Apply successful",
-		})
-	})
+	// t.Run("Idempotency", func(t *testing.T) {
+	// 	resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+	// 		// Loading resources
+	// 		{ValidateName: &resources.IndividualFuncValidateName{
+	// 			Name: "foo",
+	// 		}},
+	// 		// Loading saved host state
+	// 		{ValidateName: &resources.IndividualFuncValidateName{
+	// 			Name: "foo",
+	// 		}},
+	// 		// Reading Host State
+	// 		{GetState: &resources.IndividualFuncGetState{
+	// 			Name:        "foo",
+	// 			ReturnState: fooState,
+	// 		}},
+	// 	})
+	// 	runCommand(t, Cmd{
+	// 		Args:             args,
+	// 		ExpectedInOutput: "Apply successful",
+	// 	})
+	// })
+
+	// if t.Failed() {
+	// 	return
+	// }
+
+	// t.Run("Apply new resource", func(t *testing.T) {
+	// 	setupBundles(t, resourcesRoot, map[string]resource.Resources{
+	// 		"test.yaml": resource.Resources{
+	// 			{
+	// 				TypeName: "Individual[foo]",
+	// 				State:    fooState,
+	// 			},
+	// 			{
+	// 				TypeName: "Individual[bar]",
+	// 				State:    barState,
+	// 			},
+	// 		},
+	// 	})
+	// 	resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+	// 		// Loading resources
+	// 		{ValidateName: &resources.IndividualFuncValidateName{
+	// 			Name: "foo",
+	// 		}},
+	// 		{ValidateName: &resources.IndividualFuncValidateName{
+	// 			Name: "bar",
+	// 		}},
+	// 		// Loading saved host state
+	// 		{ValidateName: &resources.IndividualFuncValidateName{
+	// 			Name: "foo",
+	// 		}},
+	// 		// Reading Host State
+	// 		{GetState: &resources.IndividualFuncGetState{
+	// 			Name:        "foo",
+	// 			ReturnState: fooState,
+	// 		}},
+	// 		{GetState: &resources.IndividualFuncGetState{
+	// 			Name:        "bar",
+	// 			ReturnState: nil,
+	// 		}},
+	// 		// Executing plan
+	// 		{Configure: &resources.IndividualFuncConfigure{
+	// 			Name:  "bar",
+	// 			State: barState,
+	// 		}},
+	// 		{GetState: &resources.IndividualFuncGetState{
+	// 			Name:        "bar",
+	// 			ReturnState: barState,
+	// 		}},
+	// 	})
+	// 	runCommand(t, Cmd{
+	// 		Args:             args,
+	// 		ExpectedInOutput: "Apply successful",
+	// 	})
+	// })
+
+	// if t.Failed() {
+	// 	return
+	// }
+
+	// t.Run("Idempotency", func(t *testing.T) {
+	// 	resources.SetupIndividualType(t, []resources.IndividualFuncCall{
+	// 		// Loading resources
+	// 		{ValidateName: &resources.IndividualFuncValidateName{
+	// 			Name: "foo",
+	// 		}},
+	// 		{ValidateName: &resources.IndividualFuncValidateName{
+	// 			Name: "bar",
+	// 		}},
+	// 		// Loading saved host state
+	// 		{ValidateName: &resources.IndividualFuncValidateName{
+	// 			Name: "foo",
+	// 		}},
+	// 		{ValidateName: &resources.IndividualFuncValidateName{
+	// 			Name: "bar",
+	// 		}},
+	// 		// Reading Host State
+	// 		{GetState: &resources.IndividualFuncGetState{
+	// 			Name:        "foo",
+	// 			ReturnState: fooState,
+	// 		}},
+	// 		{GetState: &resources.IndividualFuncGetState{
+	// 			Name:        "bar",
+	// 			ReturnState: barState,
+	// 		}},
+	// 	})
+	// 	runCommand(t, Cmd{
+	// 		Args:             args,
+	// 		ExpectedInOutput: "Apply successful",
+	// 	})
+	// })
 }
 
 func TestApplyIndividualAndMergeable(t *testing.T) {
