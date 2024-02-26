@@ -31,7 +31,7 @@ cd resonance/
 ./build.sh
 ```
 
-Typically you'll want to stick to `./build.sh rrb`, as it enables you to edit files as preferred, and the build will automatically be triggered on any file changes (Linux only). The full build can be manually done with `./build.sh ci`. A development shell is avilable with `./build.sh shell`.
+Typically you'll want to stick to `./build.sh rrb`, as it enables you to edit files as preferred, and the build will automatically be triggered on any file changes (Linux only). The full build can be manually done with `./build.sh ci`. A development shell is available with `./build.sh shell`.
 
 ### Native build
 
