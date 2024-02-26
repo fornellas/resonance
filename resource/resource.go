@@ -314,6 +314,7 @@ func (r *Resource) UnmarshalYAML(node *yaml.Node) error {
 		}
 	} else {
 		stateInstance := reflect.New(reflect.TypeOf(stateInstance)).Interface().(State)
+		unmarshalSchema.StateNode.KnownFields(true)
 		err := unmarshalSchema.StateNode.Decode(stateInstance)
 		if err != nil {
 			return fmt.Errorf("line %d: %w", unmarshalSchema.StateNode.Line, err)
