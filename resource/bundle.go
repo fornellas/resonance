@@ -93,7 +93,7 @@ func LoadResources(ctx context.Context, hst host.Host, path string) (Resources, 
 			var err error
 			resource.State, err = resource.State.ValidateAndUpdate(nestedCtx, hst)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%s: %w", resource, err)
 			}
 			updatedAndValidatedDocResources = append(updatedAndValidatedDocResources, resource)
 		}
