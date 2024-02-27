@@ -275,6 +275,12 @@ func testHost(t *testing.T, host Host) {
 				waitStatus, stdout, stderr, err := Run(ctx, host, types.Cmd{
 					Path: "env",
 				})
+				t.Cleanup(func() {
+					if t.Failed() {
+						t.Logf("output:\n%s\n", outputBuffer.String())
+						t.Logf("stdout:\n%s\nstderr:\n%s\n", stdout, stderr)
+					}
+				})
 				var envPath string
 				for _, value := range os.Environ() {
 					if strings.HasPrefix(value, "PATH=") {
