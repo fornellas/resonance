@@ -43,6 +43,7 @@
 - `resource/`
     - `bundle.go`
         - `LoadResourceBundles`
+            - 🧪Allow duplicated resource definitions: if no conflict, merge values.
             - Go templates
                 - 📄Before parsing yaml, Go template each resource bundle yaml.
                 - 📄Template is a function of:
