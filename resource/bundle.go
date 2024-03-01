@@ -160,7 +160,7 @@ func (b Bundle) IsClean(
 	typeNameStateMap TypeNameStateMap,
 ) (bool, error) {
 	logger := log.GetLogger(ctx)
-	logger.Debug("🕵️ Checking if state is clean")
+	logger.Info("🕵️ Checking if state is clean")
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 
@@ -183,7 +183,7 @@ func (b Bundle) IsClean(
 			if chunks.HaveChanges() {
 				nestedLogger.WithField(
 					"", chunks.String(),
-				).Debugf("%s %s", ActionConfigure.Emoji(), resource)
+				).Infof("%s %s", ActionConfigure.Emoji(), resource)
 				clean = false
 			} else {
 				nestedLogger.Debugf("%s %s", ActionOk.Emoji(), resource)
