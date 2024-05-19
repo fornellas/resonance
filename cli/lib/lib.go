@@ -16,6 +16,7 @@ var defaultSsh = ""
 
 var dockerContainer string
 var defaultDockerContainer = ""
+
 var dockerUser string
 var defaultDockerUser = "0:0"
 
@@ -27,6 +28,8 @@ var defaultDisableAgent = false
 
 func resetCommon() {
 	ssh = defaultSsh
+	dockerContainer = defaultDockerContainer
+	dockerUser = defaultDockerUser
 	sudo = defaultSudo
 	disableAgent = defaultDisableAgent
 }
