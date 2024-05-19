@@ -177,7 +177,7 @@ var ManageableResourcesStateMap = map[Type]State{}
 // Eg: File[/etc/issue].
 type TypeName string
 
-var resourceInstanceKeyRegexp = regexp.MustCompile(`^(.+)\[(.+)\]$`)
+var resourceInstanceKeyRegexp = regexp.MustCompile(`^([^\[]+)\[(.+)\]$`)
 
 func (tn TypeName) typeName() (Type, Name, error) {
 	var tpe Type
