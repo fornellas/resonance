@@ -8,12 +8,10 @@ import (
 
 	"github.com/fornellas/resonance/cli/apply"
 	"github.com/fornellas/resonance/cli/check"
-	"github.com/fornellas/resonance/cli/destroy"
 	"github.com/fornellas/resonance/cli/graph"
 	"github.com/fornellas/resonance/cli/lib"
 	"github.com/fornellas/resonance/cli/plan"
 	"github.com/fornellas/resonance/cli/refresh"
-	"github.com/fornellas/resonance/cli/restore"
 	"github.com/fornellas/resonance/cli/rollback"
 	"github.com/fornellas/resonance/cli/show"
 	"github.com/fornellas/resonance/cli/validate"
@@ -75,9 +73,6 @@ func init() {
 	Cmd.AddCommand(check.Cmd)
 	resetFuncs = append(resetFuncs, check.Reset)
 
-	Cmd.AddCommand(destroy.Cmd)
-	resetFuncs = append(resetFuncs, destroy.Reset)
-
 	Cmd.AddCommand(graph.Cmd)
 	resetFuncs = append(resetFuncs, graph.Reset)
 
@@ -86,9 +81,6 @@ func init() {
 
 	Cmd.AddCommand(refresh.Cmd)
 	resetFuncs = append(resetFuncs, refresh.Reset)
-
-	Cmd.AddCommand(restore.Cmd)
-	resetFuncs = append(resetFuncs, restore.Reset)
 
 	Cmd.AddCommand(rollback.Cmd)
 	resetFuncs = append(resetFuncs, rollback.Reset)
