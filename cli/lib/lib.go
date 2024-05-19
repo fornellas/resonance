@@ -80,9 +80,9 @@ func addHostFlagsCommon(cmd *cobra.Command) {
 
 var stateRoot string
 
-func GetPersistantState(hst host.Host) (state.PersistantState, error) {
-	return state.NewHost(stateRoot, hst), nil
-}
+// func GetPersistantState(hst host.Host) (state.PersistantState, error) {
+// 	return state.NewHost(stateRoot, hst), nil
+// }
 
 func AddPersistantStateFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(

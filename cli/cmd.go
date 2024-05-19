@@ -6,15 +6,16 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
-	"github.com/fornellas/resonance/cli/apply"
-	"github.com/fornellas/resonance/cli/check"
-	"github.com/fornellas/resonance/cli/graph"
+	// "github.com/fornellas/resonance/cli/apply"
+	// "github.com/fornellas/resonance/cli/check"
+	// "github.com/fornellas/resonance/cli/graph"
+	// "github.com/fornellas/resonance/cli/lib"
+	// "github.com/fornellas/resonance/cli/plan"
+	// "github.com/fornellas/resonance/cli/refresh"
+	// "github.com/fornellas/resonance/cli/rollback"
+	// "github.com/fornellas/resonance/cli/show"
+	// "github.com/fornellas/resonance/cli/validate"
 	"github.com/fornellas/resonance/cli/lib"
-	"github.com/fornellas/resonance/cli/plan"
-	"github.com/fornellas/resonance/cli/refresh"
-	"github.com/fornellas/resonance/cli/rollback"
-	"github.com/fornellas/resonance/cli/show"
-	"github.com/fornellas/resonance/cli/validate"
 	"github.com/fornellas/resonance/cli/version"
 	"github.com/fornellas/resonance/log"
 )
@@ -67,29 +68,29 @@ func init() {
 		"Force colored output",
 	)
 
-	Cmd.AddCommand(apply.Cmd)
-	resetFuncs = append(resetFuncs, apply.Reset)
+	// Cmd.AddCommand(apply.Cmd)
+	// resetFuncs = append(resetFuncs, apply.Reset)
 
-	Cmd.AddCommand(check.Cmd)
-	resetFuncs = append(resetFuncs, check.Reset)
+	// Cmd.AddCommand(check.Cmd)
+	// resetFuncs = append(resetFuncs, check.Reset)
 
-	Cmd.AddCommand(graph.Cmd)
-	resetFuncs = append(resetFuncs, graph.Reset)
+	// Cmd.AddCommand(graph.Cmd)
+	// resetFuncs = append(resetFuncs, graph.Reset)
 
-	Cmd.AddCommand(plan.Cmd)
-	resetFuncs = append(resetFuncs, plan.Reset)
+	// Cmd.AddCommand(plan.Cmd)
+	// resetFuncs = append(resetFuncs, plan.Reset)
 
-	Cmd.AddCommand(refresh.Cmd)
-	resetFuncs = append(resetFuncs, refresh.Reset)
+	// Cmd.AddCommand(refresh.Cmd)
+	// resetFuncs = append(resetFuncs, refresh.Reset)
 
-	Cmd.AddCommand(rollback.Cmd)
-	resetFuncs = append(resetFuncs, rollback.Reset)
+	// Cmd.AddCommand(rollback.Cmd)
+	// resetFuncs = append(resetFuncs, rollback.Reset)
 
-	Cmd.AddCommand(show.Cmd)
-	resetFuncs = append(resetFuncs, show.Reset)
+	// Cmd.AddCommand(show.Cmd)
+	// resetFuncs = append(resetFuncs, show.Reset)
 
-	Cmd.AddCommand(validate.Cmd)
-	resetFuncs = append(resetFuncs, validate.Reset)
+	// Cmd.AddCommand(validate.Cmd)
+	// resetFuncs = append(resetFuncs, validate.Reset)
 
 	Cmd.AddCommand(version.Cmd)
 	resetFuncs = append(resetFuncs, version.Reset)
