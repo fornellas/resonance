@@ -5,7 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 
@@ -55,14 +59,26 @@ func (rs Resources) String() string {
 	return string(bytes)
 }
 
-// LoadBundle loads resources from given Yaml file path.
-func LoadResources(ctx context.Context, hst host.Host, path string) (Resources, error) {
+func (rs Resources) validate() error {
+	resourceMap := map[TypeName]bool{}
+
+	for _, resource := range rs {
+		if _, ok := resourceMap[resource.TypeName]; ok {
+			return fmt.Errorf("duplicate resource %s", resource.TypeName)
+		}
+		resourceMap[resource.TypeName] = true
+	}
+	return nil
+}
+
+// LoadFile loads Resources declared at given YAML file path
+func LoadFile(ctx context.Context, hst host.Host, yamlPath string) (Resources, error) {
 	logger := log.GetLogger(ctx)
-	logger.Infof("%s", path)
+	logger.Infof("%s", yamlPath)
 	nestedCtx := log.IndentLogger(ctx)
 	nestedLogger := log.GetLogger(nestedCtx)
 
-	f, err := os.Open(path)
+	f, err := os.Open(yamlPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load resource file: %w", err)
 	}
@@ -79,10 +95,10 @@ func LoadResources(ctx context.Context, hst host.Host, path string) (Resources, 
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return Resources{}, fmt.Errorf("failed to load resource file: %s: %w", path, err)
+			return Resources{}, fmt.Errorf("failed to load resource file: %s: %w", yamlPath, err)
 		}
 		if err := docResources.Validate(); err != nil {
-			return Resources{}, fmt.Errorf("resource file validation failed: %s: %w", path, err)
+			return Resources{}, fmt.Errorf("resource file validation failed: %s: %w", yamlPath, err)
 		}
 		updatedAndValidatedDocResources := Resources{}
 		for _, resource := range docResources {
@@ -97,6 +113,62 @@ func LoadResources(ctx context.Context, hst host.Host, path string) (Resources, 
 	}
 
 	nestedLogger.WithField("", resources.String()).Trace("Resources")
+
+	return resources, nil
+}
+
+func findYmls(ctx context.Context, root string) ([]string, error) {
+	logger := log.GetLogger(ctx)
+
+	yamlPaths := []string{}
+	if err := filepath.Walk(root, func(path string, fileInfo fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if fileInfo.IsDir() || !strings.HasSuffix(fileInfo.Name(), ".yaml") {
+			logger.Debugf("Skipping %s", path)
+			return nil
+		}
+		logger.Debugf("Found resources file %s", path)
+		yamlPaths = append(yamlPaths, path)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	if len(yamlPaths) == 0 {
+		return nil, fmt.Errorf("no .yaml resource files found under %s", root)
+	}
+
+	sort.Strings(yamlPaths)
+
+	return yamlPaths, nil
+}
+
+// LoadDir search for .yaml files at root and loads all of them.
+// Files are sorted by alphabetical order.
+func LoadDir(ctx context.Context, hst host.Host, root string) (Resources, error) {
+	logger := log.GetLogger(ctx)
+	logger.Infof("📂 Loading resources from %s", root)
+	nestedCtx := log.IndentLogger(ctx)
+
+	resources := Resources{}
+
+	yamlPaths, err := findYmls(nestedCtx, root)
+	if err != nil {
+		return resources, err
+	}
+
+	for _, yamlPath := range yamlPaths {
+		yamlResources, err := LoadFile(nestedCtx, hst, yamlPath)
+		if err != nil {
+			return resources, err
+		}
+		resources = append(resources, yamlResources...)
+	}
+
+	if err := resources.validate(); err != nil {
+		return resources, err
+	}
 
 	return resources, nil
 }
