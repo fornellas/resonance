@@ -14,8 +14,8 @@ import (
 	// "github.com/fornellas/resonance/cli/refresh"
 	// "github.com/fornellas/resonance/cli/rollback"
 	// "github.com/fornellas/resonance/cli/show"
-	// "github.com/fornellas/resonance/cli/validate"
 	"github.com/fornellas/resonance/cli/lib"
+	"github.com/fornellas/resonance/cli/validate"
 	"github.com/fornellas/resonance/cli/version"
 	"github.com/fornellas/resonance/log"
 )
@@ -89,8 +89,8 @@ func init() {
 	// Cmd.AddCommand(show.Cmd)
 	// resetFuncs = append(resetFuncs, show.Reset)
 
-	// Cmd.AddCommand(validate.Cmd)
-	// resetFuncs = append(resetFuncs, validate.Reset)
+	Cmd.AddCommand(validate.Cmd)
+	resetFuncs = append(resetFuncs, validate.Reset)
 
 	Cmd.AddCommand(version.Cmd)
 	resetFuncs = append(resetFuncs, version.Reset)
