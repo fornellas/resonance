@@ -6,7 +6,7 @@ SHELL := /bin/bash
 XDG_CACHE_HOME ?= $(HOME)/.cache
 RESONANCE_CACHE ?= $(XDG_CACHE_HOME)/rrb
 
-export GOVERSION := $(shell cat .goversion)
+export GOVERSION := go$(shell cat go.mod | awk '/^go /{print $$2}')
 ifneq ($(.SHELLSTATUS),0)
   $(error cat .goversion failed! output was $(GOVERSION))
 endif
@@ -20,7 +20,7 @@ endif
 GOOS:
 	@echo $(GOOS)
 
-GOARCH_NATIVE_SHELL := case $$(uname -m) in i[23456]86) echo 386;; x86_64) echo amd64;; armv6l|armv7l) echo arm;; aarch64) echo arm64;; *) echo Unknown machine $$(uname -m) 1>&2 ; exit 1 ;; esac
+GOARCH_NATIVE_SHELL := case $$(uname -m) in i[23456]86) echo 386;; x86_64) echo amd64;; armv6l|armv7l) echo arm;; aarch64|arm64) echo arm64;; *) echo Unknown machine $$(uname -m) 1>&2 ; exit 1 ;; esac
 GOARCH_NATIVE := $(shell $(GOARCH_NATIVE_SHELL))
 ifneq ($(.SHELLSTATUS),0)
   $(error GOARCH failed! output was $(GOARCH))
@@ -66,10 +66,15 @@ GO_BUILD_FLAGS := -tags osusergo
 
 GOARCHS_AGENT := 386 amd64 arm arm64
 
+export GO_MODULE := $(shell cat go.mod | awk '/^module /{print $$2}')
+
+GO_SOURCE_FILES := $$(find $$PWD -name \*.go ! -path '$(RESONANCE_CACHE)/*')
+
 GOIMPORTS := $(GO) run golang.org/x/tools/cmd/goimports
-GOIMPORTS_LOCAL := github.com/fornellas/resonance/
+GOIMPORTS_LOCAL := $(GO_MODULE)
 
 STATICCHECK := $(GO) run honnef.co/go/tools/cmd/staticcheck
+export STATICCHECK_CACHE := $(RESONANCE_CACHE)/staticcheck
 
 GOCYCLO := $(GO) run github.com/fzipp/gocyclo/cmd/gocyclo
 GOCYCLO_OVER := 15
@@ -111,7 +116,7 @@ GCOV2LCOV := $(GO) run github.com/jandelgado/gcov2lcov
 RRB := $(GO) run github.com/fornellas/rrb
 RRB_DEBOUNCE ?= 500ms
 RRB_LOG_LEVEL ?= info
-RRB_IGNORE_PATTERN ?= '.cache/**/*,host/agent_*_*_gz.go'
+RRB_IGNORE_PATTERN ?= '$(RESONANCE_CACHE)/**/*,host/agent_*_*_gz.go'
 RRB_PATTERN ?= '**/*.{go},Makefile'
 RRB_EXTRA_CMD ?= true
 
@@ -186,32 +191,27 @@ lint: go-mod-tidy
 
 .PHONY: goimports
 goimports: go go-mod-tidy
-	$(GOIMPORTS) -w -local $(GOIMPORTS_LOCAL) $$(find . -name \*.go ! -path './.cache/*')
+	$(GOIMPORTS) -w -local $(GOIMPORTS_LOCAL) $(GO_SOURCE_FILES)
 lint: goimports
 
 # staticcheck
 
 .PHONY: staticcheck
 staticcheck: go go-mod-tidy go-generate goimports
-	$(STATICCHECK) ./...
+	$(STATICCHECK) $(GO_MODULE)/...
 lint: staticcheck
 
 .PHONY: clean-staticcheck
 clean-staticcheck:
-	rm -rf $(HOME)/.cache/staticcheck/
+	rm -rf $(STATICCHECK_CACHE)
 clean: clean-staticcheck
 
 # misspell
 
 .PHONY: misspell
 misspell: go go-mod-tidy go-generate
-	$(GO) run github.com/client9/misspell/cmd/misspell -error .
+	$(GO) run github.com/client9/misspell/cmd/misspell -error $(GO_SOURCE_FILES)
 lint: misspell
-
-.PHONY: clean-misspell
-clean-misspell:
-	rm -rf $(HOME)/.cache/misspell/
-clean: clean-misspell
 
 # gocyclo
 
@@ -396,6 +396,7 @@ shell:
 		GOROOT=$(GOROOT) \
 		GOCACHE=$(GOCACHE) \
 		GOMODCACHE=$(GOMODCACHE) \
+		STATICCHECK_CACHE=$(STATICCHECK_CACHE) \
 		bash --rcfile .bashrc
 
 endif

@@ -21,7 +21,7 @@ jobs:
         uses: actions/checkout@v4
       # Setup Go
       - name: Setup Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
       # Make
@@ -37,14 +37,14 @@ jobs:
           restore-keys: darwin-${{ inputs.GOARCH }}-
       # Build
       - name: Build (native)
-        if: ${{ inputs.GOARCH == 'amd64' }}
+        if: ${{ inputs.GOARCH == 'arm64' }}
         run: |
-          GOOS=darwin GOARCH=${{ inputs.GOARCH }} gmake ci V=1
+          GOOS=darwin GOARCH=${{ inputs.GOARCH }} XDG_CACHE_HOME=/tmp/XDG_CACHE_HOME gmake ci V=1
         shell: bash
       - name: Build (cross compile only)
-        if: ${{ inputs.GOARCH != 'amd64' }}
+        if: ${{ inputs.GOARCH != 'arm64' }}
         run: |
-          GOOS=darwin GOARCH=${{ inputs.GOARCH }} gmake build V=1
+          GOOS=darwin GOARCH=${{ inputs.GOARCH }} XDG_CACHE_HOME=/tmp/XDG_CACHE_HOME gmake build V=1
         shell: bash
       # Gzip
       - name: Gzip
@@ -71,7 +71,7 @@ jobs:
       # Coveralls
       - name: Coveralls
         uses: coverallsapp/github-action@v2
-        if: ${{ inputs.GOARCH == 'amd64' }}
+        if: ${{ inputs.GOARCH == 'arm64' }}
         with:
           file: cover.lcov
           flag-name: darwin.${{ inputs.GOARCH }}
