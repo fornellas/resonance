@@ -71,7 +71,7 @@ jobs:
       # Coveralls
       - name: Coveralls
         uses: coverallsapp/github-action@v2
-        if: ${{ inputs.GOARCH == 'amd64' }}
+        if: ${{ inputs.GOARCH == 'arm64' }}
         with:
           file: cover.lcov
           flag-name: darwin.${{ inputs.GOARCH }}
