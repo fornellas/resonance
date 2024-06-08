@@ -6,7 +6,7 @@ SHELL := /bin/bash
 XDG_CACHE_HOME ?= $(HOME)/.cache
 RESONANCE_CACHE ?= $(XDG_CACHE_HOME)/rrb
 
-export GOVERSION := $(shell cat .goversion)
+export GOVERSION := go$(shell cat go.mod | awk '/^go /{print $$2}')
 ifneq ($(.SHELLSTATUS),0)
   $(error cat .goversion failed! output was $(GOVERSION))
 endif
