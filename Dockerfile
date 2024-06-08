@@ -3,7 +3,8 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
 	curl \
 	build-essential \
 	ca-certificates \
-	git
+	git \
+	less
 RUN passwd -d root
 ARG USER
 ARG UID
