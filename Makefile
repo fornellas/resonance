@@ -211,11 +211,6 @@ misspell: go go-mod-tidy go-generate
 	$(GO) run github.com/client9/misspell/cmd/misspell -error .
 lint: misspell
 
-.PHONY: clean-misspell
-clean-misspell:
-	rm -rf $(HOME)/.cache/misspell/
-clean: clean-misspell
-
 # gocyclo
 
 .PHONY: gocyclo
