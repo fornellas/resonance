@@ -68,6 +68,8 @@ GOARCHS_AGENT := 386 amd64 arm arm64
 
 export GO_MODULE := $(shell cat go.mod | awk '/^module /{print $$2}')
 
+GO_SOURCE_FILES := $$(find $$PWD -name \*.go ! -path '$(RESONANCE_CACHE)/*')
+
 GOIMPORTS := $(GO) run golang.org/x/tools/cmd/goimports
 GOIMPORTS_LOCAL := $(GO_MODULE)
 
@@ -189,7 +191,7 @@ lint: go-mod-tidy
 
 .PHONY: goimports
 goimports: go go-mod-tidy
-	$(GOIMPORTS) -w -local $(GOIMPORTS_LOCAL) $$(find . -name \*.go ! -path './.cache/*')
+	$(GOIMPORTS) -w -local $(GOIMPORTS_LOCAL) $(GO_SOURCE_FILES)
 lint: goimports
 
 # staticcheck
@@ -208,7 +210,7 @@ clean: clean-staticcheck
 
 .PHONY: misspell
 misspell: go go-mod-tidy go-generate
-	$(GO) run github.com/client9/misspell/cmd/misspell -error .
+	$(GO) run github.com/client9/misspell/cmd/misspell -error $(GO_SOURCE_FILES)
 lint: misspell
 
 # gocyclo
