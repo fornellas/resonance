@@ -66,8 +66,10 @@ GO_BUILD_FLAGS := -tags osusergo
 
 GOARCHS_AGENT := 386 amd64 arm arm64
 
+export GO_MODULE := $(shell cat go.mod | awk '/^module /{print $$2}')
+
 GOIMPORTS := $(GO) run golang.org/x/tools/cmd/goimports
-GOIMPORTS_LOCAL := github.com/fornellas/resonance/
+GOIMPORTS_LOCAL := $(GO_MODULE)
 
 STATICCHECK := $(GO) run honnef.co/go/tools/cmd/staticcheck
 
@@ -193,7 +195,7 @@ lint: goimports
 
 .PHONY: staticcheck
 staticcheck: go go-mod-tidy go-generate goimports
-	$(STATICCHECK) ./...
+	$(STATICCHECK) $(GO_MODULE)/...
 lint: staticcheck
 
 .PHONY: clean-staticcheck
