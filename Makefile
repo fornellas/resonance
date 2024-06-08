@@ -72,6 +72,7 @@ GOIMPORTS := $(GO) run golang.org/x/tools/cmd/goimports
 GOIMPORTS_LOCAL := $(GO_MODULE)
 
 STATICCHECK := $(GO) run honnef.co/go/tools/cmd/staticcheck
+export STATICCHECK_CACHE := $(RESONANCE_CACHE)/staticcheck
 
 GOCYCLO := $(GO) run github.com/fzipp/gocyclo/cmd/gocyclo
 GOCYCLO_OVER := 15
@@ -200,7 +201,7 @@ lint: staticcheck
 
 .PHONY: clean-staticcheck
 clean-staticcheck:
-	rm -rf $(HOME)/.cache/staticcheck/
+	rm -rf $(STATICCHECK_CACHE)
 clean: clean-staticcheck
 
 # misspell
@@ -398,6 +399,7 @@ shell:
 		GOROOT=$(GOROOT) \
 		GOCACHE=$(GOCACHE) \
 		GOMODCACHE=$(GOMODCACHE) \
+		STATICCHECK_CACHE=$(STATICCHECK_CACHE) \
 		bash --rcfile .bashrc
 
 endif
