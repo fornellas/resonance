@@ -22,6 +22,7 @@ jobs:
       - name: Architecture support
         if: ${{ inputs.GOARCH != '386' && inputs.GOARCH != 'amd64' }}
         run: |
+          sudo apt-get update
           sudo apt-get -y install binfmt-support qemu-user-static
         shell: bash
       # Cache
