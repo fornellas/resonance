@@ -88,6 +88,7 @@ docker run \
 	--interactive \
 	--volume ${GIT_ROOT}:${DOCKER_HOME}/resonance \
 	--volume ${GIT_ROOT}/.cache:${DOCKER_HOME}/.cache \
+	--volume ${DOCKER_HOME}/resonance/.cache \
 	--env XDG_CACHE_HOME=${DOCKER_HOME}/.cache \
 	--workdir ${DOCKER_HOME}/resonance \
 	${GOARCH_DOWNLOAD_ENV} \

@@ -116,7 +116,7 @@ GCOV2LCOV := $(GO) run github.com/jandelgado/gcov2lcov
 RRB := $(GO) run github.com/fornellas/rrb
 RRB_DEBOUNCE ?= 500ms
 RRB_LOG_LEVEL ?= info
-RRB_IGNORE_PATTERN ?= '.cache/**/*,host/agent_*_*_gz.go'
+RRB_IGNORE_PATTERN ?= '$(RESONANCE_CACHE)/**/*,host/agent_*_*_gz.go'
 RRB_PATTERN ?= '**/*.{go},Makefile'
 RRB_EXTRA_CMD ?= true
 
