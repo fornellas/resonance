@@ -25,9 +25,9 @@ jobs:
           sudo apt-get update
           sudo apt-get -y install binfmt-support qemu-user-static
         shell: bash
-      # Cache
-      - name: Cache
-        uses: actions/cache@v4
+      # Cache restore
+      - name: Cache restore
+        uses: actions/cache/restore@v4
         with:
           path: ${{ github.workspace }}/.cache/
           key: linux-${{ inputs.GOARCH }}-${{ hashFiles('**/go.sum', '**/*.go') }}
@@ -36,7 +36,6 @@ jobs:
       - name: Build
         run: |
           DOCKER_PLATFORM=linux/${{ inputs.GOARCH }} ./build.sh ci GOOS=linux GOARCH=${{ inputs.GOARCH }}  V=1
-          gzip resonance.linux.${{ inputs.GOARCH }}
         shell: bash
       # Git Status
       - name: git status
@@ -49,6 +48,16 @@ jobs:
             git diff
             exit 1
           fi
+        shell: bash
+      # Cache save
+      - name: Cache save
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}/.cache/
+          key: linux-${{ inputs.GOARCH }}-${{ hashFiles('**/go.sum', '**/*.go') }}
+      # Gzip
+      - name: Gzip
+        run: gzip resonance.linux.${{ inputs.GOARCH }}
         shell: bash
       # Upload
       - uses: actions/upload-artifact@v4
