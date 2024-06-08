@@ -30,7 +30,7 @@ var defaultForceColor = false
 
 var Cmd = &cobra.Command{
 	Use:   "resonance",
-	Short: "Resonance is a configuration management tool.",
+	Short: "Test is a configuration management tool.",
 	Args:  cobra.NoArgs,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		if forceColor {
