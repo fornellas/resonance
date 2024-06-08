@@ -44,7 +44,7 @@ jobs:
       - name: Build (cross compile only)
         if: ${{ inputs.GOARCH != 'arm64' }}
         run: |
-          GOOS=darwin GOARCH=${{ inputs.GOARCH }} gmake build V=1
+          GOOS=darwin GOARCH=${{ inputs.GOARCH }} XDG_CACHE_HOME=/tmp/XDG_CACHE_HOME gmake build V=1
         shell: bash
       # Gzip
       - name: Gzip
