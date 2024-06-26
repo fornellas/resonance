@@ -32,7 +32,7 @@ $(error Unsupported system: $(UNAME_S))
 endif
 endif
 
-CACHE_PATH ?= $(XDG_CACHE_HOME)/rrb
+CACHE_PATH ?= $(XDG_CACHE_HOME)/resonance
 
 SHELL_GO_VERSION := cat go.mod | awk '/^go /{print $$2}'
 export GOVERSION := go$(shell $(SHELL_GO_VERSION))
