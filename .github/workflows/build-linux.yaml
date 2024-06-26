@@ -72,6 +72,7 @@ jobs:
       # Coveralls
       - name: Coveralls
         uses: coverallsapp/github-action@v2
+        if: ${{ inputs.GOARCH == 'amd64' }}
         with:
           file: cover.lcov
           flag-name: linux.${{ inputs.GOARCH }}
