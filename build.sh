@@ -100,6 +100,17 @@ function kill_container() {
 
 trap kill_container EXIT
 
+GO_ENV_ARGS=()
+if [ -n "${GOOS}" ] ; then
+	GO_ENV_ARGS=($GO_ENV_ARGS --env "GOOS=${GOOS}")
+fi
+if [ -n "${GOARCH}" ] ; then
+	GO_ENV_ARGS=($GO_ENV_ARGS --env "GOARCH=${GOARCH}")
+fi
+if [ -n "${GO_TEST_BINARY_FLAGS_EXTRA}" ] ; then
+	GO_ENV_ARGS=($GO_ENV_ARGS --env "GO_TEST_BINARY_FLAGS_EXTRA=${GO_TEST_BINARY_FLAGS_EXTRA}")
+fi
+
 docker run \
 	--name "${NAME}" \
 	--platform "${DOCKER_PLATFORM}" \
@@ -110,9 +121,7 @@ docker run \
 	--volume "${GIT_ROOT}:${DOCKER_HOME}/resonance" \
 	--volume "${XDG_CACHE_HOME}/resonance:${DOCKER_XDG_CACHE_HOME}/resonance" \
 	--env "XDG_CACHE_HOME=${DOCKER_XDG_CACHE_HOME}" \
-	--env "GOOS=${GOOS}" \
-	--env "GOARCH=${GOARCH}" \
-	--env "GO_TEST_BINARY_FLAGS_EXTRA=${GO_TEST_BINARY_FLAGS_EXTRA}" \
+	"${GO_ENV_ARGS[@]}" \
 	--workdir ${DOCKER_HOME}/resonance \
 	${GOARCH_DOWNLOAD_ENV} \
 	${DOCKER_IMAGE} \
