@@ -29,12 +29,6 @@ if [ -z "$DOCKER_PLATFORM" ] ; then
 	DOCKER_PLATFORM="linux/$DOCKER_PLATFORM_ARCH_NATIVE"
 fi
 
-GOARCH_DOWNLOAD_ENV=""
-# https://github.com/moby/moby/issues/42732
-if [ "$DOCKER_PLATFORM" == "linux/386" ] && [ "$DOCKER_PLATFORM_ARCH_NATIVE" == "x86_64" ] ; then
-	GOARCH_DOWNLOAD_ENV="--env GOARCH_DOWNLOAD=386"
-fi
-
 case "$(uname -s)" in
 	Linux)
 		# Under Linux, as docker run containers as... containers, we can map user and group 1:1.
@@ -110,6 +104,10 @@ fi
 if [ -n "${GO_TEST_BINARY_FLAGS_EXTRA}" ] ; then
 	GO_ENV_ARGS=($GO_ENV_ARGS --env "GO_TEST_BINARY_FLAGS_EXTRA=${GO_TEST_BINARY_FLAGS_EXTRA}")
 fi
+# https://github.com/moby/moby/issues/42732
+if [ "$DOCKER_PLATFORM" == "linux/386" ] && [ "$DOCKER_PLATFORM_ARCH_NATIVE" == "x86_64" ] ; then
+	GO_ENV_ARGS=($GO_ENV_ARGS --env GOARCH_DOWNLOAD=386)
+fi
 
 docker run \
 	--name "${NAME}" \
@@ -123,6 +121,5 @@ docker run \
 	--env "XDG_CACHE_HOME=${DOCKER_XDG_CACHE_HOME}" \
 	"${GO_ENV_ARGS[@]}" \
 	--workdir ${DOCKER_HOME}/resonance \
-	${GOARCH_DOWNLOAD_ENV} \
 	${DOCKER_IMAGE} \
 	make --no-print-directory "${@}"
