@@ -14,6 +14,9 @@ jobs:
     env:
         GOOS: linux
         GOARCH: ${{ inputs.GOARCH }}
+        XDG_CACHE_HOME: /tmp/XDG_CACHE_HOME
+        DOCKER_PLATFORM: linux/${{ inputs.GOARCH }}
+        GO_TEST_BINARY_FLAGS_EXTRA: -v
     steps:
       # Checkout
       - name: Checkout
@@ -29,19 +32,20 @@ jobs:
       - name: Cache restore
         uses: actions/cache/restore@v4
         with:
-          path: ${{ github.workspace }}/.cache/
+          path: ${{ env.XDG_CACHE_HOME }}
           key: linux-${{ inputs.GOARCH }}-${{ hashFiles('**/go.sum', '**/*.go') }}
           restore-keys: linux-${{ inputs.GOARCH }}-
       # Build
       - name: Build
         run: |
-          DOCKER_PLATFORM=linux/${{ inputs.GOARCH }} ./build.sh ci GOOS=linux GOARCH=${{ inputs.GOARCH }}  V=1
+          ./build.sh ci
         shell: bash
       # Git Status
       - name: git status
         run: |
           GIT_STATUS="$(git status --porcelain)"
           if [ -n "$GIT_STATUS" ] ; then
+            echo Error: Build process modified files under version control!
             echo git status
             echo "$GIT_STATUS"
             echo git diff
@@ -53,7 +57,7 @@ jobs:
       - name: Cache save
         uses: actions/cache/save@v4
         with:
-          path: ${{ github.workspace }}/.cache/
+          path: ${{ env.XDG_CACHE_HOME }}
           key: linux-${{ inputs.GOARCH }}-${{ hashFiles('**/go.sum', '**/*.go') }}
       # Gzip
       - name: Gzip
@@ -75,13 +79,14 @@ jobs:
           allow-empty: true
       # Clean
       - name: Clean
-        run: DOCKER_PLATFORM=linux/${{ inputs.GOARCH }} ./build.sh clean
+        run: ./build.sh clean
         shell: bash
       # Git ls-files --others
       - name: git ls-files --others
         run: |
           GIT_LS_FILES_OTHERS="$(git ls-files --others)"
           if [ -n "$GIT_LS_FILES_OTHERS" ] ; then
+            echo Error: Build clean left files behind!
             echo git ls-files --others
             echo "$GIT_LS_FILES_OTHERS"
             exit 1

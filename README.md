@@ -28,15 +28,26 @@ GOARCH=$(case $(uname -m) in i[23456]86) echo 386;; x86_64) echo amd64;; armv6l|
 ```bash
 git clone git@github.com:fornellas/resonance.git
 cd resonance/
-./build.sh
+./build.sh ci
 ```
 
-Typically you'll want to stick to `./build.sh rrb`, as it enables you to edit files as preferred, and the build will automatically be triggered on any file changes (Linux only). The full build can be manually done with `./build.sh ci`. A development shell is available with `./build.sh shell`.
+This will execute the build exactly as it happens on CI. You can get a development shell with `./build.sh shell`, from where you can run `make help` and see other options.
 
-### Native build
+### Linux
 
-The official build relies on `./build.sh`, but in some circumstances (eg: Docker being super slow on Mac) it may be useful to run the build without Docker, which requires manual configuration that is easy to get wrong / be outdated.
+Under Linux, not only you can have fast local builds exactly as it happens on CI, but you can also have the build run automatically on file changes (via [rrb](https://github.com/fornellas/rrb)):
 
-- Install [GNU Make](https://www.gnu.org/software/make/).
-  - In MacOS this can be done with [Homebrew](https://formulae.brew.sh/formula/make): `brew install make`. Note that the GNU Make binary will be called `gmake`, and this is how it should be invoked. `make` is Apple's ancient provided Make which will NOT work!
-- `make ci`
+```bash
+./build.sh rrb
+```
+
+Just edit files with your preferred editor and as soon as you save them, the bulid will be executed automatically.
+
+### MacOS / Darwin
+
+While the Docker build runs fine under MacOS / Darwin, sadly the performance is notoriously bad (Linux containers run under a VM). It is possible to run the build locally without a container by:
+
+- Install GNU Make (eg: `brew install make`)
+- Run the build `gmake ci`.
+
+Note that MacOS comes with an ancient version of make which is NOT supported: you must install a recent GNU Make.

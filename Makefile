@@ -3,120 +3,146 @@ help:
 SHELL := /bin/bash
 .ONESHELL:
 
+MAKE_MAJOR_VERSION := $(word 1, $(subst ., , $(MAKE_VERSION)))
+MAKE_REQUIRED_MAJOR_VERSION := 4
+MAKE_BAD_VERSION := $(shell [ $(MAKE_MAJOR_VERSION) -lt $(MAKE_REQUIRED_MAJOR_VERSION) ] && echo true)
+ifeq ($(MAKE_BAD_VERSION),true)
+  $(error Make version is below $(MAKE_REQUIRED_MAJOR_VERSION), please update it.)
+endif
+
+SHELL_UNAME_S := uname -s
+UNAME_S := $(shell $(SHELL_UNAME_S))
+ifneq ($(.SHELLSTATUS),0)
+$(error $(SHELL_UNAME_S): $(UNAME_S))
+endif
+
+SHELL_UNAME_M := uname -m
+UNAME_M := $(shell $(SHELL_UNAME_M))
+ifneq ($(.SHELLSTATUS),0)
+$(error $(SHELL_UNAME_M): $(UNAME_M))
+endif
+
+ifeq ($(UNAME_S),Linux)
 XDG_CACHE_HOME ?= $(HOME)/.cache
-RESONANCE_CACHE ?= $(XDG_CACHE_HOME)/rrb
-
-export GOVERSION := go$(shell cat go.mod | awk '/^go /{print $$2}')
-ifneq ($(.SHELLSTATUS),0)
-  $(error cat .goversion failed! output was $(GOVERSION))
+else
+ifeq ($(UNAME_S),Darwin)
+XDG_CACHE_HOME ?= $(HOME)/Library/Caches
+else
+$(error Unsupported system: $(UNAME_S))
+endif
 endif
 
-GOOS_SHELL := case $$(uname -s) in Linux) echo linux;; Darwin) echo darwin;; *) echo Unknown system $$(uname -s) 1>&2 ; exit 1 ;; esac
-export GOOS ?= $(shell $(GOOS_SHELL))
-ifneq ($(.SHELLSTATUS),0)
-  $(error GOOS failed! output was $(GOOS))
-endif
-.PHONY: GOOS
-GOOS:
-	@echo $(GOOS)
+CACHE_PATH ?= $(XDG_CACHE_HOME)/rrb
 
-GOARCH_NATIVE_SHELL := case $$(uname -m) in i[23456]86) echo 386;; x86_64) echo amd64;; armv6l|armv7l) echo arm;; aarch64|arm64) echo arm64;; *) echo Unknown machine $$(uname -m) 1>&2 ; exit 1 ;; esac
-GOARCH_NATIVE := $(shell $(GOARCH_NATIVE_SHELL))
+SHELL_GO_VERSION := cat go.mod | awk '/^go /{print $$2}'
+export GOVERSION := go$(shell $(SHELL_GO_VERSION))
 ifneq ($(.SHELLSTATUS),0)
-  $(error GOARCH failed! output was $(GOARCH))
+  $(error $(SHELL_GO_VERSION): $(GOVERSION))
 endif
 
-export GOARCH ?= $(GOARCH_NATIVE)
+SHELL_GOOS := case $(UNAME_S) in Linux) echo linux;; Darwin) echo darwin;; *) echo Unknown system $(UNAME_S) 1>&2 ; exit 1 ;; esac
+export GOOS ?= $(shell $(SHELL_GOOS))
 ifneq ($(.SHELLSTATUS),0)
-  $(error GOARCH_NATIVE failed! output was $(GOARCH_NATIVE))
+  $(error $(SHELL_GOOS): $(GOOS))
 endif
 
-GOARCH_DOWNLOAD_SHELL := case $(GOARCH_NATIVE) in 386) echo 386;; amd64) echo amd64;; arm) echo armv6l;; arm64) echo arm64;; *) echo GOARCH $$(GOARCH_NATIVE) 1>&2 ; exit 1 ;; esac
-GOARCH_DOWNLOAD ?= $(shell $(GOARCH_DOWNLOAD_SHELL))
+SHELL_GOARCH_NATIVE := case $(UNAME_M) in i[23456]86) echo 386;; x86_64) echo amd64;; armv6l|armv7l) echo arm;; aarch64|arm64) echo arm64;; *) echo Unknown machine $(UNAME_M) 1>&2 ; exit 1 ;; esac
+GOARCH_NATIVE := $(shell $(SHELL_GOARCH_NATIVE))
+ifneq ($(.SHELLSTATUS),0)
+  $(error $(SHELL_GOARCH_NATIVE): $(GOARCH_NATIVE))
+endif
+
+SHELL_GOARCH_DOWNLOAD := case $(GOARCH_NATIVE) in 386) echo 386;; amd64) echo amd64;; arm) echo armv6l;; arm64) echo arm64;; *) echo GOARCH $(GOARCH_NATIVE) 1>&2 ; exit 1 ;; esac
+GOARCH_DOWNLOAD ?= $(shell $(SHELL_GOARCH_DOWNLOAD))
+ifneq ($(.SHELLSTATUS),0)
+  $(error $(SHELL_GOARCH_DOWNLOAD): $(GOARCH_DOWNLOAD))
+endif
+
 export GOARCH ?= $(GOARCH_DOWNLOAD)
-ifneq ($(.SHELLSTATUS),0)
-  $(error GOARCH_DOWNLOAD failed! output was $(GOARCH_DOWNLOAD))
-endif
 
-.PHONY: GOARCH
-GOARCH:
-	@echo $(GOARCH)
-
-GOROOT_PREFIX := $(RESONANCE_CACHE)/GOROOT
+GOROOT_PREFIX := $(CACHE_PATH)/GOROOT
 GOROOT := $(GOROOT_PREFIX)/$(GOVERSION).$(GOOS)-$(GOARCH_DOWNLOAD)
 GO := $(GOROOT)/bin/go
-.PHONY: GOROOT
-GOROOT:
-	@echo $(GOROOT)
 PATH := $(GOROOT)/bin:$(PATH)
 
-export GOCACHE := $(RESONANCE_CACHE)/GOCACHE
-.PHONY: GOCACHE
-GOCACHE:
-	@echo $(GOCACHE)
-export GOMODCACHE := $(RESONANCE_CACHE)/GOMODCACHE
+export GOCACHE := $(CACHE_PATH)/GOCACHE
 
-.PHONY: GOMODCACHE
-GOMODCACHE:
-	@echo $(GOMODCACHE)
+export GOMODCACHE := $(CACHE_PATH)/GOMODCACHE
 
+GO_BUILD_FLAGS_COMMON :=
 # osusergo have Lookup and LookupGroup to use pure Go implementation to enable
 # management of local users
-GO_BUILD_FLAGS := -tags osusergo
+GO_BUILD_FLAGS_COMMON := -tags osusergo
+
+define get_go_build_flags
+$(value GO_BUILD_FLAGS_$(1))
+endef
+
+# https://go.dev/doc/articles/race_detector#Requirements
+ifneq ($(GO_BUILD_FLAGS_NO_RACE),1)
+ifeq ($(GOOS)/$(GOARCH),linux/amd64)
+GO_BUILD_FLAGS_linux_amd64 := -race $(GO_BUILD_FLAGS)
+endif
+ifeq ($(GOOS)/$(GOARCH),linux/ppc64le)
+GO_BUILD_FLAGS_linux_ppc64le := -race $(GO_BUILD_FLAGS)
+endif
+# https://github.com/golang/go/issues/29948
+# ifeq ($(GOOS)/$(GOARCH),linux/arm64)
+#_LINUX_ARM64 GO_BUILD_FLAGS := -race $(GO_BUILD_FLAGS)
+# endif
+ifeq ($(GOOS)/$(GOARCH),freebsd/amd64)
+GO_BUILD_FLAGS_freebsd_amd64 := -race $(GO_BUILD_FLAGS)
+endif
+ifeq ($(GOOS)/$(GOARCH),netbsd/amd64)
+GO_BUILD_FLAGS_netbsd_amd64 := -race $(GO_BUILD_FLAGS)
+endif
+ifeq ($(GOOS)/$(GOARCH),darwin/amd64)
+GO_BUILD_FLAGS_darwin_amd64 := -race $(GO_BUILD_FLAGS)
+endif
+ifeq ($(GOOS)/$(GOARCH),darwin/arm64)
+GO_BUILD_FLAGS_darwin_arm64 := -race $(GO_BUILD_FLAGS)
+endif
+ifeq ($(GOOS)/$(GOARCH),windows/amd64)
+GO_BUILD_FLAGS_windows_amd64 := -race $(GO_BUILD_FLAGS)
+endif
+endif
 
 GOARCHS_AGENT := 386 amd64 arm arm64
 
-export GO_MODULE := $(shell cat go.mod | awk '/^module /{print $$2}')
+SHELL_GO_MODULE := cat go.mod | awk '/^module /{print $$2}'
+export GO_MODULE := $(shell $(SHELL_GO_MODULE))
+ifneq ($(.SHELLSTATUS),0)
+  $(error $(SHELL_GO_MODULE): $(GO_MODULE))
+endif
 
-GO_SOURCE_FILES := $$(find $$PWD -name \*.go ! -path '$(RESONANCE_CACHE)/*')
+GO_SOURCE_FILES := $$(find $$PWD -name \*.go ! -path '$(CACHE_PATH)/*')
 
 GOIMPORTS := $(GO) run golang.org/x/tools/cmd/goimports
 GOIMPORTS_LOCAL := $(GO_MODULE)
 
 STATICCHECK := $(GO) run honnef.co/go/tools/cmd/staticcheck
-export STATICCHECK_CACHE := $(RESONANCE_CACHE)/staticcheck
+export STATICCHECK_CACHE := $(CACHE_PATH)/staticcheck
 
 GOCYCLO := $(GO) run github.com/fzipp/gocyclo/cmd/gocyclo
 GOCYCLO_OVER := 15
 
-GO_TEST := $(GO) run github.com/rakyll/gotest ./...
-GO_TEST_FLAGS := -coverprofile cover.txt -coverpkg ./... -count=1 -failfast
-ifeq ($(V),1)
-GO_TEST_FLAGS := -v $(GO_TEST_FLAGS)
+GO_TEST := $(GO) run github.com/rakyll/gotest
+GO_TEST_FLAGS :=
+GO_TEST_PACKAGES := ./...
+GO_TEST_BINARY_FLAGS :=
+ifneq ($(GO_TEST_NO_COVER),1)
+GO_TEST_BINARY_FLAGS := -coverprofile cover.txt -coverpkg $(GO_TEST_PACKAGES) $(GO_TEST_BINARY_FLAGS)
 endif
-# https://go.dev/doc/articles/race_detector#Requirements
-ifeq ($(GOOS)/$(GOARCH),linux/amd64)
-GO_TEST_FLAGS := -race $(GO_TEST_FLAGS)
-endif
-ifeq ($(GOOS)/$(GOARCH),linux/ppc64le)
-GO_TEST_FLAGS := -race $(GO_TEST_FLAGS)
-endif
-# https://github.com/golang/go/issues/29948
-# ifeq ($(GOOS)/$(GOARCH),linux/arm64)
-# GO_TEST_FLAGS := -race $(GO_TEST_FLAGS)
-# endif
-ifeq ($(GOOS)/$(GOARCH),freebsd/amd64)
-GO_TEST_FLAGS := -race $(GO_TEST_FLAGS)
-endif
-ifeq ($(GOOS)/$(GOARCH),netbsd/amd64)
-GO_TEST_FLAGS := -race $(GO_TEST_FLAGS)
-endif
-ifeq ($(GOOS)/$(GOARCH),darwin/amd64)
-GO_TEST_FLAGS := -race $(GO_TEST_FLAGS)
-endif
-ifeq ($(GOOS)/$(GOARCH),darwin/arm64)
-GO_TEST_FLAGS := -race $(GO_TEST_FLAGS)
-endif
-ifeq ($(GOOS)/$(GOARCH),windows/amd64)
-GO_TEST_FLAGS := -race $(GO_TEST_FLAGS)
-endif
+GO_TEST_BINARY_FLAGS := -count=1 $(GO_TEST_BINARY_FLAGS)
+GO_TEST_BINARY_FLAGS := -failfast $(GO_TEST_BINARY_FLAGS)
+GO_TEST_MIN_COVERAGE := 67
 
 GCOV2LCOV := $(GO) run github.com/jandelgado/gcov2lcov
 
 RRB := $(GO) run github.com/fornellas/rrb
 RRB_DEBOUNCE ?= 500ms
 RRB_LOG_LEVEL ?= info
-RRB_IGNORE_PATTERN ?= '$(RESONANCE_CACHE)/**/*,host/agent_*_*_gz.go'
+RRB_IGNORE_PATTERN ?= '$(CACHE_PATH)/**/*,host/agent_*_*_gz.go'
 RRB_PATTERN ?= '**/*.{go},Makefile'
 RRB_EXTRA_CMD ?= true
 
@@ -241,17 +267,26 @@ go-get-u: go go-mod-tidy
 
 .PHONY: test-help
 test-help:
-	@echo 'test: runs all tests; use V=1 for verbose'
+	@echo 'test: runs all tests:'
+	@echo '  use GO_TEST_NO_COVER=1 to disable code coverage'
+	@echo '  use GO_TEST_PACKAGES to set packages to test (default: $(GO_TEST_PACKAGES))'
+	@echo '  use GO_TEST_BINARY_FLAGS_EXTRA to pass extra flags to the test binary (eg: -v)'
 help: test-help
 
 .PHONY: test
-test: build-agent-$(GOARCH_NATIVE)
 
 # gotest
 
 .PHONY: gotest
 gotest: go go-generate
-	$(GO_TEST) $(GO_TEST_FLAGS) $(GO_BUILD_FLAGS)
+	$(GO_TEST) \
+		$(GO_BUILD_FLAGS_COMMON) \
+		$(call get_go_build_flags,$(GOOS)_$(GOARCH_NATIVE)) \
+		$(GO_TEST_FLAGS) \
+		$(GO_TEST_PACKAGES) \
+		$(GO_TEST_BINARY_FLAGS) \
+		$(GO_TEST_BINARY_FLAGS_EXTRA)
+gotest: build-agent-$(GOARCH_NATIVE)
 test: gotest
 
 .PHONY: clean-gotest
@@ -262,6 +297,7 @@ clean: clean-gotest
 
 # cover.html
 
+ifneq ($(GO_TEST_NO_COVER),1)
 .PHONY: cover.html
 cover.html: go gotest
 	$(GO) tool cover -html cover.txt -o cover.html
@@ -284,13 +320,19 @@ clean-cover.lcov:
 	rm -f cover.lcov
 clean: clean-cover.lcov
 
-# cover-func
+# test-coverage
 
-.PHONY: cover-func
-cover-func: go cover.html
-	@echo -n "Coverage: "
-	@$(GO) tool cover -func cover.txt | awk '/^total:/{print $$NF}'
-test: cover-func
+.PHONY: test-coverage
+test-coverage: go cover.txt
+	PERCENT=$$($(GO) tool cover -func cover.txt | awk '/^total:/{print $$NF}' | tr -d % | cut -d. -f1) && \
+		echo "Coverage: $$PERCENT%" && \
+		if [ $$PERCENT -lt $(GO_TEST_MIN_COVERAGE) ] ; then \
+			echo "Minimum coverage required: $(GO_TEST_MIN_COVERAGE)%" ; \
+			exit 1 ; \
+		fi
+test: test-coverage
+
+endif
 
 ##
 ## Build
@@ -303,7 +345,12 @@ help: build-help
 
 .PHONY: build-agent-%
 build-agent-%: go-generate
-	GOARCH=$* GOOS=linux $(GO) build -o host/agent/agent_linux_$* $(GO_BUILD_FLAGS) ./host/agent/
+	GOARCH=$* GOOS=linux $(GO) \
+		build \
+		-o host/agent/agent_linux_$* \
+		$(GO_BUILD_FLAGS_COMMON) \
+		$(call get_go_build_flags,linux_$*) \
+		./host/agent/
 	gzip < host/agent/agent_linux_$* > host/agent/agent_linux_$*.gz
 	cat << EOF > host/agent_linux_$*_gz.go
 	package host
@@ -335,7 +382,12 @@ go-vet: clean-agent
 
 .PHONY: build
 build: go go-generate build-agent
-	$(GO) build -o resonance.$(GOOS).$(GOARCH) $(GO_BUILD_FLAGS) .
+	$(GO) \
+		build \
+		-o resonance.$(GOOS).$(GOARCH) \
+		$(GO_BUILD_FLAGS_COMMON) \
+		$(call get_go_build_flags,$(GOOS)_$(GOARCH_NATIVE)) \
+		.
 
 .PHONY: clean-build
 clean-build:

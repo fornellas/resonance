@@ -15,6 +15,7 @@ jobs:
         GOOS: darwin
         GOARCH: ${{ inputs.GOARCH }}
         XDG_CACHE_HOME: /tmp/XDG_CACHE_HOME
+        GO_TEST_BINARY_FLAGS_EXTRA: -v
     steps:
       # Checkout
       - name: Checkout
@@ -32,25 +33,26 @@ jobs:
       - name: Cache restore
         uses: actions/cache/restore@v4
         with:
-          path: /tmp/XDG_CACHE_HOME
+          path: ${{ env.XDG_CACHE_HOME }}
           key: darwin-${{ inputs.GOARCH }}-${{ hashFiles('**/go.sum', '**/*.go') }}
           restore-keys: darwin-${{ inputs.GOARCH }}-
       # Build
       - name: Build (native)
         if: ${{ inputs.GOARCH == 'arm64' }}
         run: |
-          GOOS=darwin GOARCH=${{ inputs.GOARCH }} XDG_CACHE_HOME=/tmp/XDG_CACHE_HOME gmake ci V=1
+          gmake ci
         shell: bash
       - name: Build (cross compile only)
         if: ${{ inputs.GOARCH != 'arm64' }}
         run: |
-          GOOS=darwin GOARCH=${{ inputs.GOARCH }} XDG_CACHE_HOME=/tmp/XDG_CACHE_HOME gmake build V=1
+          gmake build
         shell: bash
       # Git Status
       - name: git status
         run: |
           GIT_STATUS="$(git status --porcelain)"
           if [ -n "$GIT_STATUS" ] ; then
+            echo Error: Build process modified files under version control!
             echo git status
             echo "$GIT_STATUS"
             echo git diff
@@ -62,7 +64,7 @@ jobs:
       - name: Cache save
         uses: actions/cache/save@v4
         with:
-          path: /tmp/XDG_CACHE_HOME
+          path: ${{ env.XDG_CACHE_HOME }}
           key: darwin-${{ inputs.GOARCH }}-${{ hashFiles('**/go.sum', '**/*.go') }}
       # Gzip
       - name: Gzip
@@ -92,6 +94,7 @@ jobs:
         run: |
           GIT_LS_FILES_OTHERS="$(git ls-files --others)"
           if [ -n "$GIT_LS_FILES_OTHERS" ] ; then
+            echo Error: Build clean left files behind!
             echo git ls-files --others
             echo "$GIT_LS_FILES_OTHERS"
             exit 1
