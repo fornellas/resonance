@@ -108,7 +108,7 @@ fi
 if [ "$DOCKER_PLATFORM" == "linux/386" ] && [ "$DOCKER_PLATFORM_ARCH_NATIVE" == "x86_64" ] ; then
 	GO_ENV_ARGS="$GO_ENV_ARGS --env GOARCH_DOWNLOAD=386"
 fi
-set -x
+
 docker run \
 	--name "${NAME}" \
 	--platform "${DOCKER_PLATFORM}" \
