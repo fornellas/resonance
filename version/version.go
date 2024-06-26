@@ -8,7 +8,7 @@ import (
 // Version is the version of the built binary
 type Version string
 
-//go:generate sh -c "git describe --tags --always  > .version"
+//go:generate sh -c "git describe --tags --always --dirty  > .version"
 //go:embed .version
 var version string
 
