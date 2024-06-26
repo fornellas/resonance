@@ -5,12 +5,15 @@ on:
       GOARCH:
         required: true
         type: string
+      runs-on:
+        required: true
+        type: string
     outputs:
       artifact:
         value: resonance.darwin.${{ inputs.GOARCH }}.gz
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: ${{ inputs.runs-on }}
     env:
         GOOS: darwin
         GOARCH: ${{ inputs.GOARCH }}
@@ -37,15 +40,9 @@ jobs:
           key: darwin-${{ inputs.GOARCH }}-${{ hashFiles('**/go.sum', '**/*.go') }}
           restore-keys: darwin-${{ inputs.GOARCH }}-
       # Build
-      - name: Build (native)
-        if: ${{ inputs.GOARCH == 'arm64' }}
+      - name: Build
         run: |
           gmake ci
-        shell: bash
-      - name: Build (cross compile only)
-        if: ${{ inputs.GOARCH != 'arm64' }}
-        run: |
-          gmake build
         shell: bash
       # Git Status
       - name: git status

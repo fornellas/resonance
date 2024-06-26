@@ -30,11 +30,13 @@ jobs:
     uses: ./.github/workflows/build-darwin.yaml
     with:
       GOARCH: amd64
+      runs-on: macos-13
     secrets: inherit
   darwin_arm64:
     uses: ./.github/workflows/build-darwin.yaml
     with:
       GOARCH: arm64
+      runs-on: macos-14
     secrets: inherit
   release:
     concurrency: release
