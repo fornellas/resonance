@@ -110,6 +110,9 @@ docker run \
 	--volume "${GIT_ROOT}:${DOCKER_HOME}/resonance" \
 	--volume "${XDG_CACHE_HOME}/resonance:${DOCKER_XDG_CACHE_HOME}/resonance" \
 	--env "XDG_CACHE_HOME=${DOCKER_XDG_CACHE_HOME}" \
+	--env "GOOS=${GOOS}" \
+	--env "GOARCH=${GOARCH}" \
+	--env "GO_TEST_BINARY_FLAGS_EXTRA=${GO_TEST_BINARY_FLAGS_EXTRA}" \
 	--workdir ${DOCKER_HOME}/resonance \
 	${GOARCH_DOWNLOAD_ENV} \
 	${DOCKER_IMAGE} \
