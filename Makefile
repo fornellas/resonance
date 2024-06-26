@@ -322,6 +322,7 @@ clean: clean-cover.lcov
 
 # test-coverage
 
+ifeq ($(GOOS),linux)
 .PHONY: test-coverage
 test-coverage: go cover.txt
 	PERCENT=$$($(GO) tool cover -func cover.txt | awk '/^total:/{print $$NF}' | tr -d % | cut -d. -f1) && \
@@ -331,6 +332,7 @@ test-coverage: go cover.txt
 			exit 1 ; \
 		fi
 test: test-coverage
+endif
 
 endif
 

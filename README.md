@@ -47,7 +47,9 @@ Just edit files with your preferred editor and as soon as you save them, the bul
 
 While the Docker build runs fine under MacOS / Darwin, sadly the performance is notoriously bad (Linux containers run under a VM). It is possible to run the build locally without a container by:
 
-- Install GNU Make (eg: `brew install make`)
+- Install GNU Make (eg: `brew install make`)*[^1]
 - Run the build `gmake ci`.
 
-Note that MacOS comes with an ancient version of make which is NOT supported: you must install a recent GNU Make.
+Note that a lot of the tests are Linux only (all `*_linux_test.go` files), so while build signal should be representative, test results aren't.
+
+[^1]: Apple ships an ancient Make version which will NOT work, you must use a recent GNU Make.

@@ -90,7 +90,7 @@ case "${SYSTEM}" in
 		exit 1
 		;;
 esac
-mkdir -p "${XDG_CACHE_HOME}"
+mkdir -p "${XDG_CACHE_HOME}/resonance"
 
 NAME="resonance-$$"
 
