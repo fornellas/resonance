@@ -37,9 +37,10 @@ fi
 
 case "$(uname -s)" in
 	Linux)
+		# Under Linux, as docker run containers as... containers, we can map user and group 1:1.
 		DOCKER_USER="$(id -un)"
-		DOCKER_UID="$(id -u)"
 		DOCKER_GROUP="$(id -gn)"
+		DOCKER_UID="$(id -u)"
 		DOCKER_GID="$(id -g)"
 		;;
 	Darwin)
@@ -47,29 +48,49 @@ case "$(uname -s)" in
 		# values here, which are known to be good for the container, and which are mapped to the
 		# Darwin user on the volume.
 		DOCKER_USER=resonance
-		DOCKER_UID=1000
 		DOCKER_GROUP=resonance
+		# Darwin regular users UID/GID may also conflict with the container's, so we also use dummy
+		# values here.
+		DOCKER_UID=1000
 		DOCKER_GID=1000
 		;;
 esac
 
-DOCKER_HOME="/home/$DOCKER_USER"
+DOCKER_HOME="/home/${DOCKER_USER}"
+
+DOCKER_XDG_CACHE_HOME="${DOCKER_HOME}/.cache"
 
 GIT_ROOT="$(cd $(dirname $0) && git rev-parse --show-toplevel)"
-if ! test -d "$GIT_ROOT"/.cache ; then
-	mkdir "$GIT_ROOT"/.cache
-fi
 
 DOCKER_IMAGE="$(docker build \
-	--platform ${DOCKER_PLATFORM} \
-	--build-arg USER="$DOCKER_USER" \
-	--build-arg UID="$DOCKER_UID" \
-	--build-arg GROUP="$DOCKER_GROUP" \
-	--build-arg GID="$DOCKER_GID" \
-	--build-arg HOME="$DOCKER_HOME" \
+	--platform "${DOCKER_PLATFORM}" \
+	--build-arg "USER=${DOCKER_USER}" \
+	--build-arg "GROUP=${DOCKER_GROUP}" \
+	--build-arg "UID=${DOCKER_UID}" \
+	--build-arg "GID=${DOCKER_GID}" \
+	--build-arg "HOME=${DOCKER_HOME}" \
 	--quiet \
 	.
 )"
+
+SYSTEM="$(uname -s)"
+case "${SYSTEM}" in
+	Linux)
+		if [ -z "$XDG_CACHE_HOME" ] ;then
+			XDG_CACHE_HOME="${HOME}/.cache"
+		fi
+		;;
+	Darwin)
+		if [ -z "$XDG_CACHE_HOME" ] ;then
+			XDG_CACHE_HOME="${HOME}/Library/Caches"
+		fi
+		;;
+	*)
+		echo "Unsupported system ${SYSTEM}"
+		exit 1
+		;;
+esac
+mkdir -p "${XDG_CACHE_HOME}"
 
 NAME="resonance-$$"
 
@@ -81,15 +102,14 @@ trap kill_container EXIT
 
 docker run \
 	--name "${NAME}" \
-	--platform ${DOCKER_PLATFORM} \
+	--platform "${DOCKER_PLATFORM}" \
 	--user "${DOCKER_UID}:${DOCKER_GID}" \
 	--rm \
 	${TTY} \
 	--interactive \
-	--volume ${GIT_ROOT}:${DOCKER_HOME}/resonance \
-	--volume ${GIT_ROOT}/.cache:${DOCKER_HOME}/.cache \
-	--volume ${DOCKER_HOME}/resonance/.cache \
-	--env XDG_CACHE_HOME=${DOCKER_HOME}/.cache \
+	--volume "${GIT_ROOT}:${DOCKER_HOME}/resonance" \
+	--volume "${XDG_CACHE_HOME}/resonance:${DOCKER_XDG_CACHE_HOME}/resonance" \
+	--env "XDG_CACHE_HOME=${DOCKER_XDG_CACHE_HOME}" \
 	--workdir ${DOCKER_HOME}/resonance \
 	${GOARCH_DOWNLOAD_ENV} \
 	${DOCKER_IMAGE} \

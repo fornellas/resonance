@@ -7,8 +7,8 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
 	less
 RUN passwd -d root
 ARG USER
-ARG UID
 ARG GROUP
+ARG UID
 ARG GID
 ARG HOME
 RUN addgroup --gid ${GID} ${GROUP} > /dev/null
