@@ -52,13 +52,14 @@ ifneq ($(.SHELLSTATUS),0)
   $(error $(SHELL_GOARCH_NATIVE): $(GOARCH_NATIVE))
 endif
 
+export GOARCH ?= $(GOARCH_NATIVE)
+
 SHELL_GOARCH_DOWNLOAD := case $(GOARCH_NATIVE) in 386) echo 386;; amd64) echo amd64;; arm) echo armv6l;; arm64) echo arm64;; *) echo GOARCH $(GOARCH_NATIVE) 1>&2 ; exit 1 ;; esac
 GOARCH_DOWNLOAD ?= $(shell $(SHELL_GOARCH_DOWNLOAD))
 ifneq ($(.SHELLSTATUS),0)
   $(error $(SHELL_GOARCH_DOWNLOAD): $(GOARCH_DOWNLOAD))
 endif
 
-export GOARCH ?= $(GOARCH_DOWNLOAD)
 
 GOROOT_PREFIX := $(CACHE_PATH)/GOROOT
 GOROOT := $(GOROOT_PREFIX)/$(GOVERSION).$(GOOS)-$(GOARCH_DOWNLOAD)
