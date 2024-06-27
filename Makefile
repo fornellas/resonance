@@ -344,6 +344,7 @@ endif
 .PHONY: build-help
 build-help:
 	@echo 'build: build everything'
+	@echo '  use GO_BUILD_FLAGS_NO_RACE=1 to disable -race (faster builds)'
 help: build-help
 
 .PHONY: build-agent-%
