@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -13,22 +12,6 @@ import (
 
 	"github.com/fornellas/resonance/resource"
 )
-
-func SetupDirs(t *testing.T) (string, string) {
-	prefix := t.TempDir()
-
-	stateRoot := filepath.Join(prefix, "state")
-	if err := os.Mkdir(stateRoot, os.FileMode(0700)); err != nil {
-		t.Fatal(err)
-	}
-
-	resourcesRoot := filepath.Join(prefix, "resources")
-	if err := os.Mkdir(resourcesRoot, os.FileMode(0700)); err != nil {
-		t.Fatal(err)
-	}
-
-	return stateRoot, resourcesRoot
-}
 
 func SetupBundles(t *testing.T, resourcesRoot string, resourcesMap map[string]resource.Resources) {
 	for name, resources := range resourcesMap {
@@ -90,7 +73,7 @@ func (c *TestCmd) Run(t *testing.T) {
 			panic(p)
 		}
 		if c.ExpectedInOutput != "" {
-			if !strings.Contains(removeANSIEscapeSequences(outputBuffer.String()), c.ExpectedInOutput) {
+			if !strings.Contains(outputBuffer.String(), c.ExpectedInOutput) {
 				logCmdOutput()
 				t.Fatalf("output does not contain %#v", c.ExpectedInOutput)
 			}
@@ -130,7 +113,7 @@ func (c *TestCmd) Run(t *testing.T) {
 		stdoutWrite.Close()
 		stdoutStr := <-stdoutCh
 		if c.ExpectedInStdout != "" {
-			if !strings.Contains(removeANSIEscapeSequences(stdoutStr), c.ExpectedInStdout) {
+			if !strings.Contains(stdoutStr, c.ExpectedInStdout) {
 				logCmdOutput()
 				t.Logf("stdout:\n%s", stdoutStr)
 				t.Fatalf("stdout does not contain %#v", c.ExpectedInStdout)
@@ -143,9 +126,4 @@ func (c *TestCmd) Run(t *testing.T) {
 	if err := command.Execute(); err != nil {
 		t.Fatal(err)
 	}
-}
-
-func removeANSIEscapeSequences(input string) string {
-	ansiEscapeRegex := regexp.MustCompile(`\x1b\[[0-?]*[ -/]*[@-~]`)
-	return ansiEscapeRegex.ReplaceAllString(input, "")
 }

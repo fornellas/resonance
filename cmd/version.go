@@ -16,10 +16,3 @@ var VersionCmd = &cobra.Command{
 		fmt.Printf("%s\n", version.GetVersion())
 	},
 }
-
-func init() {
-	AddHostFlags(VersionCmd)
-	AddPersistantStateFlags(VersionCmd)
-	resetFuncs = append(resetFuncs, func() {
-	})
-}

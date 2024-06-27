@@ -35,7 +35,6 @@ var ValidateCmd = &cobra.Command{
 
 func init() {
 	AddHostFlags(ValidateCmd)
-	AddPersistantStateFlags(ValidateCmd)
 	resetFuncs = append(resetFuncs, func() {
 	})
 }

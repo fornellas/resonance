@@ -1,14 +1,19 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/fornellas/resonance/cmd/test/resources"
 	"github.com/fornellas/resonance/resource"
 )
 
 func TestValidate(t *testing.T) {
-	stateRoot, resourcesRoot := SetupDirs(t)
+	resourcesRoot := filepath.Join(t.TempDir(), "state")
+	require.NoError(t, os.Mkdir(resourcesRoot, os.FileMode(0700)))
 
 	fooState := resources.IndividualState{
 		Value: "foo",
@@ -42,9 +47,7 @@ func TestValidate(t *testing.T) {
 	args := []string{
 		"validate",
 		"--log-level=trace",
-		"--force-color",
 		"--localhost",
-		"--state-root", stateRoot,
 		resourcesRoot,
 	}
 	cmd := TestCmd{

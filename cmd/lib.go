@@ -70,16 +70,6 @@ func addHostFlagsCommon(cmd *cobra.Command) {
 	)
 }
 
-var stateRoot string
-var defaultStateRoot = "/var/lib/resonance"
-
-func AddPersistantStateFlags(cmd *cobra.Command) {
-	cmd.Flags().StringVarP(
-		&stateRoot, "state-root", "", defaultStateRoot,
-		"Root path at host where to save host state to.",
-	)
-}
-
 func init() {
 	resetFuncs = append(resetFuncs, func() {
 		ssh = defaultSsh
@@ -87,6 +77,5 @@ func init() {
 		dockerUser = defaultDockerUser
 		sudo = defaultSudo
 		disableAgent = defaultDisableAgent
-		stateRoot = defaultStateRoot
 	})
 }
