@@ -1,4 +1,4 @@
-package cli
+package main
 
 import (
 	"os"
@@ -6,9 +6,6 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
-	"github.com/fornellas/resonance/cli/lib"
-	"github.com/fornellas/resonance/cli/validate"
-	"github.com/fornellas/resonance/cli/version"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -19,7 +16,7 @@ var defaultLogLevelStr = "info"
 var forceColor bool
 var defaultForceColor = false
 
-var Cmd = &cobra.Command{
+var RootCmd = &cobra.Command{
 	Use:   "resonance",
 	Short: "Resonance is a configuration management tool.",
 	Args:  cobra.NoArgs,
@@ -47,22 +44,20 @@ func Reset() {
 	for _, resetFunc := range resetFuncs {
 		resetFunc()
 	}
-	lib.Reset()
 }
 
 func init() {
-	Cmd.PersistentFlags().StringVarP(
+	RootCmd.PersistentFlags().StringVarP(
 		&logLevelStr, "log-level", "l", defaultLogLevelStr,
 		"Logging level",
 	)
-	Cmd.PersistentFlags().BoolVarP(
+
+	RootCmd.PersistentFlags().BoolVarP(
 		&forceColor, "force-color", "", defaultForceColor,
 		"Force colored output",
 	)
 
-	Cmd.AddCommand(validate.Cmd)
-	resetFuncs = append(resetFuncs, validate.Reset)
+	RootCmd.AddCommand(ValidateCmd)
 
-	Cmd.AddCommand(version.Cmd)
-	resetFuncs = append(resetFuncs, version.Reset)
+	RootCmd.AddCommand(VersionCmd)
 }

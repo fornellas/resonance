@@ -1,4 +1,4 @@
-package lib
+package main
 
 import (
 	"context"
@@ -22,14 +22,6 @@ var defaultSudo = false
 
 var disableAgent bool
 var defaultDisableAgent = false
-
-func resetCommon() {
-	ssh = defaultSsh
-	dockerContainer = defaultDockerContainer
-	dockerUser = defaultDockerUser
-	sudo = defaultSudo
-	disableAgent = defaultDisableAgent
-}
 
 func wrapHost(ctx context.Context, hst host.Host) (host.Host, error) {
 	var err error
@@ -79,10 +71,22 @@ func addHostFlagsCommon(cmd *cobra.Command) {
 }
 
 var stateRoot string
+var defaultStateRoot = "/var/lib/resonance"
 
 func AddPersistantStateFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(
-		&stateRoot, "state-root", "", "/var/lib/resonance",
+		&stateRoot, "state-root", "", defaultStateRoot,
 		"Root path at host where to save host state to.",
 	)
+}
+
+func init() {
+	resetFuncs = append(resetFuncs, func() {
+		ssh = defaultSsh
+		dockerContainer = defaultDockerContainer
+		dockerUser = defaultDockerUser
+		sudo = defaultSudo
+		disableAgent = defaultDisableAgent
+		stateRoot = defaultStateRoot
+	})
 }

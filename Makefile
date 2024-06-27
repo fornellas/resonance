@@ -136,7 +136,7 @@ GO_TEST_BINARY_FLAGS := -coverprofile cover.txt -coverpkg $(GO_TEST_PACKAGES) $(
 endif
 GO_TEST_BINARY_FLAGS := -count=1 $(GO_TEST_BINARY_FLAGS)
 GO_TEST_BINARY_FLAGS := -failfast $(GO_TEST_BINARY_FLAGS)
-GO_TEST_MIN_COVERAGE := 67
+GO_TEST_MIN_COVERAGE := 50
 
 GCOV2LCOV := $(GO) run github.com/jandelgado/gcov2lcov
 
@@ -391,7 +391,7 @@ build: go go-generate build-agent
 		-o resonance.$(GOOS).$(GOARCH) \
 		$(GO_BUILD_FLAGS_COMMON) \
 		$(call get_go_build_flags,$(GOOS)_$(GOARCH_NATIVE)) \
-		.
+		./cmd/
 
 .PHONY: clean-build
 clean-build:

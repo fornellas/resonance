@@ -1,14 +1,14 @@
-package tests
+package main
 
 import (
 	"testing"
 
-	"github.com/fornellas/resonance/cli/tests/resources"
+	"github.com/fornellas/resonance/cmd/test/resources"
 	"github.com/fornellas/resonance/resource"
 )
 
 func TestValidate(t *testing.T) {
-	stateRoot, resourcesRoot := setupDirs(t)
+	stateRoot, resourcesRoot := SetupDirs(t)
 
 	fooState := resources.IndividualState{
 		Value: "foo",
@@ -18,7 +18,7 @@ func TestValidate(t *testing.T) {
 		Value: "bar",
 	}
 
-	setupBundles(t, resourcesRoot, map[string]resource.Resources{
+	SetupBundles(t, resourcesRoot, map[string]resource.Resources{
 		"test.yaml": resource.Resources{
 			{
 				TypeName: "Individual[foo]",
@@ -47,8 +47,9 @@ func TestValidate(t *testing.T) {
 		"--state-root", stateRoot,
 		resourcesRoot,
 	}
-	runCommand(t, Cmd{
+	cmd := TestCmd{
 		Args:             args,
 		ExpectedInOutput: "Validation successful",
-	})
+	}
+	cmd.Run(t)
 }

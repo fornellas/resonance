@@ -1,4 +1,4 @@
-package lib
+package main
 
 import (
 	"context"
@@ -8,10 +8,6 @@ import (
 
 	"github.com/fornellas/resonance/host"
 )
-
-func Reset() {
-	resetCommon()
-}
 
 func GetHost(ctx context.Context) (host.Host, error) {
 	var hst host.Host

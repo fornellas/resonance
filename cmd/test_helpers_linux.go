@@ -1,4 +1,4 @@
-package tests
+package main
 
 import (
 	"bytes"
@@ -11,11 +11,10 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/fornellas/resonance/cli"
 	"github.com/fornellas/resonance/resource"
 )
 
-func setupDirs(t *testing.T) (string, string) {
+func SetupDirs(t *testing.T) (string, string) {
 	prefix := t.TempDir()
 
 	stateRoot := filepath.Join(prefix, "state")
@@ -31,7 +30,7 @@ func setupDirs(t *testing.T) (string, string) {
 	return stateRoot, resourcesRoot
 }
 
-func setupBundles(t *testing.T, resourcesRoot string, resourcesMap map[string]resource.Resources) {
+func SetupBundles(t *testing.T, resourcesRoot string, resourcesMap map[string]resource.Resources) {
 	for name, resources := range resourcesMap {
 		bundleBytes, err := yaml.Marshal(resources)
 		if err != nil {
@@ -45,30 +44,25 @@ func setupBundles(t *testing.T, resourcesRoot string, resourcesMap map[string]re
 	}
 }
 
-type Cmd struct {
+type TestCmd struct {
 	Args             []string
 	ExpectedCode     int
 	ExpectedInOutput string
 	ExpectedInStdout string
 }
 
-func (c Cmd) String() string {
+func (c TestCmd) String() string {
 	return strings.Join(c.Args, " ")
 }
 
-func removeANSIEscapeSequences(input string) string {
-	ansiEscapeRegex := regexp.MustCompile(`\x1b\[[0-?]*[ -/]*[@-~]`)
-	return ansiEscapeRegex.ReplaceAllString(input, "")
-}
-
-func runCommand(t *testing.T, cmd Cmd) {
+func (c *TestCmd) Run(t *testing.T) {
 	var outputBuffer bytes.Buffer
 
 	// log output function
 	cmdOutputLogged := false
 	logCmdOutput := func() {
 		if !cmdOutputLogged && (!testing.Verbose() && t.Failed()) {
-			t.Logf("%s\n%s", cmd, outputBuffer.String())
+			t.Logf("%s\n%s", c, outputBuffer.String())
 		}
 		cmdOutputLogged = true
 	}
@@ -76,42 +70,42 @@ func runCommand(t *testing.T, cmd Cmd) {
 	type expectedExit struct{}
 
 	// Exit mock
-	cli.ExitFunc = func(code int) {
-		if cmd.ExpectedCode != code {
+	ExitFunc = func(code int) {
+		if c.ExpectedCode != code {
 			logCmdOutput()
-			t.Fatalf("expected exit code %d: got %d", cmd.ExpectedCode, code)
+			t.Fatalf("expected exit code %d: got %d", c.ExpectedCode, code)
 		}
 		panic(expectedExit{})
 	}
 	defer func() {
 		switch p := recover(); p {
 		case nil:
-			if cmd.ExpectedCode != 0 {
+			if c.ExpectedCode != 0 {
 				logCmdOutput()
-				t.Fatalf("expected exit code %d: got %d", cmd.ExpectedCode, 0)
+				t.Fatalf("expected exit code %d: got %d", c.ExpectedCode, 0)
 			}
 		case expectedExit{}:
 		default:
 			logCmdOutput()
 			panic(p)
 		}
-		if cmd.ExpectedInOutput != "" {
-			if !strings.Contains(removeANSIEscapeSequences(outputBuffer.String()), cmd.ExpectedInOutput) {
+		if c.ExpectedInOutput != "" {
+			if !strings.Contains(removeANSIEscapeSequences(outputBuffer.String()), c.ExpectedInOutput) {
 				logCmdOutput()
-				t.Fatalf("output does not contain %#v", cmd.ExpectedInOutput)
+				t.Fatalf("output does not contain %#v", c.ExpectedInOutput)
 			}
 		}
 	}()
 
-	command := cli.Cmd
+	command := RootCmd
 
-	command.SetArgs(cmd.Args)
+	command.SetArgs(c.Args)
 
 	// Capture output
 	var output io.Writer
 	if testing.Verbose() {
 		output = io.MultiWriter(&outputBuffer, os.Stdout)
-		t.Logf("%s", cmd)
+		t.Logf("%s", c)
 	} else {
 		output = &outputBuffer
 	}
@@ -135,18 +129,23 @@ func runCommand(t *testing.T, cmd Cmd) {
 		os.Stdout = originalStdout
 		stdoutWrite.Close()
 		stdoutStr := <-stdoutCh
-		if cmd.ExpectedInStdout != "" {
-			if !strings.Contains(removeANSIEscapeSequences(stdoutStr), cmd.ExpectedInStdout) {
+		if c.ExpectedInStdout != "" {
+			if !strings.Contains(removeANSIEscapeSequences(stdoutStr), c.ExpectedInStdout) {
 				logCmdOutput()
 				t.Logf("stdout:\n%s", stdoutStr)
-				t.Fatalf("stdout does not contain %#v", cmd.ExpectedInStdout)
+				t.Fatalf("stdout does not contain %#v", c.ExpectedInStdout)
 			}
 		}
 	}()
 
-	cli.Reset()
+	Reset()
 
 	if err := command.Execute(); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func removeANSIEscapeSequences(input string) string {
+	ansiEscapeRegex := regexp.MustCompile(`\x1b\[[0-?]*[ -/]*[@-~]`)
+	return ansiEscapeRegex.ReplaceAllString(input, "")
 }

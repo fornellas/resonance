@@ -1,15 +1,14 @@
-package version
+package main
 
 import (
 	"fmt"
 
 	"github.com/spf13/cobra"
 
-	"github.com/fornellas/resonance/cli/lib"
 	"github.com/fornellas/resonance/version"
 )
 
-var Cmd = &cobra.Command{
+var VersionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Prints the program version.",
 	Args:  cobra.ExactArgs(0),
@@ -18,11 +17,9 @@ var Cmd = &cobra.Command{
 	},
 }
 
-func Reset() {
-
-}
-
 func init() {
-	lib.AddHostFlags(Cmd)
-	lib.AddPersistantStateFlags(Cmd)
+	AddHostFlags(VersionCmd)
+	AddPersistantStateFlags(VersionCmd)
+	resetFuncs = append(resetFuncs, func() {
+	})
 }

@@ -1,4 +1,4 @@
-package lib
+package main
 
 import (
 	"context"
@@ -11,11 +11,6 @@ import (
 
 var localhost bool
 var defaultLocalhost = false
-
-func Reset() {
-	localhost = defaultLocalhost
-	resetCommon()
-}
 
 func GetHost(ctx context.Context) (host.Host, error) {
 	var hst host.Host
@@ -47,4 +42,10 @@ func AddHostFlags(cmd *cobra.Command) {
 	)
 
 	addHostFlagsCommon(cmd)
+}
+
+func init() {
+	resetFuncs = append(resetFuncs, func() {
+		localhost = defaultLocalhost
+	})
 }
