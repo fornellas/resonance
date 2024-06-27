@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fornellas/resonance/version"
+	"github.com/fornellas/resonance/internal/version"
 )
 
 var VersionCmd = &cobra.Command{

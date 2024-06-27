@@ -20,10 +20,10 @@ import (
 	"golang.org/x/net/http2/h2c"
 	"gopkg.in/yaml.v3"
 
-	"github.com/fornellas/resonance/host/agent/api"
-	aNet "github.com/fornellas/resonance/host/agent/net"
-	"github.com/fornellas/resonance/host/local"
-	"github.com/fornellas/resonance/host/types"
+	"github.com/fornellas/resonance/host"
+	"github.com/fornellas/resonance/internal/host/agent/api"
+	aNet "github.com/fornellas/resonance/internal/host/agent/net"
+	"github.com/fornellas/resonance/internal/host/local"
 )
 
 func internalServerError(w http.ResponseWriter, err error) {
@@ -116,7 +116,7 @@ func GetFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 				return
 			}
 			stat_t := fileInfo.Sys().(*syscall.Stat_t)
-			hfi := types.HostFileInfo{
+			hfi := host.HostFileInfo{
 				Name:    filepath.Base(name),
 				Size:    fileInfo.Size(),
 				Mode:    fileInfo.Mode(),
@@ -257,7 +257,7 @@ func PostRunFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 			stderrBuff = bytes.NewBuffer(stderr)
 		}
 
-		cmd := types.Cmd{
+		cmd := host.Cmd{
 			Path:   apiCmd.Path,
 			Args:   apiCmd.Args,
 			Env:    apiCmd.Env,

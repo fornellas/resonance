@@ -19,7 +19,7 @@ import (
 	"golang.org/x/crypto/ssh/knownhosts"
 	"golang.org/x/term"
 
-	"github.com/fornellas/resonance/host/types"
+	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -31,13 +31,13 @@ type Ssh struct {
 	envPath  string
 }
 
-func (s Ssh) runEnv(ctx context.Context, cmd types.Cmd, ignoreCmdEnv bool) (types.WaitStatus, error) {
+func (s Ssh) runEnv(ctx context.Context, cmd host.Cmd, ignoreCmdEnv bool) (host.WaitStatus, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Run %s", cmd)
 
 	session, err := s.client.NewSession()
 	if err != nil {
-		return types.WaitStatus{}, fmt.Errorf("failed to create session: %w", err)
+		return host.WaitStatus{}, fmt.Errorf("failed to create session: %w", err)
 	}
 	defer session.Close()
 
@@ -96,25 +96,25 @@ func (s Ssh) runEnv(ctx context.Context, cmd types.Cmd, ignoreCmdEnv bool) (type
 			exited = exitError.Signal() == ""
 			signal = exitError.Signal()
 		} else {
-			return types.WaitStatus{}, fmt.Errorf("failed to run %v: %w", cmd, err)
+			return host.WaitStatus{}, fmt.Errorf("failed to run %v: %w", cmd, err)
 		}
 	}
 
-	return types.WaitStatus{
+	return host.WaitStatus{
 		ExitCode: exitCode,
 		Exited:   exited,
 		Signal:   signal,
 	}, nil
 }
 
-func (s Ssh) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
+func (s Ssh) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	return s.runEnv(ctx, cmd, false)
 }
 
 func (s *Ssh) setEnvPath(ctx context.Context) error {
 	stdoutBuffer := bytes.Buffer{}
 	stderrBuffer := bytes.Buffer{}
-	cmd := types.Cmd{
+	cmd := host.Cmd{
 		Path:   "env",
 		Stdout: &stdoutBuffer,
 		Stderr: &stderrBuffer,

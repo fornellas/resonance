@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/fornellas/resonance/host/local"
-	"github.com/fornellas/resonance/host/types"
+	"github.com/fornellas/resonance/host"
+	"github.com/fornellas/resonance/internal/host/local"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -39,15 +39,15 @@ func (l Local) LookupGroup(ctx context.Context, name string) (*user.Group, error
 	return user.LookupGroup(name)
 }
 
-func (l Local) Lstat(ctx context.Context, name string) (types.HostFileInfo, error) {
+func (l Local) Lstat(ctx context.Context, name string) (host.HostFileInfo, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Lstat %s", name)
 	fileInfo, err := os.Lstat(name)
 	if err != nil {
-		return types.HostFileInfo{}, err
+		return host.HostFileInfo{}, err
 	}
 	stat_t := fileInfo.Sys().(*syscall.Stat_t)
-	return types.HostFileInfo{
+	return host.HostFileInfo{
 		Name:    filepath.Base(name),
 		Size:    fileInfo.Size(),
 		Mode:    fileInfo.Mode(),
@@ -76,7 +76,7 @@ func (l Local) Remove(ctx context.Context, name string) error {
 	return os.Remove(name)
 }
 
-func (l Local) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
+func (l Local) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Run %s", cmd)
 

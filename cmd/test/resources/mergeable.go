@@ -9,19 +9,19 @@ import (
 
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
-	"github.com/fornellas/resonance/resource"
+	"github.com/fornellas/resonance/resources"
 )
 
 type MergeableState struct {
 	Value string
 }
 
-func (ms MergeableState) ValidateAndUpdate(ctx context.Context, hst host.Host) (resource.State, error) {
+func (ms MergeableState) ValidateAndUpdate(ctx context.Context, hst host.Host) (resources.State, error) {
 	return ms, nil
 }
 
 type MergeableFuncValidateName struct {
-	Name        resource.Name
+	Name        resources.Name
 	ReturnError error
 }
 
@@ -30,8 +30,8 @@ func (mfvn MergeableFuncValidateName) String() string {
 }
 
 type MergeableFuncGetStates struct {
-	Names              resource.Names
-	ReturnNameStateMap map[resource.Name]resource.State
+	Names              resources.Names
+	ReturnNameStateMap map[resources.Name]resources.State
 	ReturnError        error
 }
 
@@ -40,7 +40,7 @@ func (mfgs MergeableFuncGetStates) String() string {
 }
 
 type MergeableFuncConfigureAll struct {
-	ActionNameStateMap map[resource.Action]map[resource.Name]resource.State
+	ActionNameStateMap map[resources.Action]map[resources.Name]resources.State
 	ReturnError        error
 }
 
@@ -49,7 +49,7 @@ func (mfca MergeableFuncConfigureAll) String() string {
 }
 
 type MergeableFuncDestroy struct {
-	Name        resource.Name
+	Name        resources.Name
 	ReturnError error
 }
 
@@ -101,7 +101,7 @@ func (m *Mergeable) getFuncCall() *MergeableFuncCall {
 	return &testFuncCall
 }
 
-func (m Mergeable) ValidateName(name resource.Name) error {
+func (m Mergeable) ValidateName(name resources.Name) error {
 	funcCall := m.getFuncCall()
 	if funcCall == nil {
 		MergeableT.Fatalf("no more calls expected, got ValidateName(%#v)", name)
@@ -120,8 +120,8 @@ func (m Mergeable) ValidateName(name resource.Name) error {
 
 func (m Mergeable) GetStates(
 	ctx context.Context, hst host.Host,
-	names resource.Names,
-) (map[resource.Name]resource.State, error) {
+	names resources.Names,
+) (map[resources.Name]resources.State, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Test.GetStates(%#v)", names)
 	funcCall := m.getFuncCall()
@@ -142,7 +142,7 @@ func (m Mergeable) GetStates(
 
 func (m Mergeable) ConfigureAll(
 	ctx context.Context, hst host.Host,
-	actionNameStateMap map[resource.Action]map[resource.Name]resource.State,
+	actionNameStateMap map[resources.Action]map[resources.Name]resources.State,
 ) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Test.ConfigureAll(%#v)", actionNameStateMap)
@@ -173,6 +173,6 @@ func SetupMergeableType(t *testing.T, individualFuncCalls []MergeableFuncCall) {
 }
 
 func init() {
-	resource.MergeableManageableResourcesTypeMap["Mergeable"] = Mergeable{}
-	resource.ManageableResourcesStateMap["Mergeable"] = MergeableState{}
+	resources.MergeableManageableResourcesTypeMap["Mergeable"] = Mergeable{}
+	resources.ManageableResourcesStateMap["Mergeable"] = MergeableState{}
 }

@@ -143,7 +143,7 @@ GCOV2LCOV := $(GO) run github.com/jandelgado/gcov2lcov
 RRB := $(GO) run github.com/fornellas/rrb
 RRB_DEBOUNCE ?= 500ms
 RRB_LOG_LEVEL ?= info
-RRB_IGNORE_PATTERN ?= '$(CACHE_PATH)/**/*,host/agent_*_*_gz.go'
+RRB_IGNORE_PATTERN ?= '$(CACHE_PATH)/**/*,internal/host/agent_*_*_gz.go'
 RRB_PATTERN ?= '**/*.{go},Makefile'
 RRB_EXTRA_CMD ?= true
 
@@ -351,12 +351,12 @@ help: build-help
 build-agent-%: go-generate
 	GOARCH=$* GOOS=linux $(GO) \
 		build \
-		-o host/agent/agent_linux_$* \
+		-o internal/host/agent/agent_linux_$* \
 		$(GO_BUILD_FLAGS_COMMON) \
 		$(call get_go_build_flags,linux_$*) \
-		./host/agent/
-	gzip < host/agent/agent_linux_$* > host/agent/agent_linux_$*.gz
-	cat << EOF > host/agent_linux_$*_gz.go
+		./internal/host/agent/
+	gzip < internal/host/agent/agent_linux_$* > internal/host/agent/agent_linux_$*.gz
+	cat << EOF > internal/host/agent_linux_$*_gz.go
 	package host
 	import _ "embed"
 	//go:embed agent/agent_linux_$*.gz
@@ -369,9 +369,9 @@ build-agent: $(foreach GOARCH,$(GOARCHS_AGENT),build-agent-$(GOARCH))
 
 .PHONY: clean-agent-%
 clean-agent-%:
-	rm -f host/agent/agent_linux_$*
-	rm -f host/agent/agent_linux_$*.gz
-	rm -rf host/agent_linux_$*_gz.go
+	rm -f internal/host/agent/agent_linux_$*
+	rm -f internal/host/agent/agent_linux_$*.gz
+	rm -rf internal/host/agent_linux_$*_gz.go
 clean-agent: $(foreach GOARCH,$(GOARCHS_AGENT),clean-agent-$(GOARCH))
 clean: clean-agent
 build: clean-agent
@@ -396,7 +396,7 @@ build: go go-generate build-agent
 .PHONY: clean-build
 clean-build:
 	$(GO) env &>/dev/null && $(GO) clean -r -cache -modcache
-	rm -f version/.version
+	rm -f internal/version/.version
 	rm -f resonance.*.*
 clean: clean-build
 

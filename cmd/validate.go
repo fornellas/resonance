@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/fornellas/resonance/internal/resource"
 	"github.com/fornellas/resonance/log"
-	"github.com/fornellas/resonance/resource"
 )
 
 var ValidateCmd = &cobra.Command{

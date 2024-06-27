@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	_ "github.com/fornellas/resonance/resource/types"
+	_ "github.com/fornellas/resonance/resources"
 )
 
 func main() {

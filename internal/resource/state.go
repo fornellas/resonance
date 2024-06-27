@@ -1,11 +1,5 @@
 package resource
 
-import (
-	"context"
-
-	"github.com/fornellas/resonance/host"
-)
-
 // import (
 // 	"context"
 // 	"fmt"
@@ -16,16 +10,8 @@ import (
 
 // 	"github.com/fornellas/resonance/host"
 // 	"github.com/fornellas/resonance/log"
-// 	"github.com/fornellas/resonance/version"
+// 	"github.com/fornellas/resonance/internal/version"
 // )
-
-// State is a Type specific interface for defining resource state as configured by users.
-// If nil, it means the resource is not configured (eg: file does not exist, package not installed).
-type State interface {
-	// ValidateAndUpdate validates and updates the state with any required information from the host.
-	// Eg: transform username into UID.
-	ValidateAndUpdate(ctx context.Context, hst host.Host) (State, error)
-}
 
 // // HostState holds the state for a host
 // type HostState struct {

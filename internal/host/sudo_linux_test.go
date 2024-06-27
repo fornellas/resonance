@@ -8,21 +8,21 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/fornellas/resonance/host/types"
+	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
 )
 
 type localRunSudoOnly struct {
 	baseRunOnly
 	T    *testing.T
-	Host Host
+	Host host.Host
 }
 
-func (lrso localRunSudoOnly) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
+func (lrso localRunSudoOnly) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	if cmd.Path != "sudo" {
 		err := fmt.Errorf("attempted to run non-sudo command: %s", cmd.Path)
 		lrso.T.Fatal(err)
-		return types.WaitStatus{}, err
+		return host.WaitStatus{}, err
 	}
 	var cmdIdx int
 	for i, arg := range cmd.Args {
@@ -34,20 +34,20 @@ func (lrso localRunSudoOnly) Run(ctx context.Context, cmd types.Cmd) (types.Wait
 	if cmdIdx == 0 {
 		err := fmt.Errorf("missing expected sudo argument '--': %s", cmd.Args)
 		lrso.T.Fatal(err)
-		return types.WaitStatus{}, err
+		return host.WaitStatus{}, err
 	}
 	cmd.Path = cmd.Args[cmdIdx]
 	cmd.Args = cmd.Args[cmdIdx+1:]
 	return lrso.Host.Run(ctx, cmd)
 }
 
-func newLocalRunSudoOnly(t *testing.T, host Host) localRunSudoOnly {
+func newLocalRunSudoOnly(t *testing.T, hst host.Host) localRunSudoOnly {
 	run := localRunSudoOnly{
 		T:    t,
-		Host: host,
+		Host: hst,
 	}
 	run.baseRunOnly.T = t
-	run.baseRunOnly.Host = host
+	run.baseRunOnly.Host = hst
 	return run
 }
 

@@ -9,19 +9,19 @@ import (
 
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
-	"github.com/fornellas/resonance/resource"
+	"github.com/fornellas/resonance/resources"
 )
 
 type IndividualState struct {
 	Value string
 }
 
-func (is IndividualState) ValidateAndUpdate(ctx context.Context, hst host.Host) (resource.State, error) {
+func (is IndividualState) ValidateAndUpdate(ctx context.Context, hst host.Host) (resources.State, error) {
 	return is, nil
 }
 
 type IndividualFuncValidateName struct {
-	Name        resource.Name
+	Name        resources.Name
 	ReturnError error
 }
 
@@ -30,8 +30,8 @@ func (ifvn IndividualFuncValidateName) String() string {
 }
 
 type IndividualFuncGetState struct {
-	Name        resource.Name
-	ReturnState resource.State
+	Name        resources.Name
+	ReturnState resources.State
 	ReturnError error
 }
 
@@ -40,8 +40,8 @@ func (ifgs IndividualFuncGetState) String() string {
 }
 
 type IndividualFuncConfigure struct {
-	Name        resource.Name
-	State       resource.State
+	Name        resources.Name
+	State       resources.State
 	ReturnError error
 }
 
@@ -93,7 +93,7 @@ func (i *Individual) getFuncCall() *IndividualFuncCall {
 	return &testFuncCall
 }
 
-func (i Individual) ValidateName(name resource.Name) error {
+func (i Individual) ValidateName(name resources.Name) error {
 	funcCall := i.getFuncCall()
 	if funcCall == nil {
 		IndividualT.Fatalf("no more calls expected, got ValidateName(%#v)", name)
@@ -110,7 +110,7 @@ func (i Individual) ValidateName(name resource.Name) error {
 	return funcCall.ValidateName.ReturnError
 }
 
-func (i Individual) GetState(ctx context.Context, hst host.Host, name resource.Name) (resource.State, error) {
+func (i Individual) GetState(ctx context.Context, hst host.Host, name resources.Name) (resources.State, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Test.GetState(%#v)", name)
 	funcCall := i.getFuncCall()
@@ -130,7 +130,7 @@ func (i Individual) GetState(ctx context.Context, hst host.Host, name resource.N
 }
 
 func (i Individual) Configure(
-	ctx context.Context, hst host.Host, name resource.Name, state resource.State,
+	ctx context.Context, hst host.Host, name resources.Name, state resources.State,
 ) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Test.Configure(%#v, %#v)", name, state)
@@ -161,6 +161,6 @@ func SetupIndividualTypeMock(t *testing.T, individualFuncCalls []IndividualFuncC
 }
 
 func init() {
-	resource.IndividuallyManageableResourceTypeMap["Individual"] = Individual{}
-	resource.ManageableResourcesStateMap["Individual"] = IndividualState{}
+	resources.IndividuallyManageableResourceTypeMap["Individual"] = Individual{}
+	resources.ManageableResourcesStateMap["Individual"] = IndividualState{}
 }

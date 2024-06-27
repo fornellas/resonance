@@ -1,4 +1,4 @@
-package resource
+package resources
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
-	"github.com/fornellas/resonance/resource"
 )
 
 // FileState for File
@@ -28,7 +27,7 @@ type FileState struct {
 	Group string `yaml:"group"`
 }
 
-func (fs FileState) ValidateAndUpdate(ctx context.Context, hst host.Host) (resource.State, error) {
+func (fs FileState) ValidateAndUpdate(ctx context.Context, hst host.Host) (State, error) {
 	// Validate
 	if fs.Perm == os.FileMode(0) {
 		return nil, fmt.Errorf("missing 'perm'")
@@ -72,7 +71,7 @@ func (fs FileState) ValidateAndUpdate(ctx context.Context, hst host.Host) (resou
 // File resource manages files.
 type File struct{}
 
-func (f File) ValidateName(name resource.Name) error {
+func (f File) ValidateName(name Name) error {
 	path := string(name)
 	if !filepath.IsAbs(path) {
 		return fmt.Errorf("path must be absolute: %s", path)
@@ -80,7 +79,7 @@ func (f File) ValidateName(name resource.Name) error {
 	return nil
 }
 
-func (f File) GetState(ctx context.Context, hst host.Host, name resource.Name) (resource.State, error) {
+func (f File) GetState(ctx context.Context, hst host.Host, name Name) (State, error) {
 	logger := log.GetLogger(ctx)
 
 	path := string(name)
@@ -117,7 +116,7 @@ func (f File) GetState(ctx context.Context, hst host.Host, name resource.Name) (
 }
 
 func (f File) Configure(
-	ctx context.Context, hst host.Host, name resource.Name, state resource.State,
+	ctx context.Context, hst host.Host, name Name, state State,
 ) error {
 	path := string(name)
 
@@ -159,6 +158,6 @@ func (f File) Configure(
 }
 
 func init() {
-	resource.IndividuallyManageableResourceTypeMap["File"] = File{}
-	resource.ManageableResourcesStateMap["File"] = FileState{}
+	IndividuallyManageableResourceTypeMap["File"] = File{}
+	ManageableResourcesStateMap["File"] = FileState{}
 }

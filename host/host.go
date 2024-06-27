@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"os"
 	"os/user"
-
-	"github.com/fornellas/resonance/host/types"
 )
 
-// Host defines an interface for interacting with a host.
+// Host defines an interface for interacting with a host
 type Host interface {
 	// Chmod works similar to os.Chmod.
 	Chmod(ctx context.Context, name string, mode os.FileMode) error
@@ -37,7 +35,7 @@ type Host interface {
 
 	// Lstat works similar to os.Lstat, but returns HostFileInfo with some
 	// extra methods.
-	Lstat(ctx context.Context, name string) (types.HostFileInfo, error)
+	Lstat(ctx context.Context, name string) (HostFileInfo, error)
 
 	// Mkdir works similar to os.Mkdir.
 	Mkdir(ctx context.Context, name string, perm os.FileMode) error
@@ -52,7 +50,7 @@ type Host interface {
 	Remove(ctx context.Context, name string) error
 
 	// Run starts the specified command and waits for it to complete.
-	Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error)
+	Run(ctx context.Context, cmd Cmd) (WaitStatus, error)
 
 	// // Symlink works similar to os.Symlink.
 	// Symlink(ctx context.Context, oldname, newname string) error
@@ -69,7 +67,7 @@ type Host interface {
 
 // Run starts the specified command and waits for it to complete.
 // Returns WaitStatus, stdout and stderr.
-func Run(ctx context.Context, hst Host, cmd types.Cmd) (types.WaitStatus, string, string, error) {
+func Run(ctx context.Context, hst Host, cmd Cmd) (WaitStatus, string, string, error) {
 	if cmd.Stdout != nil {
 		panic(fmt.Errorf("can not set Cmd.Stdout: %s", cmd))
 	}

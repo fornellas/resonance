@@ -10,7 +10,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/fornellas/resonance/resource"
+	"github.com/fornellas/resonance/internal/resource"
 )
 
 func SetupBundles(t *testing.T, resourcesRoot string, resourcesMap map[string]resource.Resources) {

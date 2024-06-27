@@ -16,12 +16,12 @@ import (
 
 	"github.com/alessio/shellescape"
 
-	"github.com/fornellas/resonance/host/types"
+	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
 )
 
 type baseRun struct {
-	Host Host
+	Host host.Host
 }
 
 func (br baseRun) Chmod(ctx context.Context, name string, mode os.FileMode) error {
@@ -29,11 +29,11 @@ func (br baseRun) Chmod(ctx context.Context, name string, mode os.FileMode) erro
 	logger.Debugf("Chmod %v %s", mode, name)
 	nestedCtx := log.IndentLogger(ctx)
 
-	cmd := types.Cmd{
+	cmd := host.Cmd{
 		Path: "chmod",
 		Args: []string{fmt.Sprintf("%o", mode), name},
 	}
-	waitStatus, stdout, stderr, err := Run(nestedCtx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(nestedCtx, br.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -60,11 +60,11 @@ func (br baseRun) Chown(ctx context.Context, name string, uid, gid int) error {
 	logger.Debugf("Chown %v %v %s", uid, gid, name)
 	nestedCtx := log.IndentLogger(ctx)
 
-	cmd := types.Cmd{
+	cmd := host.Cmd{
 		Path: "chown",
 		Args: []string{fmt.Sprintf("%d.%d", uid, gid), name},
 	}
-	waitStatus, stdout, stderr, err := Run(nestedCtx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(nestedCtx, br.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -91,11 +91,11 @@ func (br baseRun) Lookup(ctx context.Context, username string) (*user.User, erro
 	logger.Debugf("Lookup %s", username)
 	nestedCtx := log.IndentLogger(ctx)
 
-	cmd := types.Cmd{
+	cmd := host.Cmd{
 		Path: "cat",
 		Args: []string{"/etc/passwd"},
 	}
-	waitStatus, stdout, stderr, err := Run(nestedCtx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(nestedCtx, br.Host, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -139,11 +139,11 @@ func (br baseRun) LookupGroup(ctx context.Context, name string) (*user.Group, er
 	logger.Debugf("LookupGroup %s", name)
 	nestedCtx := log.IndentLogger(ctx)
 
-	cmd := types.Cmd{
+	cmd := host.Cmd{
 		Path: "cat",
 		Args: []string{"/etc/group"},
 	}
-	waitStatus, stdout, stderr, err := Run(nestedCtx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(nestedCtx, br.Host, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -177,11 +177,11 @@ func (br baseRun) LookupGroup(ctx context.Context, name string) (*user.Group, er
 }
 
 func (br baseRun) stat(ctx context.Context, name string) (string, error) {
-	cmd := types.Cmd{
+	cmd := host.Cmd{
 		Path: "stat",
 		Args: []string{"--format=%d,%i,%h,%f,%u,%g,%t,%T,%s,%o,%b,%x,%y,%z", name},
 	}
-	waitStatus, stdout, stderr, err := Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
 	if err != nil {
 		return "", err
 	}
@@ -200,84 +200,84 @@ func (br baseRun) stat(ctx context.Context, name string) (string, error) {
 	return stdout, nil
 }
 
-func (br baseRun) Lstat(ctx context.Context, name string) (types.HostFileInfo, error) {
+func (br baseRun) Lstat(ctx context.Context, name string) (host.HostFileInfo, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Lstat %s", name)
 	nestedCtx := log.IndentLogger(ctx)
 
 	stdout, err := br.stat(nestedCtx, name)
 	if err != nil {
-		return types.HostFileInfo{}, err
+		return host.HostFileInfo{}, err
 	}
 
 	tokens := strings.Split(strings.TrimRight(stdout, "\n"), ",")
 	if len(tokens) != 14 {
-		return types.HostFileInfo{}, fmt.Errorf("unable to parse stat output: %s", tokens)
+		return host.HostFileInfo{}, fmt.Errorf("unable to parse stat output: %s", tokens)
 	}
 
 	// dev, err := strconv.ParseUint(tokens[0], 10, 64)
 	// if err != nil {
-	// 	return types.HostFileInfo{}, fmt.Errorf("unable to parse dev: %s", tokens[0])
+	// 	return host.HostFileInfo{}, fmt.Errorf("unable to parse dev: %s", tokens[0])
 	// }
 
 	// ino, err := strconv.ParseUint(tokens[1], 10, 64)
 	// if err != nil {
-	// 	return types.HostFileInfo{}, fmt.Errorf("unable to parse ino: %s", tokens[1])
+	// 	return host.HostFileInfo{}, fmt.Errorf("unable to parse ino: %s", tokens[1])
 	// }
 
 	// nlink, err := strconv.ParseUint(tokens[2], 10, 64)
 	// if err != nil {
-	// 	return types.HostFileInfo{}, fmt.Errorf("unable to parse nlink: %s", tokens[2])
+	// 	return host.HostFileInfo{}, fmt.Errorf("unable to parse nlink: %s", tokens[2])
 	// }
 
 	statMode, err := strconv.ParseUint(tokens[3], 16, 32)
 	if err != nil {
-		return types.HostFileInfo{}, fmt.Errorf("unable to parse mode: %s", tokens[3])
+		return host.HostFileInfo{}, fmt.Errorf("unable to parse mode: %s", tokens[3])
 	}
 	mode := fs.FileMode(uint32(statMode) & (uint32(fs.ModeType) | uint32(fs.ModePerm)))
 
 	uid, err := strconv.ParseUint(tokens[4], 10, 32)
 	if err != nil {
-		return types.HostFileInfo{}, fmt.Errorf("unable to parse uid: %s", tokens[4])
+		return host.HostFileInfo{}, fmt.Errorf("unable to parse uid: %s", tokens[4])
 	}
 
 	gid, err := strconv.ParseUint(tokens[5], 10, 32)
 	if err != nil {
-		return types.HostFileInfo{}, fmt.Errorf("unable to parse gid: %s", tokens[5])
+		return host.HostFileInfo{}, fmt.Errorf("unable to parse gid: %s", tokens[5])
 	}
 
 	// fileInfo.stat_t.Rdev = column[7] // uint64
 
 	size, err := strconv.ParseInt(tokens[8], 10, 64)
 	if err != nil {
-		return types.HostFileInfo{}, fmt.Errorf("unable to parse Size: %s", tokens[8])
+		return host.HostFileInfo{}, fmt.Errorf("unable to parse Size: %s", tokens[8])
 	}
 
 	// blksize, err := strconv.ParseInt(tokens[9], 10, 64)
 	// if err != nil {
-	// 	return types.HostFileInfo{}, fmt.Errorf("unable to parse blksize: %s", tokens[9])
+	// 	return host.HostFileInfo{}, fmt.Errorf("unable to parse blksize: %s", tokens[9])
 	// }
 
 	// fileInfo.stat_t.Blocks = column[10] // int64
 
 	// atimTime, err := time.Parse("2006-01-02 15:04:05.999999999 -0700", tokens[11])
 	// if err != nil {
-	// 	return types.HostFileInfo{}, fmt.Errorf("unable to parse atim: %s: %w", tokens[11], err)
+	// 	return host.HostFileInfo{}, fmt.Errorf("unable to parse atim: %s: %w", tokens[11], err)
 	// }
 
 	modTime, err := time.Parse("2006-01-02 15:04:05.999999999 -0700", tokens[12])
 	if err != nil {
-		return types.HostFileInfo{}, fmt.Errorf("unable to parse modTime: %s: %w", tokens[12], err)
+		return host.HostFileInfo{}, fmt.Errorf("unable to parse modTime: %s: %w", tokens[12], err)
 	}
 
 	isDir := (uint32(statMode) & uint32(fs.ModeDir)) > 0
 
 	// ctimTime, err := time.Parse("2006-01-02 15:04:05.999999999 -0700", tokens[13])
 	// if err != nil {
-	// 	return types.HostFileInfo{}, fmt.Errorf("unable to parse ctim: %s: %w", tokens[13], err)
+	// 	return host.HostFileInfo{}, fmt.Errorf("unable to parse ctim: %s: %w", tokens[13], err)
 	// }
 
-	return types.HostFileInfo{
+	return host.HostFileInfo{
 		Name:    filepath.Base(name),
 		Size:    size,
 		Mode:    mode,
@@ -293,11 +293,11 @@ func (br baseRun) Mkdir(ctx context.Context, name string, perm os.FileMode) erro
 	logger.Debugf("Mkdir %s", name)
 	nestedCtx := log.IndentLogger(ctx)
 
-	cmd := types.Cmd{
+	cmd := host.Cmd{
 		Path: "mkdir",
 		Args: []string{name},
 	}
-	waitStatus, stdout, stderr, err := Run(nestedCtx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(nestedCtx, br.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -325,11 +325,11 @@ func (br baseRun) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	logger.Debugf("ReadFile %s", name)
 	nestedCtx := log.IndentLogger(ctx)
 
-	cmd := types.Cmd{
+	cmd := host.Cmd{
 		Path: "cat",
 		Args: []string{name},
 	}
-	waitStatus, stdout, stderr, err := Run(nestedCtx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(nestedCtx, br.Host, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -349,11 +349,11 @@ func (br baseRun) ReadFile(ctx context.Context, name string) ([]byte, error) {
 }
 
 func (br baseRun) rmdir(ctx context.Context, name string) error {
-	cmd := types.Cmd{
+	cmd := host.Cmd{
 		Path: "rmdir",
 		Args: []string{name},
 	}
-	waitStatus, stdout, stderr, err := Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -374,11 +374,11 @@ func (br baseRun) Remove(ctx context.Context, name string) error {
 	logger.Debugf("Remove %s", name)
 	nestedCtx := log.IndentLogger(ctx)
 
-	cmd := types.Cmd{
+	cmd := host.Cmd{
 		Path: "rm",
 		Args: []string{name},
 	}
-	waitStatus, stdout, stderr, err := Run(nestedCtx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(nestedCtx, br.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -409,12 +409,12 @@ func (br baseRun) WriteFile(ctx context.Context, name string, data []byte, perm 
 	if _, err := br.Lstat(nestedCtx, name); errors.Is(err, os.ErrNotExist) {
 		chmod = true
 	}
-	cmd := types.Cmd{
+	cmd := host.Cmd{
 		Path:  "sh",
 		Args:  []string{"-c", fmt.Sprintf("cat > %s", shellescape.Quote(name))},
 		Stdin: bytes.NewReader(data),
 	}
-	waitStatus, stdout, stderr, err := Run(nestedCtx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(nestedCtx, br.Host, cmd)
 	if err != nil {
 		return err
 	}

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/fornellas/resonance/cmd/test/resources"
-	"github.com/fornellas/resonance/resource"
+	"github.com/fornellas/resonance/internal/resource"
 )
 
 func TestValidate(t *testing.T) {

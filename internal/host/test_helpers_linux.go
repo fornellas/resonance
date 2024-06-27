@@ -15,7 +15,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/fornellas/resonance/host/types"
+	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -27,7 +27,7 @@ func skipIfRoot(t *testing.T) {
 	}
 }
 
-func testHost(t *testing.T, host Host) {
+func testHost(t *testing.T, hst host.Host) {
 	ctx := context.Background()
 	var outputBuffer bytes.Buffer
 	ctx = log.SetLoggerValue(ctx, &outputBuffer, "debug", func(code int) {
@@ -42,7 +42,7 @@ func testHost(t *testing.T, host Host) {
 		t.Run("Success", func(t *testing.T) {
 			outputBuffer.Reset()
 			fileMode := os.FileMode(0247)
-			err = host.Chmod(ctx, name, fileMode)
+			err = hst.Chmod(ctx, name, fileMode)
 			require.NoError(t, err)
 			fileInfo, err := os.Lstat(name)
 			require.NoError(t, err)
@@ -51,12 +51,12 @@ func testHost(t *testing.T, host Host) {
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()
 			skipIfRoot(t)
-			err = host.Chmod(ctx, "/tmp", 0)
+			err = hst.Chmod(ctx, "/tmp", 0)
 			require.ErrorIs(t, err, os.ErrPermission)
 		})
 		t.Run("ErrNotExist", func(t *testing.T) {
 			outputBuffer.Reset()
-			err = host.Chmod(ctx, "/non-existent", 0)
+			err = hst.Chmod(ctx, "/non-existent", 0)
 			require.ErrorIs(t, err, os.ErrNotExist)
 		})
 	})
@@ -71,18 +71,18 @@ func testHost(t *testing.T, host Host) {
 			fileInfo, err := os.Lstat(name)
 			require.NoError(t, err)
 			stat_t := fileInfo.Sys().(*syscall.Stat_t)
-			err = host.Chown(ctx, name, int(stat_t.Uid), int(stat_t.Gid))
+			err = hst.Chown(ctx, name, int(stat_t.Uid), int(stat_t.Gid))
 			require.NoError(t, err)
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()
 			skipIfRoot(t)
-			err = host.Chown(ctx, name, 0, 0)
+			err = hst.Chown(ctx, name, 0, 0)
 			require.ErrorIs(t, err, os.ErrPermission)
 		})
 		t.Run("ErrNotExist", func(t *testing.T) {
 			outputBuffer.Reset()
-			err = host.Chown(ctx, "/non-existent", 0, 0)
+			err = hst.Chown(ctx, "/non-existent", 0, 0)
 			require.ErrorIs(t, err, os.ErrNotExist)
 		})
 	})
@@ -90,7 +90,7 @@ func testHost(t *testing.T, host Host) {
 	t.Run("Lookup", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
 			outputBuffer.Reset()
-			u, err := host.Lookup(ctx, "root")
+			u, err := hst.Lookup(ctx, "root")
 			require.NoError(t, err)
 			require.Equal(t, "0", u.Uid)
 			require.Equal(t, "0", u.Gid)
@@ -98,7 +98,7 @@ func testHost(t *testing.T, host Host) {
 		})
 		t.Run("UnknownUserError", func(t *testing.T) {
 			outputBuffer.Reset()
-			_, err := host.Lookup(ctx, "foobar")
+			_, err := hst.Lookup(ctx, "foobar")
 			require.ErrorIs(t, err, user.UnknownUserError("foobar"))
 		})
 	})
@@ -106,14 +106,14 @@ func testHost(t *testing.T, host Host) {
 	t.Run("LookupGroup", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
 			outputBuffer.Reset()
-			g, err := host.LookupGroup(ctx, "root")
+			g, err := hst.LookupGroup(ctx, "root")
 			require.NoError(t, err)
 			require.Equal(t, "0", g.Gid)
 			require.Equal(t, "root", g.Name)
 		})
 		t.Run("UnknownGroupError", func(t *testing.T) {
 			outputBuffer.Reset()
-			_, err := host.LookupGroup(ctx, "foobar")
+			_, err := hst.LookupGroup(ctx, "foobar")
 			require.ErrorIs(t, err, user.UnknownGroupError("foobar"))
 		})
 	})
@@ -127,7 +127,7 @@ func testHost(t *testing.T, host Host) {
 			outputBuffer.Reset()
 			fileInfo, err := os.Lstat(name)
 			require.NoError(t, err)
-			hostFileInfo, err := host.Lstat(ctx, name)
+			hostFileInfo, err := hst.Lstat(ctx, name)
 			require.NoError(t, err)
 			require.Equal(t, fileInfo.Name(), hostFileInfo.Name)
 			require.Equal(t, fileInfo.Size(), hostFileInfo.Size)
@@ -140,12 +140,12 @@ func testHost(t *testing.T, host Host) {
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()
-			_, err := host.Lstat(ctx, "/etc/ssl/private/foo")
+			_, err := hst.Lstat(ctx, "/etc/ssl/private/foo")
 			require.ErrorIs(t, err, os.ErrPermission)
 		})
 		t.Run("ErrNotExist", func(t *testing.T) {
 			outputBuffer.Reset()
-			_, err := host.Lstat(ctx, "/non-existent")
+			_, err := hst.Lstat(ctx, "/non-existent")
 			require.ErrorIs(t, err, os.ErrNotExist)
 		})
 	})
@@ -155,7 +155,7 @@ func testHost(t *testing.T, host Host) {
 			outputBuffer.Reset()
 			name := filepath.Join(t.TempDir(), "foo")
 			fileMode := os.FileMode(0500)
-			err := host.Mkdir(ctx, name, fileMode)
+			err := hst.Mkdir(ctx, name, fileMode)
 			require.NoError(t, err)
 			fileInfo, err := os.Lstat(name)
 			require.NoError(t, err)
@@ -165,21 +165,21 @@ func testHost(t *testing.T, host Host) {
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()
 			skipIfRoot(t)
-			err := host.Mkdir(ctx, "/etc/foo", 0750)
+			err := hst.Mkdir(ctx, "/etc/foo", 0750)
 			require.ErrorIs(t, err, os.ErrPermission)
 		})
 		t.Run("ErrExist", func(t *testing.T) {
 			outputBuffer.Reset()
 			name := filepath.Join(t.TempDir(), "foo")
-			err := host.Mkdir(ctx, name, 0750)
+			err := hst.Mkdir(ctx, name, 0750)
 			require.NoError(t, err)
-			err = host.Mkdir(ctx, name, 0750)
+			err = hst.Mkdir(ctx, name, 0750)
 			require.ErrorIs(t, err, os.ErrExist)
 		})
 		t.Run("ErrNotExist", func(t *testing.T) {
 			outputBuffer.Reset()
 			name := filepath.Join(t.TempDir(), "foo", "bar")
-			err := host.Mkdir(ctx, name, 0750)
+			err := hst.Mkdir(ctx, name, 0750)
 			require.ErrorIs(t, err, os.ErrNotExist)
 		})
 	})
@@ -191,18 +191,18 @@ func testHost(t *testing.T, host Host) {
 			data := []byte("foo")
 			err := os.WriteFile(name, data, os.FileMode(0600))
 			require.NoError(t, err)
-			readData, err := host.ReadFile(ctx, name)
+			readData, err := hst.ReadFile(ctx, name)
 			require.NoError(t, err)
 			require.Equal(t, data, readData)
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()
-			_, err := host.ReadFile(ctx, "/etc/shadow")
+			_, err := hst.ReadFile(ctx, "/etc/shadow")
 			require.ErrorIs(t, err, os.ErrPermission)
 		})
 		t.Run("ErrNotExist", func(t *testing.T) {
 			outputBuffer.Reset()
-			_, err := host.ReadFile(ctx, "/non-existent")
+			_, err := hst.ReadFile(ctx, "/non-existent")
 			require.ErrorIs(t, err, os.ErrNotExist)
 		})
 	})
@@ -214,7 +214,7 @@ func testHost(t *testing.T, host Host) {
 			file, err := os.Create(name)
 			require.NoError(t, err)
 			file.Close()
-			err = host.Remove(ctx, name)
+			err = hst.Remove(ctx, name)
 			require.NoError(t, err)
 			_, err = os.Lstat(name)
 			require.ErrorIs(t, err, os.ErrNotExist)
@@ -224,7 +224,7 @@ func testHost(t *testing.T, host Host) {
 			name := filepath.Join(t.TempDir(), "foo")
 			err := os.Mkdir(name, 0700)
 			require.NoError(t, err)
-			err = host.Remove(ctx, name)
+			err = hst.Remove(ctx, name)
 			require.NoError(t, err)
 			_, err = os.Lstat(name)
 			require.ErrorIs(t, err, os.ErrNotExist)
@@ -232,18 +232,18 @@ func testHost(t *testing.T, host Host) {
 		t.Run("ErrPermission file", func(t *testing.T) {
 			outputBuffer.Reset()
 			skipIfRoot(t)
-			err := host.Remove(ctx, "/bin/ls")
+			err := hst.Remove(ctx, "/bin/ls")
 			require.ErrorIs(t, err, os.ErrPermission)
 		})
 		t.Run("ErrPermission dir", func(t *testing.T) {
 			outputBuffer.Reset()
 			skipIfRoot(t)
-			err := host.Remove(ctx, "/bin")
+			err := hst.Remove(ctx, "/bin")
 			require.ErrorIs(t, err, os.ErrPermission)
 		})
 		t.Run("ErrNotExist", func(t *testing.T) {
 			outputBuffer.Reset()
-			err := host.Remove(ctx, "/non-existent")
+			err := hst.Remove(ctx, "/non-existent")
 			require.ErrorIs(t, err, os.ErrNotExist)
 		})
 	})
@@ -251,7 +251,7 @@ func testHost(t *testing.T, host Host) {
 	t.Run("Run", func(t *testing.T) {
 		t.Run("Args, output and failure", func(t *testing.T) {
 			outputBuffer.Reset()
-			waitStatus, stdout, stderr, err := Run(ctx, host, types.Cmd{
+			waitStatus, stdout, stderr, err := host.Run(ctx, hst, host.Cmd{
 				Path: "ls",
 				Args: []string{"-d", "../tmp", "/non-existent"},
 			})
@@ -272,7 +272,7 @@ func testHost(t *testing.T, host Host) {
 		t.Run("Env", func(t *testing.T) {
 			t.Run("Empty", func(t *testing.T) {
 				outputBuffer.Reset()
-				waitStatus, stdout, stderr, err := Run(ctx, host, types.Cmd{
+				waitStatus, stdout, stderr, err := host.Run(ctx, hst, host.Cmd{
 					Path: "env",
 				})
 				t.Cleanup(func() {
@@ -313,7 +313,7 @@ func testHost(t *testing.T, host Host) {
 			t.Run("Set", func(t *testing.T) {
 				outputBuffer.Reset()
 				env := "FOO=bar"
-				waitStatus, stdout, stderr, err := Run(ctx, host, types.Cmd{
+				waitStatus, stdout, stderr, err := host.Run(ctx, hst, host.Cmd{
 					Path: "env",
 					Env:  []string{env},
 				})
@@ -335,7 +335,7 @@ func testHost(t *testing.T, host Host) {
 		t.Run("Dir", func(t *testing.T) {
 			outputBuffer.Reset()
 			dir := t.TempDir()
-			waitStatus, stdout, stderr, err := Run(ctx, host, types.Cmd{
+			waitStatus, stdout, stderr, err := host.Run(ctx, hst, host.Cmd{
 				Path: "pwd",
 				Dir:  dir,
 			})
@@ -356,7 +356,7 @@ func testHost(t *testing.T, host Host) {
 		t.Run("Stdin", func(t *testing.T) {
 			outputBuffer.Reset()
 			stdin := "hello"
-			waitStatus, stdout, stderr, err := Run(ctx, host, types.Cmd{
+			waitStatus, stdout, stderr, err := host.Run(ctx, hst, host.Cmd{
 				Path:  "sh",
 				Args:  []string{"-c", "read v && echo =$v="},
 				Stdin: strings.NewReader(fmt.Sprintf("%s\n", stdin)),
@@ -383,7 +383,7 @@ func testHost(t *testing.T, host Host) {
 			name := filepath.Join(t.TempDir(), "foo")
 			data := []byte("foo")
 			fileMode := os.FileMode(0600)
-			err := host.WriteFile(ctx, name, data, fileMode)
+			err := hst.WriteFile(ctx, name, data, fileMode)
 			require.NoError(t, err)
 			readData, err := os.ReadFile(name)
 			require.NoError(t, err)
@@ -396,18 +396,18 @@ func testHost(t *testing.T, host Host) {
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()
 			skipIfRoot(t)
-			err := host.WriteFile(ctx, "/etc/foo", []byte{}, 0600)
+			err := hst.WriteFile(ctx, "/etc/foo", []byte{}, 0600)
 			require.ErrorIs(t, err, os.ErrPermission)
 		})
 		t.Run("ovewrite file", func(t *testing.T) {
 			outputBuffer.Reset()
 			name := filepath.Join(t.TempDir(), "foo")
 			fileMode := os.FileMode(0600)
-			err := host.WriteFile(ctx, name, []byte{}, fileMode)
+			err := hst.WriteFile(ctx, name, []byte{}, fileMode)
 			require.NoError(t, err)
 			data := []byte("foo")
 			newFileMode := os.FileMode(0640)
-			err = host.WriteFile(ctx, name, data, newFileMode)
+			err = hst.WriteFile(ctx, name, data, newFileMode)
 			require.NoError(t, err)
 			readData, err := os.ReadFile(name)
 			require.NoError(t, err)
@@ -422,13 +422,13 @@ func testHost(t *testing.T, host Host) {
 			name := filepath.Join(t.TempDir(), "foo")
 			err := os.Mkdir(name, os.FileMode(0700))
 			require.NoError(t, err)
-			err = host.WriteFile(ctx, name, []byte{}, os.FileMode(0640))
+			err = hst.WriteFile(ctx, name, []byte{}, os.FileMode(0640))
 			require.Error(t, err)
 		})
 		t.Run("ErrNotExist", func(t *testing.T) {
 			outputBuffer.Reset()
 			name := filepath.Join(t.TempDir(), "foo", "bar")
-			err := host.WriteFile(ctx, name, []byte{}, 0600)
+			err := hst.WriteFile(ctx, name, []byte{}, 0600)
 			require.ErrorIs(t, err, os.ErrNotExist)
 		})
 	})

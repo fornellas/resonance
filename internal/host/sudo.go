@@ -15,7 +15,7 @@ import (
 	"github.com/alessio/shellescape"
 	"golang.org/x/term"
 
-	"github.com/fornellas/resonance/host/types"
+	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -23,7 +23,7 @@ import (
 // preceding all commands with sudo.
 type Sudo struct {
 	baseRun
-	Host     Host
+	Host     host.Host
 	Password *string
 	envPath  string
 }
@@ -134,7 +134,7 @@ func getRandomString() string {
 	return hex.EncodeToString(hash[:])
 }
 
-func (s *Sudo) runEnv(ctx context.Context, cmd types.Cmd, ignoreCmdEnv bool) (types.WaitStatus, error) {
+func (s *Sudo) runEnv(ctx context.Context, cmd host.Cmd, ignoreCmdEnv bool) (host.WaitStatus, error) {
 	prompt := fmt.Sprintf("sudo password (%s)", getRandomString())
 	sudoOk := fmt.Sprintf("sudo ok (%s)", getRandomString())
 
@@ -215,7 +215,7 @@ func (s *Sudo) runEnv(ctx context.Context, cmd types.Cmd, ignoreCmdEnv bool) (ty
 	return s.Host.Run(ctx, cmd)
 }
 
-func (s *Sudo) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
+func (s *Sudo) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	return s.runEnv(ctx, cmd, false)
 }
 
@@ -230,7 +230,7 @@ func (s Sudo) Close() error {
 func (s *Sudo) setEnvPath(ctx context.Context) error {
 	stdoutBuffer := bytes.Buffer{}
 	stderrBuffer := bytes.Buffer{}
-	cmd := types.Cmd{
+	cmd := host.Cmd{
 		Path:   "env",
 		Stdout: &stdoutBuffer,
 		Stderr: &stderrBuffer,
@@ -254,17 +254,17 @@ func (s *Sudo) setEnvPath(ctx context.Context) error {
 	return nil
 }
 
-func NewSudo(ctx context.Context, host Host) (*Sudo, error) {
+func NewSudo(ctx context.Context, hst host.Host) (*Sudo, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("⚡ Sudo")
 	nestedCtx := log.IndentLogger(ctx)
 
 	sudoHost := Sudo{
-		Host: host,
+		Host: hst,
 	}
 	sudoHost.baseRun.Host = &sudoHost
 
-	cmd := types.Cmd{
+	cmd := host.Cmd{
 		Path: "true",
 	}
 	waitStatus, err := sudoHost.Run(nestedCtx, cmd)

@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/fornellas/resonance/host"
+	ihost "github.com/fornellas/resonance/internal/host"
 )
 
 func GetHost(ctx context.Context) (host.Host, error) {
@@ -14,12 +15,12 @@ func GetHost(ctx context.Context) (host.Host, error) {
 	var err error
 
 	if ssh != "" {
-		hst, err = host.NewSshAuthority(ctx, ssh)
+		hst, err = ihost.NewSshAuthority(ctx, ssh)
 		if err != nil {
 			return nil, err
 		}
 	} else if dockerContainer != "" {
-		hst, err = host.NewDocker(ctx, dockerContainer, dockerUser)
+		hst, err = ihost.NewDocker(ctx, dockerContainer, dockerUser)
 		if err != nil {
 			return nil, err
 		}

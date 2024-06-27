@@ -6,7 +6,7 @@ import (
 	"os/user"
 	"strings"
 
-	"github.com/fornellas/resonance/host/types"
+	"github.com/fornellas/resonance/host"
 )
 
 type FileAction int
@@ -57,7 +57,7 @@ type Cmd struct {
 }
 
 type CmdResponse struct {
-	WaitStatus types.WaitStatus
+	WaitStatus host.WaitStatus
 	Stdout     []byte
 	Stderr     []byte
 }

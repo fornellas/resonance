@@ -1,4 +1,4 @@
-package resource
+package resources
 
 import (
 	"bytes"
@@ -102,15 +102,4 @@ func DiffAsYaml(a, b interface{}) Chunks {
 		strings.Split(aStr, "\n"),
 		strings.Split(bStr, "\n"),
 	)
-}
-
-// DiffResourceState diffs two resource states, by using DiffableManageableResource if the
-// resource implements this interface, otherwise, use DiffAsYaml.
-func DiffResourceState(manageableResource ManageableResource, a, b State) Chunks {
-	diffableManageableResource, ok := manageableResource.(DiffableManageableResource)
-	if ok {
-		return diffableManageableResource.Diff(a, b)
-	} else {
-		return DiffAsYaml(a, b)
-	}
 }

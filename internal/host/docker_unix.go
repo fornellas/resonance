@@ -8,7 +8,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/fornellas/resonance/host/types"
+	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -19,7 +19,7 @@ type Docker struct {
 	User      string
 }
 
-func (d Docker) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
+func (d Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Run %s", cmd)
 
@@ -58,11 +58,11 @@ func (d Docker) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error
 	err := execCmd.Run()
 	if err != nil {
 		if _, ok := err.(*exec.ExitError); !ok {
-			return types.WaitStatus{}, err
+			return host.WaitStatus{}, err
 		}
 	}
 
-	waitStatus := types.WaitStatus{}
+	waitStatus := host.WaitStatus{}
 	waitStatus.ExitCode = execCmd.ProcessState.ExitCode()
 	waitStatus.Exited = execCmd.ProcessState.Exited()
 	signal := execCmd.ProcessState.Sys().(syscall.WaitStatus).Signal()

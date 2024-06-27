@@ -9,12 +9,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/fornellas/resonance/host/types"
+	"github.com/fornellas/resonance/host"
 )
 
 type baseRunOnly struct {
 	T    *testing.T
-	Host Host
+	Host host.Host
 }
 
 func (bro baseRunOnly) Chmod(ctx context.Context, name string, mode os.FileMode) error {
@@ -41,10 +41,10 @@ func (bro baseRunOnly) LookupGroup(ctx context.Context, name string) (*user.Grou
 	return nil, err
 }
 
-func (bro baseRunOnly) Lstat(ctx context.Context, name string) (types.HostFileInfo, error) {
+func (bro baseRunOnly) Lstat(ctx context.Context, name string) (host.HostFileInfo, error) {
 	err := errors.New("unexpected call received: Lstat")
 	bro.T.Fatal(err)
-	return types.HostFileInfo{}, err
+	return host.HostFileInfo{}, err
 }
 
 func (bro baseRunOnly) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
@@ -81,14 +81,14 @@ func (bro baseRunOnly) Close() error {
 
 type localRunOnly struct {
 	baseRunOnly
-	Host Host
+	Host host.Host
 }
 
-func (lro localRunOnly) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
+func (lro localRunOnly) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	return lro.Host.Run(ctx, cmd)
 }
 
-func newLocalRunOnly(t *testing.T, host Host) localRunOnly {
+func newLocalRunOnly(t *testing.T, host host.Host) localRunOnly {
 	run := localRunOnly{
 		Host: host,
 	}
@@ -99,10 +99,10 @@ func newLocalRunOnly(t *testing.T, host Host) localRunOnly {
 
 type runner struct {
 	baseRun
-	Host Host
+	Host host.Host
 }
 
-func (r runner) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
+func (r runner) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	return r.Host.Run(ctx, cmd)
 }
 
@@ -114,7 +114,7 @@ func (r runner) Close() error {
 	return r.Host.Close()
 }
 
-func newRunner(host Host) runner {
+func newRunner(host host.Host) runner {
 	run := runner{
 		Host: host,
 	}

@@ -1,4 +1,4 @@
-package resource
+package resources
 
 import (
 	"context"
@@ -8,8 +8,6 @@ import (
 	"strings"
 
 	"github.com/fornellas/resonance/host"
-	"github.com/fornellas/resonance/host/types"
-	"github.com/fornellas/resonance/resource"
 )
 
 // APTPackageState is State for APTPackage
@@ -18,7 +16,7 @@ type APTPackageState struct {
 	Version string `yaml:"version"`
 }
 
-func (aps APTPackageState) ValidateAndUpdate(ctx context.Context, hst host.Host) (resource.State, error) {
+func (aps APTPackageState) ValidateAndUpdate(ctx context.Context, hst host.Host) (State, error) {
 	// https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
 	if strings.HasSuffix(aps.Version, "+") {
 		return nil, fmt.Errorf("version can't end in +: %s", aps.Version)
@@ -32,21 +30,21 @@ func (aps APTPackageState) ValidateAndUpdate(ctx context.Context, hst host.Host)
 // APTPackage resource manages files.
 type APTPackage struct{}
 
-func (ap APTPackage) ValidateName(name resource.Name) error {
+func (ap APTPackage) ValidateName(name Name) error {
 	// https://www.debian.org/doc/debian-policy/ch-controlfields.html#source
 	return nil
 }
 
-func (ap APTPackage) Diff(a, b resource.State) resource.Chunks {
+func (ap APTPackage) Diff(a, b State) Chunks {
 	if a != nil && b != nil {
 		aptPackageStateA := a.(APTPackageState)
 		aptPackageStateB := b.(APTPackageState)
 		if aptPackageStateB.Version == "" {
 			aptPackageStateB.Version = aptPackageStateA.Version
 		}
-		return resource.DiffAsYaml(aptPackageStateA, aptPackageStateB)
+		return DiffAsYaml(aptPackageStateA, aptPackageStateB)
 	} else {
-		return resource.DiffAsYaml(a, b)
+		return DiffAsYaml(a, b)
 	}
 }
 
@@ -56,9 +54,9 @@ var aptCachePackageCandidateRegexp = regexp.MustCompile(`^  Candidate: (.+)$`)
 var aptCacheUnableToLocateRegexp = regexp.MustCompile(`^N: Unable to locate package (.+)$`)
 
 func (ap APTPackage) GetStates(
-	ctx context.Context, hst host.Host, names resource.Names,
-) (map[resource.Name]resource.State, error) {
-	hostCmd := types.Cmd{
+	ctx context.Context, hst host.Host, names Names,
+) (map[Name]State, error) {
+	hostCmd := host.Cmd{
 		Path: "apt-cache",
 		Args: []string{"policy"},
 	}
@@ -106,7 +104,7 @@ func (ap APTPackage) GetStates(
 		}
 	}
 
-	nameStateMap := map[resource.Name]resource.State{}
+	nameStateMap := map[Name]State{}
 	for _, name := range names {
 		installedVersion, ok := pkgInstalledMap[string(name)]
 		if !ok {
@@ -116,7 +114,7 @@ func (ap APTPackage) GetStates(
 			)
 		}
 
-		var state resource.State
+		var state State
 		if installedVersion != "(none)" {
 			state = APTPackageState{
 				Version: installedVersion,
@@ -128,17 +126,17 @@ func (ap APTPackage) GetStates(
 }
 
 func (ap APTPackage) ConfigureAll(
-	ctx context.Context, hst host.Host, actionNameStateMap map[resource.Action]map[resource.Name]resource.State,
+	ctx context.Context, hst host.Host, actionNameStateMap map[Action]map[Name]State,
 ) error {
 	// Package arguments
 	pkgs := []string{}
 	for action, nameStateMap := range actionNameStateMap {
 		var pkgAction string
 		switch action {
-		case resource.ActionOk:
-		case resource.ActionConfigure:
+		case ActionOk:
+		case ActionConfigure:
 			pkgAction = ""
-		case resource.ActionDestroy:
+		case ActionDestroy:
 			pkgAction = "-"
 		default:
 			return fmt.Errorf("unexpected action %s", action)
@@ -156,7 +154,7 @@ func (ap APTPackage) ConfigureAll(
 	}
 
 	// Run apt
-	cmd := types.Cmd{
+	cmd := host.Cmd{
 		Path: "apt-get",
 		Args: append([]string{"--yes", "install"}, pkgs...),
 	}
@@ -175,6 +173,6 @@ func (ap APTPackage) ConfigureAll(
 }
 
 func init() {
-	resource.MergeableManageableResourcesTypeMap["APTPackage"] = APTPackage{}
-	resource.ManageableResourcesStateMap["APTPackage"] = APTPackageState{}
+	MergeableManageableResourcesTypeMap["APTPackage"] = APTPackage{}
+	ManageableResourcesStateMap["APTPackage"] = APTPackageState{}
 }

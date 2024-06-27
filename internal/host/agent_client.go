@@ -20,9 +20,9 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/fornellas/resonance/host/agent/api"
-	aNet "github.com/fornellas/resonance/host/agent/net"
-	"github.com/fornellas/resonance/host/types"
+	"github.com/fornellas/resonance/host"
+	"github.com/fornellas/resonance/internal/host/agent/api"
+	aNet "github.com/fornellas/resonance/internal/host/agent/net"
 
 	"github.com/alessio/shellescape"
 	"golang.org/x/net/http2"
@@ -35,7 +35,7 @@ var AgentBinGz = map[string][]byte{}
 // AgentClient interacts with a given Host using an agent that's copied and ran at the
 // host.
 type AgentClient struct {
-	Host   Host
+	Host   host.Host
 	Path   string
 	Client *http.Client
 	waitCn chan struct{}
@@ -205,22 +205,22 @@ func (a AgentClient) LookupGroup(ctx context.Context, name string) (*user.Group,
 	return &g, nil
 }
 
-func (a AgentClient) Lstat(ctx context.Context, name string) (types.HostFileInfo, error) {
+func (a AgentClient) Lstat(ctx context.Context, name string) (host.HostFileInfo, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Lstat %s", name)
 
 	if !filepath.IsAbs(name) {
-		return types.HostFileInfo{}, fmt.Errorf("path must be absolute: %s", name)
+		return host.HostFileInfo{}, fmt.Errorf("path must be absolute: %s", name)
 	}
 
 	resp, err := a.get(fmt.Sprintf("/file%s?lstat=true", name))
 	if err != nil {
-		return types.HostFileInfo{}, err
+		return host.HostFileInfo{}, err
 	}
 
-	var hfi types.HostFileInfo
+	var hfi host.HostFileInfo
 	if err := a.unmarshalResponse(resp, &hfi); err != nil {
-		return types.HostFileInfo{}, err
+		return host.HostFileInfo{}, err
 	}
 	hfi.ModTime = hfi.ModTime.Local()
 	return hfi, nil
@@ -279,7 +279,7 @@ func (a AgentClient) Remove(ctx context.Context, name string) error {
 	return nil
 }
 
-func (a AgentClient) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
+func (a AgentClient) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Run %s", cmd)
 
@@ -288,7 +288,7 @@ func (a AgentClient) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, 
 		var err error
 		stdin, err = io.ReadAll(cmd.Stdin)
 		if err != nil {
-			return types.WaitStatus{}, err
+			return host.WaitStatus{}, err
 		}
 	}
 
@@ -312,25 +312,25 @@ func (a AgentClient) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, 
 		Stderr: stderr,
 	})
 	if err != nil {
-		return types.WaitStatus{}, err
+		return host.WaitStatus{}, err
 	}
 
 	var cs api.CmdResponse
 	if err := a.unmarshalResponse(resp, &cs); err != nil {
-		return types.WaitStatus{}, err
+		return host.WaitStatus{}, err
 	}
 
 	if cmd.Stdout != nil {
 		_, err := io.Copy(cmd.Stdout, bytes.NewReader(cs.Stdout))
 		if err != nil {
-			return types.WaitStatus{}, err
+			return host.WaitStatus{}, err
 		}
 	}
 
 	if cmd.Stderr != nil {
 		_, err := io.Copy(cmd.Stderr, bytes.NewReader(cs.Stderr))
 		if err != nil {
-			return types.WaitStatus{}, err
+			return host.WaitStatus{}, err
 		}
 	}
 
@@ -408,7 +408,7 @@ func (a *AgentClient) spawn(ctx context.Context) error {
 
 	go func() {
 		defer func() { a.waitCn <- struct{}{} }()
-		waitStatus, err := a.Host.Run(ctx, types.Cmd{
+		waitStatus, err := a.Host.Run(ctx, host.Cmd{
 			Path:   a.Path,
 			Stdin:  stdinReader,
 			Stdout: stdoutWriter,
@@ -479,12 +479,12 @@ func getGoArch(machine string) (string, error) {
 	return "", fmt.Errorf("machine %#v not supported by agent", machine)
 }
 
-func getAgentBinGz(ctx context.Context, hst Host) ([]byte, error) {
-	cmd := types.Cmd{
+func getAgentBinGz(ctx context.Context, hst host.Host) ([]byte, error) {
+	cmd := host.Cmd{
 		Path: "uname",
 		Args: []string{"-m"},
 	}
-	waitStatus, stdout, stderr, err := Run(ctx, hst, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, hst, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -507,12 +507,12 @@ func getAgentBinGz(ctx context.Context, hst Host) ([]byte, error) {
 	return agentBinGz, nil
 }
 
-func getTmpFile(ctx context.Context, hst Host, template string) (string, error) {
-	cmd := types.Cmd{
+func getTmpFile(ctx context.Context, hst host.Host, template string) (string, error) {
+	cmd := host.Cmd{
 		Path: "mktemp",
 		Args: []string{"-t", fmt.Sprintf("%s.XXXXXXXX", template)},
 	}
-	waitStatus, stdout, stderr, err := Run(ctx, hst, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, hst, cmd)
 	if err != nil {
 		return "", err
 	}
@@ -525,13 +525,13 @@ func getTmpFile(ctx context.Context, hst Host, template string) (string, error) 
 	return strings.TrimRight(stdout, "\n"), nil
 }
 
-func copyReader(ctx context.Context, hst Host, reader io.Reader, path string) error {
-	cmd := types.Cmd{
+func copyReader(ctx context.Context, hst host.Host, reader io.Reader, path string) error {
+	cmd := host.Cmd{
 		Path:  "sh",
 		Args:  []string{"-c", fmt.Sprintf("cat > %s", shellescape.Quote(path))},
 		Stdin: reader,
 	}
-	waitStatus, stdout, stderr, err := Run(ctx, hst, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, hst, cmd)
 	if err != nil {
 		return err
 	}
@@ -544,7 +544,7 @@ func copyReader(ctx context.Context, hst Host, reader io.Reader, path string) er
 	return nil
 }
 
-func NewAgent(ctx context.Context, hst Host) (*AgentClient, error) {
+func NewAgent(ctx context.Context, hst host.Host) (*AgentClient, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("🐈 Agent")
 	nestedCtx := log.IndentLogger(ctx)
