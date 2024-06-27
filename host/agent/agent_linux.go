@@ -26,10 +26,6 @@ import (
 	"github.com/fornellas/resonance/host/types"
 )
 
-func Ping(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Pong")
-}
-
 func internalServerError(w http.ResponseWriter, err error) {
 	w.WriteHeader(500)
 
@@ -66,6 +62,80 @@ func marshalResponse(w http.ResponseWriter, bodyInterface interface{}) {
 	}
 	w.Header().Set("Content-Type", "application/yaml")
 	w.Write(body)
+}
+
+func PutFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name, ok := mux.Vars(r)["name"]
+		if !ok {
+			panic("name not found in Vars")
+		}
+		name = fmt.Sprintf("%c%s", os.PathSeparator, name)
+
+		perms, ok := r.URL.Query()["perm"]
+		if !ok {
+			internalServerError(w, errors.New("missing perm from query"))
+			return
+		}
+		if len(perms) != 1 {
+			internalServerError(w, fmt.Errorf("received multiple perm: %#v", perms))
+			return
+		}
+		permInt, err := strconv.ParseInt(perms[0], 10, 32)
+		if err != nil {
+			internalServerError(w, fmt.Errorf("failed to parse perm: %#v: %s", perms[0], err))
+			return
+		}
+		perm := os.FileMode(permInt)
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			internalServerError(w, err)
+			return
+		}
+
+		if err := os.WriteFile(name, body, perm); err != nil {
+			internalServerError(w, err)
+			return
+		}
+	}
+}
+
+func GetFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name, ok := mux.Vars(r)["name"]
+		if !ok {
+			panic("name not found in Vars")
+		}
+		name = fmt.Sprintf("%c%s", os.PathSeparator, name)
+
+		if lstat, ok := r.URL.Query()["lstat"]; ok && len(lstat) == 1 && lstat[0] == "true" {
+			fileInfo, err := os.Lstat(name)
+			if err != nil {
+				internalServerError(w, err)
+				return
+			}
+			stat_t := fileInfo.Sys().(*syscall.Stat_t)
+			hfi := types.HostFileInfo{
+				Name:    filepath.Base(name),
+				Size:    fileInfo.Size(),
+				Mode:    fileInfo.Mode(),
+				ModTime: fileInfo.ModTime(),
+				IsDir:   fileInfo.IsDir(),
+				Uid:     stat_t.Uid,
+				Gid:     stat_t.Gid,
+			}
+			marshalResponse(w, hfi)
+			return
+		} else {
+			contexts, err := os.ReadFile(name)
+			if err != nil {
+				internalServerError(w, err)
+				return
+			}
+			w.Write(contexts)
+		}
+	}
 }
 
 func PostFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
@@ -108,24 +178,21 @@ func PostFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-func GetLookupFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+func DeleteFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		username, ok := mux.Vars(r)["username"]
+		name, ok := mux.Vars(r)["name"]
 		if !ok {
-			panic("username not found in Vars")
+			panic("name not found in Vars")
 		}
+		name = fmt.Sprintf("%c%s", os.PathSeparator, name)
 
-		u, err := user.Lookup(username)
-		if err != nil {
+		if err := os.Remove(name); err != nil {
 			internalServerError(w, err)
-			return
 		}
-
-		marshalResponse(w, u)
 	}
 }
 
-func GetLookupGroupFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+func GetGroupFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name, ok := mux.Vars(r)["name"]
 		if !ok {
@@ -142,54 +209,24 @@ func GetLookupGroupFn(ctx context.Context) func(http.ResponseWriter, *http.Reque
 	}
 }
 
-func GetFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		name, ok := mux.Vars(r)["name"]
-		if !ok {
-			panic("name not found in Vars")
-		}
-		name = fmt.Sprintf("%c%s", os.PathSeparator, name)
-
-		if lstat, ok := r.URL.Query()["lstat"]; ok && len(lstat) == 1 && lstat[0] == "true" {
-			fileInfo, err := os.Lstat(name)
-			if err != nil {
-				internalServerError(w, err)
-				return
-			}
-			stat_t := fileInfo.Sys().(*syscall.Stat_t)
-			hfi := types.HostFileInfo{
-				Name:    filepath.Base(name),
-				Size:    fileInfo.Size(),
-				Mode:    fileInfo.Mode(),
-				ModTime: fileInfo.ModTime(),
-				IsDir:   fileInfo.IsDir(),
-				Uid:     stat_t.Uid,
-				Gid:     stat_t.Gid,
-			}
-			marshalResponse(w, hfi)
-			return
-		} else {
-			contexts, err := os.ReadFile(name)
-			if err != nil {
-				internalServerError(w, err)
-				return
-			}
-			w.Write(contexts)
-		}
-	}
+func GetPing(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "Pong")
 }
 
-func DeleteRemoveFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+func GetUserFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		name, ok := mux.Vars(r)["name"]
+		username, ok := mux.Vars(r)["username"]
 		if !ok {
-			panic("name not found in Vars")
+			panic("username not found in Vars")
 		}
-		name = fmt.Sprintf("%c%s", os.PathSeparator, name)
 
-		if err := os.Remove(name); err != nil {
+		u, err := user.Lookup(username)
+		if err != nil {
 			internalServerError(w, err)
+			return
 		}
+
+		marshalResponse(w, u)
 	}
 }
 
@@ -252,43 +289,6 @@ func PostRunFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-func PutWriteFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		name, ok := mux.Vars(r)["name"]
-		if !ok {
-			panic("name not found in Vars")
-		}
-		name = fmt.Sprintf("%c%s", os.PathSeparator, name)
-
-		perms, ok := r.URL.Query()["perm"]
-		if !ok {
-			internalServerError(w, errors.New("missing perm from query"))
-			return
-		}
-		if len(perms) != 1 {
-			internalServerError(w, fmt.Errorf("received multiple perm: %#v", perms))
-			return
-		}
-		permInt, err := strconv.ParseInt(perms[0], 10, 32)
-		if err != nil {
-			internalServerError(w, fmt.Errorf("failed to parse perm: %#v: %s", perms[0], err))
-			return
-		}
-		perm := os.FileMode(permInt)
-
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			internalServerError(w, err)
-			return
-		}
-
-		if err := os.WriteFile(name, body, perm); err != nil {
-			internalServerError(w, err)
-			return
-		}
-	}
-}
-
 func PostShutdownFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		go func() {
@@ -304,40 +304,46 @@ func main() {
 	ctx := context.Background()
 
 	router := mux.NewRouter()
+
+	router.
+		Methods("PUT").
+		Path("/file/{name:.+}").
+		HandlerFunc(PutFileFn(ctx))
 	router.
 		Methods("GET").
-		Path("/ping").
-		HandlerFunc(Ping)
+		Path("/file/{name:.+}").
+		HandlerFunc(GetFileFn(ctx))
 	router.
 		Methods("POST").
 		Path("/file/{name:.+}").
 		Headers("Content-Type", "application/yaml").
 		HandlerFunc(PostFileFn(ctx))
 	router.
-		Methods("GET").
-		Path("/user/{username}").
-		HandlerFunc(GetLookupFn(ctx))
+		Methods("DELETE").
+		Path("/file/{name:.+}").
+		HandlerFunc(DeleteFileFn(ctx))
+
 	router.
 		Methods("GET").
 		Path("/group/{name}").
-		HandlerFunc(GetLookupGroupFn(ctx))
+		HandlerFunc(GetGroupFn(ctx))
+
 	router.
 		Methods("GET").
-		Path("/file/{name:.+}").
-		HandlerFunc(GetFileFn(ctx))
+		Path("/user/{username}").
+		HandlerFunc(GetUserFn(ctx))
+
 	router.
-		Methods("DELETE").
-		Path("/file/{name:.+}").
-		HandlerFunc(DeleteRemoveFn(ctx))
+		Methods("GET").
+		Path("/ping").
+		HandlerFunc(GetPing)
+
 	router.
 		Methods("POST").
 		Path("/run").
 		Headers("Content-Type", "application/yaml").
 		HandlerFunc(PostRunFn(ctx))
-	router.
-		Methods("PUT").
-		Path("/file/{name:.+}").
-		HandlerFunc(PutWriteFileFn(ctx))
+
 	router.
 		Methods("POST").
 		Path("/shutdown").

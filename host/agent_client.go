@@ -32,16 +32,16 @@ import (
 
 var AgentBinGz = map[string][]byte{}
 
-// Agent interacts with a given Host using an agent that's copied and ran at the
+// AgentClient interacts with a given Host using an agent that's copied and ran at the
 // host.
-type Agent struct {
+type AgentClient struct {
 	Host   Host
 	Path   string
 	Client *http.Client
 	waitCn chan struct{}
 }
 
-func (a Agent) checkResponseStatus(resp *http.Response) error {
+func (a AgentClient) checkResponseStatus(resp *http.Response) error {
 	if resp.StatusCode == http.StatusOK {
 		return nil
 	} else if resp.StatusCode == http.StatusInternalServerError {
@@ -61,7 +61,7 @@ func (a Agent) checkResponseStatus(resp *http.Response) error {
 	}
 }
 
-func (a Agent) unmarshalResponse(resp *http.Response, bodyInterface interface{}) error {
+func (a AgentClient) unmarshalResponse(resp *http.Response, bodyInterface interface{}) error {
 	decoder := yaml.NewDecoder(resp.Body)
 	decoder.KnownFields(true)
 	if err := decoder.Decode(bodyInterface); err != nil {
@@ -70,7 +70,7 @@ func (a Agent) unmarshalResponse(resp *http.Response, bodyInterface interface{})
 	return nil
 }
 
-func (a Agent) get(path string) (*http.Response, error) {
+func (a AgentClient) get(path string) (*http.Response, error) {
 	resp, err := a.Client.Get(fmt.Sprintf("http://agent%s", path))
 	if err != nil {
 		return nil, err
@@ -83,7 +83,7 @@ func (a Agent) get(path string) (*http.Response, error) {
 	return resp, nil
 }
 
-func (a Agent) post(path string, bodyInterface interface{}) (*http.Response, error) {
+func (a AgentClient) post(path string, bodyInterface interface{}) (*http.Response, error) {
 	url := fmt.Sprintf("http://agent%s", path)
 
 	contentType := "application/yaml"
@@ -102,7 +102,7 @@ func (a Agent) post(path string, bodyInterface interface{}) (*http.Response, err
 	return resp, a.checkResponseStatus(resp)
 }
 
-func (a Agent) delete(path string) (*http.Response, error) {
+func (a AgentClient) delete(path string) (*http.Response, error) {
 	url := fmt.Sprintf("http://agent%s", path)
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
@@ -121,7 +121,7 @@ func (a Agent) delete(path string) (*http.Response, error) {
 	return resp, nil
 }
 
-func (a Agent) put(path string, body io.Reader) (*http.Response, error) {
+func (a AgentClient) put(path string, body io.Reader) (*http.Response, error) {
 	url := fmt.Sprintf("http://agent%s", path)
 	req, err := http.NewRequest("PUT", url, body)
 	if err != nil {
@@ -140,7 +140,7 @@ func (a Agent) put(path string, body io.Reader) (*http.Response, error) {
 	return resp, nil
 }
 
-func (a Agent) Chmod(ctx context.Context, name string, mode os.FileMode) error {
+func (a AgentClient) Chmod(ctx context.Context, name string, mode os.FileMode) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Chmod %v %s", mode, name)
 
@@ -156,7 +156,7 @@ func (a Agent) Chmod(ctx context.Context, name string, mode os.FileMode) error {
 	return err
 }
 
-func (a Agent) Chown(ctx context.Context, name string, uid, gid int) error {
+func (a AgentClient) Chown(ctx context.Context, name string, uid, gid int) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Chown %v %v %s", uid, gid, name)
 
@@ -173,7 +173,7 @@ func (a Agent) Chown(ctx context.Context, name string, uid, gid int) error {
 	return err
 }
 
-func (a Agent) Lookup(ctx context.Context, username string) (*user.User, error) {
+func (a AgentClient) Lookup(ctx context.Context, username string) (*user.User, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Lookup %s", username)
 
@@ -189,7 +189,7 @@ func (a Agent) Lookup(ctx context.Context, username string) (*user.User, error) 
 	return &u, nil
 }
 
-func (a Agent) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
+func (a AgentClient) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("LookupGroup %s", name)
 
@@ -205,7 +205,7 @@ func (a Agent) LookupGroup(ctx context.Context, name string) (*user.Group, error
 	return &g, nil
 }
 
-func (a Agent) Lstat(ctx context.Context, name string) (types.HostFileInfo, error) {
+func (a AgentClient) Lstat(ctx context.Context, name string) (types.HostFileInfo, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Lstat %s", name)
 
@@ -226,7 +226,7 @@ func (a Agent) Lstat(ctx context.Context, name string) (types.HostFileInfo, erro
 	return hfi, nil
 }
 
-func (a Agent) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
+func (a AgentClient) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Mkdir %s", name)
 
@@ -242,7 +242,7 @@ func (a Agent) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
 	return err
 }
 
-func (a Agent) ReadFile(ctx context.Context, name string) ([]byte, error) {
+func (a AgentClient) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("ReadFile %s", name)
 
@@ -263,7 +263,7 @@ func (a Agent) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	return contents, nil
 }
 
-func (a Agent) Remove(ctx context.Context, name string) error {
+func (a AgentClient) Remove(ctx context.Context, name string) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Remove %s", name)
 
@@ -279,7 +279,7 @@ func (a Agent) Remove(ctx context.Context, name string) error {
 	return nil
 }
 
-func (a Agent) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
+func (a AgentClient) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Run %s", cmd)
 
@@ -337,7 +337,7 @@ func (a Agent) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error)
 	return cs.WaitStatus, nil
 }
 
-func (a Agent) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
+func (a AgentClient) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("WriteFile %s %v", name, perm)
 
@@ -353,11 +353,11 @@ func (a Agent) WriteFile(ctx context.Context, name string, data []byte, perm os.
 	return nil
 }
 
-func (a Agent) String() string {
+func (a AgentClient) String() string {
 	return a.Host.String()
 }
 
-func (a *Agent) Close() error {
+func (a *AgentClient) Close() error {
 	a.post("/shutdown", nil)
 	a.Client.CloseIdleConnections()
 	<-a.waitCn
@@ -379,7 +379,7 @@ func (wl writerLogger) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
-func (a *Agent) spawn(ctx context.Context) error {
+func (a *AgentClient) spawn(ctx context.Context) error {
 	logger := log.GetLogger(ctx)
 
 	stdinReader, stdinWriter, err := os.Pipe()
@@ -544,7 +544,7 @@ func copyReader(ctx context.Context, hst Host, reader io.Reader, path string) er
 	return nil
 }
 
-func NewAgent(ctx context.Context, hst Host) (*Agent, error) {
+func NewAgent(ctx context.Context, hst Host) (*AgentClient, error) {
 	logger := log.GetLogger(ctx)
 	logger.Info("🐈 Agent")
 	nestedCtx := log.IndentLogger(ctx)
@@ -572,7 +572,7 @@ func NewAgent(ctx context.Context, hst Host) (*Agent, error) {
 		return nil, err
 	}
 
-	agent := Agent{
+	agent := AgentClient{
 		Host:   hst,
 		Path:   agentPath,
 		waitCn: make(chan struct{}),
