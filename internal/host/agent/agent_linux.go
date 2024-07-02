@@ -136,6 +136,12 @@ func PostFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 		name := r.PathValue("name")
 		name = fmt.Sprintf("%c%s", os.PathSeparator, name)
 
+		contentType := r.Header.Get("Content-Type")
+		if contentType != "application/yaml" {
+			http.Error(w, "Unsupported Media Type", http.StatusUnsupportedMediaType)
+			return
+		}
+
 		if !filepath.IsAbs(name) {
 			internalServerError(w, fmt.Errorf("must be an absolute path: %s", name))
 			return
@@ -213,6 +219,11 @@ func GetUserFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 
 func PostRunFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		contentType := r.Header.Get("Content-Type")
+		if contentType != "application/yaml" {
+			http.Error(w, "Unsupported Media Type", http.StatusUnsupportedMediaType)
+			return
+		}
 		decoder := yaml.NewDecoder(r.Body)
 		decoder.KnownFields(true)
 		var apiCmd api.Cmd
@@ -288,14 +299,14 @@ func main() {
 
 	router.HandleFunc("PUT /file/{name}", PutFileFn(ctx))
 	router.HandleFunc("GET /file/{name}", GetFileFn(ctx))
-	router.HandleFunc("POST /file/{name} Headers:Content-Type,application/yaml", PostFileFn(ctx))
+	router.HandleFunc("POST /file/{name}", PostFileFn(ctx))
 	router.HandleFunc("DELETE /file/{name}", DeleteFileFn(ctx))
 
 	router.HandleFunc("GET /group/{name}", GetGroupFn(ctx))
 	router.HandleFunc("GET /user/{username}", GetUserFn(ctx))
 
 	router.HandleFunc("GET /ping", GetPing)
-	router.HandleFunc("POST /run Headers:Content-Type,application/yaml", PostRunFn(ctx))
+	router.HandleFunc("POST /run", PostRunFn(ctx))
 	router.HandleFunc("POST /shutdown", PostShutdownFn(ctx))
 
 	server := &http2.Server{}
