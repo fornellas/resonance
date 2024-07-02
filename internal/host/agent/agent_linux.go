@@ -15,13 +15,10 @@ import (
 	"syscall"
 	"time"
 
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 	"gopkg.in/yaml.v3"
 
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/internal/host/agent/api"
-	aNet "github.com/fornellas/resonance/internal/host/agent/net"
 	"github.com/fornellas/resonance/internal/host/local"
 )
 
@@ -309,16 +306,9 @@ func main() {
 	router.HandleFunc("POST /run", PostRunFn(ctx))
 	router.HandleFunc("POST /shutdown", PostShutdownFn(ctx))
 
-	server := &http2.Server{}
-
-	serveConnOpts := &http2.ServeConnOpts{
-		Handler: h2c.NewHandler(router, server),
+	server := &http.Server{
+		Handler: router,
 	}
 
-	conn := aNet.Conn{
-		Reader: os.Stdin,
-		Writer: os.Stdout,
-	}
-
-	server.ServeConn(conn, serveConnOpts)
+	server.ListenAndServe()
 }
