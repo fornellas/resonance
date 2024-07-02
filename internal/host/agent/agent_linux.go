@@ -15,7 +15,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gorilla/mux"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"gopkg.in/yaml.v3"
@@ -66,10 +65,7 @@ func marshalResponse(w http.ResponseWriter, bodyInterface interface{}) {
 
 func PutFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		name, ok := mux.Vars(r)["name"]
-		if !ok {
-			panic("name not found in Vars")
-		}
+		name := r.PathValue("name")
 		name = fmt.Sprintf("%c%s", os.PathSeparator, name)
 
 		perms, ok := r.URL.Query()["perm"]
@@ -103,10 +99,7 @@ func PutFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 
 func GetFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		name, ok := mux.Vars(r)["name"]
-		if !ok {
-			panic("name not found in Vars")
-		}
+		name := r.PathValue("name")
 		name = fmt.Sprintf("%c%s", os.PathSeparator, name)
 
 		if lstat, ok := r.URL.Query()["lstat"]; ok && len(lstat) == 1 && lstat[0] == "true" {
@@ -140,10 +133,7 @@ func GetFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 
 func PostFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		name, ok := mux.Vars(r)["name"]
-		if !ok {
-			panic("name not found in Vars")
-		}
+		name := r.PathValue("name")
 		name = fmt.Sprintf("%c%s", os.PathSeparator, name)
 
 		if !filepath.IsAbs(name) {
@@ -180,10 +170,7 @@ func PostFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 
 func DeleteFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		name, ok := mux.Vars(r)["name"]
-		if !ok {
-			panic("name not found in Vars")
-		}
+		name := r.PathValue("name")
 		name = fmt.Sprintf("%c%s", os.PathSeparator, name)
 
 		if err := os.Remove(name); err != nil {
@@ -194,10 +181,7 @@ func DeleteFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) 
 
 func GetGroupFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		name, ok := mux.Vars(r)["name"]
-		if !ok {
-			panic("name not found in Vars")
-		}
+		name := r.PathValue("name")
 
 		g, err := user.LookupGroup(name)
 		if err != nil {
@@ -215,10 +199,7 @@ func GetPing(w http.ResponseWriter, r *http.Request) {
 
 func GetUserFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		username, ok := mux.Vars(r)["username"]
-		if !ok {
-			panic("username not found in Vars")
-		}
+		username := r.PathValue("username")
 
 		u, err := user.Lookup(username)
 		if err != nil {
@@ -303,51 +284,19 @@ func main() {
 
 	ctx := context.Background()
 
-	router := mux.NewRouter()
+	router := http.NewServeMux()
 
-	router.
-		Methods("PUT").
-		Path("/file/{name:.+}").
-		HandlerFunc(PutFileFn(ctx))
-	router.
-		Methods("GET").
-		Path("/file/{name:.+}").
-		HandlerFunc(GetFileFn(ctx))
-	router.
-		Methods("POST").
-		Path("/file/{name:.+}").
-		Headers("Content-Type", "application/yaml").
-		HandlerFunc(PostFileFn(ctx))
-	router.
-		Methods("DELETE").
-		Path("/file/{name:.+}").
-		HandlerFunc(DeleteFileFn(ctx))
+	router.HandleFunc("PUT /file/{name}", PutFileFn(ctx))
+	router.HandleFunc("GET /file/{name}", GetFileFn(ctx))
+	router.HandleFunc("POST /file/{name} Headers:Content-Type,application/yaml", PostFileFn(ctx))
+	router.HandleFunc("DELETE /file/{name}", DeleteFileFn(ctx))
 
-	router.
-		Methods("GET").
-		Path("/group/{name}").
-		HandlerFunc(GetGroupFn(ctx))
+	router.HandleFunc("GET /group/{name}", GetGroupFn(ctx))
+	router.HandleFunc("GET /user/{username}", GetUserFn(ctx))
 
-	router.
-		Methods("GET").
-		Path("/user/{username}").
-		HandlerFunc(GetUserFn(ctx))
-
-	router.
-		Methods("GET").
-		Path("/ping").
-		HandlerFunc(GetPing)
-
-	router.
-		Methods("POST").
-		Path("/run").
-		Headers("Content-Type", "application/yaml").
-		HandlerFunc(PostRunFn(ctx))
-
-	router.
-		Methods("POST").
-		Path("/shutdown").
-		HandlerFunc(PostShutdownFn(ctx))
+	router.HandleFunc("GET /ping", GetPing)
+	router.HandleFunc("POST /run Headers:Content-Type,application/yaml", PostRunFn(ctx))
+	router.HandleFunc("POST /shutdown", PostShutdownFn(ctx))
 
 	server := &http2.Server{}
 
