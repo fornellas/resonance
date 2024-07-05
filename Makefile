@@ -145,6 +145,7 @@ RRB_DEBOUNCE ?= 500ms
 RRB_LOG_LEVEL ?= info
 RRB_IGNORE_PATTERN ?= '$(CACHE_PATH)/**/*,internal/host/agent_*_*_gz.go'
 RRB_PATTERN ?= '**/*.{go},Makefile'
+RRB_MAKE_TARGET ?= ci
 RRB_EXTRA_CMD ?= true
 
 ##
@@ -420,7 +421,9 @@ ifeq ($(GOOS),linux)
 
 .PHONY: rrb-help
 rrb-help:
-	@echo 'rrb: rerun build automatically on file changes then runs RRB_EXTRA_CMD'
+	@echo 'rrb: rerun build automatically on file changes'
+	@echo ' use RRB_MAKE_TARGET to set a make target (default: ci)'
+	@echo ' use RRB_EXTRA_CMD to set a command to run after the build is successful'
 help: rrb-help
 
 .PHONY: rrb
@@ -431,7 +434,7 @@ rrb: go
 		--log-level $(RRB_LOG_LEVEL) \
 		--pattern $(RRB_PATTERN) \
 		-- \
-		sh -c "$(MAKE) $(MFLAGS) ci && $(RRB_EXTRA_CMD)"
+		sh -c "$(MAKE) $(MFLAGS) $(RRB_MAKE_TARGET) && $(RRB_EXTRA_CMD)"
 
 ##
 ## shell
