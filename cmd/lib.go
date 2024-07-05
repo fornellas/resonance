@@ -2,12 +2,16 @@ package main
 
 import (
 	"context"
+	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/fornellas/resonance/host"
 	ihost "github.com/fornellas/resonance/internal/host"
 )
+
+// This is to be used in place of os.Exit() to aid writing test assertions on exit code.
+var Exit func(int) = func(code int) { os.Exit(code) }
 
 var ssh string
 var defaultSsh = ""
