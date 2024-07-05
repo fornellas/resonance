@@ -46,7 +46,7 @@ func AddHostFlags(cmd *cobra.Command) {
 }
 
 func init() {
-	resetFuncs = append(resetFuncs, func() {
+	resetFlagsFns = append(resetFlagsFns, func() {
 		localhost = defaultLocalhost
 	})
 }

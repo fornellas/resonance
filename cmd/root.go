@@ -32,12 +32,12 @@ var RootCmd = &cobra.Command{
 	},
 }
 
-var resetFuncs []func()
+var resetFlagsFns []func()
 
-func Reset() {
+func ResetFlags() {
 	logLevelStr = defaultLogLevelStr
 	forceColor = defaultForceColor
-	for _, resetFunc := range resetFuncs {
+	for _, resetFunc := range resetFlagsFns {
 		resetFunc()
 	}
 }

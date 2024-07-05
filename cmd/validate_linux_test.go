@@ -43,6 +43,7 @@ func TestValidate(t *testing.T) {
 			"--localhost",
 			resourcesRoot,
 		},
+		ExpectStderrContains: "Validation successful",
 	}
 	cmd.Run(t)
 }

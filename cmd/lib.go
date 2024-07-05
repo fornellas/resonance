@@ -76,7 +76,7 @@ func addHostFlagsCommon(cmd *cobra.Command) {
 }
 
 func init() {
-	resetFuncs = append(resetFuncs, func() {
+	resetFlagsFns = append(resetFlagsFns, func() {
 		ssh = defaultSsh
 		dockerContainer = defaultDockerContainer
 		dockerUser = defaultDockerUser
