@@ -116,7 +116,7 @@ func (t Type) validate() error {
 		rType := reflect.TypeOf(individualResource)
 		if string(t) != rType.Name() {
 			panic(fmt.Errorf(
-				"%s must be defined with key %s at IndividuallyResourceTypeMap, not %s",
+				"%s must be defined with key %s at IndividualResourceTypeMap, not %s",
 				rType.Name(), rType.Name(), string(t),
 			))
 		}
