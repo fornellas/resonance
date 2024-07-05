@@ -1,15 +1,11 @@
 package main
 
 import (
-	"os"
-
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
 	"github.com/fornellas/resonance/log"
 )
-
-var ExitFunc func(int) = func(code int) { os.Exit(code) }
 
 var logLevelStr string
 var defaultLogLevelStr = "info"
@@ -25,7 +21,7 @@ var RootCmd = &cobra.Command{
 			color.NoColor = false
 		}
 		cmd.SetContext(log.SetLoggerValue(
-			cmd.Context(), cmd.OutOrStderr(), logLevelStr, ExitFunc,
+			cmd.Context(), cmd.OutOrStderr(), logLevelStr, Exit,
 		))
 	},
 	Run: func(cmd *cobra.Command, args []string) {
