@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -42,9 +41,7 @@ func captureOutput(t *testing.T, fn func()) (stdout string, stderr string) {
 	stdoutCh := make(chan bool, 1)
 	go func() {
 		if _, err := io.Copy(multiWriterStdout, readStdout); err != nil {
-			if !errors.Is(err, os.ErrClosed) {
-				t.Errorf("failed to copy Stdout: %s", err)
-			}
+			t.Errorf("failed to copy Stdout: %s", err)
 		}
 		stdoutCh <- true
 	}()
@@ -58,9 +55,7 @@ func captureOutput(t *testing.T, fn func()) (stdout string, stderr string) {
 	stderrCh := make(chan bool)
 	go func() {
 		if _, err := io.Copy(multiWriterStderr, readStderr); err != nil {
-			if !errors.Is(err, os.ErrClosed) {
-				t.Errorf("failed to copy Stderr: %s", err)
-			}
+			t.Errorf("failed to copy Stderr: %s", err)
 		}
 		stderrCh <- true
 	}()
