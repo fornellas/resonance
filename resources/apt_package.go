@@ -173,6 +173,6 @@ func (ap APTPackage) ConfigureAll(
 }
 
 func init() {
-	MergeableManageableResourcesTypeMap["APTPackage"] = APTPackage{}
-	ManageableResourcesStateMap["APTPackage"] = APTPackageState{}
+	MergeableResourcesTypeMap["APTPackage"] = APTPackage{}
+	ResourcesStateMap["APTPackage"] = APTPackageState{}
 }

@@ -158,6 +158,6 @@ func (f File) Configure(
 }
 
 func init() {
-	IndividuallyManageableResourceTypeMap["File"] = File{}
-	ManageableResourcesStateMap["File"] = FileState{}
+	IndividualResourceTypeMap["File"] = File{}
+	ResourcesStateMap["File"] = FileState{}
 }

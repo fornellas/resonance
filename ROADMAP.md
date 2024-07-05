@@ -34,7 +34,7 @@
     - ✨Resources
 - Add TESTS!
     - ✨Add Docker host, and run integration tests at various Linux targets.
-    - ✨`RefreshableManageableResource`
+    - ✨`RefreshableResource`
     - ✨`resource/types/file.go`
     - ✨`resource/types/apt_package.go`
 - `host/`
@@ -58,7 +58,7 @@
                                 - 📄`--allow-inventory-changes` have apply re-run when inventory changes at the end.
                                 - 📄Should put a limit (otherwise, inifinite loops can happen).
     - `resource.go`
-        - 💡Merge `Resource` and `ManageableResource`.
+        - 💡Merge `ResourceDef` and `Resource`.
         - ✨Parallelize checks at `GetTypeNameStateMap`.
         - ✨Support defining implicit dependencies (eg: `Group` before `User`)
         - 💡Check if current host OS is supported.

@@ -173,6 +173,6 @@ func SetupMergeableType(t *testing.T, individualFuncCalls []MergeableFuncCall) {
 }
 
 func init() {
-	resources.MergeableManageableResourcesTypeMap["Mergeable"] = Mergeable{}
-	resources.ManageableResourcesStateMap["Mergeable"] = MergeableState{}
+	resources.MergeableResourcesTypeMap["Mergeable"] = Mergeable{}
+	resources.ResourcesStateMap["Mergeable"] = MergeableState{}
 }

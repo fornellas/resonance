@@ -61,34 +61,34 @@ func (tn TypeName) Name() resources.Name {
 	return name
 }
 
-// ManageableResource returns an instance for the resource type.
-func (tn TypeName) ManageableResource() resources.ManageableResource {
+// Resource returns an instance for the resource type.
+func (tn TypeName) Resource() resources.Resource {
 	tpe, _, err := tn.typeName()
 	if err != nil {
 		panic(err)
 	}
-	return tpe.ManageableResource()
+	return tpe.Resource()
 }
 
-// IsIndividuallyManageableResource returns true if ManageableResource() is of type IndividuallyManageableResource.
-func (tn TypeName) IsIndividuallyManageableResource() bool {
-	_, ok := tn.ManageableResource().(resources.IndividuallyManageableResource)
+// IsIndividualResource returns true if Resource() is of type IndividualResource.
+func (tn TypeName) IsIndividualResource() bool {
+	_, ok := tn.Resource().(resources.IndividualResource)
 	return ok
 }
 
-// MustIndividuallyManageableResource returns IndividuallyManageableResource from ManageableResource or
+// MustIndividualResource returns IndividualResource from Resource or
 // panics if it isn't of the required type.
-func (tn TypeName) MustIndividuallyManageableResource() resources.IndividuallyManageableResource {
-	individuallyManageableResource, ok := tn.ManageableResource().(resources.IndividuallyManageableResource)
+func (tn TypeName) MustIndividualResource() resources.IndividualResource {
+	individualResource, ok := tn.Resource().(resources.IndividualResource)
 	if !ok {
-		panic(fmt.Errorf("%s is not IndividuallyManageableResource", tn))
+		panic(fmt.Errorf("%s is not IndividualResource", tn))
 	}
-	return individuallyManageableResource
+	return individualResource
 }
 
-// IsMergeableManageableResources returns true only if ManageableResource() is of type MergeableManageableResources.
-func (tn TypeName) IsMergeableManageableResources() bool {
-	_, ok := tn.ManageableResource().(resources.MergeableManageableResources)
+// IsMergeableResources returns true only if Resource() is of type MergeableResources.
+func (tn TypeName) IsMergeableResources() bool {
+	_, ok := tn.Resource().(resources.MergeableResources)
 	return ok
 }
 
@@ -133,16 +133,16 @@ func (r *ResourceDef) UnmarshalYAML(node *yaml.Node) error {
 		return err
 	}
 
-	manageableResource := unmarshalSchema.TypeName.ManageableResource()
+	resource := unmarshalSchema.TypeName.Resource()
 	tpe := unmarshalSchema.TypeName.Type()
 	name := unmarshalSchema.TypeName.Name()
-	if err := manageableResource.ValidateName(name); err != nil {
+	if err := resource.ValidateName(name); err != nil {
 		return fmt.Errorf("line %d: %w", node.Line, err)
 	}
 
-	stateInstance, ok := resources.ManageableResourcesStateMap[tpe]
+	stateInstance, ok := resources.ResourcesStateMap[tpe]
 	if !ok {
-		panic(fmt.Errorf("Type %s missing from ManageableResourcesStateMap", tpe))
+		panic(fmt.Errorf("Type %s missing from ResourcesStateMap", tpe))
 	}
 	var state resources.State
 	if unmarshalSchema.Destroy {
@@ -192,40 +192,40 @@ func (r ResourceDef) String() string {
 	return string(r.TypeName)
 }
 
-func (r ResourceDef) ManageableResource() resources.ManageableResource {
-	return r.TypeName.ManageableResource()
+func (r ResourceDef) Resource() resources.Resource {
+	return r.TypeName.Resource()
 }
 
 // Refreshable returns whether the resource is refreshable or not.
 func (r ResourceDef) Refreshable() bool {
-	_, ok := r.ManageableResource().(resources.RefreshableManageableResource)
+	_, ok := r.Resource().(resources.RefreshableResource)
 	return ok
 }
 
-// MustIndividuallyManageableResource returns IndividuallyManageableResource from ManageableResource or
+// MustIndividualResource returns IndividualResource from Resource or
 // panics if it isn't of the required type.
-func (r ResourceDef) MustIndividuallyManageableResource() resources.IndividuallyManageableResource {
-	individuallyManageableResource, ok := r.ManageableResource().(resources.IndividuallyManageableResource)
+func (r ResourceDef) MustIndividualResource() resources.IndividualResource {
+	individualResource, ok := r.Resource().(resources.IndividualResource)
 	if !ok {
-		panic(fmt.Errorf("%s is not IndividuallyManageableResource", r))
+		panic(fmt.Errorf("%s is not IndividualResource", r))
 	}
-	return individuallyManageableResource
+	return individualResource
 }
 
-// IsMergeableManageableResources returns true only if ManageableResource is of type MergeableManageableResources.
-func (r ResourceDef) IsMergeableManageableResources() bool {
-	_, ok := r.ManageableResource().(resources.MergeableManageableResources)
+// IsMergeableResources returns true only if Resource is of type MergeableResources.
+func (r ResourceDef) IsMergeableResources() bool {
+	_, ok := r.Resource().(resources.MergeableResources)
 	return ok
 }
 
-// MustMergeableManageableResources returns MergeableManageableResources from ManageableResource or
+// MustMergeableResources returns MergeableResources from Resource or
 // panics if it isn't of the required type.
-func (r ResourceDef) MustMergeableManageableResources() resources.MergeableManageableResources {
-	mergeableManageableResources, ok := r.ManageableResource().(resources.MergeableManageableResources)
+func (r ResourceDef) MustMergeableResources() resources.MergeableResources {
+	mergeableResources, ok := r.Resource().(resources.MergeableResources)
 	if !ok {
-		panic(fmt.Errorf("%s is not MergeableManageableResources", r))
+		panic(fmt.Errorf("%s is not MergeableResources", r))
 	}
-	return mergeableManageableResources
+	return mergeableResources
 }
 
 func NewResourceDef(typeName TypeName, state resources.State, destroy bool) ResourceDef {

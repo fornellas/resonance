@@ -161,6 +161,6 @@ func SetupIndividualTypeMock(t *testing.T, individualFuncCalls []IndividualFuncC
 }
 
 func init() {
-	resources.IndividuallyManageableResourceTypeMap["Individual"] = Individual{}
-	resources.ManageableResourcesStateMap["Individual"] = IndividualState{}
+	resources.IndividualResourceTypeMap["Individual"] = Individual{}
+	resources.ResourcesStateMap["Individual"] = IndividualState{}
 }
