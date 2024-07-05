@@ -70,16 +70,14 @@ func captureOutput(t *testing.T, fn func()) (stdout string, stderr string) {
 
 		defer func() {
 			writeStdout.Close()
+			<-stdoutCh
 			readStdout.Close()
 
 			writeStderr.Close()
+			<-stderrCh
 			readStderr.Close()
 		}()
 	}()
-
-	<-stdoutCh
-
-	<-stderrCh
 
 	return stdoutBuf.String(), stderrBuf.String()
 }
