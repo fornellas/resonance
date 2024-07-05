@@ -11,8 +11,8 @@ import (
 func TestValidate(t *testing.T) {
 	resourcesRoot := filepath.Join(t.TempDir(), "resources")
 
-	CreateResourceYamls(t, resourcesRoot, map[string]resource.Resources{
-		"test.yaml": resource.Resources{
+	CreateResourceYamls(t, resourcesRoot, map[string]resource.ResourceDefs{
+		"test.yaml": resource.ResourceDefs{
 			{
 				TypeName: "Individual[foo]",
 				State: resources.IndividualState{

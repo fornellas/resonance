@@ -113,8 +113,8 @@ func NewTypeNameFromStr(typeNameStr string) (TypeName, error) {
 	return typeName, nil
 }
 
-// Resource holds a single resource.
-type Resource struct {
+// Holds a resource definition, used for marshalling.
+type ResourceDef struct {
 	TypeName TypeName        `yaml:"resource"`
 	State    resources.State `yaml:"state"`
 	Destroy  bool            `yaml:"destroy"`
@@ -126,7 +126,7 @@ type resourceUnmarshalSchema struct {
 	Destroy   bool      `yaml:"destroy"`
 }
 
-func (r *Resource) UnmarshalYAML(node *yaml.Node) error {
+func (r *ResourceDef) UnmarshalYAML(node *yaml.Node) error {
 	var unmarshalSchema resourceUnmarshalSchema
 	node.KnownFields(true)
 	if err := node.Decode(&unmarshalSchema); err != nil {
@@ -159,7 +159,7 @@ func (r *Resource) UnmarshalYAML(node *yaml.Node) error {
 		state = reflect.ValueOf(stateInstance).Elem().Interface().(resources.State)
 	}
 
-	*r = NewResource(
+	*r = NewResourceDef(
 		unmarshalSchema.TypeName,
 		state,
 		unmarshalSchema.Destroy,
@@ -167,44 +167,44 @@ func (r *Resource) UnmarshalYAML(node *yaml.Node) error {
 	return nil
 }
 
-func (r Resource) MarshalYAML() (interface{}, error) {
+func (r ResourceDef) MarshalYAML() (interface{}, error) {
 	if r.Destroy {
 		r.State = nil
 	}
-	type resourceAlias Resource
+	type resourceDefAlias ResourceDef
 	node := yaml.Node{}
-	err := node.Encode(resourceAlias(r))
+	err := node.Encode(resourceDefAlias(r))
 	if err != nil {
 		return nil, err
 	}
 	return node, nil
 }
 
-func (r Resource) MustType() resources.Type {
+func (r ResourceDef) MustType() resources.Type {
 	return r.TypeName.Type()
 }
 
-func (r Resource) MustName() resources.Name {
+func (r ResourceDef) MustName() resources.Name {
 	return r.TypeName.Name()
 }
 
-func (r Resource) String() string {
+func (r ResourceDef) String() string {
 	return string(r.TypeName)
 }
 
-func (r Resource) ManageableResource() resources.ManageableResource {
+func (r ResourceDef) ManageableResource() resources.ManageableResource {
 	return r.TypeName.ManageableResource()
 }
 
 // Refreshable returns whether the resource is refreshable or not.
-func (r Resource) Refreshable() bool {
+func (r ResourceDef) Refreshable() bool {
 	_, ok := r.ManageableResource().(resources.RefreshableManageableResource)
 	return ok
 }
 
 // MustIndividuallyManageableResource returns IndividuallyManageableResource from ManageableResource or
 // panics if it isn't of the required type.
-func (r Resource) MustIndividuallyManageableResource() resources.IndividuallyManageableResource {
+func (r ResourceDef) MustIndividuallyManageableResource() resources.IndividuallyManageableResource {
 	individuallyManageableResource, ok := r.ManageableResource().(resources.IndividuallyManageableResource)
 	if !ok {
 		panic(fmt.Errorf("%s is not IndividuallyManageableResource", r))
@@ -213,14 +213,14 @@ func (r Resource) MustIndividuallyManageableResource() resources.IndividuallyMan
 }
 
 // IsMergeableManageableResources returns true only if ManageableResource is of type MergeableManageableResources.
-func (r Resource) IsMergeableManageableResources() bool {
+func (r ResourceDef) IsMergeableManageableResources() bool {
 	_, ok := r.ManageableResource().(resources.MergeableManageableResources)
 	return ok
 }
 
 // MustMergeableManageableResources returns MergeableManageableResources from ManageableResource or
 // panics if it isn't of the required type.
-func (r Resource) MustMergeableManageableResources() resources.MergeableManageableResources {
+func (r ResourceDef) MustMergeableManageableResources() resources.MergeableManageableResources {
 	mergeableManageableResources, ok := r.ManageableResource().(resources.MergeableManageableResources)
 	if !ok {
 		panic(fmt.Errorf("%s is not MergeableManageableResources", r))
@@ -228,8 +228,8 @@ func (r Resource) MustMergeableManageableResources() resources.MergeableManageab
 	return mergeableManageableResources
 }
 
-func NewResource(typeName TypeName, state resources.State, destroy bool) Resource {
-	return Resource{
+func NewResourceDef(typeName TypeName, state resources.State, destroy bool) ResourceDef {
+	return ResourceDef{
 		TypeName: typeName,
 		State:    state,
 		Destroy:  destroy,

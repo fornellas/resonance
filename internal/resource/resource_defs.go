@@ -18,9 +18,9 @@ import (
 )
 
 // Resources is the schema used to declare multiple resources at a single file.
-type Resources []Resource
+type ResourceDefs []ResourceDef
 
-func (rs Resources) Validate() error {
+func (rs ResourceDefs) Validate() error {
 	resourceMap := map[TypeName]bool{}
 	for _, resource := range rs {
 		if _, ok := resourceMap[resource.TypeName]; ok {
@@ -31,19 +31,19 @@ func (rs Resources) Validate() error {
 	return nil
 }
 
-func (rs Resources) Len() int {
+func (rs ResourceDefs) Len() int {
 	return len(rs)
 }
 
-func (rs Resources) Swap(i, j int) {
+func (rs ResourceDefs) Swap(i, j int) {
 	rs[i], rs[j] = rs[j], rs[i]
 }
 
-func (rs Resources) Less(i, j int) bool {
+func (rs ResourceDefs) Less(i, j int) bool {
 	return rs[i].String() < rs[j].String()
 }
 
-func (rs Resources) TypeNames() []TypeName {
+func (rs ResourceDefs) TypeNames() []TypeName {
 	typeNames := []TypeName{}
 	for _, resource := range rs {
 		typeNames = append(typeNames, resource.TypeName)
@@ -51,7 +51,7 @@ func (rs Resources) TypeNames() []TypeName {
 	return typeNames
 }
 
-func (rs Resources) String() string {
+func (rs ResourceDefs) String() string {
 	bytes, err := yaml.Marshal(&rs)
 	if err != nil {
 		panic(err)
@@ -59,7 +59,7 @@ func (rs Resources) String() string {
 	return string(bytes)
 }
 
-func (rs Resources) validate() error {
+func (rs ResourceDefs) validate() error {
 	resourceMap := map[TypeName]bool{}
 
 	for _, resource := range rs {
@@ -72,7 +72,7 @@ func (rs Resources) validate() error {
 }
 
 // LoadFile loads Resources declared at given YAML file path
-func LoadFile(ctx context.Context, hst host.Host, yamlPath string) (Resources, error) {
+func LoadFile(ctx context.Context, hst host.Host, yamlPath string) (ResourceDefs, error) {
 	logger := log.GetLogger(ctx)
 	logger.Infof("%s", yamlPath)
 	nestedCtx := log.IndentLogger(ctx)
@@ -87,20 +87,20 @@ func LoadFile(ctx context.Context, hst host.Host, yamlPath string) (Resources, e
 	decoder := yaml.NewDecoder(f)
 	decoder.KnownFields(true)
 
-	resources := Resources{}
+	resourceDefs := ResourceDefs{}
 
 	for {
-		docResources := Resources{}
+		docResources := ResourceDefs{}
 		if err := decoder.Decode(&docResources); err != nil {
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return Resources{}, fmt.Errorf("failed to load resource file: %s: %w", yamlPath, err)
+			return ResourceDefs{}, fmt.Errorf("failed to load resource file: %s: %w", yamlPath, err)
 		}
 		if err := docResources.Validate(); err != nil {
-			return Resources{}, fmt.Errorf("resource file validation failed: %s: %w", yamlPath, err)
+			return ResourceDefs{}, fmt.Errorf("resource file validation failed: %s: %w", yamlPath, err)
 		}
-		updatedAndValidatedDocResources := Resources{}
+		updatedAndValidatedDocResources := ResourceDefs{}
 		for _, resource := range docResources {
 			var err error
 			resource.State, err = resource.State.ValidateAndUpdate(nestedCtx, hst)
@@ -109,12 +109,12 @@ func LoadFile(ctx context.Context, hst host.Host, yamlPath string) (Resources, e
 			}
 			updatedAndValidatedDocResources = append(updatedAndValidatedDocResources, resource)
 		}
-		resources = append(resources, updatedAndValidatedDocResources...)
+		resourceDefs = append(resourceDefs, updatedAndValidatedDocResources...)
 	}
 
-	nestedLogger.WithField("", resources.String()).Trace("Resources")
+	nestedLogger.WithField("", resourceDefs.String()).Trace("ResourceDefs")
 
-	return resources, nil
+	return resourceDefs, nil
 }
 
 func findYmls(ctx context.Context, root string) ([]string, error) {
@@ -146,29 +146,29 @@ func findYmls(ctx context.Context, root string) ([]string, error) {
 
 // LoadDir search for .yaml files at root and loads all of them.
 // Files are sorted by alphabetical order.
-func LoadDir(ctx context.Context, hst host.Host, root string) (Resources, error) {
+func LoadDir(ctx context.Context, hst host.Host, root string) (ResourceDefs, error) {
 	logger := log.GetLogger(ctx)
 	logger.Infof("📂 Loading resources from %s", root)
 	nestedCtx := log.IndentLogger(ctx)
 
-	resources := Resources{}
+	resourceDefs := ResourceDefs{}
 
 	yamlPaths, err := findYmls(nestedCtx, root)
 	if err != nil {
-		return resources, err
+		return resourceDefs, err
 	}
 
 	for _, yamlPath := range yamlPaths {
 		yamlResources, err := LoadFile(nestedCtx, hst, yamlPath)
 		if err != nil {
-			return resources, err
+			return resourceDefs, err
 		}
-		resources = append(resources, yamlResources...)
+		resourceDefs = append(resourceDefs, yamlResources...)
 	}
 
-	if err := resources.validate(); err != nil {
-		return resources, err
+	if err := resourceDefs.validate(); err != nil {
+		return resourceDefs, err
 	}
 
-	return resources, nil
+	return resourceDefs, nil
 }

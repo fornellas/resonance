@@ -16,9 +16,9 @@ import (
 	"github.com/fornellas/resonance/internal/resource"
 )
 
-func CreateResourceYamls(t *testing.T, resourcesRoot string, resourcesMap map[string]resource.Resources) {
+func CreateResourceYamls(t *testing.T, resourcesRoot string, resourceDefsMap map[string]resource.ResourceDefs) {
 	require.NoError(t, os.Mkdir(resourcesRoot, os.FileMode(0700)))
-	for name, resources := range resourcesMap {
+	for name, resources := range resourceDefsMap {
 		bundleBytes, err := yaml.Marshal(resources)
 		if err != nil {
 			t.Fatal(err)
