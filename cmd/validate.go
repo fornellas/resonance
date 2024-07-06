@@ -35,4 +35,6 @@ var ValidateCmd = &cobra.Command{
 
 func init() {
 	AddHostFlags(ValidateCmd)
+
+	RootCmd.AddCommand(ValidateCmd)
 }

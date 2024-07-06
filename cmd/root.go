@@ -52,8 +52,4 @@ func init() {
 		&forceColor, "force-color", "", defaultForceColor,
 		"Force colored output",
 	)
-
-	RootCmd.AddCommand(ValidateCmd)
-
-	RootCmd.AddCommand(VersionCmd)
 }
