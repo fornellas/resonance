@@ -2,6 +2,10 @@ name: build-linux
 on:
   workflow_call:
     inputs:
+      upload-artifact:
+        required: false
+        type: boolean
+        default: false
       GOARCH:
         required: true
         type: string
@@ -65,6 +69,7 @@ jobs:
         shell: bash
       # Upload
       - uses: actions/upload-artifact@v4
+        if: ${{ inputs.upload-artifact == true }}
         with:
           name: resonance.linux.${{ inputs.GOARCH }}.gz
           path: resonance.linux.${{ inputs.GOARCH }}.gz
@@ -72,7 +77,6 @@ jobs:
       # Coveralls
       - name: Coveralls
         uses: coverallsapp/github-action@v2
-        if: ${{ inputs.GOARCH == 'amd64' }}
         with:
           file: cover.lcov
           flag-name: linux.${{ inputs.GOARCH }}

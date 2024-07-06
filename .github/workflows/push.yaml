@@ -9,32 +9,38 @@ jobs:
   linux_386:
     uses: ./.github/workflows/build-linux.yaml
     with:
+      upload-artifact: true
       GOARCH: 386
     secrets: inherit
   linux_amd64:
     uses: ./.github/workflows/build-linux.yaml
     with:
+      upload-artifact: true
       GOARCH: amd64
     secrets: inherit
   linux_arm:
     uses: ./.github/workflows/build-linux.yaml
     with:
+      upload-artifact: true
       GOARCH: arm
     secrets: inherit
   linux_arm64:
     uses: ./.github/workflows/build-linux.yaml
     with:
+      upload-artifact: true
       GOARCH: arm64
     secrets: inherit
   darwin_amd64:
     uses: ./.github/workflows/build-darwin.yaml
     with:
+      upload-artifact: true
       GOARCH: amd64
       runs-on: macos-13
     secrets: inherit
   darwin_arm64:
     uses: ./.github/workflows/build-darwin.yaml
     with:
+      upload-artifact: true
       GOARCH: arm64
       runs-on: macos-14
     secrets: inherit
