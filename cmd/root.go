@@ -1,8 +1,13 @@
 package main
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 
 	"github.com/fornellas/resonance/log"
 )
@@ -17,6 +22,17 @@ var RootCmd = &cobra.Command{
 	Short: "Resonance is a configuration management tool.",
 	Args:  cobra.NoArgs,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		// Inspired by https://github.com/spf13/viper/issues/671#issuecomment-671067523
+		v := viper.New()
+		v.SetEnvPrefix("RESONANCE")
+		v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+		v.AutomaticEnv()
+		cmd.Flags().VisitAll(func(f *pflag.Flag) {
+			if !f.Changed && v.IsSet(f.Name) {
+				cmd.Flags().Set(f.Name, fmt.Sprintf("%v", v.Get(f.Name)))
+			}
+		})
+
 		if forceColor {
 			color.NoColor = false
 		}
