@@ -31,18 +31,6 @@ func (rs ResourceDefs) Validate() error {
 	return nil
 }
 
-func (rs ResourceDefs) Len() int {
-	return len(rs)
-}
-
-func (rs ResourceDefs) Swap(i, j int) {
-	rs[i], rs[j] = rs[j], rs[i]
-}
-
-func (rs ResourceDefs) Less(i, j int) bool {
-	return rs[i].String() < rs[j].String()
-}
-
 func (rs ResourceDefs) TypeNames() []TypeName {
 	typeNames := []TypeName{}
 	for _, resource := range rs {
@@ -57,18 +45,6 @@ func (rs ResourceDefs) String() string {
 		panic(err)
 	}
 	return string(bytes)
-}
-
-func (rs ResourceDefs) validate() error {
-	resourceMap := map[TypeName]bool{}
-
-	for _, resource := range rs {
-		if _, ok := resourceMap[resource.TypeName]; ok {
-			return fmt.Errorf("duplicate resource %s", resource.TypeName)
-		}
-		resourceMap[resource.TypeName] = true
-	}
-	return nil
 }
 
 // LoadFile loads Resources declared at given YAML file path
@@ -166,7 +142,7 @@ func LoadDir(ctx context.Context, hst host.Host, root string) (ResourceDefs, err
 		resourceDefs = append(resourceDefs, yamlResources...)
 	}
 
-	if err := resourceDefs.validate(); err != nil {
+	if err := resourceDefs.Validate(); err != nil {
 		return resourceDefs, err
 	}
 
