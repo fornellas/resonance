@@ -3,10 +3,12 @@ package resources
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"sort"
 	"strings"
 
+	"github.com/fornellas/resonance/diff"
 	"github.com/fornellas/resonance/host"
 )
 
@@ -37,12 +39,21 @@ func (ns Names) Less(i, j int) bool {
 }
 
 func (ns Names) String() string {
-	namesStr := []string{}
+	names := []string{}
 	for _, name := range ns {
-		namesStr = append(namesStr, string(name))
+		names = append(names, string(name))
 	}
-	sort.Strings(namesStr)
-	return strings.Join(namesStr, ",")
+	sort.Strings(names)
+	return strings.Join(names, ",")
+}
+
+func (ns Names) LogValue() slog.Value {
+	names := []string{}
+	for _, name := range ns {
+		names = append(names, string(name))
+	}
+	sort.Strings(names)
+	return slog.StringValue(strings.Join(names, "\n"))
 }
 
 // Resource defines a common interface for managing resource state.
@@ -70,7 +81,7 @@ type DiffableResource interface {
 
 	// Diff compares the two States. If b is satisfied by a, it returns empty Chunks. Otherwise,
 	// returns the diff between a and b.
-	Diff(a, b State) Chunks
+	Diff(a, b State) diff.Chunks
 }
 
 // MergeableResources is an interface for managing multiple resources together.

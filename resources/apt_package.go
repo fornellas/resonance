@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/fornellas/resonance/diff"
 	"github.com/fornellas/resonance/host"
 )
 
@@ -35,16 +36,16 @@ func (ap APTPackage) ValidateName(name Name) error {
 	return nil
 }
 
-func (ap APTPackage) Diff(a, b State) Chunks {
+func (ap APTPackage) Diff(a, b State) diff.Chunks {
 	if a != nil && b != nil {
 		aptPackageStateA := a.(APTPackageState)
 		aptPackageStateB := b.(APTPackageState)
 		if aptPackageStateB.Version == "" {
 			aptPackageStateB.Version = aptPackageStateA.Version
 		}
-		return DiffAsYaml(aptPackageStateA, aptPackageStateB)
+		return diff.DiffAsYaml(aptPackageStateA, aptPackageStateB)
 	} else {
-		return DiffAsYaml(a, b)
+		return diff.DiffAsYaml(a, b)
 	}
 }
 

@@ -2,20 +2,26 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
-	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
+	"github.com/fornellas/resonance/internal/version"
 	"github.com/fornellas/resonance/log"
 )
 
-var logLevelStr string
-var defaultLogLevelStr = "info"
-var forceColor bool
-var defaultForceColor = false
+var logLevelValue = NewLogLevelValue()
+
+var logHandlerValue = NewLogHandlerValue()
+
+var defaultLogHandlerAddSource = false
+var logHandlerAddSource = defaultLogHandlerAddSource
+
+var defaultLogHandlerConsoleTime = false
+var logHandlerConsoleTime = defaultLogHandlerConsoleTime
 
 var RootCmd = &cobra.Command{
 	Use:   "resonance",
@@ -33,17 +39,27 @@ var RootCmd = &cobra.Command{
 			}
 		})
 
-		if forceColor {
-			color.NoColor = false
-		}
-		cmd.SetContext(log.SetLoggerValue(
-			cmd.Context(), cmd.OutOrStderr(), logLevelStr, Exit,
-		))
+		handler := logHandlerValue.GetHandler(
+			cmd.OutOrStderr(),
+			LogHandlerValueOptions{
+				Level:       logLevelValue.Level(),
+				AddSource:   logHandlerAddSource,
+				ConsoleTime: logHandlerConsoleTime,
+			},
+		)
+		logger := slog.New(handler).With("version", version.GetVersion())
+		ctx := cmd.Context()
+		ctx = log.WithLogger(
+			ctx,
+			logger,
+		)
+		cmd.SetContext(ctx)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		logger := log.GetLogger(cmd.Context())
+		logger := log.MustLogger(cmd.Context())
 		if err := cmd.Help(); err != nil {
-			logger.Fatal(err)
+			logger.Error("failed to display help", "error", err)
+			Exit(1)
 		}
 	},
 }
@@ -51,21 +67,31 @@ var RootCmd = &cobra.Command{
 var resetFlagsFns []func()
 
 func ResetFlags() {
-	logLevelStr = defaultLogLevelStr
-	forceColor = defaultForceColor
-	for _, resetFunc := range resetFlagsFns {
-		resetFunc()
+	logLevelValue = NewLogLevelValue()
+
+	logHandlerValue = NewLogHandlerValue()
+
+	logHandlerAddSource = defaultLogHandlerAddSource
+
+	logHandlerConsoleTime = defaultLogHandlerConsoleTime
+
+	for _, resetFlagFn := range resetFlagsFns {
+		resetFlagFn()
 	}
 }
 
 func init() {
-	RootCmd.PersistentFlags().StringVarP(
-		&logLevelStr, "log-level", "l", defaultLogLevelStr,
-		"Logging level",
+	RootCmd.PersistentFlags().VarP(logLevelValue, "log-level", "l", "Logging level")
+
+	RootCmd.PersistentFlags().VarP(logHandlerValue, "log-handler", "", "Logging handler")
+
+	RootCmd.PersistentFlags().BoolVarP(
+		&logHandlerAddSource, "log-handler-add-source", "", defaultLogHandlerAddSource,
+		"Include source code position of the log statement when logging",
 	)
 
 	RootCmd.PersistentFlags().BoolVarP(
-		&forceColor, "force-color", "", defaultForceColor,
-		"Force colored output",
+		&logHandlerConsoleTime, "log-handler-console-time", "", defaultLogHandlerConsoleTime,
+		"Enable time for console handler",
 	)
 }

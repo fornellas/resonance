@@ -125,9 +125,9 @@ type Sudo struct {
 }
 
 func NewSudo(ctx context.Context, hst host.Host) (*Sudo, error) {
-	logger := log.GetLogger(ctx)
+	logger := log.MustLogger(ctx)
 	logger.Info("⚡ Sudo")
-	nestedCtx := log.IndentLogger(ctx)
+	ctx, _ = log.MustContextLoggerIndented(ctx)
 
 	sudoHost := Sudo{
 		Host: hst,
@@ -137,7 +137,7 @@ func NewSudo(ctx context.Context, hst host.Host) (*Sudo, error) {
 	cmd := host.Cmd{
 		Path: "true",
 	}
-	waitStatus, err := sudoHost.Run(nestedCtx, cmd)
+	waitStatus, err := sudoHost.Run(ctx, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func NewSudo(ctx context.Context, hst host.Host) (*Sudo, error) {
 		return nil, fmt.Errorf("failed to run %s: %s", cmd, waitStatus.String())
 	}
 
-	if err := sudoHost.setEnvPath(nestedCtx); err != nil {
+	if err := sudoHost.setEnvPath(ctx); err != nil {
 		return nil, err
 	}
 

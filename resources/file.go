@@ -80,7 +80,7 @@ func (f File) ValidateName(name Name) error {
 }
 
 func (f File) GetState(ctx context.Context, hst host.Host, name Name) (State, error) {
-	logger := log.GetLogger(ctx)
+	logger := log.MustLogger(ctx).With("path", name)
 
 	path := string(name)
 

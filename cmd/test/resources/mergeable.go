@@ -20,50 +20,50 @@ func (ms MergeableState) ValidateAndUpdate(ctx context.Context, hst host.Host) (
 	return ms, nil
 }
 
-type MergeableFuncValidateName struct {
+type MergeableFnValidateName struct {
 	Name        resources.Name
 	ReturnError error
 }
 
-func (mfvn MergeableFuncValidateName) String() string {
+func (mfvn MergeableFnValidateName) String() string {
 	return fmt.Sprintf("(%#v) %#v", mfvn.Name, mfvn.ReturnError)
 }
 
-type MergeableFuncGetStates struct {
+type MergeableFnGetStates struct {
 	Names              resources.Names
 	ReturnNameStateMap map[resources.Name]resources.State
 	ReturnError        error
 }
 
-func (mfgs MergeableFuncGetStates) String() string {
+func (mfgs MergeableFnGetStates) String() string {
 	return fmt.Sprintf("(%#v) (%#v, %#v)", mfgs.Names, mfgs.ReturnNameStateMap, mfgs.ReturnError)
 }
 
-type MergeableFuncApplyMerged struct {
+type MergeableFnApplyMerged struct {
 	ActionNameStateMap map[resources.Action]map[resources.Name]resources.State
 	ReturnError        error
 }
 
-func (mfca MergeableFuncApplyMerged) String() string {
+func (mfca MergeableFnApplyMerged) String() string {
 	return fmt.Sprintf("(%#v) (%#v)", mfca.ActionNameStateMap, mfca.ReturnError)
 }
 
-type MergeableFuncDestroy struct {
+type MergeableFnDestroy struct {
 	Name        resources.Name
 	ReturnError error
 }
 
-func (ifd MergeableFuncDestroy) String() string {
+func (ifd MergeableFnDestroy) String() string {
 	return fmt.Sprintf("(%#v) (%#v)", ifd.Name, ifd.ReturnError)
 }
 
-type MergeableFuncCall struct {
-	ValidateName *MergeableFuncValidateName
-	GetStates    *MergeableFuncGetStates
-	ApplyMerged  *MergeableFuncApplyMerged
+type MergeableFnCall struct {
+	ValidateName *MergeableFnValidateName
+	GetStates    *MergeableFnGetStates
+	ApplyMerged  *MergeableFnApplyMerged
 }
 
-func (mfc MergeableFuncCall) String() string {
+func (mfc MergeableFnCall) String() string {
 	mfcValue := reflect.ValueOf(mfc)
 	mfcType := mfcValue.Type()
 	for i := 0; i < mfcType.NumField(); i++ {
@@ -74,12 +74,12 @@ func (mfc MergeableFuncCall) String() string {
 			return fmt.Sprintf("%s: %v\n", name, value.Interface())
 		}
 	}
-	panic("empty MergeableFuncCall")
+	panic("empty MergeableFnCall")
 }
 
-type MergeableFuncCalls []MergeableFuncCall
+type MergeableFnCalls []MergeableFnCall
 
-func (mfcs MergeableFuncCalls) String() string {
+func (mfcs MergeableFnCalls) String() string {
 	var s strings.Builder
 	for i, mfc := range mfcs {
 		fmt.Fprintf(&s, "%d: %v", i, mfc)
@@ -88,21 +88,21 @@ func (mfcs MergeableFuncCalls) String() string {
 }
 
 var MergeableT *testing.T
-var MergeableExpectedFuncCalls MergeableFuncCalls
+var MergeableExpectedFnCalls MergeableFnCalls
 
 type Mergeable struct{}
 
-func (m *Mergeable) getFuncCall() *MergeableFuncCall {
-	if len(MergeableExpectedFuncCalls) == 0 {
+func (m *Mergeable) getFnCall() *MergeableFnCall {
+	if len(MergeableExpectedFnCalls) == 0 {
 		return nil
 	}
-	testFuncCall, expectedFuncCalls := MergeableExpectedFuncCalls[0], MergeableExpectedFuncCalls[1:]
-	MergeableExpectedFuncCalls = expectedFuncCalls
-	return &testFuncCall
+	testFnCall, expectedFnCalls := MergeableExpectedFnCalls[0], MergeableExpectedFnCalls[1:]
+	MergeableExpectedFnCalls = expectedFnCalls
+	return &testFnCall
 }
 
 func (m Mergeable) ValidateName(name resources.Name) error {
-	funcCall := m.getFuncCall()
+	funcCall := m.getFnCall()
 	if funcCall == nil {
 		MergeableT.Fatalf("no more calls expected, got ValidateName(%#v)", name)
 	}
@@ -122,9 +122,9 @@ func (m Mergeable) GetStates(
 	ctx context.Context, hst host.Host,
 	names resources.Names,
 ) (map[resources.Name]resources.State, error) {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Test.GetStates(%#v)", names)
-	funcCall := m.getFuncCall()
+	logger := log.MustLogger(ctx)
+	logger.Debug("Mergeable.GetStates", "names", names)
+	funcCall := m.getFnCall()
 	if funcCall == nil {
 		MergeableT.Fatalf("no more calls expected, got GetStates(%#v)", names)
 	}
@@ -144,9 +144,9 @@ func (m Mergeable) ApplyMerged(
 	ctx context.Context, hst host.Host,
 	actionNameStateMap map[resources.Action]map[resources.Name]resources.State,
 ) error {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Test.ApplyMerged(%#v)", actionNameStateMap)
-	funcCall := m.getFuncCall()
+	logger := log.MustLogger(ctx)
+	logger.Debug("Mergeable.ApplyMerged", "actions", actionNameStateMap)
+	funcCall := m.getFnCall()
 	if funcCall == nil {
 		MergeableT.Fatalf("no more calls expected, got ApplyMerged(%#v)", actionNameStateMap)
 	}
@@ -162,12 +162,12 @@ func (m Mergeable) ApplyMerged(
 	return funcCall.ApplyMerged.ReturnError
 }
 
-func SetupMergeableType(t *testing.T, individualFuncCalls []MergeableFuncCall) {
+func SetupMergeableType(t *testing.T, individualFnCalls []MergeableFnCall) {
 	MergeableT = t
-	MergeableExpectedFuncCalls = individualFuncCalls
+	MergeableExpectedFnCalls = individualFnCalls
 	t.Cleanup(func() {
-		if len(MergeableExpectedFuncCalls) > 0 {
-			t.Errorf("expected calls pending:\n%v", MergeableExpectedFuncCalls)
+		if len(MergeableExpectedFnCalls) > 0 {
+			t.Errorf("expected calls pending:\n%v", MergeableExpectedFnCalls)
 		}
 	})
 }

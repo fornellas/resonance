@@ -90,7 +90,7 @@ func sshGetPasswordCallbackPromptFn() func() (secret string, err error) {
 }
 
 func sshGetSigners(ctx context.Context) ([]ssh.Signer, error) {
-	logger := log.GetLogger(ctx)
+	logger := log.MustLogger(ctx)
 
 	signers := []ssh.Signer{}
 	home, err := os.UserHomeDir()
@@ -112,7 +112,7 @@ func sshGetSigners(ctx context.Context) ([]ssh.Signer, error) {
 			if !errors.Is(err, os.ErrNotExist) {
 				return signers, fmt.Errorf("unable to read %s: %w", privateKeyPath, err)
 			}
-			logger.Debugf("No private key found at %s", privateKeyPath)
+			logger.Debug("No private key found", "path", privateKeyPath)
 		} else {
 			var signer ssh.Signer
 			var err error
@@ -140,7 +140,7 @@ func sshGetSigners(ctx context.Context) ([]ssh.Signer, error) {
 					return signers, fmt.Errorf("unable to parse %s: %v", privateKeyPath, err)
 				}
 			}
-			logger.Debugf("Using private key %s", privateKeyPath)
+			logger.Debug("Using private key", "path", privateKeyPath)
 			signers = append(signers, signer)
 		}
 	}
@@ -150,7 +150,7 @@ func sshGetSigners(ctx context.Context) ([]ssh.Signer, error) {
 func sshGetHostKeyCallback(
 	ctx context.Context, host string, port int, fingerprint string,
 ) (ssh.HostKeyCallback, error) {
-	logger := log.GetLogger(ctx)
+	logger := log.MustLogger(ctx)
 
 	var fingerprintHostKeyCallback ssh.HostKeyCallback
 	if fingerprint != "" {
@@ -173,13 +173,13 @@ func sshGetHostKeyCallback(
 	files := []string{}
 	systemKnownHosts := "/etc/ssh/ssh_known_hosts"
 	if _, err := os.Stat(systemKnownHosts); err == nil {
-		logger.Debugf("Using %s", systemKnownHosts)
+		logger.Debug("Using known hosts", "path", systemKnownHosts)
 		files = append(files, systemKnownHosts)
 	} else {
 		if !errors.Is(err, os.ErrNotExist) {
 			return nil, err
 		}
-		logger.Debugf("Not found %s", systemKnownHosts)
+		logger.Debug("Known hosts not found", "path", systemKnownHosts)
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -188,13 +188,13 @@ func sshGetHostKeyCallback(
 
 	userKnownHosts := filepath.Join(home, ".ssh/known_hosts")
 	if _, err := os.Stat(userKnownHosts); err == nil {
-		logger.Debugf("Using %s", userKnownHosts)
+		logger.Debug("Using knwon hosts", "path", userKnownHosts)
 		files = append(files, userKnownHosts)
 	} else {
 		if !errors.Is(err, os.ErrNotExist) {
 			return nil, err
 		}
-		logger.Debugf("Not found %s", userKnownHosts)
+		logger.Debug("Known hosts not found", "path", userKnownHosts)
 	}
 	knownHostsHostKeyCallback, err := knownhosts.New(files...)
 	if err != nil {
@@ -204,13 +204,13 @@ func sshGetHostKeyCallback(
 	hostKeyCallback := func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 		if fingerprintHostKeyCallback != nil {
 			if err := fingerprintHostKeyCallback(hostname, remote, key); err == nil {
-				logger.Debugf("Server key verified by fingerprint")
+				logger.Debug("Server key verified by fingerprint")
 				return nil
 			}
 		}
 		err := knownHostsHostKeyCallback(hostname, remote, key)
 		if err == nil {
-			logger.Debugf("Server key verified by known_hosts")
+			logger.Debug("Server key verified by known_hosts")
 		}
 		return err
 	}
@@ -226,15 +226,18 @@ func NewSsh(
 	port int,
 	timeout time.Duration,
 ) (Ssh, error) {
-	logger := log.GetLogger(ctx)
-	logger.Infof("🖧 SSH %s@%s:%d", user, host, port)
-	nestedCtx := log.IndentLogger(ctx)
+	logger := log.MustLogger(ctx)
+	logger.Info(
+		"🖧 SSH",
+		"user", user, "fingerprint", fingerprint, "host", host, "port", port, "timeout", timeout,
+	)
+	ctx, _ = log.MustContextLoggerIndented(ctx)
 
-	signers, err := sshGetSigners(nestedCtx)
+	signers, err := sshGetSigners(ctx)
 	if err != nil {
 		return Ssh{}, err
 	}
-	hostKeyCallback, err := sshGetHostKeyCallback(nestedCtx, host, port, fingerprint)
+	hostKeyCallback, err := sshGetHostKeyCallback(ctx, host, port, fingerprint)
 	if err != nil {
 		return Ssh{}, err
 	}
@@ -260,7 +263,7 @@ func NewSsh(
 	}
 	sshHost.cmdHost.Host = sshHost
 
-	if err := sshHost.setEnvPath(nestedCtx); err != nil {
+	if err := sshHost.setEnvPath(ctx); err != nil {
 		return Ssh{}, err
 	}
 
@@ -313,8 +316,8 @@ func NewSshAuthority(ctx context.Context, authority string) (Ssh, error) {
 }
 
 func (s Ssh) runEnv(ctx context.Context, cmd host.Cmd, ignoreCmdEnv bool) (host.WaitStatus, error) {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Run %s", cmd)
+	logger := log.MustLogger(ctx)
+	logger.Debug("Run", "cmd", cmd)
 
 	session, err := s.client.NewSession()
 	if err != nil {

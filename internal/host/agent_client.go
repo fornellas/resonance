@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -17,8 +18,6 @@ import (
 
 	"go.uber.org/multierr"
 	"gopkg.in/yaml.v3"
-
-	"github.com/sirupsen/logrus"
 
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/internal/host/agent/api"
@@ -36,7 +35,7 @@ var AgentBinGz = map[string][]byte{}
 // host.
 type AgentClient struct {
 	Host   host.Host
-	Path   string
+	path   string
 	Client *http.Client
 	waitCn chan struct{}
 }
@@ -139,20 +138,21 @@ func copyReader(ctx context.Context, hst host.Host, reader io.Reader, path strin
 }
 
 func NewAgent(ctx context.Context, hst host.Host) (*AgentClient, error) {
-	logger := log.GetLogger(ctx)
+	logger := log.MustLogger(ctx)
 	logger.Info("🐈 Agent")
-	nestedCtx := log.IndentLogger(ctx)
 
-	agentPath, err := getTmpFile(nestedCtx, hst, "resonance_agent")
+	ctx, _ = log.MustContextLoggerIndented(ctx)
+
+	agentPath, err := getTmpFile(ctx, hst, "resonance_agent")
 	if err != nil {
 		return nil, err
 	}
 
-	if err := hst.Chmod(nestedCtx, agentPath, os.FileMode(0755)); err != nil {
+	if err := hst.Chmod(ctx, agentPath, os.FileMode(0755)); err != nil {
 		return nil, err
 	}
 
-	agentBinGz, err := getAgentBinGz(nestedCtx, hst)
+	agentBinGz, err := getAgentBinGz(ctx, hst)
 	if err != nil {
 		return nil, err
 	}
@@ -162,13 +162,13 @@ func NewAgent(ctx context.Context, hst host.Host) (*AgentClient, error) {
 		return nil, err
 	}
 
-	if err := copyReader(nestedCtx, hst, agentReader, agentPath); err != nil {
+	if err := copyReader(ctx, hst, agentReader, agentPath); err != nil {
 		return nil, err
 	}
 
 	agent := AgentClient{
 		Host:   hst,
-		Path:   agentPath,
+		path:   agentPath,
 		waitCn: make(chan struct{}),
 	}
 
@@ -279,8 +279,9 @@ func (a AgentClient) put(path string, body io.Reader) (*http.Response, error) {
 }
 
 func (a AgentClient) Chmod(ctx context.Context, name string, mode os.FileMode) error {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Chmod %v %s", mode, name)
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("Chmod", "name", name, "mode", mode)
 
 	if !filepath.IsAbs(name) {
 		return fmt.Errorf("path must be absolute: %s", name)
@@ -295,8 +296,9 @@ func (a AgentClient) Chmod(ctx context.Context, name string, mode os.FileMode) e
 }
 
 func (a AgentClient) Chown(ctx context.Context, name string, uid, gid int) error {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Chown %v %v %s", uid, gid, name)
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("Chown", "name", name, "uid", uid, "gid", gid)
 
 	if !filepath.IsAbs(name) {
 		return fmt.Errorf("path must be absolute: %s", name)
@@ -312,8 +314,9 @@ func (a AgentClient) Chown(ctx context.Context, name string, uid, gid int) error
 }
 
 func (a AgentClient) Lookup(ctx context.Context, username string) (*user.User, error) {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Lookup %s", username)
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("Lookup", "username", username)
 
 	resp, err := a.get(fmt.Sprintf("/user/%s", username))
 	if err != nil {
@@ -328,8 +331,9 @@ func (a AgentClient) Lookup(ctx context.Context, username string) (*user.User, e
 }
 
 func (a AgentClient) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("LookupGroup %s", name)
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("LookupGroup", "name", name)
 
 	resp, err := a.get(fmt.Sprintf("/group/%s", name))
 	if err != nil {
@@ -344,8 +348,9 @@ func (a AgentClient) LookupGroup(ctx context.Context, name string) (*user.Group,
 }
 
 func (a AgentClient) Lstat(ctx context.Context, name string) (host.HostFileInfo, error) {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Lstat %s", name)
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("Lstat", "name", name)
 
 	if !filepath.IsAbs(name) {
 		return host.HostFileInfo{}, fmt.Errorf("path must be absolute: %s", name)
@@ -365,8 +370,9 @@ func (a AgentClient) Lstat(ctx context.Context, name string) (host.HostFileInfo,
 }
 
 func (a AgentClient) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Mkdir %s", name)
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("Mkdir", "name", name)
 
 	if !filepath.IsAbs(name) {
 		return fmt.Errorf("path must be absolute: %s", name)
@@ -381,8 +387,9 @@ func (a AgentClient) Mkdir(ctx context.Context, name string, perm os.FileMode) e
 }
 
 func (a AgentClient) ReadFile(ctx context.Context, name string) ([]byte, error) {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("ReadFile %s", name)
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("ReadFile", "name", name)
 
 	if !filepath.IsAbs(name) {
 		return nil, fmt.Errorf("path must be absolute: %s", name)
@@ -402,8 +409,9 @@ func (a AgentClient) ReadFile(ctx context.Context, name string) ([]byte, error) 
 }
 
 func (a AgentClient) Remove(ctx context.Context, name string) error {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Remove %s", name)
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("Remove", "name", name)
 
 	if !filepath.IsAbs(name) {
 		return fmt.Errorf("path must be absolute: %s", name)
@@ -418,8 +426,9 @@ func (a AgentClient) Remove(ctx context.Context, name string) error {
 }
 
 func (a AgentClient) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Run %s", cmd)
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("Run", "cmd", cmd)
 
 	var stdin []byte
 	if cmd.Stdin != nil {
@@ -476,8 +485,9 @@ func (a AgentClient) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, er
 }
 
 func (a AgentClient) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("WriteFile %s %v", name, perm)
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("WriteFile", "name", name, "data", data, "perm", perm)
 
 	if !filepath.IsAbs(name) {
 		return fmt.Errorf("path must be absolute: %s", name)
@@ -503,7 +513,7 @@ func (a *AgentClient) Close() error {
 }
 
 type writerLogger struct {
-	Logger *logrus.Logger
+	Logger *slog.Logger
 }
 
 func (wl writerLogger) Write(b []byte) (int, error) {
@@ -512,13 +522,13 @@ func (wl writerLogger) Write(b []byte) (int, error) {
 		if len(line) == 0 && i+1 == len(lines) {
 			break
 		}
-		wl.Logger.Errorf("Agent: %s", line)
+		wl.Logger.Error("Agent", "line", line)
 	}
 	return len(b), nil
 }
 
 func (a *AgentClient) spawn(ctx context.Context) error {
-	logger := log.GetLogger(ctx)
+	logger := log.MustLogger(ctx)
 
 	stdinReader, stdinWriter, err := os.Pipe()
 	if err != nil {
@@ -547,7 +557,7 @@ func (a *AgentClient) spawn(ctx context.Context) error {
 	go func() {
 		defer func() { a.waitCn <- struct{}{} }()
 		waitStatus, err := a.Host.Run(ctx, host.Cmd{
-			Path:   a.Path,
+			Path:   a.path,
 			Stdin:  stdinReader,
 			Stdout: stdoutWriter,
 			Stderr: writerLogger{
@@ -555,10 +565,10 @@ func (a *AgentClient) spawn(ctx context.Context) error {
 			},
 		})
 		if err != nil {
-			logger.Errorf("failed to run agent: %s", err)
+			logger.Error("failed to run agent", "err", err)
 		}
 		if !waitStatus.Success() {
-			logger.Errorf("agent exited with error: %s", waitStatus.String())
+			logger.Error("agent exited with error", "error", waitStatus)
 		}
 		stdinWriter.Close()
 		stdoutReader.Close()

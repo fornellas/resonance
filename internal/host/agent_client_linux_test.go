@@ -2,7 +2,6 @@ package host
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -12,9 +11,7 @@ import (
 
 func TestAgent(t *testing.T) {
 	ctx := context.Background()
-	ctx = log.SetLoggerValue(ctx, os.Stderr, "info", func(code int) {
-		t.Fatalf("exit called with %d", code)
-	})
+	ctx = log.WithTestLogger(ctx)
 
 	host, err := NewAgent(ctx, Local{})
 	defer func() { require.NoError(t, host.Close()) }()

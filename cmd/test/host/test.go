@@ -11,49 +11,49 @@ import (
 	"github.com/fornellas/resonance/log"
 )
 
-type FuncChmod struct {
+type FnChmod struct {
 	Name        string
 	FileModeode os.FileMode
 	ReturnError error
 }
 
-type FuncChown struct {
+type FnChown struct {
 	Name        string
 	Uid         int
 	Gid         int
 	ReturnError error
 }
 
-type FuncLookup struct {
+type FnLookup struct {
 	Username    string
 	ReturnUser  *user.User
 	ReturnError error
 }
 
-type FuncLookupGroup struct {
+type FnLookupGroup struct {
 	Name        string
 	ReturnGroup *user.Group
 	ReturnError error
 }
 
-type FuncLstat struct {
+type FnLstat struct {
 	Name           string
 	ReturnFileInfo os.FileInfo
 	ReturnError    error
 }
 
-type FuncReadFile struct {
+type FnReadFile struct {
 	Name        string
 	ReturnBytes []byte
 	ReturnError error
 }
 
-type FuncRemove struct {
+type FnRemove struct {
 	Name        string
 	ReturnError error
 }
 
-type FuncRun struct {
+type FnRun struct {
 	Cmd              host.Cmd
 	ReturnWaitStatus host.WaitStatus
 	ReturnStdout     string
@@ -61,44 +61,44 @@ type FuncRun struct {
 	ReturnError      error
 }
 
-type FuncWriteFile struct {
+type FnWriteFile struct {
 	Name        string
 	Data        []byte
 	Perm        os.FileMode
 	ReturnError error
 }
 
-type FuncCall struct {
-	Chmod       *FuncChmod
-	Chown       *FuncChown
-	Lookup      *FuncLookup
-	LookupGroup *FuncLookupGroup
-	Lstat       *FuncLstat
-	ReadFile    *FuncReadFile
-	Remove      *FuncRemove
-	Run         *FuncRun
-	WriteFile   *FuncWriteFile
+type FnCall struct {
+	Chmod       *FnChmod
+	Chown       *FnChown
+	Lookup      *FnLookup
+	LookupGroup *FnLookupGroup
+	Lstat       *FnLstat
+	ReadFile    *FnReadFile
+	Remove      *FnRemove
+	Run         *FnRun
+	WriteFile   *FnWriteFile
 }
 
-// Test aids testing by enabling mocking of host functions.
-type Test struct {
-	T                 *testing.T
-	ExpectedFuncCalls []FuncCall
+// TestHost aids testing by enabling mocking of host functions.
+type TestHost struct {
+	T               *testing.T
+	ExpectedFnCalls []FnCall
 }
 
-func (t *Test) getFuncCall() *FuncCall {
-	if len(t.ExpectedFuncCalls) == 0 {
+func (t *TestHost) getFnCall() *FnCall {
+	if len(t.ExpectedFnCalls) == 0 {
 		return nil
 	}
-	testFuncCall, expectedFuncCalls := t.ExpectedFuncCalls[0], t.ExpectedFuncCalls[1:]
-	t.ExpectedFuncCalls = expectedFuncCalls
-	return &testFuncCall
+	testFnCall, expectedFnCalls := t.ExpectedFnCalls[0], t.ExpectedFnCalls[1:]
+	t.ExpectedFnCalls = expectedFnCalls
+	return &testFnCall
 }
 
-func (t Test) Chmod(ctx context.Context, name string, mode os.FileMode) error {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Chmod %v %s", mode, name)
-	funcCall := t.getFuncCall()
+func (t TestHost) Chmod(ctx context.Context, name string, mode os.FileMode) error {
+	logger := log.MustLoggerIndented(ctx)
+	logger.Debug("TestHost.Chmod", "name", name, "mode", mode)
+	funcCall := t.getFnCall()
 	if funcCall == nil {
 		t.T.Fatalf("no more calls expected: Chmod(%v, %v)", name, mode)
 	}
@@ -108,10 +108,10 @@ func (t Test) Chmod(ctx context.Context, name string, mode os.FileMode) error {
 	return funcCall.Chmod.ReturnError
 }
 
-func (t Test) Chown(ctx context.Context, name string, uid, gid int) error {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Chown %v %v %s", uid, gid, name)
-	funcCall := t.getFuncCall()
+func (t TestHost) Chown(ctx context.Context, name string, uid, gid int) error {
+	logger := log.MustLoggerIndented(ctx)
+	logger.Debug("TestHost.Chown", "name", name, "uid", uid, "gid", gid)
+	funcCall := t.getFnCall()
 	if funcCall == nil {
 		t.T.Fatalf("no more calls expected: Chown(%v, %v, %v)", name, uid, gid)
 	}
@@ -121,10 +121,10 @@ func (t Test) Chown(ctx context.Context, name string, uid, gid int) error {
 	return funcCall.Chown.ReturnError
 }
 
-func (t Test) Lookup(ctx context.Context, username string) (*user.User, error) {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Lookup %s", username)
-	funcCall := t.getFuncCall()
+func (t TestHost) Lookup(ctx context.Context, username string) (*user.User, error) {
+	logger := log.MustLoggerIndented(ctx)
+	logger.Debug("TestHost.Lookup", "username", username)
+	funcCall := t.getFnCall()
 	if funcCall == nil {
 		return nil, fmt.Errorf("no more calls expected: got Lookup(%v)", username)
 	}
@@ -134,10 +134,10 @@ func (t Test) Lookup(ctx context.Context, username string) (*user.User, error) {
 	return funcCall.Lookup.ReturnUser, funcCall.Lookup.ReturnError
 }
 
-func (t Test) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("LookupGroup %s", name)
-	funcCall := t.getFuncCall()
+func (t TestHost) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
+	logger := log.MustLoggerIndented(ctx)
+	logger.Debug("TestHost.LookupGroup", "name", name)
+	funcCall := t.getFnCall()
 	if funcCall == nil {
 		return nil, fmt.Errorf("no more calls expected: got LookupGroup(%v)", name)
 	}
@@ -147,10 +147,10 @@ func (t Test) LookupGroup(ctx context.Context, name string) (*user.Group, error)
 	return funcCall.LookupGroup.ReturnGroup, funcCall.LookupGroup.ReturnError
 }
 
-func (t Test) Lstat(ctx context.Context, name string) (os.FileInfo, error) {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Lstat %s", name)
-	funcCall := t.getFuncCall()
+func (t TestHost) Lstat(ctx context.Context, name string) (os.FileInfo, error) {
+	logger := log.MustLoggerIndented(ctx)
+	logger.Debug("TestHost.Lstat", "name", name)
+	funcCall := t.getFnCall()
 	if funcCall == nil {
 		t.T.Fatalf("no more calls expected: got Lstat(%v)", name)
 	}
@@ -160,10 +160,10 @@ func (t Test) Lstat(ctx context.Context, name string) (os.FileInfo, error) {
 	return funcCall.Lstat.ReturnFileInfo, funcCall.Lstat.ReturnError
 }
 
-func (t Test) ReadFile(ctx context.Context, name string) ([]byte, error) {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("ReadFile %s", name)
-	funcCall := t.getFuncCall()
+func (t TestHost) ReadFile(ctx context.Context, name string) ([]byte, error) {
+	logger := log.MustLoggerIndented(ctx)
+	logger.Debug("TestHost.ReadFile", "name", name)
+	funcCall := t.getFnCall()
 	if funcCall == nil {
 		t.T.Fatalf("no more calls expected: got ReadFile(%v)", name)
 	}
@@ -173,10 +173,10 @@ func (t Test) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	return funcCall.ReadFile.ReturnBytes, funcCall.ReadFile.ReturnError
 }
 
-func (t Test) Remove(ctx context.Context, name string) error {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Remove %s", name)
-	funcCall := t.getFuncCall()
+func (t TestHost) Remove(ctx context.Context, name string) error {
+	logger := log.MustLoggerIndented(ctx)
+	logger.Debug("TestHost.Remove", "name", name)
+	funcCall := t.getFnCall()
 	if funcCall == nil {
 		t.T.Fatalf("no more calls expected: got Remove(%v)", name)
 	}
@@ -186,10 +186,10 @@ func (t Test) Remove(ctx context.Context, name string) error {
 	return funcCall.Remove.ReturnError
 }
 
-func (t Test) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, string, string, error) {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Run %s", cmd)
-	funcCall := t.getFuncCall()
+func (t TestHost) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, string, string, error) {
+	logger := log.MustLoggerIndented(ctx)
+	logger.Debug("TestHost.Run", "cmd", cmd)
+	funcCall := t.getFnCall()
 	if funcCall == nil {
 		t.T.Fatalf("no more calls expected: got Run(%v)", cmd)
 	}
@@ -199,10 +199,10 @@ func (t Test) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, string, s
 	return funcCall.Run.ReturnWaitStatus, funcCall.Run.ReturnStdout, funcCall.Run.ReturnStderr, funcCall.Run.ReturnError
 }
 
-func (t Test) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("WriteFile %s %v", name, perm)
-	funcCall := t.getFuncCall()
+func (t TestHost) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
+	logger := log.MustLoggerIndented(ctx)
+	logger.Debug("TestHost.WriteFile", "name", name, "data", string(data), "perm", perm)
+	funcCall := t.getFnCall()
 	if funcCall == nil {
 		t.T.Fatalf("no more calls expected: got WriteFile(%v, %v, %v)", name, data, perm)
 	}
@@ -212,6 +212,6 @@ func (t Test) WriteFile(ctx context.Context, name string, data []byte, perm os.F
 	return funcCall.WriteFile.ReturnError
 }
 
-func (t Test) String() string {
+func (t TestHost) String() string {
 	return "test"
 }
