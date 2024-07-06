@@ -1,16 +1,20 @@
 package main
 
 import (
-	"github.com/spf13/cobra"
+	"os"
 
-	"github.com/fornellas/resonance/internal/resource"
+	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
+
+	iResouresPkg "github.com/fornellas/resonance/internal/resources"
 	"github.com/fornellas/resonance/log"
+	resouresPkg "github.com/fornellas/resonance/resources"
 )
 
 var ValidateCmd = &cobra.Command{
-	Use:   "validate [flags] path",
+	Use:   "validate [flags] [file|dir]",
 	Short: "Validates resource files.",
-	Long:  "Loads all resoures from .yaml files at path validating whether they are ok.",
+	Long:  "Loads all resoures from yaml files, validating whether they are ok.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		path := args[0]
@@ -28,13 +32,49 @@ var ValidateCmd = &cobra.Command{
 
 		logger.Info("⚙️ Validating", "path", path, "host", hst)
 
-		resourceDefs, err := resource.LoadDir(ctx, hst, path)
+		var resources resouresPkg.Resources
+
+		fileInfo, err := os.Stat(path)
 		if err != nil {
 			logger.Error(err.Error())
 			Exit(1)
 		}
 
-		logger.Info("🎆 Validation successful", "resources", len(resourceDefs))
+		if fileInfo.IsDir() {
+			resources, err = iResouresPkg.LoadDir(ctx, path)
+			if err != nil {
+				logger.Error(err.Error())
+				Exit(1)
+			}
+		} else {
+			resources, err = iResouresPkg.LoadFile(ctx, path)
+			if err != nil {
+				logger.Error(err.Error())
+				Exit(1)
+			}
+		}
+
+		hostState, err := iResouresPkg.NewHostState(resources)
+		if err != nil {
+			logger.Error(err.Error())
+			Exit(1)
+		}
+
+		if err := hostState.Update(ctx, hst); err != nil {
+			logger.Error(err.Error())
+			Exit(1)
+		}
+
+		hostStateYamlBytes, err := yaml.Marshal(hostState)
+		if err != nil {
+			logger.Error(err.Error())
+			Exit(1)
+		}
+
+		logger.Info(
+			"🎆 Validation successful",
+			"hostState", string(hostStateYamlBytes),
+		)
 	},
 }
 

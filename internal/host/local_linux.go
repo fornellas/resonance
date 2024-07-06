@@ -78,7 +78,6 @@ func (l Local) Remove(ctx context.Context, name string) error {
 func (l Local) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Run", "cmd", cmd)
-
 	return LocalRun(ctx, cmd)
 }
 

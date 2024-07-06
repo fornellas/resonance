@@ -1,0 +1,11 @@
+- APTPackage:
+    package: foo
+- File:
+    path: /tmp/foo
+    perm: 0644
+    user: root
+- APTPackage:
+    package: bar
+- File:
+    path: /tmp/bar
+    perm: 0755

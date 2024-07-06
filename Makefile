@@ -196,7 +196,11 @@ GO_BUILD_FLAGS :=
 # management of local users
 GO_BUILD_FLAGS_COMMON := -tags osusergo
 
-GOARCHS_AGENT := 386 amd64 arm arm64
+ifneq ($(GO_BUILD_AGENT_NATIVE_ONLY),1)
+GO_BUILD_AGENT_GOARCHS := 386 amd64 arm arm64
+else
+GO_BUILD_AGENT_GOARCHS := $(GOARCH)
+endif
 
 ##
 ## rrb
@@ -411,6 +415,7 @@ endif
 build-help:
 	@echo 'build: build everything'
 	@echo '  use GO_BUILD_FLAGS to add extra build flags (see `go help build`)'
+	@echo '  use GO_BUILD_AGENT_NATIVE_ONLY=1 to only build agent to native arch (faster)'
 help: build-help
 
 .PHONY: build-agent-%
@@ -431,14 +436,14 @@ build-agent-%: go-generate
 		AgentBinGz["linux.$*"] = agent_linux_$*
 	}
 	EOF
-build-agent: $(foreach GOARCH,$(GOARCHS_AGENT),build-agent-$(GOARCH))
+build-agent: $(foreach GOARCH,$(GO_BUILD_AGENT_GOARCHS),build-agent-$(GOARCH))
 
 .PHONY: clean-agent-%
 clean-agent-%:
 	rm -f internal/host/agent/agent_linux_$*
 	rm -f internal/host/agent/agent_linux_$*.gz
 	rm -rf internal/host/agent_linux_$*_gz.go
-clean-agent: $(foreach GOARCH,$(GOARCHS_AGENT),clean-agent-$(GOARCH))
+clean-agent: $(foreach GOARCH,$(GO_BUILD_AGENT_GOARCHS),clean-agent-$(GOARCH))
 clean: clean-agent
 build: clean-agent
 go-generate: clean-agent

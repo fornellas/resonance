@@ -3,74 +3,93 @@ package resources
 import (
 	"context"
 	"errors"
-	"fmt"
 	"regexp"
 	"strings"
 
-	"github.com/fornellas/resonance/diff"
+	"fmt"
+	"reflect"
+
 	"github.com/fornellas/resonance/host"
 )
 
-// APTPackageState is State for APTPackage
-type APTPackageState struct {
+// APTPackage manages APT packages.
+type APTPackage struct {
+	// The name of the package
+	Package string `yaml:"package"`
+	// Whether to remove the package
+	Remove bool `yaml:"remove"`
 	// Package version
 	Version string `yaml:"version"`
 }
 
-func (aps APTPackageState) ValidateAndUpdate(ctx context.Context, hst host.Host) (State, error) {
+// https://www.debian.org/doc/debian-policy/ch-controlfields.html#package
+var validAptPackageNameRegexp = regexp.MustCompile(`^[a-z0-9][a-z0-9+\-.]{1,}$`)
+
+func (a *APTPackage) Validate() error {
+	// Package
+	if !validAptPackageNameRegexp.MatchString(a.Package) {
+		return fmt.Errorf("`package` must match regexp %s: %s", validAptPackageNameRegexp, a.Version)
+	}
+
+	// Remove
+	if a.Remove {
+		if a.Version != "" {
+			return fmt.Errorf("'version' can not be set when 'remove' is true")
+		}
+	}
+
+	// Version
 	// https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
-	if strings.HasSuffix(aps.Version, "+") {
-		return nil, fmt.Errorf("version can't end in +: %s", aps.Version)
+	if strings.HasSuffix(a.Version, "+") {
+		return fmt.Errorf("`version` can't end in +: %s", a.Version)
 	}
-	if strings.HasSuffix(aps.Version, "-") {
-		return nil, fmt.Errorf("version can't end in -: %s", aps.Version)
+	if strings.HasSuffix(a.Version, "-") {
+		return fmt.Errorf("`version` can't end in -: %s", a.Version)
 	}
-	return aps, nil
-}
 
-// APTPackage resource manages files.
-type APTPackage struct{}
-
-func (ap APTPackage) ValidateName(name Name) error {
-	// https://www.debian.org/doc/debian-policy/ch-controlfields.html#source
 	return nil
 }
 
-func (ap APTPackage) Diff(a, b State) diff.Chunks {
-	if a != nil && b != nil {
-		aptPackageStateA := a.(APTPackageState)
-		aptPackageStateB := b.(APTPackageState)
-		if aptPackageStateB.Version == "" {
-			aptPackageStateB.Version = aptPackageStateA.Version
-		}
-		return diff.DiffAsYaml(aptPackageStateA, aptPackageStateB)
-	} else {
-		return diff.DiffAsYaml(a, b)
-	}
+func (a *APTPackage) Name() string {
+	return a.Package
 }
+
+type APTPackages struct{}
 
 var aptCachePackageRegexp = regexp.MustCompile(`^(.+):$`)
 var aptCachePackageInstalledRegexp = regexp.MustCompile(`^  Installed: (.+)$`)
 var aptCachePackageCandidateRegexp = regexp.MustCompile(`^  Candidate: (.+)$`)
 var aptCacheUnableToLocateRegexp = regexp.MustCompile(`^N: Unable to locate package (.+)$`)
 
-func (ap APTPackage) GetStates(
-	ctx context.Context, hst host.Host, names Names,
-) (map[Name]State, error) {
+func (a *APTPackages) getAptPackages(resources Resources) []*APTPackage {
+	aptPackages := make([]*APTPackage, len(resources))
+	for i, resurce := range resources {
+		aptPackage, ok := resurce.(*APTPackage)
+		if !ok {
+			panic("bug: Resource is not a APTPackage")
+		}
+		aptPackages[i] = aptPackage
+	}
+	return aptPackages
+}
+
+func (a *APTPackages) Load(ctx context.Context, hst host.Host, resources Resources) error {
+	aptPackages := a.getAptPackages(resources)
+
 	hostCmd := host.Cmd{
 		Path: "apt-cache",
 		Args: []string{"policy"},
 	}
-	for _, name := range names {
-		hostCmd.Args = append(hostCmd.Args, string(name))
+	for _, aptPackage := range aptPackages {
+		hostCmd.Args = append(hostCmd.Args, aptPackage.Package)
 	}
 
 	waitStatus, stdout, stderr, err := host.Run(ctx, hst, hostCmd)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if !waitStatus.Success() {
-		return nil, fmt.Errorf(
+		return fmt.Errorf(
 			"failed to run '%s': %s\nstdout:\n%s\nstderr:\n%s",
 			hostCmd.String(), waitStatus.String(), stdout, stderr,
 		)
@@ -88,7 +107,7 @@ func (ap APTPackage) GetStates(
 
 		matches = aptCacheUnableToLocateRegexp.FindStringSubmatch(line)
 		if len(matches) == 2 {
-			return nil, errors.New(line)
+			return errors.New(line)
 		}
 
 		if pkg != "" {
@@ -105,59 +124,48 @@ func (ap APTPackage) GetStates(
 		}
 	}
 
-	nameStateMap := map[Name]State{}
-	for _, name := range names {
-		installedVersion, ok := pkgInstalledMap[string(name)]
+	for _, aptPackage := range aptPackages {
+		installedVersion, ok := pkgInstalledMap[aptPackage.Package]
 		if !ok {
-			return nil, fmt.Errorf(
+			return fmt.Errorf(
 				"failed to get %s package version: %s:\n%s",
-				name, hostCmd.String(), stdout,
+				aptPackage.Package, hostCmd.String(), stdout,
 			)
 		}
 
-		var state State
-		if installedVersion != "(none)" {
-			state = APTPackageState{
-				Version: installedVersion,
-			}
+		if installedVersion == "(none)" {
+			aptPackage.Remove = true
+		} else {
+			aptPackage.Version = installedVersion
 		}
-		nameStateMap[name] = state
 	}
-	return nameStateMap, nil
+
+	return nil
 }
 
-func (ap APTPackage) ApplyMerged(
-	ctx context.Context, hst host.Host, actionNameStateMap map[Action]map[Name]State,
-) error {
+func (a *APTPackages) Update(ctx context.Context, hst host.Host, resources Resources) error {
+	return nil
+}
+
+func (a *APTPackages) Apply(ctx context.Context, hst host.Host, resources Resources) error {
+	aptPackages := a.getAptPackages(resources)
+
 	// Package arguments
-	pkgs := []string{}
-	for action, nameStateMap := range actionNameStateMap {
-		var pkgAction string
-		switch action {
-		case ActionOk:
-		case ActionApply:
-			pkgAction = ""
-		case ActionDestroy:
-			pkgAction = "-"
-		default:
-			return fmt.Errorf("unexpected action %s", action)
+	pkgArgs := make([]string, len(aptPackages))
+	for i, aptPackage := range aptPackages {
+		var pkgArg string
+		if aptPackage.Remove {
+			pkgArg = fmt.Sprintf("%s-", aptPackage.Package)
+		} else {
+			pkgArg = fmt.Sprintf("%s=%s", aptPackage.Package, aptPackage.Version)
 		}
-		for name, state := range nameStateMap {
-			var version string
-			if state != nil {
-				aptPackageState := state.(APTPackageState)
-				if aptPackageState.Version != "" {
-					version = fmt.Sprintf("=%s", aptPackageState.Version)
-				}
-			}
-			pkgs = append(pkgs, fmt.Sprintf("%s%s%s", string(name), version, pkgAction))
-		}
+		pkgArgs[i] = pkgArg
 	}
 
 	// Run apt
 	cmd := host.Cmd{
 		Path: "apt-get",
-		Args: append([]string{"--yes", "install"}, pkgs...),
+		Args: append([]string{"--yes", "install"}, pkgArgs...),
 	}
 	waitStatus, stdout, stderr, err := host.Run(ctx, hst, cmd)
 	if err != nil {
@@ -174,6 +182,8 @@ func (ap APTPackage) ApplyMerged(
 }
 
 func init() {
-	MergeableResourcesTypeMap["APTPackage"] = APTPackage{}
-	ResourcesStateMap["APTPackage"] = APTPackageState{}
+	RegisterGroupResource(
+		reflect.TypeOf((*APTPackage)(nil)).Elem(),
+		reflect.TypeOf((*APTPackages)(nil)).Elem(),
+	)
 }
