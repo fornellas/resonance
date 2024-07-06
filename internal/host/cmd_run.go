@@ -30,15 +30,16 @@ type cmdHost struct {
 }
 
 func (br cmdHost) Chmod(ctx context.Context, name string, mode os.FileMode) error {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Chmod %v %s", mode, name)
-	nestedCtx := log.IndentLogger(ctx)
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("Chmod", "name", name, "mode", mode)
+	ctx, _ = log.MustContextLoggerIndented(ctx)
 
 	cmd := host.Cmd{
 		Path: "chmod",
 		Args: []string{fmt.Sprintf("%o", mode), name},
 	}
-	waitStatus, stdout, stderr, err := host.Run(nestedCtx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -61,15 +62,16 @@ func (br cmdHost) Chmod(ctx context.Context, name string, mode os.FileMode) erro
 }
 
 func (br cmdHost) Chown(ctx context.Context, name string, uid, gid int) error {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Chown %v %v %s", uid, gid, name)
-	nestedCtx := log.IndentLogger(ctx)
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("Chown", "name", name, "uid", uid, "gid", gid)
+	ctx, _ = log.MustContextLoggerIndented(ctx)
 
 	cmd := host.Cmd{
 		Path: "chown",
 		Args: []string{fmt.Sprintf("%d.%d", uid, gid), name},
 	}
-	waitStatus, stdout, stderr, err := host.Run(nestedCtx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -92,15 +94,16 @@ func (br cmdHost) Chown(ctx context.Context, name string, uid, gid int) error {
 }
 
 func (br cmdHost) Lookup(ctx context.Context, username string) (*user.User, error) {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Lookup %s", username)
-	nestedCtx := log.IndentLogger(ctx)
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("Lookup", "username", username)
+	ctx, _ = log.MustContextLoggerIndented(ctx)
 
 	cmd := host.Cmd{
 		Path: "cat",
 		Args: []string{"/etc/passwd"},
 	}
-	waitStatus, stdout, stderr, err := host.Run(nestedCtx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -140,15 +143,16 @@ func (br cmdHost) Lookup(ctx context.Context, username string) (*user.User, erro
 }
 
 func (br cmdHost) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("LookupGroup %s", name)
-	nestedCtx := log.IndentLogger(ctx)
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("LookupGroup", "name", name)
+	ctx, _ = log.MustContextLoggerIndented(ctx)
 
 	cmd := host.Cmd{
 		Path: "cat",
 		Args: []string{"/etc/group"},
 	}
-	waitStatus, stdout, stderr, err := host.Run(nestedCtx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -206,11 +210,12 @@ func (br cmdHost) stat(ctx context.Context, name string) (string, error) {
 }
 
 func (br cmdHost) Lstat(ctx context.Context, name string) (host.HostFileInfo, error) {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Lstat %s", name)
-	nestedCtx := log.IndentLogger(ctx)
+	logger := log.MustLogger(ctx)
 
-	stdout, err := br.stat(nestedCtx, name)
+	logger.Debug("Lstat", "name", name)
+	ctx, _ = log.MustContextLoggerIndented(ctx)
+
+	stdout, err := br.stat(ctx, name)
 	if err != nil {
 		return host.HostFileInfo{}, err
 	}
@@ -294,15 +299,16 @@ func (br cmdHost) Lstat(ctx context.Context, name string) (host.HostFileInfo, er
 }
 
 func (br cmdHost) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Mkdir %s", name)
-	nestedCtx := log.IndentLogger(ctx)
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("Mkdir", "name", name, "perm", perm)
+	ctx, _ = log.MustContextLoggerIndented(ctx)
 
 	cmd := host.Cmd{
 		Path: "mkdir",
 		Args: []string{name},
 	}
-	waitStatus, stdout, stderr, err := host.Run(nestedCtx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -326,15 +332,16 @@ func (br cmdHost) Mkdir(ctx context.Context, name string, perm os.FileMode) erro
 }
 
 func (br cmdHost) ReadFile(ctx context.Context, name string) ([]byte, error) {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("ReadFile %s", name)
-	nestedCtx := log.IndentLogger(ctx)
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("ReadFile", "name", name)
+	ctx, _ = log.MustContextLoggerIndented(ctx)
 
 	cmd := host.Cmd{
 		Path: "cat",
 		Args: []string{name},
 	}
-	waitStatus, stdout, stderr, err := host.Run(nestedCtx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -375,21 +382,22 @@ func (br cmdHost) rmdir(ctx context.Context, name string) error {
 }
 
 func (br cmdHost) Remove(ctx context.Context, name string) error {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Remove %s", name)
-	nestedCtx := log.IndentLogger(ctx)
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("Remove", "name", name)
+	ctx, _ = log.MustContextLoggerIndented(ctx)
 
 	cmd := host.Cmd{
 		Path: "rm",
 		Args: []string{name},
 	}
-	waitStatus, stdout, stderr, err := host.Run(nestedCtx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
 	if err != nil {
 		return err
 	}
 	if !waitStatus.Success() {
 		if strings.Contains(stderr, "Is a directory") {
-			return br.rmdir(nestedCtx, name)
+			return br.rmdir(ctx, name)
 		}
 		if strings.Contains(stderr, "Permission denied") {
 			return os.ErrPermission
@@ -406,12 +414,13 @@ func (br cmdHost) Remove(ctx context.Context, name string) error {
 }
 
 func (br cmdHost) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("WriteFile %s %v", name, perm)
-	nestedCtx := log.IndentLogger(ctx)
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("WriteFile", "name", name, "data", data, "perm", perm)
+	ctx, _ = log.MustContextLoggerIndented(ctx)
 
 	var chmod bool
-	if _, err := br.Lstat(nestedCtx, name); errors.Is(err, os.ErrNotExist) {
+	if _, err := br.Lstat(ctx, name); errors.Is(err, os.ErrNotExist) {
 		chmod = true
 	}
 	cmd := host.Cmd{
@@ -419,7 +428,7 @@ func (br cmdHost) WriteFile(ctx context.Context, name string, data []byte, perm 
 		Args:  []string{"-c", fmt.Sprintf("cat > %s", shellescape.Quote(name))},
 		Stdin: bytes.NewReader(data),
 	}
-	waitStatus, stdout, stderr, err := host.Run(nestedCtx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -439,7 +448,7 @@ func (br cmdHost) WriteFile(ctx context.Context, name string, data []byte, perm 
 		)
 	}
 	if chmod {
-		return br.Chmod(nestedCtx, name, perm)
+		return br.Chmod(ctx, name, perm)
 	}
 	return nil
 }

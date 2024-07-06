@@ -28,11 +28,11 @@ func TestValidate(t *testing.T) {
 		},
 	})
 
-	resources.SetupIndividualTypeMock(t, []resources.IndividualFuncCall{
-		{ValidateName: &resources.IndividualFuncValidateName{
+	resources.SetupIndividualTypeMock(t, []resources.IndividualFnCall{
+		{ValidateName: &resources.IndividualFnValidateName{
 			Name: "foo",
 		}},
-		{ValidateName: &resources.IndividualFuncValidateName{
+		{ValidateName: &resources.IndividualFnValidateName{
 			Name: "bar",
 		}},
 	})

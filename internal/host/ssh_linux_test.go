@@ -89,9 +89,8 @@ func TestSsh(t *testing.T) {
 	defer func() { server.Close() }()
 
 	ctx := context.Background()
-	ctx = log.SetLoggerValue(ctx, os.Stderr, "trace", func(code int) {
-		t.Fatalf("exit called with %d", code)
-	})
+	ctx = log.WithTestLogger(ctx)
+
 	host, err := NewSshAuthority(ctx, fmt.Sprintf(
 		"%s;fingerprint=%s@localhost:%d",
 		username, serverFingerprint, port,

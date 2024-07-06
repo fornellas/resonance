@@ -20,42 +20,42 @@ func (is IndividualState) ValidateAndUpdate(ctx context.Context, hst host.Host) 
 	return is, nil
 }
 
-type IndividualFuncValidateName struct {
+type IndividualFnValidateName struct {
 	Name        resources.Name
 	ReturnError error
 }
 
-func (ifvn IndividualFuncValidateName) String() string {
+func (ifvn IndividualFnValidateName) String() string {
 	return fmt.Sprintf("(%#v) %#v", ifvn.Name, ifvn.ReturnError)
 }
 
-type IndividualFuncGetState struct {
+type IndividualFnGetState struct {
 	Name        resources.Name
 	ReturnState resources.State
 	ReturnError error
 }
 
-func (ifgs IndividualFuncGetState) String() string {
+func (ifgs IndividualFnGetState) String() string {
 	return fmt.Sprintf("(%#v) (%#v, %#v)", ifgs.Name, ifgs.ReturnState, ifgs.ReturnError)
 }
 
-type IndividualFuncConfigure struct {
+type IndividualFnConfigure struct {
 	Name        resources.Name
 	State       resources.State
 	ReturnError error
 }
 
-func (ifc IndividualFuncConfigure) String() string {
+func (ifc IndividualFnConfigure) String() string {
 	return fmt.Sprintf("(%#v, %#v) (%#v)", ifc.Name, ifc.State, ifc.ReturnError)
 }
 
-type IndividualFuncCall struct {
-	ValidateName *IndividualFuncValidateName
-	GetState     *IndividualFuncGetState
-	Configure    *IndividualFuncConfigure
+type IndividualFnCall struct {
+	ValidateName *IndividualFnValidateName
+	GetState     *IndividualFnGetState
+	Configure    *IndividualFnConfigure
 }
 
-func (ifc IndividualFuncCall) String() string {
+func (ifc IndividualFnCall) String() string {
 	ifcValue := reflect.ValueOf(ifc)
 	ifcType := ifcValue.Type()
 	for i := 0; i < ifcType.NumField(); i++ {
@@ -66,12 +66,12 @@ func (ifc IndividualFuncCall) String() string {
 			return fmt.Sprintf("%s: %v\n", name, value.Interface())
 		}
 	}
-	panic("empty IndividualFuncCall")
+	panic("empty IndividualFnCall")
 }
 
-type IndividualFuncCalls []IndividualFuncCall
+type IndividualFnCalls []IndividualFnCall
 
-func (ifcs IndividualFuncCalls) String() string {
+func (ifcs IndividualFnCalls) String() string {
 	var s strings.Builder
 	for i, ifc := range ifcs {
 		fmt.Fprintf(&s, "%d: %v", i, ifc)
@@ -80,21 +80,21 @@ func (ifcs IndividualFuncCalls) String() string {
 }
 
 var IndividualT *testing.T
-var IndividualExpectedFuncCalls IndividualFuncCalls
+var IndividualExpectedFnCalls IndividualFnCalls
 
 type Individual struct{}
 
-func (i *Individual) getFuncCall() *IndividualFuncCall {
-	if len(IndividualExpectedFuncCalls) == 0 {
+func (i *Individual) getFnCall() *IndividualFnCall {
+	if len(IndividualExpectedFnCalls) == 0 {
 		return nil
 	}
-	testFuncCall, expectedFuncCalls := IndividualExpectedFuncCalls[0], IndividualExpectedFuncCalls[1:]
-	IndividualExpectedFuncCalls = expectedFuncCalls
-	return &testFuncCall
+	testFnCall, expectedFnCalls := IndividualExpectedFnCalls[0], IndividualExpectedFnCalls[1:]
+	IndividualExpectedFnCalls = expectedFnCalls
+	return &testFnCall
 }
 
 func (i Individual) ValidateName(name resources.Name) error {
-	funcCall := i.getFuncCall()
+	funcCall := i.getFnCall()
 	if funcCall == nil {
 		IndividualT.Fatalf("no more calls expected, got ValidateName(%#v)", name)
 	}
@@ -111,9 +111,9 @@ func (i Individual) ValidateName(name resources.Name) error {
 }
 
 func (i Individual) GetState(ctx context.Context, hst host.Host, name resources.Name) (resources.State, error) {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Test.GetState(%#v)", name)
-	funcCall := i.getFuncCall()
+	logger := log.MustLoggerIndented(ctx)
+	logger.Debug("Individual.GetState", "name", name)
+	funcCall := i.getFnCall()
 	if funcCall == nil {
 		IndividualT.Fatalf("no more calls expected, got GetState(%#v)", name)
 	}
@@ -132,9 +132,9 @@ func (i Individual) GetState(ctx context.Context, hst host.Host, name resources.
 func (i Individual) Configure(
 	ctx context.Context, hst host.Host, name resources.Name, state resources.State,
 ) error {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Test.Configure(%#v, %#v)", name, state)
-	funcCall := i.getFuncCall()
+	logger := log.MustLoggerIndented(ctx)
+	logger.Debug("Individual.Configure", "name", name, "state", state)
+	funcCall := i.getFnCall()
 	if funcCall == nil {
 		IndividualT.Fatalf("no more calls expected, got Configure(%#v, %#v)", name, state)
 	}
@@ -150,12 +150,12 @@ func (i Individual) Configure(
 	return funcCall.Configure.ReturnError
 }
 
-func SetupIndividualTypeMock(t *testing.T, individualFuncCalls []IndividualFuncCall) {
+func SetupIndividualTypeMock(t *testing.T, individualFnCalls []IndividualFnCall) {
 	IndividualT = t
-	IndividualExpectedFuncCalls = individualFuncCalls
+	IndividualExpectedFnCalls = individualFnCalls
 	t.Cleanup(func() {
-		if len(IndividualExpectedFuncCalls) > 0 {
-			t.Errorf("expected calls pending:\n%v", IndividualExpectedFuncCalls)
+		if len(IndividualExpectedFnCalls) > 0 {
+			t.Errorf("expected calls pending:\n%v", IndividualExpectedFnCalls)
 		}
 	})
 }

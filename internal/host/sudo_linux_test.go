@@ -3,7 +3,6 @@ package host
 import (
 	"context"
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -53,9 +52,7 @@ func newLocalRunSudoOnly(t *testing.T, hst host.Host) localRunSudoOnly {
 
 func TestSudo(t *testing.T) {
 	ctx := context.Background()
-	ctx = log.SetLoggerValue(ctx, os.Stderr, "info", func(code int) {
-		t.Fatalf("exit called with %d", code)
-	})
+	ctx = log.WithTestLogger(ctx)
 
 	host, err := NewSudo(ctx, newLocalRunSudoOnly(t, Local{}))
 	require.NoError(t, err)

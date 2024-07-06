@@ -2,59 +2,65 @@ package log
 
 import (
 	"context"
-	"io"
-
-	"github.com/sirupsen/logrus"
+	"log/slog"
+	"os"
 )
 
-type loggerKeyType string
+type loggerKeyType struct{}
 
-var loggerKey = loggerKeyType("logger")
+var loggerKey loggerKeyType
 
-// SetLoggerValue returns a copy of the context with a logger value set.
-func SetLoggerValue(
-	ctx context.Context, output io.Writer, logLevelStr string, exitFunc func(int),
-) context.Context {
-	logger := logrus.New()
-
-	logger.SetOutput(output)
-	logger.SetFormatter(&ColorFormatter{})
-	logger.ExitFunc = exitFunc
-
-	var level *logrus.Level
-	for _, l := range logrus.AllLevels {
-		if logLevelStr == l.String() {
-			level = &l
-			break
-		}
-	}
-	if level == nil {
-		logger.Fatalf("invalid log level %v", logLevelStr)
-	}
-	logger.SetLevel(*level)
-
+// Returns a copy of the given context with the logger value set. The value can be retreived
+// with [MustLogger], [MustContextLoggerIndented] or [MustLoggerIndented].
+func WithLogger(ctx context.Context, logger *slog.Logger) context.Context {
 	return context.WithValue(ctx, loggerKey, logger)
 }
 
-// GetLogger returns a logger previously set with SetLoggerValue.
-func GetLogger(ctx context.Context) *logrus.Logger {
-	logger, ok := ctx.Value(loggerKey).(*logrus.Logger)
+// Similar to [WithLogger], but constructs a new logger suitable for using during testss.
+func WithTestLogger(ctx context.Context) context.Context {
+	handler := NewConsoleHandler(os.Stderr, ConsoleHandlerOptions{
+		Level:     slog.LevelDebug,
+		AddSource: true,
+		Time:      false,
+		ReplaceAttr: func(groups []string, attr slog.Attr) slog.Attr {
+			if len(groups) == 0 && attr.Key == "version" {
+				return slog.Attr{}
+			}
+			return attr
+		},
+	})
+	logger := slog.New(handler)
+	return WithLogger(ctx, logger)
+}
+
+// Returns the logger value associated with the context, which must have been previously set with
+// [WithLogger].
+// It panics if no logger value has been set previously.
+func MustLogger(ctx context.Context) *slog.Logger {
+	logger, ok := ctx.Value(loggerKey).(*slog.Logger)
 	if !ok {
-		panic("logger value missing from context")
+		panic("bug detected: context has no logger set")
 	}
 	return logger
 }
 
-// IndentLogger receives a context with a previously set logger (SetLoggerValue),
-// and returns a copy of it but with a logger with one extra indentation.
-func IndentLogger(ctx context.Context) context.Context {
-	oldLogger := GetLogger(ctx)
-	newLogger := logrus.New()
-	newLogger.SetOutput(oldLogger.Out)
-	newLogger.SetFormatter(&ColorFormatter{
-		Indent: oldLogger.Formatter.(*ColorFormatter).Indent + 1,
-	})
-	newLogger.ExitFunc = oldLogger.ExitFunc
-	newLogger.SetLevel(oldLogger.Level)
-	return context.WithValue(ctx, loggerKey, newLogger)
+// Retrieves the logger value from the context, previously set with [WithLogger]. If its handler
+// implements [IndentableHandler], then it WithIndent(), and set the new logger value to a
+// copy of the context. If the handler does not implement [IndentableHandler], return the original
+// context and the retrieved logger.
+// It panics if no logger value has been set previously.
+func MustContextLoggerIndented(ctx context.Context) (context.Context, *slog.Logger) {
+	logger := MustLogger(ctx)
+	handler, ok := logger.Handler().(IndentableHandler)
+	if ok {
+		logger = slog.New(handler.WithIndent())
+		ctx = WithLogger(ctx, logger)
+	}
+	return ctx, logger
+}
+
+// Similar to [MustContextLoggerIndented], but only returns the logger, not the context.
+func MustLoggerIndented(ctx context.Context) *slog.Logger {
+	_, logger := MustContextLoggerIndented(ctx)
+	return logger
 }

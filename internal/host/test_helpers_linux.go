@@ -29,10 +29,9 @@ func skipIfRoot(t *testing.T) {
 
 func testHost(t *testing.T, hst host.Host) {
 	ctx := context.Background()
+	ctx = log.WithTestLogger(ctx)
+
 	var outputBuffer bytes.Buffer
-	ctx = log.SetLoggerValue(ctx, &outputBuffer, "debug", func(code int) {
-		t.Fatalf("exit called with %d", code)
-	})
 
 	t.Run("Chmod", func(t *testing.T) {
 		name := filepath.Join(t.TempDir(), "foo")

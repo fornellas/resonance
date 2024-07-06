@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -39,22 +40,21 @@ func (rs ResourceDefs) TypeNames() []TypeName {
 	return typeNames
 }
 
-func (rs ResourceDefs) String() string {
-	bytes, err := yaml.Marshal(&rs)
+func (rs ResourceDefs) LogValue() slog.Value {
+	bs, err := yaml.Marshal(rs)
 	if err != nil {
 		panic(err)
 	}
-	return string(bytes)
+	return slog.StringValue(strings.Trim(string(bs), "\n"))
 }
 
 // LoadFile loads Resources declared at given YAML file path
-func LoadFile(ctx context.Context, hst host.Host, yamlPath string) (ResourceDefs, error) {
-	logger := log.GetLogger(ctx)
-	logger.Infof("%s", yamlPath)
-	nestedCtx := log.IndentLogger(ctx)
-	nestedLogger := log.GetLogger(nestedCtx)
+func LoadFile(ctx context.Context, hst host.Host, path string) (ResourceDefs, error) {
+	ctx, logger := log.MustContextLoggerIndented(ctx)
 
-	f, err := os.Open(yamlPath)
+	logger.Info("📂 Loading Yaml", "path", path)
+
+	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load resource file: %w", err)
 	}
@@ -71,41 +71,47 @@ func LoadFile(ctx context.Context, hst host.Host, yamlPath string) (ResourceDefs
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return ResourceDefs{}, fmt.Errorf("failed to load resource file: %s: %w", yamlPath, err)
+			return ResourceDefs{}, fmt.Errorf("failed to load resource file: %s: %w", path, err)
 		}
 		if err := docResources.Validate(); err != nil {
-			return ResourceDefs{}, fmt.Errorf("resource file validation failed: %s: %w", yamlPath, err)
+			return ResourceDefs{}, fmt.Errorf("resource file validation failed: %s: %w", path, err)
 		}
 		updatedAndValidatedDocResources := ResourceDefs{}
 		for _, resource := range docResources {
 			var err error
-			resource.State, err = resource.State.ValidateAndUpdate(nestedCtx, hst)
+			resource.State, err = resource.State.ValidateAndUpdate(ctx, hst)
 			if err != nil {
-				return nil, fmt.Errorf("%s: %w", resource, err)
+				return nil, fmt.Errorf("%s: %s: %w", path, resource, err)
 			}
 			updatedAndValidatedDocResources = append(updatedAndValidatedDocResources, resource)
 		}
 		resourceDefs = append(resourceDefs, updatedAndValidatedDocResources...)
 	}
 
-	nestedLogger.WithField("", resourceDefs.String()).Trace("ResourceDefs")
+	if len(resourceDefs) == 0 {
+		return resourceDefs, fmt.Errorf("file has no declared resources: %s", path)
+	}
+
+	logger = log.MustLoggerIndented(ctx)
+	logger.Debug("Details", "resources", resourceDefs)
 
 	return resourceDefs, nil
 }
 
 func findYmls(ctx context.Context, root string) ([]string, error) {
-	logger := log.GetLogger(ctx)
+	logger := log.MustLoggerIndented(ctx)
 
 	yamlPaths := []string{}
 	if err := filepath.Walk(root, func(path string, fileInfo fs.FileInfo, err error) error {
+		logger := logger.With("path", path)
 		if err != nil {
 			return err
 		}
 		if fileInfo.IsDir() || !strings.HasSuffix(fileInfo.Name(), ".yaml") {
-			logger.Debugf("Skipping %s", path)
+			logger.Debug("Skipping")
 			return nil
 		}
-		logger.Debugf("Found resources file %s", path)
+		logger.Debug("Found resources Yaml")
 		yamlPaths = append(yamlPaths, path)
 		return nil
 	}); err != nil {
@@ -123,19 +129,19 @@ func findYmls(ctx context.Context, root string) ([]string, error) {
 // LoadDir search for .yaml files at root and loads all of them.
 // Files are sorted by alphabetical order.
 func LoadDir(ctx context.Context, hst host.Host, root string) (ResourceDefs, error) {
-	logger := log.GetLogger(ctx)
-	logger.Infof("📂 Loading resources from %s", root)
-	nestedCtx := log.IndentLogger(ctx)
+	ctx, logger := log.MustContextLoggerIndented(ctx)
+
+	logger.Info("📂 Loading resources")
 
 	resourceDefs := ResourceDefs{}
 
-	yamlPaths, err := findYmls(nestedCtx, root)
+	yamlPaths, err := findYmls(ctx, root)
 	if err != nil {
 		return resourceDefs, err
 	}
 
 	for _, yamlPath := range yamlPaths {
-		yamlResources, err := LoadFile(nestedCtx, hst, yamlPath)
+		yamlResources, err := LoadFile(ctx, hst, yamlPath)
 		if err != nil {
 			return resourceDefs, err
 		}

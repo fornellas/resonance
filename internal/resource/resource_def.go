@@ -168,8 +168,8 @@ func (r *ResourceDef) UnmarshalYAML(node *yaml.Node) error {
 }
 
 func (r ResourceDef) MarshalYAML() (interface{}, error) {
-	if r.Destroy {
-		r.State = nil
+	if r.Destroy && r.State != nil {
+		panic("bug: resource has destroy=true but also defines a state")
 	}
 	type resourceDefAlias ResourceDef
 	node := yaml.Node{}

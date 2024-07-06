@@ -15,8 +15,10 @@ import (
 // Docker uses docker exec to target a running container.
 type Docker struct {
 	cmdHost
+	// Container name
 	Container string
-	User      string
+	// Username or UID (format: "<name|uid>[:<group|gid>]")
+	User string
 }
 
 func NewDocker(ctx context.Context, container, user string) (Docker, error) {
@@ -29,8 +31,8 @@ func NewDocker(ctx context.Context, container, user string) (Docker, error) {
 }
 
 func (d Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Run %s", cmd)
+	logger := log.MustLogger(ctx)
+	logger.Debug("Run", "cmd", cmd)
 
 	if cmd.Dir == "" {
 		cmd.Dir = "/tmp"
@@ -82,7 +84,7 @@ func (d Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) 
 }
 
 func (d Docker) String() string {
-	return fmt.Sprintf("docker:%s", d.Container)
+	return fmt.Sprintf("%s@docker:%s", d.User, d.Container)
 }
 
 func (d Docker) Close() error {

@@ -398,6 +398,7 @@ build: go go-generate build-agent
 clean-build:
 	$(GO) env &>/dev/null && $(GO) clean -r -cache -modcache
 	rm -f internal/version/.version
+	rm -f internal/.git-toplevel
 	rm -f resonance.*.*
 clean: clean-build
 
