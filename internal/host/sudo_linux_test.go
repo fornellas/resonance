@@ -13,7 +13,7 @@ import (
 )
 
 type localRunSudoOnly struct {
-	baseRunOnly
+	cmdHostOnly
 	T    *testing.T
 	Host host.Host
 }
@@ -46,8 +46,8 @@ func newLocalRunSudoOnly(t *testing.T, hst host.Host) localRunSudoOnly {
 		T:    t,
 		Host: hst,
 	}
-	run.baseRunOnly.T = t
-	run.baseRunOnly.Host = hst
+	run.cmdHostOnly.T = t
+	run.cmdHostOnly.Host = hst
 	return run
 }
 

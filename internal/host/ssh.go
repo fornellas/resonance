@@ -25,125 +25,10 @@ import (
 
 // Ssh interacts with a remote machine connecting to it via SSH protocol.
 type Ssh struct {
-	baseRun
+	cmdHost
 	Hostname string
 	client   *ssh.Client
 	envPath  string
-}
-
-func (s Ssh) runEnv(ctx context.Context, cmd host.Cmd, ignoreCmdEnv bool) (host.WaitStatus, error) {
-	logger := log.GetLogger(ctx)
-	logger.Debugf("Run %s", cmd)
-
-	session, err := s.client.NewSession()
-	if err != nil {
-		return host.WaitStatus{}, fmt.Errorf("failed to create session: %w", err)
-	}
-	defer session.Close()
-
-	session.Stdin = cmd.Stdin
-	session.Stdout = cmd.Stdout
-	session.Stderr = cmd.Stderr
-
-	shellCmdArgs := []string{shellescape.Quote(cmd.Path)}
-	for _, arg := range cmd.Args {
-		shellCmdArgs = append(shellCmdArgs, shellescape.Quote(arg))
-	}
-	shellCmdStr := strings.Join(shellCmdArgs, " ")
-
-	if cmd.Dir == "" {
-		cmd.Dir = "/tmp"
-	}
-
-	var args []string
-	if !ignoreCmdEnv {
-		if len(cmd.Env) == 0 {
-			cmd.Env = []string{"LANG=en_US.UTF-8"}
-			if s.envPath != "" {
-				cmd.Env = append(cmd.Env, s.envPath)
-			}
-		}
-		envStrs := []string{}
-		for _, nameValue := range cmd.Env {
-			envStrs = append(envStrs, shellescape.Quote(nameValue))
-		}
-		envStr := strings.Join(envStrs, " ")
-		args = []string{"sh", "-c", fmt.Sprintf(
-			"cd %s && exec env --ignore-environment %s %s", shellescape.Quote(cmd.Dir), envStr, shellCmdStr,
-		)}
-	} else {
-		args = []string{"sh", "-c", fmt.Sprintf(
-			"cd %s && exec env %s", shellescape.Quote(cmd.Dir), shellCmdStr,
-		)}
-	}
-
-	var cmdStrBdr strings.Builder
-	fmt.Fprintf(&cmdStrBdr, "%s", shellescape.Quote(args[0]))
-	for _, arg := range args[1:] {
-		fmt.Fprintf(&cmdStrBdr, " %s", shellescape.Quote(arg))
-	}
-
-	var exitCode int
-	var exited bool
-	var signal string
-	if err := session.Run(cmdStrBdr.String()); err == nil {
-		exitCode = 0
-		exited = true
-	} else {
-		var exitError *ssh.ExitError
-		if errors.As(err, &exitError) {
-			exitCode = exitError.ExitStatus()
-			exited = exitError.Signal() == ""
-			signal = exitError.Signal()
-		} else {
-			return host.WaitStatus{}, fmt.Errorf("failed to run %v: %w", cmd, err)
-		}
-	}
-
-	return host.WaitStatus{
-		ExitCode: exitCode,
-		Exited:   exited,
-		Signal:   signal,
-	}, nil
-}
-
-func (s Ssh) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
-	return s.runEnv(ctx, cmd, false)
-}
-
-func (s *Ssh) setEnvPath(ctx context.Context) error {
-	stdoutBuffer := bytes.Buffer{}
-	stderrBuffer := bytes.Buffer{}
-	cmd := host.Cmd{
-		Path:   "env",
-		Stdout: &stdoutBuffer,
-		Stderr: &stderrBuffer,
-	}
-	waitStatus, err := s.runEnv(ctx, cmd, true)
-	if err != nil {
-		return err
-	}
-	if !waitStatus.Success() {
-		return fmt.Errorf(
-			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus.String(), stdoutBuffer.String(), stderrBuffer.String(),
-		)
-	}
-	for _, value := range strings.Split(stdoutBuffer.String(), "\n") {
-		if strings.HasPrefix(value, "PATH=") {
-			s.envPath = value
-			break
-		}
-	}
-	return nil
-}
-
-func (s Ssh) String() string {
-	return s.Hostname
-}
-
-func (s Ssh) Close() error {
-	return s.client.Close()
 }
 
 func sshKeyboardInteractiveChallenge(
@@ -373,7 +258,7 @@ func NewSsh(
 		Hostname: host,
 		client:   client,
 	}
-	sshHost.baseRun.Host = sshHost
+	sshHost.cmdHost.Host = sshHost
 
 	if err := sshHost.setEnvPath(nestedCtx); err != nil {
 		return Ssh{}, err
@@ -425,4 +310,119 @@ func NewSshAuthority(ctx context.Context, authority string) (Ssh, error) {
 		return Ssh{}, err
 	}
 	return NewSsh(ctx, user, fingerprint, host, port, DefaultSshTCPConnectTimeout)
+}
+
+func (s Ssh) runEnv(ctx context.Context, cmd host.Cmd, ignoreCmdEnv bool) (host.WaitStatus, error) {
+	logger := log.GetLogger(ctx)
+	logger.Debugf("Run %s", cmd)
+
+	session, err := s.client.NewSession()
+	if err != nil {
+		return host.WaitStatus{}, fmt.Errorf("failed to create session: %w", err)
+	}
+	defer session.Close()
+
+	session.Stdin = cmd.Stdin
+	session.Stdout = cmd.Stdout
+	session.Stderr = cmd.Stderr
+
+	shellCmdArgs := []string{shellescape.Quote(cmd.Path)}
+	for _, arg := range cmd.Args {
+		shellCmdArgs = append(shellCmdArgs, shellescape.Quote(arg))
+	}
+	shellCmdStr := strings.Join(shellCmdArgs, " ")
+
+	if cmd.Dir == "" {
+		cmd.Dir = "/tmp"
+	}
+
+	var args []string
+	if !ignoreCmdEnv {
+		if len(cmd.Env) == 0 {
+			cmd.Env = []string{"LANG=en_US.UTF-8"}
+			if s.envPath != "" {
+				cmd.Env = append(cmd.Env, s.envPath)
+			}
+		}
+		envStrs := []string{}
+		for _, nameValue := range cmd.Env {
+			envStrs = append(envStrs, shellescape.Quote(nameValue))
+		}
+		envStr := strings.Join(envStrs, " ")
+		args = []string{"sh", "-c", fmt.Sprintf(
+			"cd %s && exec env --ignore-environment %s %s", shellescape.Quote(cmd.Dir), envStr, shellCmdStr,
+		)}
+	} else {
+		args = []string{"sh", "-c", fmt.Sprintf(
+			"cd %s && exec env %s", shellescape.Quote(cmd.Dir), shellCmdStr,
+		)}
+	}
+
+	var cmdStrBdr strings.Builder
+	fmt.Fprintf(&cmdStrBdr, "%s", shellescape.Quote(args[0]))
+	for _, arg := range args[1:] {
+		fmt.Fprintf(&cmdStrBdr, " %s", shellescape.Quote(arg))
+	}
+
+	var exitCode int
+	var exited bool
+	var signal string
+	if err := session.Run(cmdStrBdr.String()); err == nil {
+		exitCode = 0
+		exited = true
+	} else {
+		var exitError *ssh.ExitError
+		if errors.As(err, &exitError) {
+			exitCode = exitError.ExitStatus()
+			exited = exitError.Signal() == ""
+			signal = exitError.Signal()
+		} else {
+			return host.WaitStatus{}, fmt.Errorf("failed to run %v: %w", cmd, err)
+		}
+	}
+
+	return host.WaitStatus{
+		ExitCode: exitCode,
+		Exited:   exited,
+		Signal:   signal,
+	}, nil
+}
+
+func (s Ssh) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
+	return s.runEnv(ctx, cmd, false)
+}
+
+func (s *Ssh) setEnvPath(ctx context.Context) error {
+	stdoutBuffer := bytes.Buffer{}
+	stderrBuffer := bytes.Buffer{}
+	cmd := host.Cmd{
+		Path:   "env",
+		Stdout: &stdoutBuffer,
+		Stderr: &stderrBuffer,
+	}
+	waitStatus, err := s.runEnv(ctx, cmd, true)
+	if err != nil {
+		return err
+	}
+	if !waitStatus.Success() {
+		return fmt.Errorf(
+			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdoutBuffer.String(), stderrBuffer.String(),
+		)
+	}
+	for _, value := range strings.Split(stdoutBuffer.String(), "\n") {
+		if strings.HasPrefix(value, "PATH=") {
+			s.envPath = value
+			break
+		}
+	}
+	return nil
+}
+
+func (s Ssh) String() string {
+	return s.Hostname
+}
+
+func (s Ssh) Close() error {
+	return s.client.Close()
 }

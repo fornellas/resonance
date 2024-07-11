@@ -41,6 +41,144 @@ type AgentClient struct {
 	waitCn chan struct{}
 }
 
+func getGoArch(machine string) (string, error) {
+	matched, err := regexp.MatchString("^i[23456]86$", machine)
+	if err != nil {
+		panic(err)
+	}
+	if matched {
+		return "386", nil
+	}
+	matched, err = regexp.MatchString("^x86_64$", machine)
+	if err != nil {
+		panic(err)
+	}
+	if matched {
+		return "amd64", nil
+	}
+	matched, err = regexp.MatchString("^armv6l|armv7l$", machine)
+	if err != nil {
+		panic(err)
+	}
+	if matched {
+		return "arm", nil
+	}
+	matched, err = regexp.MatchString("^aarch64$", machine)
+	if err != nil {
+		panic(err)
+	}
+	if matched {
+		return "arm64", nil
+	}
+	return "", fmt.Errorf("machine %#v not supported by agent", machine)
+}
+
+func getAgentBinGz(ctx context.Context, hst host.Host) ([]byte, error) {
+	cmd := host.Cmd{
+		Path: "uname",
+		Args: []string{"-m"},
+	}
+	waitStatus, stdout, stderr, err := host.Run(ctx, hst, cmd)
+	if err != nil {
+		return nil, err
+	}
+	if !waitStatus.Success() {
+		return nil, fmt.Errorf(
+			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
+		)
+	}
+	goarch, err := getGoArch(strings.TrimRight(stdout, "\n"))
+	if err != nil {
+		return nil, err
+	}
+	osArch := fmt.Sprintf("linux.%s", goarch)
+
+	agentBinGz, ok := AgentBinGz[osArch]
+	if !ok {
+		return nil, fmt.Errorf("%s not supported by agent", osArch)
+	}
+	return agentBinGz, nil
+}
+
+func getTmpFile(ctx context.Context, hst host.Host, template string) (string, error) {
+	cmd := host.Cmd{
+		Path: "mktemp",
+		Args: []string{"-t", fmt.Sprintf("%s.XXXXXXXX", template)},
+	}
+	waitStatus, stdout, stderr, err := host.Run(ctx, hst, cmd)
+	if err != nil {
+		return "", err
+	}
+	if !waitStatus.Success() {
+		return "", fmt.Errorf(
+			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
+		)
+	}
+	return strings.TrimRight(stdout, "\n"), nil
+}
+
+func copyReader(ctx context.Context, hst host.Host, reader io.Reader, path string) error {
+	cmd := host.Cmd{
+		Path:  "sh",
+		Args:  []string{"-c", fmt.Sprintf("cat > %s", shellescape.Quote(path))},
+		Stdin: reader,
+	}
+	waitStatus, stdout, stderr, err := host.Run(ctx, hst, cmd)
+	if err != nil {
+		return err
+	}
+	if !waitStatus.Success() {
+		return fmt.Errorf(
+			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
+		)
+	}
+	return nil
+}
+
+func NewAgent(ctx context.Context, hst host.Host) (*AgentClient, error) {
+	logger := log.GetLogger(ctx)
+	logger.Info("🐈 Agent")
+	nestedCtx := log.IndentLogger(ctx)
+
+	agentPath, err := getTmpFile(nestedCtx, hst, "resonance_agent")
+	if err != nil {
+		return nil, err
+	}
+
+	if err := hst.Chmod(nestedCtx, agentPath, os.FileMode(0755)); err != nil {
+		return nil, err
+	}
+
+	agentBinGz, err := getAgentBinGz(nestedCtx, hst)
+	if err != nil {
+		return nil, err
+	}
+
+	agentReader, err := gzip.NewReader(bytes.NewReader(agentBinGz))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := copyReader(nestedCtx, hst, agentReader, agentPath); err != nil {
+		return nil, err
+	}
+
+	agent := AgentClient{
+		Host:   hst,
+		Path:   agentPath,
+		waitCn: make(chan struct{}),
+	}
+
+	if err := agent.spawn(ctx); err != nil {
+		return nil, err
+	}
+
+	return &agent, nil
+}
+
 func (a AgentClient) checkResponseStatus(resp *http.Response) error {
 	if resp.StatusCode == http.StatusOK {
 		return nil
@@ -445,142 +583,4 @@ func (a *AgentClient) spawn(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func getGoArch(machine string) (string, error) {
-	matched, err := regexp.MatchString("^i[23456]86$", machine)
-	if err != nil {
-		panic(err)
-	}
-	if matched {
-		return "386", nil
-	}
-	matched, err = regexp.MatchString("^x86_64$", machine)
-	if err != nil {
-		panic(err)
-	}
-	if matched {
-		return "amd64", nil
-	}
-	matched, err = regexp.MatchString("^armv6l|armv7l$", machine)
-	if err != nil {
-		panic(err)
-	}
-	if matched {
-		return "arm", nil
-	}
-	matched, err = regexp.MatchString("^aarch64$", machine)
-	if err != nil {
-		panic(err)
-	}
-	if matched {
-		return "arm64", nil
-	}
-	return "", fmt.Errorf("machine %#v not supported by agent", machine)
-}
-
-func getAgentBinGz(ctx context.Context, hst host.Host) ([]byte, error) {
-	cmd := host.Cmd{
-		Path: "uname",
-		Args: []string{"-m"},
-	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, hst, cmd)
-	if err != nil {
-		return nil, err
-	}
-	if !waitStatus.Success() {
-		return nil, fmt.Errorf(
-			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus.String(), stdout, stderr,
-		)
-	}
-	goarch, err := getGoArch(strings.TrimRight(stdout, "\n"))
-	if err != nil {
-		return nil, err
-	}
-	osArch := fmt.Sprintf("linux.%s", goarch)
-
-	agentBinGz, ok := AgentBinGz[osArch]
-	if !ok {
-		return nil, fmt.Errorf("%s not supported by agent", osArch)
-	}
-	return agentBinGz, nil
-}
-
-func getTmpFile(ctx context.Context, hst host.Host, template string) (string, error) {
-	cmd := host.Cmd{
-		Path: "mktemp",
-		Args: []string{"-t", fmt.Sprintf("%s.XXXXXXXX", template)},
-	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, hst, cmd)
-	if err != nil {
-		return "", err
-	}
-	if !waitStatus.Success() {
-		return "", fmt.Errorf(
-			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus.String(), stdout, stderr,
-		)
-	}
-	return strings.TrimRight(stdout, "\n"), nil
-}
-
-func copyReader(ctx context.Context, hst host.Host, reader io.Reader, path string) error {
-	cmd := host.Cmd{
-		Path:  "sh",
-		Args:  []string{"-c", fmt.Sprintf("cat > %s", shellescape.Quote(path))},
-		Stdin: reader,
-	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, hst, cmd)
-	if err != nil {
-		return err
-	}
-	if !waitStatus.Success() {
-		return fmt.Errorf(
-			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus.String(), stdout, stderr,
-		)
-	}
-	return nil
-}
-
-func NewAgent(ctx context.Context, hst host.Host) (*AgentClient, error) {
-	logger := log.GetLogger(ctx)
-	logger.Info("🐈 Agent")
-	nestedCtx := log.IndentLogger(ctx)
-
-	agentPath, err := getTmpFile(nestedCtx, hst, "resonance_agent")
-	if err != nil {
-		return nil, err
-	}
-
-	if err := hst.Chmod(nestedCtx, agentPath, os.FileMode(0755)); err != nil {
-		return nil, err
-	}
-
-	agentBinGz, err := getAgentBinGz(nestedCtx, hst)
-	if err != nil {
-		return nil, err
-	}
-
-	agentReader, err := gzip.NewReader(bytes.NewReader(agentBinGz))
-	if err != nil {
-		return nil, err
-	}
-
-	if err := copyReader(nestedCtx, hst, agentReader, agentPath); err != nil {
-		return nil, err
-	}
-
-	agent := AgentClient{
-		Host:   hst,
-		Path:   agentPath,
-		waitCn: make(chan struct{}),
-	}
-
-	if err := agent.spawn(ctx); err != nil {
-		return nil, err
-	}
-
-	return &agent, nil
 }
