@@ -14,9 +14,18 @@ import (
 
 // Docker uses docker exec to target a running container.
 type Docker struct {
-	baseRun
+	cmdHost
 	Container string
 	User      string
+}
+
+func NewDocker(ctx context.Context, container, user string) (Docker, error) {
+	dockerHst := Docker{
+		Container: container,
+		User:      user,
+	}
+	dockerHst.cmdHost.Host = &dockerHst
+	return dockerHst, nil
 }
 
 func (d Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
@@ -70,7 +79,6 @@ func (d Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) 
 		waitStatus.Signal = signal.String()
 	}
 	return waitStatus, nil
-
 }
 
 func (d Docker) String() string {
@@ -79,13 +87,4 @@ func (d Docker) String() string {
 
 func (d Docker) Close() error {
 	return nil
-}
-
-func NewDocker(ctx context.Context, container, user string) (Docker, error) {
-	dockerHst := Docker{
-		Container: container,
-		User:      user,
-	}
-	dockerHst.baseRun.Host = &dockerHst
-	return dockerHst, nil
 }
