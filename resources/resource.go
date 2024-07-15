@@ -84,10 +84,10 @@ type MergeableResources interface {
 	// GetStates gets the State of all resources, or nil if not present.
 	GetStates(ctx context.Context, hst host.Host, names Names) (map[Name]State, error)
 
-	// ConfigureAll configures all resource to given State.
+	// ApplyMerged configures all resource to given State.
 	// If State is nil, it means the resource is to be unconfigured (eg: for a file, remove it).
 	// Must be idempotent.
-	ConfigureAll(
+	ApplyMerged(
 		ctx context.Context, hst host.Host, actionNameStateMap map[Action]map[Name]State,
 	) error
 }
@@ -101,10 +101,10 @@ type IndividualResource interface {
 	// GetState gets the state of the resource, or nil if not present.
 	GetState(ctx context.Context, hst host.Host, name Name) (State, error)
 
-	// Configure configures the resource to given State.
+	// Apply configures the resource to given State.
 	// If State is nil, it means the resource is to be unconfigured (eg: for a file, remove it).
 	// Must be idempotent.
-	Configure(ctx context.Context, hst host.Host, name Name, state State) error
+	Apply(ctx context.Context, hst host.Host, name Name, state State) error
 }
 
 // Type is the name of the resource type.

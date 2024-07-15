@@ -115,7 +115,7 @@ func (f File) GetState(ctx context.Context, hst host.Host, name Name) (State, er
 	return fileState, nil
 }
 
-func (f File) Configure(
+func (f File) Apply(
 	ctx context.Context, hst host.Host, name Name, state State,
 ) error {
 	path := string(name)
