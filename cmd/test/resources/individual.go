@@ -39,20 +39,20 @@ func (ifgs IndividualFuncGetState) String() string {
 	return fmt.Sprintf("(%#v) (%#v, %#v)", ifgs.Name, ifgs.ReturnState, ifgs.ReturnError)
 }
 
-type IndividualFuncConfigure struct {
+type IndividualFuncApply struct {
 	Name        resources.Name
 	State       resources.State
 	ReturnError error
 }
 
-func (ifc IndividualFuncConfigure) String() string {
+func (ifc IndividualFuncApply) String() string {
 	return fmt.Sprintf("(%#v, %#v) (%#v)", ifc.Name, ifc.State, ifc.ReturnError)
 }
 
 type IndividualFuncCall struct {
 	ValidateName *IndividualFuncValidateName
 	GetState     *IndividualFuncGetState
-	Configure    *IndividualFuncConfigure
+	Apply        *IndividualFuncApply
 }
 
 func (ifc IndividualFuncCall) String() string {
@@ -129,25 +129,25 @@ func (i Individual) GetState(ctx context.Context, hst host.Host, name resources.
 	return funcCall.GetState.ReturnState, funcCall.GetState.ReturnError
 }
 
-func (i Individual) Configure(
+func (i Individual) Apply(
 	ctx context.Context, hst host.Host, name resources.Name, state resources.State,
 ) error {
 	logger := log.GetLogger(ctx)
-	logger.Debugf("Test.Configure(%#v, %#v)", name, state)
+	logger.Debugf("Test.Apply(%#v, %#v)", name, state)
 	funcCall := i.getFuncCall()
 	if funcCall == nil {
-		IndividualT.Fatalf("no more calls expected, got Configure(%#v, %#v)", name, state)
+		IndividualT.Fatalf("no more calls expected, got Apply(%#v, %#v)", name, state)
 	}
-	if funcCall.Configure == nil {
-		IndividualT.Fatalf("unexpected call: got Configure(%#v, %#v), expected %#v", name, state, funcCall)
+	if funcCall.Apply == nil {
+		IndividualT.Fatalf("unexpected call: got Apply(%#v, %#v), expected %#v", name, state, funcCall)
 	}
-	if funcCall.Configure.Name != name || !reflect.DeepEqual(funcCall.Configure.State, state) {
+	if funcCall.Apply.Name != name || !reflect.DeepEqual(funcCall.Apply.State, state) {
 		IndividualT.Fatalf(
-			"unexpected arguments: got Configure(%#v, %#v), expected Configure(%#v, %#v)",
-			name, state, funcCall.Configure.Name, funcCall.Configure.State,
+			"unexpected arguments: got Apply(%#v, %#v), expected Apply(%#v, %#v)",
+			name, state, funcCall.Apply.Name, funcCall.Apply.State,
 		)
 	}
-	return funcCall.Configure.ReturnError
+	return funcCall.Apply.ReturnError
 }
 
 func SetupIndividualTypeMock(t *testing.T, individualFuncCalls []IndividualFuncCall) {

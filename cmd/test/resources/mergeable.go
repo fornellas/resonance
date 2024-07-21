@@ -39,12 +39,12 @@ func (mfgs MergeableFuncGetStates) String() string {
 	return fmt.Sprintf("(%#v) (%#v, %#v)", mfgs.Names, mfgs.ReturnNameStateMap, mfgs.ReturnError)
 }
 
-type MergeableFuncConfigureAll struct {
+type MergeableFuncApplyMerged struct {
 	ActionNameStateMap map[resources.Action]map[resources.Name]resources.State
 	ReturnError        error
 }
 
-func (mfca MergeableFuncConfigureAll) String() string {
+func (mfca MergeableFuncApplyMerged) String() string {
 	return fmt.Sprintf("(%#v) (%#v)", mfca.ActionNameStateMap, mfca.ReturnError)
 }
 
@@ -60,7 +60,7 @@ func (ifd MergeableFuncDestroy) String() string {
 type MergeableFuncCall struct {
 	ValidateName *MergeableFuncValidateName
 	GetStates    *MergeableFuncGetStates
-	ConfigureAll *MergeableFuncConfigureAll
+	ApplyMerged  *MergeableFuncApplyMerged
 }
 
 func (mfc MergeableFuncCall) String() string {
@@ -140,26 +140,26 @@ func (m Mergeable) GetStates(
 	return funcCall.GetStates.ReturnNameStateMap, funcCall.GetStates.ReturnError
 }
 
-func (m Mergeable) ConfigureAll(
+func (m Mergeable) ApplyMerged(
 	ctx context.Context, hst host.Host,
 	actionNameStateMap map[resources.Action]map[resources.Name]resources.State,
 ) error {
 	logger := log.GetLogger(ctx)
-	logger.Debugf("Test.ConfigureAll(%#v)", actionNameStateMap)
+	logger.Debugf("Test.ApplyMerged(%#v)", actionNameStateMap)
 	funcCall := m.getFuncCall()
 	if funcCall == nil {
-		MergeableT.Fatalf("no more calls expected, got ConfigureAll(%#v)", actionNameStateMap)
+		MergeableT.Fatalf("no more calls expected, got ApplyMerged(%#v)", actionNameStateMap)
 	}
-	if funcCall.ConfigureAll == nil {
-		MergeableT.Fatalf("unexpected call: got ConfigureAll(%#v), expected %#v", actionNameStateMap, funcCall)
+	if funcCall.ApplyMerged == nil {
+		MergeableT.Fatalf("unexpected call: got ApplyMerged(%#v), expected %#v", actionNameStateMap, funcCall)
 	}
-	if !reflect.DeepEqual(funcCall.ConfigureAll.ActionNameStateMap, actionNameStateMap) {
+	if !reflect.DeepEqual(funcCall.ApplyMerged.ActionNameStateMap, actionNameStateMap) {
 		MergeableT.Fatalf(
-			"unexpected arguments: got ConfigureAll(%#v), expected ConfigureAll(%#v)",
-			actionNameStateMap, funcCall.ConfigureAll.ActionNameStateMap,
+			"unexpected arguments: got ApplyMerged(%#v), expected ApplyMerged(%#v)",
+			actionNameStateMap, funcCall.ApplyMerged.ActionNameStateMap,
 		)
 	}
-	return funcCall.ConfigureAll.ReturnError
+	return funcCall.ApplyMerged.ReturnError
 }
 
 func SetupMergeableType(t *testing.T, individualFuncCalls []MergeableFuncCall) {

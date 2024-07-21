@@ -13,8 +13,8 @@ const (
 	ActionSkip
 	// ActionRefresh means that any in-memory state is to be refreshed (eg: restart a service, reload configuration from files etc).
 	ActionRefresh
-	// ActionConfigure means that the state of the resource is not as expected and it that it must be configured.
-	ActionConfigure
+	// ActionApply means that the state of the resource is not as expected and it that it must be configured.
+	ActionApply
 	// ActionDestroy means that the resource is no longer needed and is to be destroyed.
 	ActionDestroy
 	// ActionCount has the number of existing actions
@@ -22,11 +22,11 @@ const (
 )
 
 var actionEmojiMap = map[Action]string{
-	ActionOk:        "✅",
-	ActionSkip:      "💨",
-	ActionRefresh:   "🔄",
-	ActionConfigure: "🔧",
-	ActionDestroy:   "💀",
+	ActionOk:      "✅",
+	ActionSkip:    "💨",
+	ActionRefresh: "🔄",
+	ActionApply:   "🔧",
+	ActionDestroy: "💀",
 }
 
 // Emoji representing the action
@@ -39,18 +39,18 @@ func (a Action) Emoji() string {
 }
 
 var actionStrMap = map[Action]string{
-	ActionOk:        "OK",
-	ActionSkip:      "Skip",
-	ActionRefresh:   "Refresh",
-	ActionConfigure: "Configure",
-	ActionDestroy:   "Destroy",
+	ActionOk:      "OK",
+	ActionSkip:    "Skip",
+	ActionRefresh: "Refresh",
+	ActionApply:   "Apply",
+	ActionDestroy: "Destroy",
 }
 
 func (a Action) Actionable() bool {
 	if a == ActionRefresh {
 		return true
 	}
-	if a == ActionConfigure {
+	if a == ActionApply {
 		return true
 	}
 	if a == ActionDestroy {

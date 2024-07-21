@@ -125,7 +125,7 @@ func (ap APTPackage) GetStates(
 	return nameStateMap, nil
 }
 
-func (ap APTPackage) ConfigureAll(
+func (ap APTPackage) ApplyMerged(
 	ctx context.Context, hst host.Host, actionNameStateMap map[Action]map[Name]State,
 ) error {
 	// Package arguments
@@ -134,7 +134,7 @@ func (ap APTPackage) ConfigureAll(
 		var pkgAction string
 		switch action {
 		case ActionOk:
-		case ActionConfigure:
+		case ActionApply:
 			pkgAction = ""
 		case ActionDestroy:
 			pkgAction = "-"
