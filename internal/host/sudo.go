@@ -19,15 +19,6 @@ import (
 	"github.com/fornellas/resonance/log"
 )
 
-// Sudo implements Host interface by having all methods rely on an underlying Host.Run, and
-// preceding all commands with sudo.
-type Sudo struct {
-	baseRun
-	Host     host.Host
-	Password *string
-	envPath  string
-}
-
 // stdinSudo prevents stdin from being read, before we can detect output
 // from sudo on stdout. This is required because os/exec and ssh buffer stdin
 // before there's any read, meaning we can't intercept the sudo prompt
@@ -122,6 +113,43 @@ func (ses *stderrSudo) Write(p []byte) (int, error) {
 
 	len, err := ses.Writer.Write(p)
 	return len + extraLen, err
+}
+
+// Sudo implements Host interface by having all methods rely on an underlying Host.Run, and
+// preceding all commands with sudo.
+type Sudo struct {
+	cmdHost
+	Host     host.Host
+	Password *string
+	envPath  string
+}
+
+func NewSudo(ctx context.Context, hst host.Host) (*Sudo, error) {
+	logger := log.GetLogger(ctx)
+	logger.Info("⚡ Sudo")
+	nestedCtx := log.IndentLogger(ctx)
+
+	sudoHost := Sudo{
+		Host: hst,
+	}
+	sudoHost.cmdHost.Host = &sudoHost
+
+	cmd := host.Cmd{
+		Path: "true",
+	}
+	waitStatus, err := sudoHost.Run(nestedCtx, cmd)
+	if err != nil {
+		return nil, err
+	}
+	if !waitStatus.Success() {
+		return nil, fmt.Errorf("failed to run %s: %s", cmd, waitStatus.String())
+	}
+
+	if err := sudoHost.setEnvPath(nestedCtx); err != nil {
+		return nil, err
+	}
+
+	return &sudoHost, nil
 }
 
 func getRandomString() string {
@@ -252,32 +280,4 @@ func (s *Sudo) setEnvPath(ctx context.Context) error {
 		}
 	}
 	return nil
-}
-
-func NewSudo(ctx context.Context, hst host.Host) (*Sudo, error) {
-	logger := log.GetLogger(ctx)
-	logger.Info("⚡ Sudo")
-	nestedCtx := log.IndentLogger(ctx)
-
-	sudoHost := Sudo{
-		Host: hst,
-	}
-	sudoHost.baseRun.Host = &sudoHost
-
-	cmd := host.Cmd{
-		Path: "true",
-	}
-	waitStatus, err := sudoHost.Run(nestedCtx, cmd)
-	if err != nil {
-		return nil, err
-	}
-	if !waitStatus.Success() {
-		return nil, fmt.Errorf("failed to run %s: %s", cmd, waitStatus.String())
-	}
-
-	if err := sudoHost.setEnvPath(nestedCtx); err != nil {
-		return nil, err
-	}
-
-	return &sudoHost, nil
 }

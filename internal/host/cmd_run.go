@@ -20,11 +20,16 @@ import (
 	"github.com/fornellas/resonance/log"
 )
 
-type baseRun struct {
+// This partially implements host.Host interface, with the exception of the following functions:
+// Run, String and Close. Full implementtations of the host.Host interface can embed this struct,
+// and just implement the remaining methods.
+// The use case for this is for share code across host.Host implementations that solely rely
+// on spawning commands via Run.
+type cmdHost struct {
 	Host host.Host
 }
 
-func (br baseRun) Chmod(ctx context.Context, name string, mode os.FileMode) error {
+func (br cmdHost) Chmod(ctx context.Context, name string, mode os.FileMode) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Chmod %v %s", mode, name)
 	nestedCtx := log.IndentLogger(ctx)
@@ -55,7 +60,7 @@ func (br baseRun) Chmod(ctx context.Context, name string, mode os.FileMode) erro
 	)
 }
 
-func (br baseRun) Chown(ctx context.Context, name string, uid, gid int) error {
+func (br cmdHost) Chown(ctx context.Context, name string, uid, gid int) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Chown %v %v %s", uid, gid, name)
 	nestedCtx := log.IndentLogger(ctx)
@@ -86,7 +91,7 @@ func (br baseRun) Chown(ctx context.Context, name string, uid, gid int) error {
 	)
 }
 
-func (br baseRun) Lookup(ctx context.Context, username string) (*user.User, error) {
+func (br cmdHost) Lookup(ctx context.Context, username string) (*user.User, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Lookup %s", username)
 	nestedCtx := log.IndentLogger(ctx)
@@ -134,7 +139,7 @@ func (br baseRun) Lookup(ctx context.Context, username string) (*user.User, erro
 	return nil, user.UnknownUserError(username)
 }
 
-func (br baseRun) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
+func (br cmdHost) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("LookupGroup %s", name)
 	nestedCtx := log.IndentLogger(ctx)
@@ -176,7 +181,7 @@ func (br baseRun) LookupGroup(ctx context.Context, name string) (*user.Group, er
 	return nil, user.UnknownGroupError(name)
 }
 
-func (br baseRun) stat(ctx context.Context, name string) (string, error) {
+func (br cmdHost) stat(ctx context.Context, name string) (string, error) {
 	cmd := host.Cmd{
 		Path: "stat",
 		Args: []string{"--format=%d,%i,%h,%f,%u,%g,%t,%T,%s,%o,%b,%x,%y,%z", name},
@@ -200,7 +205,7 @@ func (br baseRun) stat(ctx context.Context, name string) (string, error) {
 	return stdout, nil
 }
 
-func (br baseRun) Lstat(ctx context.Context, name string) (host.HostFileInfo, error) {
+func (br cmdHost) Lstat(ctx context.Context, name string) (host.HostFileInfo, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Lstat %s", name)
 	nestedCtx := log.IndentLogger(ctx)
@@ -288,7 +293,7 @@ func (br baseRun) Lstat(ctx context.Context, name string) (host.HostFileInfo, er
 	}, nil
 }
 
-func (br baseRun) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
+func (br cmdHost) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Mkdir %s", name)
 	nestedCtx := log.IndentLogger(ctx)
@@ -320,7 +325,7 @@ func (br baseRun) Mkdir(ctx context.Context, name string, perm os.FileMode) erro
 	return br.Chmod(ctx, name, perm)
 }
 
-func (br baseRun) ReadFile(ctx context.Context, name string) ([]byte, error) {
+func (br cmdHost) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("ReadFile %s", name)
 	nestedCtx := log.IndentLogger(ctx)
@@ -348,7 +353,7 @@ func (br baseRun) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	return []byte(stdout), nil
 }
 
-func (br baseRun) rmdir(ctx context.Context, name string) error {
+func (br cmdHost) rmdir(ctx context.Context, name string) error {
 	cmd := host.Cmd{
 		Path: "rmdir",
 		Args: []string{name},
@@ -369,7 +374,7 @@ func (br baseRun) rmdir(ctx context.Context, name string) error {
 	return nil
 }
 
-func (br baseRun) Remove(ctx context.Context, name string) error {
+func (br cmdHost) Remove(ctx context.Context, name string) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("Remove %s", name)
 	nestedCtx := log.IndentLogger(ctx)
@@ -400,7 +405,7 @@ func (br baseRun) Remove(ctx context.Context, name string) error {
 	return nil
 }
 
-func (br baseRun) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
+func (br cmdHost) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
 	logger := log.GetLogger(ctx)
 	logger.Debugf("WriteFile %s %v", name, perm)
 	nestedCtx := log.IndentLogger(ctx)
