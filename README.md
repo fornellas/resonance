@@ -1,6 +1,8 @@
 [![Latest Release](https://img.shields.io/github/v/release/fornellas/resonance)](https://github.com/fornellas/resonance/releases) [![Push](https://github.com/fornellas/resonance/actions/workflows/push.yaml/badge.svg)](https://github.com/fornellas/resonance/actions/workflows/push.yaml) [![Go Report Card](https://goreportcard.com/badge/github.com/fornellas/resonance)](https://goreportcard.com/report/github.com/fornellas/resonance) [![Coverage Status](https://coveralls.io/repos/github/fornellas/resonance/badge.svg?branch=master)](https://coveralls.io/github/fornellas/resonance?branch=master) [![Go Reference](https://pkg.go.dev/badge/github.com/fornellas/resonance.svg)](https://pkg.go.dev/github.com/fornellas/resonance) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0) [![Buy me a beer: donate](https://img.shields.io/badge/Donate-Buy%20me%20a%20beer-yellow)](https://www.paypal.com/donate?hosted_button_id=AX26JVRT2GS2Q)
 
-Status: experimental. Please check the [roadmap](./ROADMAP.md). Help welcome 🙏!
+**Status**: under active development, targetting a [v1 milestone](https://github.com/fornellas/resonance/milestone/1).
+
+**🙏Help wanted🙏**: There are [plenty of issues to work on](https://github.com/fornellas/resonance/issues), of all sizes and difficulty. Getting a dev environment setup [takes less than 5 minutes](#development), so you can get your first PR easily!
 
 # resonance
 
