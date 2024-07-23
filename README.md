@@ -25,33 +25,82 @@ GOARCH=$(case $(uname -m) in i[23456]86) echo 386;; x86_64) echo amd64;; armv6l|
 
 ## Development
 
-[Docker](https://www.docker.com/) is used to create a reproducible development environment on any machine:
+Getting started is _super easy_: just run these commands under Linux or MacOS:
 
 ```bash
 git clone git@github.com:fornellas/resonance.git
 cd resonance/
-./build.sh ci
+./build.sh ci # runs linters, tests and build
 ```
 
-This will execute the build exactly as it happens on CI. You can get a development shell with `./build.sh shell`, from where you can run `make help` and see other options.
+That's it! The local build happens inside a [Docker](https://www.docker.com/), so it is easily reproducible on any machine.
 
-### Linux
+If you're running an old Arm Mac (eg: M1), Docker is _very_ slow, you should consider a no container build (see below).
 
-Under Linux, not only you can have fast local builds exactly as it happens on CI, but you can also have the build run automatically on file changes (via [rrb](https://github.com/fornellas/rrb)):
+### Shell
 
-```bash
-./build.sh rrb
+You can start a development shell, which gives you access to the whole build environemnt, including all build tools with the correct versions. Eg:
+
+```shell
+./build.sh shell
+make ci
+go get -u
 ```
 
-Just edit files with your preferred editor and as soon as you save them, the bulid will be executed automatically.
+### No container
 
-### MacOS / Darwin
+You may also run the _unofficial_[^1] build, without a container. This requires Installing [GNU Make](https://www.gnu.org/software/make/):
 
-While the Docker build runs fine under MacOS / Darwin, sadly the performance is notoriously bad (Linux containers run under a VM). It is possible to run the build locally without a container by:
+- Ubuntu: `apt install make`.
+- MacOS: `brew install make`[^2]
 
-- Install GNU Make (eg: `brew install make`)*[^1]
-- Run the build `gmake ci`.
+Then:
 
-Note that a lot of the tests are Linux only (all `*_linux_test.go` files), so while build signal should be representative, test results aren't.
+```shell
+make ci # on MacOS, gmake ci
+```
 
-[^1]: Apple ships an ancient Make version which will NOT work, you must use a recent GNU Make.
+Or start a bash[^3] development shell:
+
+```shell
+make shell
+```
+
+### Using gopls, the Go Language Server
+
+Your editor may already support using [gopls](https://github.com/golang/tools/tree/master/gopls), and you should follow its documentation on how to set it up. This may require having the correct go (and gopls) versions installed and available for your editor. This can be annoying and error prone.
+
+In this scenario, you should leverage the "no container" option:
+
+```shell
+make shell
+make ci # install all development tools
+```
+
+And then start you code editor from the development shell (eg: for Sublime, do `subl .`). This enables the code editor to have access to all the _exact_ versions of tools required.
+
+### Faster builds
+
+The default build (`ci`) gives you the best signal, but it may not be fast enough during development. You can disable some features, which should speed up things during development:
+
+```shell
+./build.sh ci GO_TEST_NO_COVER=1 GO_BUILD_FLAGS_NO_RACE=1
+```
+
+### Automatic builds on Linux
+
+The build system is integrated with [rrb](https://github.com/fornellas/rrb), which enables the build to run automatically as you edit the files.
+
+First, start rrb:
+
+```shell
+./build.sh rrb # or "make rrb"
+```
+
+then just edit the files with your preferred editor. As soon as you save any file, the build will be automatically run, interrupting any ongoing build, so you always get a fresh signal.
+
+[^1]: unnofficial in the sense that it is _not_ the same as it happens on CI, as unforeseen environment differences may impact the signal. Additionally, a lot of code / tests is Linux only (eg: `*_linux.go`), so none of this signal will be available on MacOS.
+
+[^2]: note that brew install the command as `gmake`. Apple's ancient `make` shipped with MacOS will NOT work.
+
+[^3]: bash must be installed separately, eg, under MacOS, `brew install bash`.

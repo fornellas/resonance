@@ -436,6 +436,8 @@ rrb: go
 		-- \
 		sh -c "$(MAKE) $(MFLAGS) $(RRB_MAKE_TARGET) && $(RRB_EXTRA_CMD)"
 
+endif
+
 ##
 ## shell
 ##
@@ -457,5 +459,3 @@ shell:
 		GOMODCACHE=$(GOMODCACHE) \
 		STATICCHECK_CACHE=$(STATICCHECK_CACHE) \
 		bash --rcfile .bashrc
-
-endif
