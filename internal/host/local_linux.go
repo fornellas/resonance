@@ -8,7 +8,6 @@ import (
 	"syscall"
 
 	"github.com/fornellas/resonance/host"
-	"github.com/fornellas/resonance/internal/host/local"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -80,7 +79,7 @@ func (l Local) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Run", "cmd", cmd)
 
-	return local.Run(ctx, cmd)
+	return LocalRun(ctx, cmd)
 }
 
 func (l Local) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
