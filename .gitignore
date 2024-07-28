@@ -2,8 +2,8 @@
 /cover.lcov
 /cover.txt
 /internal/.git-toplevel
+/internal/.version
 /internal/host/agent/agent_*_*
 /internal/host/agent/agent_*_*.gz
 /internal/host/agent_*_*_gz.go
-/internal/version/.version
 /resonance.*.*

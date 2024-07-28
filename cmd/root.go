@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"github.com/fornellas/resonance/internal/version"
+	"github.com/fornellas/resonance/internal"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -47,7 +47,7 @@ var RootCmd = &cobra.Command{
 				ConsoleTime: logHandlerConsoleTime,
 			},
 		)
-		logger := slog.New(handler).With("version", version.GetVersion())
+		logger := slog.New(handler).With("version", internal.Version)
 		ctx := cmd.Context()
 		ctx = log.WithLogger(
 			ctx,
