@@ -2,10 +2,10 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -89,14 +89,20 @@ func (c TestCmd) String() string {
 }
 
 func (c *TestCmd) Run(t *testing.T) {
+	osExitErr := errors.New("os.Exit")
 	originalExit := Exit
 	t.Cleanup(func() { Exit = originalExit })
 	Exit = func(code int) {
 		if c.ExpectedCode != code {
 			t.Fatalf("%v exited %d, expected %d", c, code, c.ExpectedCode)
 		}
-		runtime.Goexit()
+		panic(osExitErr)
 	}
+	defer func() {
+		if r := recover(); r != nil && r != osExitErr {
+			panic(r)
+		}
+	}()
 
 	t.Cleanup(func() { ResetFlags() })
 
