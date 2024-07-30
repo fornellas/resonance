@@ -520,7 +520,7 @@ help: shell-help
 .PHONY: shell
 shell:
 	@echo Make targets:
-	@$(MAKE) help
+	@$(MAKE) help MAKELEVEL=
 	@PATH=$(GOROOT)/bin:$(PATH) \
 		GOOS=$(GOOS) \
 		GOARCH=$(GOARCH) \
