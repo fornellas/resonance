@@ -1,5 +1,9 @@
 help:
 
+##
+## Make
+##
+
 SHELL := /bin/bash
 .ONESHELL:
 
@@ -9,6 +13,10 @@ MAKE_BAD_VERSION := $(shell [ $(MAKE_MAJOR_VERSION) -lt $(MAKE_REQUIRED_MAJOR_VE
 ifeq ($(MAKE_BAD_VERSION),true)
   $(error Make version is below $(MAKE_REQUIRED_MAJOR_VERSION), please update it.)
 endif
+
+##
+## uname
+##
 
 SHELL_UNAME_S := uname -s
 UNAME_S := $(shell $(SHELL_UNAME_S))
@@ -22,6 +30,10 @@ ifneq ($(.SHELLSTATUS),0)
 $(error $(SHELL_UNAME_M): $(UNAME_M))
 endif
 
+##
+## Cache
+##
+
 ifeq ($(UNAME_S),Linux)
 XDG_CACHE_HOME ?= $(HOME)/.cache
 else
@@ -33,6 +45,10 @@ endif
 endif
 
 CACHE_PATH ?= $(XDG_CACHE_HOME)/resonance
+
+##
+## Go
+##
 
 SHELL_GO_VERSION := cat go.mod | awk '/^go /{print $$2}'
 export GOVERSION := go$(shell $(SHELL_GO_VERSION))
@@ -60,55 +76,22 @@ ifneq ($(.SHELLSTATUS),0)
   $(error $(SHELL_GOARCH_DOWNLOAD): $(GOARCH_DOWNLOAD))
 endif
 
-
 GOROOT_PREFIX := $(CACHE_PATH)/GOROOT
 GOROOT := $(GOROOT_PREFIX)/$(GOVERSION).$(GOOS)-$(GOARCH_DOWNLOAD)
+
 GO := $(GOROOT)/bin/go
 PATH := $(GOROOT)/bin:$(PATH)
+
+export GOPATH := $(CACHE_PATH)/GOPATH
+PATH := $(GOPATH)/bin:$(PATH)
 
 export GOCACHE := $(CACHE_PATH)/GOCACHE
 
 export GOMODCACHE := $(CACHE_PATH)/GOMODCACHE
 
-GO_BUILD_FLAGS_COMMON :=
-# osusergo have Lookup and LookupGroup to use pure Go implementation to enable
-# management of local users
-GO_BUILD_FLAGS_COMMON := -tags osusergo
-
-define get_go_build_flags
-$(value GO_BUILD_FLAGS_$(1))
-endef
-
-# https://go.dev/doc/articles/race_detector#Requirements
-ifneq ($(GO_BUILD_FLAGS_NO_RACE),1)
-ifeq ($(GOOS)/$(GOARCH),linux/amd64)
-GO_BUILD_FLAGS_linux_amd64 := -race $(GO_BUILD_FLAGS)
-endif
-ifeq ($(GOOS)/$(GOARCH),linux/ppc64le)
-GO_BUILD_FLAGS_linux_ppc64le := -race $(GO_BUILD_FLAGS)
-endif
-# https://github.com/golang/go/issues/29948
-# ifeq ($(GOOS)/$(GOARCH),linux/arm64)
-#_LINUX_ARM64 GO_BUILD_FLAGS := -race $(GO_BUILD_FLAGS)
-# endif
-ifeq ($(GOOS)/$(GOARCH),freebsd/amd64)
-GO_BUILD_FLAGS_freebsd_amd64 := -race $(GO_BUILD_FLAGS)
-endif
-ifeq ($(GOOS)/$(GOARCH),netbsd/amd64)
-GO_BUILD_FLAGS_netbsd_amd64 := -race $(GO_BUILD_FLAGS)
-endif
-ifeq ($(GOOS)/$(GOARCH),darwin/amd64)
-GO_BUILD_FLAGS_darwin_amd64 := -race $(GO_BUILD_FLAGS)
-endif
-ifeq ($(GOOS)/$(GOARCH),darwin/arm64)
-GO_BUILD_FLAGS_darwin_arm64 := -race $(GO_BUILD_FLAGS)
-endif
-ifeq ($(GOOS)/$(GOARCH),windows/amd64)
-GO_BUILD_FLAGS_windows_amd64 := -race $(GO_BUILD_FLAGS)
-endif
-endif
-
-GOARCHS_AGENT := 386 amd64 arm arm64
+##
+## Go source
+##
 
 SHELL_GO_MODULE := cat go.mod | awk '/^module /{print $$2}'
 export GO_MODULE := $(shell $(SHELL_GO_MODULE))
@@ -118,32 +101,111 @@ endif
 
 GO_SOURCE_FILES := $$(find $$PWD -name \*.go ! -path '$(CACHE_PATH)/*')
 
+##
+## goimports
+##
+
 GOIMPORTS := $(GO) run golang.org/x/tools/cmd/goimports
 GOIMPORTS_LOCAL := $(GO_MODULE)
+
+##
+## staticcheck
+##
 
 STATICCHECK := $(GO) run honnef.co/go/tools/cmd/staticcheck
 export STATICCHECK_CACHE := $(CACHE_PATH)/staticcheck
 
+##
+## misspell
+##
+
+MISSPELL := $(GO) run github.com/client9/misspell/cmd/misspell
+
+##
+## gocyclo
+##
+
 GOCYCLO := $(GO) run github.com/fzipp/gocyclo/cmd/gocyclo
 GOCYCLO_OVER := 15
 
+##
+## go test
+##
+
 GO_TEST := $(GO) run github.com/rakyll/gotest
+
 GO_TEST_FLAGS :=
-GO_TEST_PACKAGES := ./...
+
+define go_test_build_flags
+$(value GO_TEST_BUILD_FLAGS_$(1))
+endef
+
+GO_TEST_BUILD_FLAGS :=
+# https://go.dev/doc/articles/race_detector#Requirements
+ifneq ($(GO_TEST_BUILD_FLAGS_NO_RACE),1)
+ifeq ($(GOOS)/$(GOARCH),linux/amd64)
+GO_TEST_BUILD_FLAGS_linux_amd64 := -race $(GO_TEST_BUILD_FLAGS)
+endif
+ifeq ($(GOOS)/$(GOARCH),linux/ppc64le)
+GO_TEST_BUILD_FLAGS_linux_ppc64le := -race $(GO_TEST_BUILD_FLAGS)
+endif
+# https://github.com/golang/go/issues/29948
+# ifeq ($(GOOS)/$(GOARCH),linux/arm64)
+#_LINUX_ARM64 GO_TEST_BUILD_FLAGS := -race $(GO_TEST_BUILD_FLAGS)
+# endif
+ifeq ($(GOOS)/$(GOARCH),freebsd/amd64)
+GO_TEST_BUILD_FLAGS_freebsd_amd64 := -race $(GO_TEST_BUILD_FLAGS)
+endif
+ifeq ($(GOOS)/$(GOARCH),netbsd/amd64)
+GO_TEST_BUILD_FLAGS_netbsd_amd64 := -race $(GO_TEST_BUILD_FLAGS)
+endif
+ifeq ($(GOOS)/$(GOARCH),darwin/amd64)
+GO_TEST_BUILD_FLAGS_darwin_amd64 := -race $(GO_TEST_BUILD_FLAGS)
+endif
+ifeq ($(GOOS)/$(GOARCH),darwin/arm64)
+GO_TEST_BUILD_FLAGS_darwin_arm64 := -race $(GO_TEST_BUILD_FLAGS)
+endif
+ifeq ($(GOOS)/$(GOARCH),windows/amd64)
+GO_TEST_BUILD_FLAGS_windows_amd64 := -race $(GO_TEST_BUILD_FLAGS)
+endif
+endif
+
+GO_TEST_PACKAGES_DEFAULT := $(GO_MODULE)/...
+GO_TEST_PACKAGES := $(GO_TEST_PACKAGES_DEFAULT)
+
 GO_TEST_BINARY_FLAGS :=
 ifneq ($(GO_TEST_NO_COVER),1)
 GO_TEST_BINARY_FLAGS := -coverprofile cover.txt -coverpkg $(GO_TEST_PACKAGES) $(GO_TEST_BINARY_FLAGS)
 endif
 GO_TEST_BINARY_FLAGS := -count=1 $(GO_TEST_BINARY_FLAGS)
 GO_TEST_BINARY_FLAGS := -failfast $(GO_TEST_BINARY_FLAGS)
-GO_TEST_MIN_COVERAGE := 50
+
+GO_TEST_BINARY_FLAGS_EXTRA :=
 
 GCOV2LCOV := $(GO) run github.com/jandelgado/gcov2lcov
 
+GO_TEST_MIN_COVERAGE := 50
+
+##
+## go build
+##
+
+GO_BUILD_FLAGS :=
+
+# osusergo have Lookup and LookupGroup to use pure Go implementation to enable
+# management of local users
+GO_BUILD_FLAGS_COMMON := -tags osusergo
+
+GOARCHS_AGENT := 386 amd64 arm arm64
+
+##
+## rrb
+##
+
 RRB := $(GO) run github.com/fornellas/rrb
 RRB_DEBOUNCE ?= 500ms
-RRB_LOG_LEVEL ?= info
 RRB_IGNORE_PATTERN ?= '$(CACHE_PATH)/**/*,internal/host/agent_*_*_gz.go'
+RRB_LOG_LEVEL ?= info
 RRB_PATTERN ?= '**/*.{go},Makefile'
 RRB_MAKE_TARGET ?= ci
 RRB_EXTRA_CMD ?= true
@@ -238,7 +300,7 @@ clean: clean-staticcheck
 
 .PHONY: misspell
 misspell: go go-mod-tidy go-generate
-	$(GO) run github.com/client9/misspell/cmd/misspell -error $(GO_SOURCE_FILES)
+	$(MISSPELL) -error $(GO_SOURCE_FILES)
 lint: misspell
 
 # gocyclo
@@ -270,9 +332,12 @@ go-get-u: go go-mod-tidy
 .PHONY: test-help
 test-help:
 	@echo 'test: runs all tests:'
-	@echo '  use GO_TEST_NO_COVER=1 to disable code coverage'
-	@echo '  use GO_TEST_PACKAGES to set packages to test (default: $(GO_TEST_PACKAGES))'
-	@echo '  use GO_TEST_BINARY_FLAGS_EXTRA to pass extra flags to the test binary (eg: -v)'
+	@echo '  use GO_TEST_BUILD_FLAGS to set test build flags (see `go test build`)'
+	@echo '  use GO_TEST_FLAGS to set test flags (see `go help test`)'
+	@echo '  use GO_TEST_PACKAGES to set packages to test (default: $(GO_TEST_PACKAGES_DEFAULT))'
+	@echo '  use GO_TEST_BINARY_FLAGS_EXTRA to pass extra flags to the test binary (see `go help testflag`)'
+	@echo '  use GO_TEST_NO_COVER=1 to disable code coverage (faster)'
+	@echo '  use GO_TEST_BUILD_FLAGS_NO_RACE=1 to disable -race build flag (faster)'
 help: test-help
 
 .PHONY: test
@@ -283,7 +348,7 @@ help: test-help
 gotest: go go-generate
 	$(GO_TEST) \
 		$(GO_BUILD_FLAGS_COMMON) \
-		$(call get_go_build_flags,$(GOOS)_$(GOARCH_NATIVE)) \
+		$(call go_test_build_flags,$(GOOS)_$(GOARCH_NATIVE)) \
 		$(GO_TEST_FLAGS) \
 		$(GO_TEST_PACKAGES) \
 		$(GO_TEST_BINARY_FLAGS) \
@@ -345,7 +410,7 @@ endif
 .PHONY: build-help
 build-help:
 	@echo 'build: build everything'
-	@echo '  use GO_BUILD_FLAGS_NO_RACE=1 to disable -race (faster builds)'
+	@echo '  use GO_BUILD_FLAGS to add extra build flags (see `go help build`)'
 help: build-help
 
 .PHONY: build-agent-%
@@ -354,7 +419,7 @@ build-agent-%: go-generate
 		build \
 		-o internal/host/agent/agent_linux_$* \
 		$(GO_BUILD_FLAGS_COMMON) \
-		$(call get_go_build_flags,linux_$*) \
+		$(GO_BUILD_FLAGS) \
 		./internal/host/agent/
 	gzip < internal/host/agent/agent_linux_$* > internal/host/agent/agent_linux_$*.gz
 	cat << EOF > internal/host/agent_linux_$*_gz.go
@@ -391,7 +456,7 @@ build: go go-generate build-agent
 		build \
 		-o resonance.$(GOOS).$(GOARCH) \
 		$(GO_BUILD_FLAGS_COMMON) \
-		$(call get_go_build_flags,$(GOOS)_$(GOARCH_NATIVE)) \
+		$(GO_BUILD_FLAGS) \
 		./cmd/
 
 .PHONY: clean-build
@@ -423,8 +488,12 @@ ifeq ($(GOOS),linux)
 .PHONY: rrb-help
 rrb-help:
 	@echo 'rrb: rerun build automatically on file changes'
-	@echo ' use RRB_MAKE_TARGET to set a make target (default: ci)'
-	@echo ' use RRB_EXTRA_CMD to set a command to run after the build is successful'
+	@echo ' use RRB_DEBOUNCE to set debounce (default: $(RRB_DEBOUNCE))'
+	@echo ' use RRB_IGNORE_PATTERN to set ignore pattern (default: $(RRB_IGNORE_PATTERN))'
+	@echo ' use RRB_LOG_LEVEL to set log level (default: $(RRB_LOG_LEVEL))'
+	@echo ' use RRB_PATTERN to set the pattern (default: $(RRB_PATTERN))'
+	@echo ' use RRB_MAKE_TARGET to set the make target (default: $(RRB_MAKE_TARGET))'
+	@echo ' use RRB_EXTRA_CMD to set a command to run after the build is successful (default: $(RRB_EXTRA_CMD))'
 help: rrb-help
 
 .PHONY: rrb
