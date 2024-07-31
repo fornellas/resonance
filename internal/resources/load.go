@@ -17,11 +17,9 @@ import (
 	resourcesPkg "github.com/fornellas/resonance/resources"
 )
 
-type ResourcesYaml []yaml.Node
-
 func LoadFile(ctx context.Context, path string) (resourcesPkg.Resources, error) {
 	logger := log.MustLogger(ctx).With("path", path)
-	logger.Info("Loading file")
+	logger.Info("📝 Loading file")
 
 	f, err := os.Open(path)
 	if err != nil {
@@ -35,6 +33,8 @@ func LoadFile(ctx context.Context, path string) (resourcesPkg.Resources, error) 
 	resources := resourcesPkg.Resources{}
 
 	for {
+		type ResourcesYaml []yaml.Node
+
 		resourcesYaml := ResourcesYaml{}
 		if err := decoder.Decode(&resourcesYaml); err != nil {
 			if errors.Is(err, io.EOF) {
@@ -54,13 +54,13 @@ func LoadFile(ctx context.Context, path string) (resourcesPkg.Resources, error) 
 			}
 
 			var resource resourcesPkg.Resource = nil
-			for tpe, resourceNode := range resourceMap {
+			for typeName, resourceNode := range resourceMap {
 				if resource != nil {
 					panic("bug: resource is not nil")
 				}
-				resource = resourcesPkg.GetResourceByName(tpe)
+				resource = resourcesPkg.GetResourceByName(typeName)
 				if resource == nil {
-					return nil, fmt.Errorf("failed to load resource file: %s:%d: invalid resource type %#v; valid types: %s", path, resourceMapNode.Line, tpe, strings.Join(resourcesPkg.GetResourceNames(), ", "))
+					return nil, fmt.Errorf("failed to load resource file: %s:%d: invalid resource type %#v; valid types: %s", path, resourceMapNode.Line, typeName, strings.Join(resourcesPkg.GetResourceNames(), ", "))
 				}
 
 				resourceNode.KnownFields(true)
@@ -90,7 +90,7 @@ func LoadFile(ctx context.Context, path string) (resourcesPkg.Resources, error) 
 }
 
 func LoadDir(ctx context.Context, dir string) (resourcesPkg.Resources, error) {
-	log.MustLogger(ctx).Info("📂 Loading resources", "dir", dir)
+	log.MustLogger(ctx).Info("📂 Loading directory", "dir", dir)
 	ctx, logger := log.MustContextLoggerIndented(ctx)
 
 	resources := resourcesPkg.Resources{}

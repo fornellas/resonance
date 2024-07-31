@@ -1,10 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
 
 	iResouresPkg "github.com/fornellas/resonance/internal/resources"
 	"github.com/fornellas/resonance/log"
@@ -30,7 +30,7 @@ var ValidateCmd = &cobra.Command{
 		}
 		defer hst.Close()
 
-		logger.Info("⚙️ Validating", "path", path, "host", hst)
+		logger.Info("🔍 Validating", "path", path, "host", hst)
 
 		var resources resouresPkg.Resources
 
@@ -65,16 +65,12 @@ var ValidateCmd = &cobra.Command{
 			Exit(1)
 		}
 
-		hostStateYamlBytes, err := yaml.Marshal(hostState)
-		if err != nil {
-			logger.Error(err.Error())
-			Exit(1)
+		logger.Info("📦 Resources")
+		for _, node := range hostState {
+			fmt.Printf("%s\n", node)
 		}
 
-		logger.Info(
-			"🎆 Validation successful",
-			"hostState", string(hostStateYamlBytes),
-		)
+		logger.Info("🎆 Validation successful")
 	},
 }
 

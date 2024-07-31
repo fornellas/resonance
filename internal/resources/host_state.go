@@ -15,9 +15,9 @@ import (
 )
 
 type Node struct {
-	SingleResource resourcesPkg.SingleResource `yaml:"single_resource,omitempty"`
-	GroupResources resourcesPkg.Resources      `yaml:"resources,omitempty"`
-	GroupResource  resourcesPkg.GroupResource  `yaml:"group_resource,omitempty"`
+	SingleResource resourcesPkg.SingleResource
+	GroupResource  resourcesPkg.GroupResource
+	GroupResources resourcesPkg.Resources
 	requiredBy     []*Node
 }
 
@@ -36,15 +36,15 @@ func NewGroupResourceNode(groupResource resourcesPkg.GroupResource) *Node {
 func (n *Node) String() string {
 	if n.SingleResource != nil {
 		return fmt.Sprintf(
-			"%s:%s",
-			reflect.TypeOf(n.SingleResource).Name(), n.SingleResource.Name(),
+			"%s: %s",
+			reflect.TypeOf(n.SingleResource).Elem().Name(), n.SingleResource.Name(),
 		)
 	}
 
 	if n.GroupResource != nil {
 		return fmt.Sprintf(
-			"%s:%s",
-			reflect.TypeOf(n.GroupResource).Name(), n.GroupResources.Names(),
+			"%s: %s",
+			reflect.TypeOf(n.GroupResource).Elem().Name(), n.GroupResources.Names(),
 		)
 	}
 
@@ -74,9 +74,52 @@ func (n *Node) Update(ctx context.Context, hst host.Host) error {
 	panic("bug: invalid state")
 }
 
+func (n *Node) MarshalYAML() (interface{}, error) {
+	type marshalSchema struct {
+		SingleResourceType string                      `yaml:"single_resource_type,omitempty"`
+		SingleResource     resourcesPkg.SingleResource `yaml:"single_resource,omitempty"`
+		GroupResourceType  string                      `yaml:"group_resource_type,omitempty"`
+		GroupResourcesType string                      `yaml:"group_resources_type,omitempty"`
+		GroupResources     resourcesPkg.Resources      `yaml:"group_resources,omitempty"`
+	}
+
+	var singleResourceType string
+	if n.SingleResource != nil {
+		singleResourceType = reflect.TypeOf(n.SingleResource).Elem().Name()
+	}
+
+	var groupResourceType string
+	var groupResourcesType string
+	if n.GroupResource != nil {
+		groupResourceType = reflect.TypeOf(n.GroupResource).Elem().Name()
+		groupResourcesType = reflect.TypeOf(n.GroupResources[0]).Elem().Name()
+	}
+
+	return &marshalSchema{
+		SingleResourceType: singleResourceType,
+		SingleResource:     n.SingleResource,
+		GroupResourceType:  groupResourceType,
+		GroupResourcesType: groupResourcesType,
+		GroupResources:     n.GroupResources,
+	}, nil
+}
+
+// func (n *Node) UnmarshalYAML(node *yaml.Node) error {
+// 	type unmarshalSchema struct {
+// 		SingleResourceType string                      `yaml:"single_resource_type,omitempty"`
+// 		SingleResource     yaml.Node `yaml:"single_resource,omitempty"`
+// 		GroupResourceType  string                      `yaml:"group_resource_type,omitempty"`
+// 		GroupResources     yaml.Node      `yaml:"group_resources,omitempty"`
+// 	}
+
+// 	node.KnownFields(true)
+// 	node.Decode()
+
+// }
+
 type Nodes []*Node
 
-func NewNodes(resources resourcesPkg.Resources) Nodes {
+func NewNodesFromRessources(resources resourcesPkg.Resources) Nodes {
 	nodes := Nodes{}
 
 	typeToNodeMap := map[string]*Node{}
@@ -208,7 +251,7 @@ func (ns Nodes) Graphviz() (string, error) {
 type HostState Nodes
 
 func NewHostState(resources resourcesPkg.Resources) (HostState, error) {
-	nodes := NewNodes(resources)
+	nodes := NewNodesFromRessources(resources)
 	nodes, err := nodes.TopologicalSsort()
 	if err != nil {
 		return nil, err
