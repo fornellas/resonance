@@ -11,21 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// func CreateResourceYamls(t *testing.T, resourcesRoot string, resourceDefsMap map[string]resource.ResourceDefs) {
-// 	require.NoError(t, os.Mkdir(resourcesRoot, os.FileMode(0700)))
-// 	for name, resources := range resourceDefsMap {
-// 		bundleBytes, err := yaml.Marshal(resources)
-// 		if err != nil {
-// 			t.Fatal(err)
-// 		}
-// 		if err := os.WriteFile(
-// 			filepath.Join(resourcesRoot, name), bundleBytes, os.FileMode(0600),
-// 		); err != nil {
-// 			t.Fatal(err)
-// 		}
-// 	}
-// }
-
 func captureOutput(t *testing.T, fn func()) (stdout string, stderr string) {
 	originalStdout := os.Stdout
 	readStdout, writeStdout, _ := os.Pipe()
