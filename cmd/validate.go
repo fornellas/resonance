@@ -65,9 +65,9 @@ var ValidateCmd = &cobra.Command{
 			Exit(1)
 		}
 
-		logger.Info("📦 Resources")
+		logger.Info("📦 Catalog: \n   Planning to apply ... ")
 		for _, node := range hostState {
-			fmt.Printf("%s\n", node)
+			fmt.Printf("    - %s\n", node)
 		}
 
 		logger.Info("🎆 Validation successful")
