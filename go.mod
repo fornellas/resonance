@@ -56,7 +56,7 @@ require (
 	github.com/williammartin/subreaper v0.0.0-20181101193406-731d9ece6883 // indirect
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20240613232115-7f521ea00fb8 // indirect
-	golang.org/x/image v0.14.0 // indirect
+	golang.org/x/image v0.18.0 // indirect
 	golang.org/x/mod v0.19.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.22.0 // indirect
