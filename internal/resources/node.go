@@ -119,59 +119,7 @@ func (n *Node) MarshalYAML() (interface{}, error) {
 
 type Nodes []*Node
 
-func NewNodesFromRessources(resources resourcesPkg.Resources) Nodes {
-	nodes := Nodes{}
-
-	typeToNodeMap := map[string]*Node{}
-
-	requiredNodes := Nodes{}
-	pastRequiredNodes := map[*Node]bool{}
-
-	for _, resource := range resources {
-		var node *Node = nil
-
-		typeName := reflect.TypeOf(resource).Elem().Name()
-
-		if resourcesPkg.IsGroupResource(typeName) {
-			var ok bool
-			node, ok = typeToNodeMap[typeName]
-			if !ok {
-				node = NewGroupResourceNode(
-					resourcesPkg.GetGroupResourceByName(typeName),
-				)
-				typeToNodeMap[typeName] = node
-				nodes = append(nodes, node)
-			}
-			node.AppendGroupResource(resource)
-		} else {
-			singleResource, ok := resource.(resourcesPkg.SingleResource)
-			if !ok {
-				panic("bug: Resource is not SingleResource")
-			}
-			node = NewSingleResourceNode(singleResource)
-			nodes = append(nodes, node)
-		}
-
-		var extraRequiredNode *Node = nil
-		for _, requiredNode := range requiredNodes {
-			if _, ok := pastRequiredNodes[node]; !ok {
-				requiredNode.AppendRequiredByNode(node)
-				pastRequiredNodes[requiredNode] = true
-			} else {
-				extraRequiredNode = requiredNode
-			}
-		}
-
-		requiredNodes = Nodes{node}
-		if extraRequiredNode != nil {
-			requiredNodes = append(requiredNodes, extraRequiredNode)
-		}
-	}
-
-	return nodes
-}
-
-func (ns Nodes) TopologicalSsort() (Nodes, error) {
+func (ns Nodes) topologicalSsort() (Nodes, error) {
 	dependantCount := map[*Node]int{}
 	for _, node := range ns {
 		if _, ok := dependantCount[node]; !ok {
@@ -248,23 +196,82 @@ func (ns Nodes) Graphviz() (string, error) {
 	return buf.String(), nil
 }
 
-type HostState Nodes
-
-func NewHostState(resources resourcesPkg.Resources) (HostState, error) {
-	nodes := NewNodesFromRessources(resources)
-	nodes, err := nodes.TopologicalSsort()
-	if err != nil {
-		return nil, err
+func (ns Nodes) String() string {
+	var buff bytes.Buffer
+	for i, node := range ns {
+		i++
+		fmt.Fprintf(&buff, "%d. %s\n", i, node)
 	}
-
-	return (HostState)(nodes), nil
+	return buff.String()
 }
 
-func (h HostState) Update(ctx context.Context, hst host.Host) error {
+func (h Nodes) Update(ctx context.Context, hst host.Host) error {
 	for _, node := range h {
 		if err := node.Update(ctx, hst); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func newNodesFromRessources(resources resourcesPkg.Resources) Nodes {
+	nodes := Nodes{}
+
+	typeToNodeMap := map[string]*Node{}
+
+	requiredNodes := Nodes{}
+	pastRequiredNodes := map[*Node]bool{}
+
+	for _, resource := range resources {
+		var node *Node = nil
+
+		typeName := reflect.TypeOf(resource).Elem().Name()
+
+		if resourcesPkg.IsGroupResource(typeName) {
+			var ok bool
+			node, ok = typeToNodeMap[typeName]
+			if !ok {
+				node = NewGroupResourceNode(
+					resourcesPkg.GetGroupResourceByName(typeName),
+				)
+				typeToNodeMap[typeName] = node
+				nodes = append(nodes, node)
+			}
+			node.AppendGroupResource(resource)
+		} else {
+			singleResource, ok := resource.(resourcesPkg.SingleResource)
+			if !ok {
+				panic("bug: Resource is not SingleResource")
+			}
+			node = NewSingleResourceNode(singleResource)
+			nodes = append(nodes, node)
+		}
+
+		var extraRequiredNode *Node = nil
+		for _, requiredNode := range requiredNodes {
+			if _, ok := pastRequiredNodes[node]; !ok {
+				requiredNode.AppendRequiredByNode(node)
+				pastRequiredNodes[requiredNode] = true
+			} else {
+				extraRequiredNode = requiredNode
+			}
+		}
+
+		requiredNodes = Nodes{node}
+		if extraRequiredNode != nil {
+			requiredNodes = append(requiredNodes, extraRequiredNode)
+		}
+	}
+
+	return nodes
+}
+
+func NewNodes(resources resourcesPkg.Resources) (Nodes, error) {
+	nodes := newNodesFromRessources(resources)
+	nodes, err := nodes.topologicalSsort()
+	if err != nil {
+		return nil, err
+	}
+
+	return (nodes), nil
 }

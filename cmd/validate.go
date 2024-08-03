@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -54,22 +53,21 @@ var ValidateCmd = &cobra.Command{
 			}
 		}
 
-		hostState, err := iResouresPkg.NewHostState(resources)
+		nodes, err := iResouresPkg.NewNodes(resources)
 		if err != nil {
 			logger.Error(err.Error())
 			Exit(1)
 		}
 
-		if err := hostState.Update(ctx, hst); err != nil {
+		if err := nodes.Update(ctx, hst); err != nil {
 			logger.Error(err.Error())
 			Exit(1)
 		}
 
-		logger.Info("📦 Catalog: \n   Planning to apply ... ")
-		for index, node := range hostState {
-			index++
-			fmt.Printf("    %v. %s\n", index, node)
-		}
+		logger.Info(
+			"📦 Resources",
+			"resources", iResouresPkg.Nodes(nodes).String(),
+		)
 
 		logger.Info("🎆 Validation successful")
 	},
