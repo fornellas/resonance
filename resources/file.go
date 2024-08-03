@@ -14,9 +14,9 @@ import (
 // File manages files
 type File struct {
 	// Path is the absolute path to the file
-	Path string
+	Path string `yaml:"path" resonance:"id"`
 	// Whether to remove the file
-	Remove bool
+	Remove bool `yaml:"remove,omitempty"`
 	// Contents of the file
 	Content string `yaml:"content"`
 	// File permissions
@@ -24,11 +24,11 @@ type File struct {
 	// User ID owner of the file
 	Uid uint32 `yaml:"uid"`
 	// User name owner of the file
-	User string `yaml:"user"`
+	User string `yaml:"user,omitempty"`
 	// Group ID owner of the file
 	Gid uint32 `yaml:"gid"`
 	// Group name owner of the file
-	Group string `yaml:"group"`
+	Group string `yaml:"group,omitempty"`
 }
 
 func (f *File) Validate() error {
@@ -114,7 +114,7 @@ func (f *File) Load(ctx context.Context, hst host.Host) error {
 	return nil
 }
 
-func (f *File) Update(ctx context.Context, hst host.Host) error {
+func (f *File) Resolve(ctx context.Context, hst host.Host) error {
 	if f.User != "" {
 		usr, err := hst.Lookup(ctx, f.User)
 		if err != nil {
