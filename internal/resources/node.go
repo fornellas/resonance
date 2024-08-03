@@ -7,9 +7,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/goccy/go-graphviz"
-	"github.com/goccy/go-graphviz/cgraph"
-
 	"github.com/fornellas/resonance/host"
 	resourcesPkg "github.com/fornellas/resonance/resources"
 )
@@ -155,45 +152,6 @@ func (ns Nodes) topologicalSsort() (Nodes, error) {
 	}
 
 	return sortedNodes, nil
-}
-
-// Returns a Graphviz graph of all nodes.
-func (ns Nodes) Graphviz() (string, error) {
-	g := graphviz.New()
-	defer g.Close()
-
-	graph, err := g.Graph()
-	if err != nil {
-		return "", err
-	}
-	defer graph.Close()
-
-	gNodeMap := map[string]*cgraph.Node{}
-	for _, node := range ns {
-		name := node.String()
-		gNode, err := graph.CreateNode(name)
-		if err != nil {
-			return "", err
-		}
-		gNodeMap[name] = gNode
-	}
-
-	for _, node := range ns {
-		gNode := gNodeMap[node.String()]
-		for _, toNode := range node.requiredBy {
-			toGNode := gNodeMap[toNode.String()]
-			_, err := graph.CreateEdge("required_by", gNode, toGNode)
-			if err != nil {
-				return "", err
-			}
-		}
-	}
-
-	var buf bytes.Buffer
-	if err := g.Render(graph, "dot", &buf); err != nil {
-		return "", err
-	}
-	return buf.String(), nil
 }
 
 func (ns Nodes) String() string {
