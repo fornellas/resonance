@@ -15,11 +15,11 @@ import (
 // APTPackage manages APT packages.
 type APTPackage struct {
 	// The name of the package
-	Package string `yaml:"package"`
+	Package string `yaml:"package" resonance:"id"`
 	// Whether to remove the package
-	Remove bool `yaml:"remove"`
+	Remove bool `yaml:"remove,omitempty"`
 	// Package version
-	Version string `yaml:"version"`
+	Version string `yaml:"version,omitempty"`
 }
 
 // https://www.debian.org/doc/debian-policy/ch-controlfields.html#package
@@ -143,7 +143,7 @@ func (a *APTPackages) Load(ctx context.Context, hst host.Host, resources Resourc
 	return nil
 }
 
-func (a *APTPackages) Update(ctx context.Context, hst host.Host, resources Resources) error {
+func (a *APTPackages) Resolve(ctx context.Context, hst host.Host, resources Resources) error {
 	return nil
 }
 

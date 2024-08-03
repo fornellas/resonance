@@ -5,7 +5,7 @@
 //
 //go:build !386 && !arm
 
-package resources
+package blueprint
 
 import (
 	"bytes"
@@ -14,8 +14,8 @@ import (
 	"github.com/goccy/go-graphviz/cgraph"
 )
 
-// Returns a Graphviz graph of all nodes.
-func (ns Nodes) Graphviz() (string, error) {
+// Returns a Graphviz graph of all steps.
+func (b Blueprint) Graphviz() (string, error) {
 	g := graphviz.New()
 	defer g.Close()
 
@@ -26,8 +26,8 @@ func (ns Nodes) Graphviz() (string, error) {
 	defer graph.Close()
 
 	gNodeMap := map[string]*cgraph.Node{}
-	for _, node := range ns {
-		name := node.String()
+	for _, step := range b {
+		name := step.String()
 		gNode, err := graph.CreateNode(name)
 		if err != nil {
 			return "", err
@@ -35,10 +35,10 @@ func (ns Nodes) Graphviz() (string, error) {
 		gNodeMap[name] = gNode
 	}
 
-	for _, node := range ns {
-		gNode := gNodeMap[node.String()]
-		for _, toNode := range node.requiredBy {
-			toGNode := gNodeMap[toNode.String()]
+	for _, step := range b {
+		gNode := gNodeMap[step.String()]
+		for _, toStep := range step.requiredBy {
+			toGNode := gNodeMap[toStep.String()]
 			_, err := graph.CreateEdge("required_by", gNode, toGNode)
 			if err != nil {
 				return "", err
