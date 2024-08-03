@@ -32,6 +32,10 @@ type File struct {
 }
 
 func (f *File) Validate() error {
+	if f.Path == "" {
+		return fmt.Errorf("'path' must be set")
+	}
+
 	if !filepath.IsAbs(f.Path) {
 		return fmt.Errorf("'path' must be absolute")
 	}

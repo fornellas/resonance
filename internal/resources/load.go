@@ -84,8 +84,6 @@ func LoadFile(ctx context.Context, path string) (resourcesPkg.Resources, error) 
 		return nil, fmt.Errorf("failed to load resource file: no resources found")
 	}
 
-	// nestedLogger.WithField("", resources.String()).Trace("Resources")
-
 	return resources, nil
 }
 

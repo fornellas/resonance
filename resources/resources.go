@@ -92,6 +92,21 @@ func (r Resources) Validate() error {
 	return nil
 }
 
+func (r Resources) MarshalYAML() (interface{}, error) {
+	type ResourcesYamlSchema []map[string]Resource
+
+	resourcesYaml := make(ResourcesYamlSchema, len(r))
+
+	for i, resource := range r {
+		resourceMap := map[string]Resource{}
+		typeName := reflect.TypeOf(resource).Elem().Name()
+		resourceMap[typeName] = resource
+		resourcesYaml[i] = resourceMap
+	}
+
+	return resourcesYaml, nil
+}
+
 // A SingleResource is something that can be configured independently of all resources of the same
 // type. Eg: a user.
 type SingleResource interface {

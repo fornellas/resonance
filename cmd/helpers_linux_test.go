@@ -60,8 +60,8 @@ func captureOutput(t *testing.T, fn func()) (stdout string, stderr string) {
 type TestCmd struct {
 	Args                 []string
 	ExpectedCode         int
-	ExpectStdoutContains string
-	ExpectStderrContains string
+	ExpectStdoutContains []string
+	ExpectStderrContains []string
 }
 
 func (c TestCmd) String() string {
@@ -94,11 +94,11 @@ func (c *TestCmd) Run(t *testing.T) {
 		}
 	})
 
-	if c.ExpectStdoutContains != "" {
-		require.Contains(t, stdout, c.ExpectStdoutContains, "stdout does not contain expected content")
+	for _, str := range c.ExpectStdoutContains {
+		require.Contains(t, stdout, str, "stdout does not contain expected content")
 	}
 
-	if c.ExpectStderrContains != "" {
-		require.Contains(t, stderr, c.ExpectStderrContains, "stderr does not contain expected content")
+	for _, str := range c.ExpectStderrContains {
+		require.Contains(t, stderr, str, "stderr does not contain expected content")
 	}
 }
