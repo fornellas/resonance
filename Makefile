@@ -202,6 +202,8 @@ else
 GO_BUILD_AGENT_GOARCHS := $(GOARCH)
 endif
 
+GO_BUILD_MAX_AGENT_SIZE := 5242880
+
 ##
 ## rrb
 ##
@@ -420,6 +422,7 @@ help: build-help
 
 .PHONY: build-agent-%
 build-agent-%: go-generate
+	set -e
 	GOARCH=$* GOOS=linux $(GO) \
 		build \
 		-o internal/host/agent/agent_linux_$* \
@@ -427,6 +430,8 @@ build-agent-%: go-generate
 		$(GO_BUILD_FLAGS) \
 		./internal/host/agent/
 	gzip < internal/host/agent/agent_linux_$* > internal/host/agent/agent_linux_$*.gz
+	size=$$(stat -f %z internal/host/agent/agent_linux_$*.gz  2>/dev/null || stat --printf=%s internal/host/agent/agent_linux_$*.gz)
+	[ "$$size" -gt $(GO_BUILD_MAX_AGENT_SIZE) ] && { echo "Compressed agent size exceeds $(GO_BUILD_MAX_AGENT_SIZE) bytes" ; exit 1 ; }
 	cat << EOF > internal/host/agent_linux_$*_gz.go
 	package host
 	import _ "embed"

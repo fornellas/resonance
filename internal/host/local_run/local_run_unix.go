@@ -1,4 +1,4 @@
-package host
+package local_run
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 )
 
 // Implements Host.Run for unix locahost.
-func LocalRun(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
+func Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	execCmd := exec.CommandContext(ctx, cmd.Path, cmd.Args...)
 	if len(cmd.Env) == 0 {
 		cmd.Env = []string{"LANG=en_US.UTF-8"}
