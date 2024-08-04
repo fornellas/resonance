@@ -3,7 +3,7 @@
 /cover.txt
 /internal/.git-toplevel
 /internal/.version
-/internal/host/agent/agent_*_*
-/internal/host/agent/agent_*_*.gz
-/internal/host/agent_*_*_gz.go
+/internal/host/agent_server/agent_server*_*
+/internal/host/agent_server/agent_server*_*.gz
+/internal/host/agent_server_*_*_gz.go
 /resonance.*.*

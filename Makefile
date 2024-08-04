@@ -422,27 +422,27 @@ help: build-help
 build-agent-%: go-generate
 	GOARCH=$* GOOS=linux $(GO) \
 		build \
-		-o internal/host/agent/agent_linux_$* \
+		-o internal/host/agent_server/agent_server_linux_$* \
 		$(GO_BUILD_FLAGS_COMMON) \
 		$(GO_BUILD_FLAGS) \
-		./internal/host/agent/
-	gzip < internal/host/agent/agent_linux_$* > internal/host/agent/agent_linux_$*.gz
-	cat << EOF > internal/host/agent_linux_$*_gz.go
+		./internal/host/agent_server/
+	gzip < internal/host/agent_server/agent_server_linux_$* > internal/host/agent_server/agent_server_linux_$*.gz
+	cat << EOF > internal/host/agent_server_linux_$*_gz.go
 	package host
 	import _ "embed"
-	//go:embed agent/agent_linux_$*.gz
-	var agent_linux_$* []byte
+	//go:embed agent_server/agent_server_linux_$*.gz
+	var agent_server_linux_$* []byte
 	func init() {
-		AgentBinGz["linux.$*"] = agent_linux_$*
+		AgentBinGz["linux.$*"] = agent_server_linux_$*
 	}
 	EOF
 build-agent: $(foreach GOARCH,$(GO_BUILD_AGENT_GOARCHS),build-agent-$(GOARCH))
 
 .PHONY: clean-agent-%
 clean-agent-%:
-	rm -f internal/host/agent/agent_linux_$*
-	rm -f internal/host/agent/agent_linux_$*.gz
-	rm -rf internal/host/agent_linux_$*_gz.go
+	rm -f internal/host/agent_server/agent_server_linux_$*
+	rm -f internal/host/agent_server/agent_server_linux_$*.gz
+	rm -rf internal/host/agent_server_linux_$*_gz.go
 clean-agent: $(foreach GOARCH,$(GO_BUILD_AGENT_GOARCHS),clean-agent-$(GOARCH))
 clean: clean-agent
 build: clean-agent

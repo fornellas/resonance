@@ -22,8 +22,8 @@ import (
 
 	"github.com/fornellas/resonance/host"
 	iHost "github.com/fornellas/resonance/internal/host"
-	"github.com/fornellas/resonance/internal/host/agent/api"
-	aNet "github.com/fornellas/resonance/internal/host/agent/net"
+	"github.com/fornellas/resonance/internal/host/agent_server/api"
+	aNet "github.com/fornellas/resonance/internal/host/agent_server/net"
 )
 
 func internalServerError(w http.ResponseWriter, err error) {
