@@ -76,7 +76,7 @@ jobs:
           if-no-files-found: error
       # Coveralls
       - name: Coveralls
-        uses: coverallsapp/github-action@v2
+        uses: coverallsapp/github-action@v2.3.0
         with:
           file: cover.lcov
           flag-name: linux.${{ inputs.GOARCH }}
