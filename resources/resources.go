@@ -109,6 +109,14 @@ func GetResourceTypeNames() []string {
 	return names
 }
 
+// NewResourceCopyWithOnlyId copiess the given resource, and return
+func NewResourceCopyWithOnlyId(resource Resource) Resource {
+	value := reflect.New(reflect.TypeOf(resource).Elem())
+	idx := getResourceIdFieldIndex(value.Type().Elem())
+	value.Elem().Field(idx).SetString(GetResourceId(resource))
+	return value.Interface().(Resource)
+}
+
 type Resources []Resource
 
 func (r Resources) Ids() string {
@@ -149,6 +157,17 @@ func (r Resources) MarshalYAML() (interface{}, error) {
 	}
 
 	return resourcesYaml, nil
+}
+
+// NewResourcesCopyWithOnlyId is analog to NewResourceCopyWithOnlyId
+func NewResourcesCopyWithOnlyId(resources Resources) Resources {
+	nr := make(Resources, len(resources))
+
+	for i, r := range resources {
+		nr[i] = NewResourceCopyWithOnlyId(r)
+	}
+
+	return nr
 }
 
 // A SingleResource is something that can be configured independently of all resources of the same

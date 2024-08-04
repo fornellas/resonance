@@ -128,7 +128,7 @@ func (a *APTPackages) Load(ctx context.Context, hst host.Host, resources Resourc
 		installedVersion, ok := pkgInstalledMap[aptPackage.Package]
 		if !ok {
 			return fmt.Errorf(
-				"failed to get %s package version: %s:\n%s",
+				"failed to get %#v package version: %#v: no version found on output:\n%s",
 				aptPackage.Package, hostCmd.String(), stdout,
 			)
 		}

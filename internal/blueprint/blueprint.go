@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/barkimedes/go-deepcopy"
-
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
 	resourcesPkg "github.com/fornellas/resonance/resources"
@@ -89,55 +87,41 @@ func (s *Step) resolve(ctx context.Context, hst host.Host) error {
 	panic("bug: invalid state")
 }
 
-func (s *Step) load(ctx context.Context, hst host.Host) error {
+func (s *Step) load(ctx context.Context, hst host.Host) (*Step, error) {
+	ns := *s
 	if s.singleResource != nil {
-		if err := s.singleResource.Load(ctx, hst); err != nil {
-			return err
+		resosurce := resourcesPkg.NewResourceCopyWithOnlyId(s.singleResource)
+
+		var ok bool
+		ns.singleResource, ok = resosurce.(resourcesPkg.SingleResource)
+		if !ok {
+			panic("bug: Resource is not SingleResource")
 		}
-		if err := s.singleResource.Validate(); err != nil {
+
+		if err := ns.singleResource.Load(ctx, hst); err != nil {
+			return nil, err
+		}
+
+		if err := ns.singleResource.Validate(); err != nil {
 			panic(fmt.Sprintf("bug: Validate() after Load() failed: %s", err.Error()))
 		}
-		return nil
+
+		return &ns, nil
 	}
 
 	if s.groupResource != nil {
-		if err := s.groupResource.Load(ctx, hst, s.groupResources); err != nil {
-			return err
+		ns.groupResource = s.groupResource
+		ns.groupResources = resourcesPkg.NewResourcesCopyWithOnlyId(s.groupResources)
+
+		if err := ns.groupResource.Load(ctx, hst, ns.groupResources); err != nil {
+			return nil, err
 		}
-		if err := s.groupResources.Validate(); err != nil {
+
+		if err := ns.groupResources.Validate(); err != nil {
 			panic(fmt.Sprintf("bug: Validate() after Load() failed: %s", err.Error()))
 		}
-		return nil
-	}
 
-	panic("bug: invalid state")
-}
-
-func (s *Step) check(ctx context.Context, hst host.Host) (bool, error) {
-	if s.singleResource != nil {
-		currentSingleResourceInterface := deepcopy.MustAnything(s.singleResource)
-		currentSingleResource := currentSingleResourceInterface.(resourcesPkg.SingleResource)
-		err := currentSingleResource.Load(ctx, hst)
-		if err != nil {
-			return false, err
-		}
-		if !reflect.DeepEqual(s.singleResource, currentSingleResource) {
-			return false, nil
-		}
-		return true, nil
-	}
-
-	if s.groupResource != nil {
-		currentGroupResourcesInterface := deepcopy.MustAnything(s.groupResources)
-		currentGroupResources := currentGroupResourcesInterface.(resourcesPkg.Resources)
-		err := s.groupResource.Load(ctx, hst, currentGroupResources)
-		if err != nil {
-			return false, err
-		}
-		if !reflect.DeepEqual(s.groupResources, currentGroupResources) {
-			return false, nil
-		}
-		return true, nil
+		return &ns, nil
 	}
 
 	panic("bug: invalid state")
@@ -275,37 +259,6 @@ func (b Blueprint) String() string {
 	return buff.String()
 }
 
-// Copy returns a deep copy.
-func (b Blueprint) Copy() Blueprint {
-	return deepcopy.MustAnything(b).(Blueprint)
-}
-
-// Load the full current state of all resourcess from given Host.
-func (b Blueprint) Load(ctx context.Context, hst host.Host) error {
-	for _, step := range b {
-		if err := step.load(ctx, hst); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// Check whether given Host state matches the Blueprint.
-func (b Blueprint) Check(ctx context.Context, hst host.Host) (bool, error) {
-	logger := log.MustLogger(ctx)
-
-	for _, step := range b {
-		ok, err := step.check(ctx, hst)
-		if err != nil {
-			return false, err
-		}
-		if !ok {
-			logger.Warn("host state changed", "step", step.String())
-		}
-	}
-	return true, nil
-}
-
 func (b Blueprint) topologicalSsort() (Blueprint, error) {
 	dependantCount := map[*Step]int{}
 	for _, step := range b {
@@ -351,4 +304,17 @@ func (b Blueprint) resolve(ctx context.Context, hst host.Host) error {
 		}
 	}
 	return nil
+}
+
+// Load returns a copy of the Blueprint, with all resource states loaded from given Host.
+func (b Blueprint) Load(ctx context.Context, hst host.Host) (Blueprint, error) {
+	newBlueprint := make(Blueprint, len(b))
+	for i, step := range b {
+		newStep, err := step.load(ctx, hst)
+		if err != nil {
+			return nil, err
+		}
+		newBlueprint[i] = newStep
+	}
+	return newBlueprint, nil
 }

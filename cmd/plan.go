@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	blueprintPkg "github.com/fornellas/resonance/internal/blueprint"
+	"github.com/fornellas/resonance/internal/diff"
 	iResouresPkg "github.com/fornellas/resonance/internal/resources"
 	storePkg "github.com/fornellas/resonance/internal/store"
 	"github.com/fornellas/resonance/log"
@@ -56,8 +57,8 @@ var PlanCmd = &cobra.Command{
 		}
 
 		if lastBlueprint == nil {
-			lastBlueprint := targetBlueprint.Copy()
-			if err := lastBlueprint.Load(ctx, hst); err != nil {
+			lastBlueprint, err := targetBlueprint.Load(ctx, hst)
+			if err != nil {
 				logger.Error(err.Error())
 				Exit(1)
 			}
@@ -66,13 +67,18 @@ var PlanCmd = &cobra.Command{
 				Exit(1)
 			}
 		} else {
-			ok, err := lastBlueprint.Check(ctx, hst)
+			currentBlueprint, err := lastBlueprint.Load(ctx, hst)
 			if err != nil {
 				logger.Error(err.Error())
 				Exit(1)
 			}
-			if !ok {
-				logger.Error("host state has changed since last time, can't proceed")
+			chunks := diff.DiffAsYaml(lastBlueprint, currentBlueprint)
+
+			if chunks.HaveChanges() {
+				logger.Error(
+					"host state has changed since last time, can't proceed",
+					"diff", chunks.String(),
+				)
 				Exit(1)
 			}
 		}
