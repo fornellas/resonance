@@ -57,6 +57,7 @@ var PlanCmd = &cobra.Command{
 		}
 
 		if lastBlueprint == nil {
+			logger.Info("🚫 No previous Blueprint")
 			lastBlueprint, err := targetBlueprint.Load(ctx, hst)
 			if err != nil {
 				logger.Error(err.Error())

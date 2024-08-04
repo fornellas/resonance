@@ -59,6 +59,7 @@ func (f *File) Validate() error {
 		if f.Group != "" {
 			return fmt.Errorf("'group' can not be set when 'remove' is true")
 		}
+		return nil
 	}
 
 	if f.Perm == os.FileMode(0) {
