@@ -84,7 +84,11 @@ And then start you code editor from the development shell (eg: for Sublime, do `
 The default build (`ci`) gives you the best signal, but it may not be fast enough during development. You can disable some features, which should speed up things during development:
 
 ```shell
-./build.sh ci GO_TEST_NO_COVER=1 GO_BUILD_FLAGS_NO_RACE=1 GO_BUILD_AGENT_NATIVE_ONLY=1
+./build.sh ci \
+	LINT_GOVULNCHECK_DISABLE=1 \
+	GO_TEST_NO_COVER=1 \
+	GO_BUILD_FLAGS_NO_RACE=1 \
+	GO_BUILD_AGENT_NATIVE_ONLY=1
 ```
 
 ### Automatic builds on Linux

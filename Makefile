@@ -109,6 +109,12 @@ GOIMPORTS := $(GO) run golang.org/x/tools/cmd/goimports
 GOIMPORTS_LOCAL := $(GO_MODULE)
 
 ##
+## govulncheck
+##
+
+GOVULNCHECK := $(GO) run golang.org/x/vuln/cmd/govulncheck
+
+##
 ## staticcheck
 ##
 
@@ -263,6 +269,7 @@ clean: clean-go
 .PHONY: lint-help
 lint-help:
 	@echo 'lint: runs all linters'
+	@echo '  use LINT_GOVULNCHECK_DISABLE=1 to disable govulncheck (faster)'
 help: lint-help
 
 .PHONY: lint
@@ -287,6 +294,13 @@ lint: go-mod-tidy
 goimports: go go-mod-tidy
 	$(GOIMPORTS) -w -local $(GOIMPORTS_LOCAL) $(GO_SOURCE_FILES)
 lint: goimports
+
+# govulncheck
+
+.PHONY: govulncheck
+govulncheck: go-generate go go-mod-tidy
+	$(GOVULNCHECK) $(GO_MODULE)/...
+lint: govulncheck
 
 # staticcheck
 
