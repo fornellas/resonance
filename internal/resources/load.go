@@ -58,9 +58,9 @@ func LoadFile(ctx context.Context, path string) (resourcesPkg.Resources, error) 
 				if resource != nil {
 					panic("bug: resource is not nil")
 				}
-				resource = resourcesPkg.GetResourceByName(typeName)
+				resource = resourcesPkg.GetResourceByTypeName(typeName)
 				if resource == nil {
-					return nil, fmt.Errorf("failed to load resource file: %s:%d: invalid resource type %#v; valid types: %s", path, resourceMapNode.Line, typeName, strings.Join(resourcesPkg.GetResourceNames(), ", "))
+					return nil, fmt.Errorf("failed to load resource file: %s:%d: invalid resource type %#v; valid types: %s", path, resourceMapNode.Line, typeName, strings.Join(resourcesPkg.GetResourceTypeNames(), ", "))
 				}
 
 				resourceNode.KnownFields(true)
@@ -123,6 +123,29 @@ func LoadDir(ctx context.Context, dir string) (resourcesPkg.Resources, error) {
 
 	if err := resources.Validate(); err != nil {
 		return resources, err
+	}
+
+	return resources, nil
+}
+
+// Load Resources from path, which can be either a file or a directory.
+func LoadPath(ctx context.Context, path string) (resourcesPkg.Resources, error) {
+	var resources resourcesPkg.Resources
+
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	if fileInfo.IsDir() {
+		resources, err = LoadDir(ctx, path)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		resources, err = LoadFile(ctx, path)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return resources, nil
