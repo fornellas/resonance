@@ -1,0 +1,13 @@
+name: update_deps
+on:
+  schedule:
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+jobs:
+  update_deps:
+    uses: ./.github/workflows/build-linux.yaml
+    with:
+      GOARCH: amd64
+      update-deps: true
+      coveralls: false
+    secrets: inherit

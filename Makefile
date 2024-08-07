@@ -321,6 +321,13 @@ go-vet: go go-mod-tidy go-generate
 	$(GO) vet ./...
 lint: go-vet
 
+# go-update
+.PHONY: go-update
+go-update: go
+	set -e
+	set -o pipefail
+	$(GO) mod edit -go $$(curl -s https://go.dev/VERSION?m=text | head -n 1 | cut -c 3-)
+
 # go get -u
 
 .PHONY: go-get-u
