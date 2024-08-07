@@ -84,15 +84,15 @@ var PlanCmd = &cobra.Command{
 			}
 		}
 
-		planBlueprint, err := blueprintPkg.NewPlanBlueprint(ctx, lastBlueprint, targetBlueprint)
+		plan, err := blueprintPkg.NewPlan(ctx, lastBlueprint, targetBlueprint)
 		if err != nil {
 			logger.Error(err.Error())
 			Exit(1)
 		}
 
 		logger.Info(
-			"🧩 Blueprint",
-			"resources", planBlueprint.String(),
+			"📝 Plan",
+			"actions", plan.String(),
 		)
 
 		logger.Info("🎆 Planning successful")

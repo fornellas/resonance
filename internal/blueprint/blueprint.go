@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 
 	"gopkg.in/yaml.v3"
 
@@ -207,6 +208,19 @@ func (s *Step) UnmarshalYAML(node *yaml.Node) error {
 	return nil
 }
 
+// Returns all resources from step, ordered.
+func (s *Step) Resources() resourcesPkg.Resources {
+	resources := resourcesPkg.Resources{}
+
+	if s.singleResource != nil {
+		resources = append(resources, s.singleResource.(resourcesPkg.Resource))
+	}
+
+	resources = append(resources, s.groupResources...)
+
+	return resources
+}
+
 // Blueprint holds a full desired state for a host.
 type Blueprint []*Step
 
@@ -285,23 +299,6 @@ func NewBlueprintFromResources(ctx context.Context, resources resourcesPkg.Resou
 	return blueprint, nil
 }
 
-// NewPlanBlueprint calculates a Blueprint based on the lastBlueprint, representing a committed host
-// state, and targetBlueprint, representing the delined host state.
-func NewPlanBlueprint(ctx context.Context, lastBlueprint Blueprint, targetBlueprint Blueprint) (Blueprint, error) {
-	// for resource
-	//   if in lastBlueprint and NOT in targetBlueprint
-	//     destroy
-	//   if in lastBlueprint AND in targetBlueprint
-	//     if equal
-	//       do nothing
-	//     else
-	//       diff
-	//       apply
-	//   if NOT in lastBlueprint and in targetBlueprint
-	//     apply
-	panic("TODO")
-}
-
 func (b Blueprint) String() string {
 	var buff bytes.Buffer
 	for i, step := range b {
@@ -371,4 +368,43 @@ func (b Blueprint) Load(ctx context.Context, hst host.Host) (Blueprint, error) {
 		newBlueprint[i] = newStep
 	}
 	return newBlueprint, nil
+}
+
+// Returns all resources from all steps, ordered.
+func (b Blueprint) Resources() resourcesPkg.Resources {
+	resources := resourcesPkg.Resources{}
+	for _, step := range b {
+		resources = append(resources, step.Resources()...)
+	}
+	return resources
+}
+
+// NewPlan calculates a Blueprint based on the lastBlueprint, representing a committed host
+// state, and targetBlueprint, representing the delined host state.
+func NewPlan(ctx context.Context, lastBlueprint Blueprint, targetBlueprint Blueprint) (Plan, error) {
+	plan := Plan{}
+
+	for _, targetResource := range targetBlueprint.Resources() {
+		targetResourceId := resourcesPkg.GetResourceId(targetResource)
+		if lastResource := lastBlueprint.GetResourceById(targetResourceId); lastResource != nil {
+			if reflect.DeepEqual(lastResource, targetResource) {
+				plan.AppendResourceNoAction(targetResource)
+			} else {
+				plan.AppendResourceUpdate(lastResource, targetResource)
+			}
+		} else {
+			plan.AppendResourceCreate(targetResource)
+		}
+	}
+
+	lastResources := lastBlueprint.Resources()
+	slices.Reverse(lastResources)
+	for _, lastResource := range lastResources {
+		lastResourceId := resourcesPkg.GetResourceId(lastResource)
+		if targetResource := targetBlueprint.GetResourceById(lastResourceId); !targetResource {
+			plan.PrependResourceRemove(lastResource)
+		}
+	}
+
+	return plan
 }
