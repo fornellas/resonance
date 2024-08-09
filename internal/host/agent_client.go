@@ -20,8 +20,8 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/fornellas/resonance/host"
-	"github.com/fornellas/resonance/internal/host/agent/api"
-	aNet "github.com/fornellas/resonance/internal/host/agent/net"
+	"github.com/fornellas/resonance/internal/host/agent_server/api"
+	aNet "github.com/fornellas/resonance/internal/host/agent_server/net"
 
 	"github.com/alessio/shellescape"
 	"golang.org/x/net/http2"
