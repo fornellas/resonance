@@ -2,10 +2,13 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/fornellas/resonance/host"
 )
@@ -106,6 +109,8 @@ func GetResourceTypeNames() []string {
 		i++
 	}
 
+	sort.Strings(names)
+
 	return names
 }
 
@@ -145,18 +150,49 @@ func (r Resources) Validate() error {
 }
 
 func (r Resources) MarshalYAML() (interface{}, error) {
-	type ResourcesYamlSchema []map[string]Resource
+	type MarshalSchema []map[string]Resource
 
-	resourcesYaml := make(ResourcesYamlSchema, len(r))
+	resources := make(MarshalSchema, len(r))
 
 	for i, resource := range r {
 		resourceMap := map[string]Resource{}
 		typeName := reflect.TypeOf(resource).Elem().Name()
 		resourceMap[typeName] = resource
-		resourcesYaml[i] = resourceMap
+		resources[i] = resourceMap
 	}
 
-	return resourcesYaml, nil
+	return resources, nil
+}
+
+func (r *Resources) UnmarshalYAML(node *yaml.Node) error {
+	type UnmarshalSchema []map[string]yaml.Node
+
+	resources := UnmarshalSchema{}
+
+	node.KnownFields(true)
+	err := node.Decode(&resources)
+	if err != nil {
+		return fmt.Errorf("line %d: %s", node.Line, err.Error())
+	}
+
+	*r = make(Resources, len(resources))
+
+	for i, m := range resources {
+		if len(m) != 1 {
+			return errors.New("YAML contents does not reflect schema (bug?)")
+		}
+		for typeName, node := range m {
+			resource := GetResourceByTypeName(typeName)
+			node.KnownFields(true)
+			err := node.Decode(resource)
+			if err != nil {
+				return fmt.Errorf("line %d: %s", node.Line, err.Error())
+			}
+			(*r)[i] = resource
+		}
+	}
+
+	return nil
 }
 
 // NewResourcesCopyWithOnlyId is analog to NewResourceCopyWithOnlyId
@@ -234,15 +270,8 @@ func RegisterGroupResource(resourceType, groupResourceType reflect.Type) {
 	groupResourceMap[resourceType.Name()] = groupResourceType
 }
 
-// Whether a resource, previously registered with either RegisterSingleResource or
-// RegisterGroupResource is a group resource.
-func IsGroupResource(name string) bool {
-	_, ok := groupResourceMap[name]
-	return ok
-}
-
 // Returns a GroupResource of a previously registered with RegisterGroupResource for
-// given reflect.Type name.
+// given resource type name.
 func GetGroupResourceByTypeName(name string) GroupResource {
 	groupResourceType, ok := groupResourceMap[name]
 	if !ok {
@@ -254,4 +283,11 @@ func GetGroupResourceByTypeName(name string) GroupResource {
 		panic("bug: registered resource doesn't implement GroupResource")
 	}
 	return instance
+}
+
+// Whether a resource type name, previously registered with either RegisterSingleResource or
+// RegisterGroupResource is a group resource.
+func IsGroupResource(name string) bool {
+	_, ok := groupResourceMap[name]
+	return ok
 }
