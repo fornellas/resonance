@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -76,32 +77,60 @@ func (h *ConsoleHandler) escape(s string) string {
 	return string(rs)
 }
 
+var ansiEscapeCodeRegexp = regexp.MustCompile(`\x1b\[[0-9]+(;[0-9+])*m`)
+
 func (h *ConsoleHandler) getAttrLines(attr slog.Attr) []string {
 	keyColor := color.New(color.FgCyan, color.Faint)
 	valueColor := color.New(color.FgWhite, color.Faint)
+	resetColor := color.New(color.Reset)
 
 	value := strings.TrimSuffix(attr.Value.Resolve().String(), "\n")
+	valueHasAnsiEscapeCode := ansiEscapeCodeRegexp.MatchString(value)
 	valueLines := strings.Split(value, "\n")
-	value = h.escape(value)
-	for i, line := range valueLines {
-		valueLines[i] = h.escape(line)
-	}
 
 	if len(valueLines) == 1 {
 		var buff bytes.Buffer
-		keyColor.Fprintf(&buff, "%*s%s: ", h.attrIndentLevel*2, "", attr.Key)
-		valueColor.Fprintf(&buff, "%s", value)
-		return []string{buff.String()}
-	} else {
-		lines := []string{}
-		lines = append(lines, keyColor.Sprintf("%*s%s:", h.attrIndentLevel*2, "", attr.Key))
 
-		for _, line := range valueLines {
-			lines = append(lines, valueColor.Sprintf("%*s%s", (h.attrIndentLevel+1)*2, "", line))
+		keyColor.Fprintf(&buff, "%*s%s: ", h.attrIndentLevel*2, "", attr.Key)
+
+		if valueHasAnsiEscapeCode {
+			resetColor.Fprintf(&buff, "%s", value)
+		} else {
+			valueColor.Fprintf(&buff, "%s", h.escape(value))
 		}
 
-		return lines
+		return []string{buff.String()}
 	}
+
+	lines := []string{keyColor.Sprintf("%*s%s:", h.attrIndentLevel*2, "", attr.Key)}
+	if valueHasAnsiEscapeCode {
+		// If we have ANSI Escape Code in the value, we assume the value is alread fit for console,
+		// and let it through without escaping, only indenting it.
+		for i, line := range valueLines {
+			var prefix, suffix string
+			switch i {
+			case 0:
+				prefix = resetColor.Sprintf("")
+				suffix = ""
+			case len(valueLines) - 1:
+				prefix = ""
+				suffix = resetColor.Sprintf("")
+			default:
+				prefix = ""
+				suffix = ""
+			}
+			line = fmt.Sprintf("%*s%s%s%s", (h.attrIndentLevel+1)*2, "", prefix, line, suffix)
+			lines = append(lines, line)
+		}
+	} else {
+		// If we don't have ANSI Escape Code in the value, we assume the value may contain
+		// characters unfit for terminal, so we indent and escape it.
+		for _, line := range valueLines {
+			line := valueColor.Sprintf("%*s%s", (h.attrIndentLevel+1)*2, "", h.escape(line))
+			lines = append(lines, line)
+		}
+	}
+	return lines
 }
 
 func (h *ConsoleHandler) Handle(ctx context.Context, record slog.Record) error {

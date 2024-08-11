@@ -7,10 +7,12 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"unicode"
 
 	"gopkg.in/yaml.v3"
 
 	"github.com/fornellas/resonance/host"
+	"github.com/fornellas/resonance/internal/diff"
 )
 
 // Resource defines a single resource state.
@@ -19,6 +21,32 @@ type Resource interface {
 	// Validate the state. Invalid states are things that can't exist, such as a invalid file
 	// permissions, bad package name etc.
 	Validate() error
+}
+
+// ValidateResource wraps Resource.Validate() with some extra common validations.
+func ValidateResource(resource Resource) error {
+	if GetResourceId(resource) == "" {
+		resourceValue := reflect.ValueOf(resource).Elem()
+		i := getResourceIdFieldIndex(resourceValue.Type())
+		fieldValue := resourceValue.FieldByIndex([]int{i})
+		if fieldValue.String() == "" {
+			return fmt.Errorf(
+				"resource id field %#v must be set",
+				strings.Split(reflect.TypeOf(resource).Elem().Field(i).Tag.Get("yaml"), ",")[0],
+			)
+		}
+	}
+	if GetResourceRemove(resource) {
+		removeResource := NewResourceWithSameId(resource)
+		SetResourceRemove(removeResource)
+		if !reflect.DeepEqual(removeResource, resource) {
+			return fmt.Errorf(
+				"resource has remove set to true, but other fields are set:\n%s",
+				diff.DiffAsYaml(removeResource, resource).String(),
+			)
+		}
+	}
+	return resource.Validate()
 }
 
 func getResourceIdFieldIndex(resourceType reflect.Type) int {
@@ -50,25 +78,134 @@ func getResourceIdFieldIndex(resourceType reflect.Type) int {
 	panic(fmt.Sprintf(errorMsgFmt, resourceType.Name()))
 }
 
-// GetResourceId returns the id for the given Resource. The id is defined as the single
-// Resource struct sfield with a tag resonance:"id". The value of this id uniquely identifies
-// the resource among the same type at the same host. Eg: for file, the absolute path is the id.
-func GetResourceId(ressource Resource) string {
-	resourceValue := reflect.ValueOf(ressource).Elem()
-	i := getResourceIdFieldIndex(resourceValue.Type())
-	fieldValue := resourceValue.FieldByIndex([]int{i})
-	return fieldValue.String()
+func getResourceRemoveFieldIndex(resourceType reflect.Type) int {
+	var idIndex int = -1
+	for i := 0; i < resourceType.NumField(); i++ {
+		structField := resourceType.FieldByIndex([]int{i})
+
+		if structField.Type.Kind() != reflect.Bool {
+			continue
+		}
+
+		if structField.Name != "Remove" {
+			continue
+		}
+
+		value, ok := structField.Tag.Lookup("yaml")
+		if ok {
+			if value != "remove,omitempty" {
+				panic(fmt.Sprintf(
+					`bug: %s must tag field %s with yaml:"remove,omitempty": got yaml:"%s"`,
+					resourceType.Name(), structField.Name, value,
+				))
+			}
+		}
+
+		idIndex = i
+		break
+	}
+	if idIndex >= 0 {
+		return idIndex
+	}
+	panic(fmt.Sprintf("bug: %s does not have a Remove bool field", resourceType.Name()))
 }
 
-var resourceMap = map[string]reflect.Type{}
+// validateResourceStructTagYaml helps enforce that all exported fields, have a yaml tag with the
+// omitempty flag set (except for the resonance:"id" tagged field).
+// This is important, as it enables leaner / clearer diffs between Resource objects.
+func validateResourceStructTagYaml(resourceType reflect.Type) {
+	resourceIdFieldIndex := getResourceIdFieldIndex(resourceType)
+	for i := 0; i < resourceType.NumField(); i++ {
+		structField := resourceType.FieldByIndex([]int{i})
 
-func registerResource(resourceType reflect.Type) {
+		if len(structField.Name) < 1 {
+			continue
+		}
+
+		if !unicode.IsUpper(rune(structField.Name[0])) {
+			continue
+		}
+
+		value, ok := structField.Tag.Lookup("yaml")
+		if !ok {
+			if resourceIdFieldIndex == i {
+				continue
+			}
+			panic(fmt.Sprintf(
+				`bug: %s must tag field %s with yaml:"*,omitempty"`,
+				resourceType.Name(), structField.Name,
+			))
+		}
+
+		values := strings.Split(value, ",")
+		if len(values) < 2 {
+			if resourceIdFieldIndex == i {
+				continue
+			}
+			panic(fmt.Sprintf(
+				`bug: %s must tag field %s with yaml:"*,omitempty", got: yaml"%s"`,
+				resourceType.Name(), structField.Name, value,
+			))
+		}
+
+		hasOmitempty := false
+		for _, flag := range values[1:] {
+			if flag == "omitempty" {
+				hasOmitempty = true
+				break
+			}
+		}
+		if hasOmitempty {
+			if resourceIdFieldIndex == i {
+				panic(fmt.Sprintf(
+					`bug: %s field %s is tagged with resonance:"id", it can not be tagged with yaml:"*,omitempty"; got: yaml"%s"`,
+					resourceType.Name(), structField.Name, value,
+				))
+			}
+		} else {
+			panic(fmt.Sprintf(
+				`bug: %s must tag field %s with yaml:"*,omitempty", got: yaml"%s"`,
+				resourceType.Name(), structField.Name, value,
+			))
+		}
+	}
+}
+
+// validateResourceStruct helps enforce that all Resource types are Structs and that that
+// they have required fields and tags.
+func validateResourceStruct(resourceType reflect.Type) {
 	if resourceType.Kind() != reflect.Struct {
 		panic("bug: Resource Type Kind must be Struct")
 	}
 
 	// Validates the id field is tagged
 	getResourceIdFieldIndex(resourceType)
+
+	// Validate the Remove field existence
+	getResourceRemoveFieldIndex(resourceType)
+
+	validateResourceStructTagYaml(resourceType)
+}
+
+// GetResourceId returns the id for the given Resource. The id is defined as a single
+// Resource struct sfield with a tag resonance:"id". The value of this id uniquely identifies
+// the resource among the same type at the same host. Eg: for file, the absolute path is the id.
+func GetResourceId(resource Resource) string {
+	resourceValue := reflect.ValueOf(resource).Elem()
+	i := getResourceIdFieldIndex(resourceValue.Type())
+	fieldValue := resourceValue.FieldByIndex([]int{i})
+	return fieldValue.String()
+}
+
+// GetResourceTypeName returns the type name of a Resource.
+func GetResourceTypeName(resource Resource) string {
+	return reflect.TypeOf(resource).Elem().Name()
+}
+
+var resourceMap = map[string]reflect.Type{}
+
+func registerResource(resourceType reflect.Type) {
+	validateResourceStruct(resourceType)
 
 	typeName := resourceType.Name()
 
@@ -114,12 +251,60 @@ func GetResourceTypeNames() []string {
 	return names
 }
 
-// NewResourceCopyWithOnlyId copiess the given resource, and return
-func NewResourceCopyWithOnlyId(resource Resource) Resource {
+// NewResourceWithSameId copiess the given resource, and return
+func NewResourceWithSameId(resource Resource) Resource {
 	value := reflect.New(reflect.TypeOf(resource).Elem())
 	idx := getResourceIdFieldIndex(value.Type().Elem())
 	value.Elem().Field(idx).SetString(GetResourceId(resource))
 	return value.Interface().(Resource)
+}
+
+// SetResourceRemove sets the given Resource Remove bool field to true.
+func SetResourceRemove(resource Resource) Resource {
+	value := reflect.ValueOf(resource)
+	idx := getResourceRemoveFieldIndex(value.Type().Elem())
+	value.Elem().Field(idx).SetBool(true)
+	return value.Interface().(Resource)
+}
+
+// GetResourceRemove gets the value of the field Remove bool from given resource
+func GetResourceRemove(resource Resource) bool {
+	value := reflect.ValueOf(resource)
+	idx := getResourceRemoveFieldIndex(value.Type().Elem())
+	return value.Elem().Field(idx).Bool()
+}
+
+// ResourceMap holds references to various Resource for fast query.
+type ResourceMap map[string]map[string]Resource
+
+func NewResourceMap(resources Resources) ResourceMap {
+	m := ResourceMap{}
+
+	for _, resource := range resources {
+		typeName := GetResourceTypeName(resource)
+		_, ok := m[typeName]
+		if !ok {
+			m[typeName] = map[string]Resource{}
+		}
+		id := GetResourceId(resource)
+		m[typeName][id] = resource
+	}
+
+	return m
+}
+
+// GetResourceWithSameId returns the Resource of the same type and id of the given resource,
+// or nil if not present.
+func (m ResourceMap) GetResourceWithSameTypeId(resource Resource) Resource {
+	idMap, ok := m[GetResourceTypeName(resource)]
+	if !ok {
+		return nil
+	}
+	r, ok := idMap[GetResourceId(resource)]
+	if !ok {
+		return nil
+	}
+	return r
 }
 
 type Resources []Resource
@@ -141,7 +326,7 @@ func (r Resources) Validate() error {
 			return fmt.Errorf("duplicated resource %s", typeName)
 		}
 
-		if err := resource.Validate(); err != nil {
+		if err := ValidateResource(resource); err != nil {
 			return fmt.Errorf("resource %s is invalid: %s", typeName, err.Error())
 		}
 	}
@@ -195,12 +380,12 @@ func (r *Resources) UnmarshalYAML(node *yaml.Node) error {
 	return nil
 }
 
-// NewResourcesCopyWithOnlyId is analog to NewResourceCopyWithOnlyId
-func NewResourcesCopyWithOnlyId(resources Resources) Resources {
+// NewResourcesWithSameIds is analog to NewResourceCopyWithOnlyId
+func NewResourcesWithSameIds(resources Resources) Resources {
 	nr := make(Resources, len(resources))
 
 	for i, r := range resources {
-		nr[i] = NewResourceCopyWithOnlyId(r)
+		nr[i] = NewResourceWithSameId(r)
 	}
 
 	return nr
@@ -257,6 +442,11 @@ type GroupResource interface {
 }
 
 var groupResourceMap = map[string]reflect.Type{}
+
+// GetGroupResourceTypeName returns the type name of a Resource.
+func GetGroupResourceTypeName(groupResource GroupResource) string {
+	return reflect.TypeOf(groupResource).Elem().Name()
+}
 
 // Register a group resource. Such resources have inter-dependency among the same type and must be
 // configured altogether. You must pass a Resource type (which holds the state of each resource) and

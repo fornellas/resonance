@@ -6,7 +6,9 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/internal"
+	storePkg "github.com/fornellas/resonance/internal/store"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -113,4 +115,43 @@ func (h *LogHandlerValue) GetHandler(
 		panic("bug detected: invalid handler name")
 	}
 	return fn(writer, options)
+}
+
+var storeNameMap = map[string]bool{
+	"target":    true,
+	"localhost": true,
+}
+
+type StoreValue struct {
+	name string
+}
+
+func NewStoreValue() *StoreValue {
+	return &StoreValue{
+		name: "target",
+	}
+}
+
+func (s *StoreValue) String() string {
+	return s.name
+}
+
+func (s *StoreValue) Set(value string) error {
+	if _, ok := storeNameMap[value]; !ok {
+		return fmt.Errorf("invalid store name '%s', valid options are %s", value, s.Type())
+	}
+	s.name = value
+	return nil
+}
+
+func (s *StoreValue) Type() string {
+	names := []string{}
+	for name := range storeNameMap {
+		names = append(names, name)
+	}
+	return fmt.Sprintf("[%s]", strings.Join(names, "|"))
+}
+
+func (s *StoreValue) GetStore(hst host.Host, path string) storePkg.Store {
+	return storePkg.NewHostStore(hst, path)
 }

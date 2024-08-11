@@ -15,23 +15,22 @@ import (
 	"github.com/fornellas/resonance/log"
 )
 
-// HostStorePath is the path where HostStore persists state.
-var HostStorePath = "/var/lib/resonance"
-
-// Implementation of Store that persists Blueprints at a Host at HostStorePath.
+// Implementation of Store that persists Blueprints at a Host at Path.
 type HostStore struct {
 	Host host.Host
+	Path string
 }
 
 // NewHostStore creates a new HostStore for given Host.
-func NewHostStore(hst host.Host) *HostStore {
+func NewHostStore(hst host.Host, path string) *HostStore {
 	return &HostStore{
 		Host: hst,
+		Path: path,
 	}
 }
 
 func (s *HostStore) getYamlPath() string {
-	return filepath.Join(HostStorePath, "blueprint.yaml")
+	return filepath.Join(s.Path, "blueprint.yaml")
 }
 
 func (s *HostStore) GetLastBlueprint(ctx context.Context) (blueprintPkg.Blueprint, error) {

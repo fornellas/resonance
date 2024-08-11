@@ -8,6 +8,7 @@ import (
 
 	"github.com/fornellas/resonance/host"
 	ihost "github.com/fornellas/resonance/internal/host"
+	storePkg "github.com/fornellas/resonance/internal/store"
 )
 
 func GetHost(ctx context.Context) (host.Host, error) {
@@ -33,4 +34,16 @@ func GetHost(ctx context.Context) (host.Host, error) {
 
 func AddHostFlags(cmd *cobra.Command) {
 	addHostFlagsCommon(cmd)
+}
+
+func AddStoreFlags(cmd *cobra.Command) {
+	addStoreFlagsCommon(cmd)
+}
+
+func GetStore(hst host.Host) storePkg.Store {
+	store := getStoreCommon(hst)
+	if store == nil {
+		panic("bug: invalid store")
+	}
+	return store
 }
