@@ -6,7 +6,6 @@ import (
 	blueprintPkg "github.com/fornellas/resonance/internal/blueprint"
 	"github.com/fornellas/resonance/internal/diff"
 	iResouresPkg "github.com/fornellas/resonance/internal/resources"
-	storePkg "github.com/fornellas/resonance/internal/store"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -48,7 +47,7 @@ var PlanCmd = &cobra.Command{
 			"resources", targetBlueprint.String(),
 		)
 
-		store := storePkg.NewHostStore(hst)
+		store := GetStore(hst)
 
 		lastBlueprint, err := store.GetLastBlueprint(ctx)
 		if err != nil {
@@ -101,6 +100,8 @@ var PlanCmd = &cobra.Command{
 
 func init() {
 	AddHostFlags(PlanCmd)
+
+	AddStoreFlags(PlanCmd)
 
 	RootCmd.AddCommand(PlanCmd)
 }

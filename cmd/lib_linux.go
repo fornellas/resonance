@@ -8,10 +8,14 @@ import (
 
 	"github.com/fornellas/resonance/host"
 	ihost "github.com/fornellas/resonance/internal/host"
+	storePkg "github.com/fornellas/resonance/internal/store"
 )
 
 var localhost bool
 var defaultLocalhost = false
+
+var storeHostLocalhostPath string
+var defaultStoreHostLocalhostPath = "state/"
 
 func GetHost(ctx context.Context) (host.Host, error) {
 	var hst host.Host
@@ -45,8 +49,34 @@ func AddHostFlags(cmd *cobra.Command) {
 	addHostFlagsCommon(cmd)
 }
 
+func AddStoreFlags(cmd *cobra.Command) {
+	addStoreFlagsCommon(cmd)
+
+	cmd.Flags().StringVarP(
+		&storeHostLocalhostPath, "store-localhost-path", "", defaultStoreHostLocalhostPath,
+		"Path on localhost where to store state",
+	)
+}
+
+func GetStore(hst host.Host) storePkg.Store {
+	store := getStoreCommon(hst)
+	if store != nil {
+		return store
+	}
+
+	var storePath string
+	switch storeValue.String() {
+	case "localhost":
+		storePath = storeHostLocalhostPath
+	default:
+		panic("bug: invalid store")
+	}
+	return storeValue.GetStore(hst, storePath)
+}
+
 func init() {
 	resetFlagsFns = append(resetFlagsFns, func() {
 		localhost = defaultLocalhost
+		storeHostLocalhostPath = defaultStoreHostLocalhostPath
 	})
 }

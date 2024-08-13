@@ -18,15 +18,15 @@ type File struct {
 	// Whether to remove the file
 	Remove bool `yaml:"remove,omitempty"`
 	// Contents of the file
-	Content string `yaml:"content"`
+	Content string `yaml:"content,omitempty"`
 	// File permissions
-	Perm os.FileMode `yaml:"perm"`
+	Perm os.FileMode `yaml:"perm,omitempty"`
 	// User ID owner of the file
-	Uid uint32 `yaml:"uid"`
+	Uid uint32 `yaml:"uid,omitempty"`
 	// User name owner of the file
 	User string `yaml:"user,omitempty"`
 	// Group ID owner of the file
-	Gid uint32 `yaml:"gid"`
+	Gid uint32 `yaml:"gid,omitempty"`
 	// Group name owner of the file
 	Group string `yaml:"group,omitempty"`
 }
@@ -60,10 +60,6 @@ func (f *File) Validate() error {
 			return fmt.Errorf("'group' can not be set when 'remove' is true")
 		}
 		return nil
-	}
-
-	if f.Perm == os.FileMode(0) {
-		return fmt.Errorf("missing 'perm'")
 	}
 
 	if f.Uid != 0 && f.User != "" {

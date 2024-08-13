@@ -19,10 +19,7 @@ func TestStepYaml(t *testing.T) {
 		testStepYamlStr := `single_resource_type: File
 single_resource:
     path: /tmp/foo
-    content: ""
     perm: 420
-    uid: 0
-    gid: 0
 `
 
 		t.Run("Marshal", func(t *testing.T) {

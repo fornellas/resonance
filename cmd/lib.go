@@ -8,6 +8,7 @@ import (
 
 	"github.com/fornellas/resonance/host"
 	ihost "github.com/fornellas/resonance/internal/host"
+	storePkg "github.com/fornellas/resonance/internal/store"
 )
 
 // This is to be used in place of os.Exit() to aid writing test assertions on exit code.
@@ -27,6 +28,11 @@ var defaultSudo = false
 
 var disableAgent bool
 var defaultDisableAgent = false
+
+var storeValue = NewStoreValue()
+
+var storeHostTargetPath string
+var defaultStoreHostTargetPath = "/var/lib/resonance"
 
 func wrapHost(ctx context.Context, hst host.Host) (host.Host, error) {
 	var err error
@@ -75,6 +81,26 @@ func addHostFlagsCommon(cmd *cobra.Command) {
 	)
 }
 
+func addStoreFlagsCommon(cmd *cobra.Command) {
+	cmd.PersistentFlags().VarP(storeValue, "store", "", "Where to store state information")
+
+	cmd.Flags().StringVarP(
+		&storeHostTargetPath, "store-target-path", "", defaultStoreHostTargetPath,
+		"Path on target host where to store state",
+	)
+}
+
+func getStoreCommon(hst host.Host) storePkg.Store {
+	var storePath string
+	switch storeValue.String() {
+	case "target":
+		storePath = storeHostTargetPath
+	default:
+		return nil
+	}
+	return storeValue.GetStore(hst, storePath)
+}
+
 func init() {
 	resetFlagsFns = append(resetFlagsFns, func() {
 		ssh = defaultSsh
@@ -82,5 +108,6 @@ func init() {
 		dockerUser = defaultDockerUser
 		sudo = defaultSudo
 		disableAgent = defaultDisableAgent
+		storeHostTargetPath = defaultStoreHostTargetPath
 	})
 }
