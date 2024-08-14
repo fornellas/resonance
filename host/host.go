@@ -61,6 +61,9 @@ type Host interface {
 	// A string representation of the host which uniquely identifies it, eg, its FQDN.
 	String() string
 
+	// String representation for the type of connection is used. eg: ssh, localhost, docker
+	Type() string
+
 	// Close any pending connections (if applicable).
 	Close() error
 }

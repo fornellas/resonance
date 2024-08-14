@@ -28,8 +28,8 @@ func GetHost(ctx context.Context) (host.Host, error) {
 		if err != nil {
 			return nil, err
 		}
-	} else if dockerContainer != "" {
-		hst, err = ihost.NewDocker(ctx, dockerContainer, dockerUser)
+	} else if docker != "" {
+		hst, err = ihost.NewDocker(ctx, docker)
 		if err != nil {
 			return nil, err
 		}

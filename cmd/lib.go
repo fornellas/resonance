@@ -17,11 +17,8 @@ var Exit func(int) = func(code int) { os.Exit(code) }
 var ssh string
 var defaultSsh = ""
 
-var dockerContainer string
-var defaultDockerContainer = ""
-
-var dockerUser string
-var defaultDockerUser = "0:0"
+var docker string
+var defaultDocker = ""
 
 var sudo bool
 var defaultSudo = false
@@ -61,13 +58,9 @@ func addHostFlagsCommon(cmd *cobra.Command) {
 	)
 
 	cmd.Flags().StringVarP(
-		&dockerContainer, "docker-container", "", defaultDockerContainer,
-		"Applies configuration to given Docker container name",
-	)
-
-	cmd.Flags().StringVarP(
-		&dockerUser, "docker-user", "", defaultDockerUser,
-		"Use given user/group in the format '<name|uid>[:<group|gid>]'",
+		&docker, "docker", "", defaultDocker,
+		"Applies configuration to given Docker container name \n"+
+			"Use given format 'USER@CONTAINER_ID'",
 	)
 
 	cmd.Flags().BoolVarP(
@@ -104,8 +97,7 @@ func getStoreCommon(hst host.Host) storePkg.Store {
 func init() {
 	resetFlagsFns = append(resetFlagsFns, func() {
 		ssh = defaultSsh
-		dockerContainer = defaultDockerContainer
-		dockerUser = defaultDockerUser
+		docker = defaultDocker
 		sudo = defaultSudo
 		disableAgent = defaultDisableAgent
 		storeHostTargetPath = defaultStoreHostTargetPath

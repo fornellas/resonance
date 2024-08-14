@@ -15,16 +15,13 @@ import (
 // Docker uses docker exec to target a running container.
 type Docker struct {
 	cmdHost
-	// Container name
-	Container string
-	// Username or UID (format: "<name|uid>[:<group|gid>]")
-	User string
+	// Username or UID (format: "<name|uid>[:<group|gid>]") and Container Name ( eg: root@ubuntu )
+	Connection string
 }
 
-func NewDocker(ctx context.Context, container, user string) (Docker, error) {
+func NewDocker(ctx context.Context, connection string) (Docker, error) {
 	dockerHst := Docker{
-		Container: container,
-		User:      user,
+		Connection: connection,
 	}
 	dockerHst.cmdHost.Host = &dockerHst
 	return dockerHst, nil
@@ -55,9 +52,13 @@ func (d Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) 
 	if cmd.Stdin != nil {
 		args = append(args, "--interactive")
 	}
-	args = append(args, []string{"--user", d.User}...)
+
+	dockerConnectionUser := strings.Split(d.Connection, "@")[0]
+	dockerConnectionContainer := strings.Split(d.Connection, "@")[1]
+
+	args = append(args, []string{"--user", dockerConnectionUser}...)
 	args = append(args, []string{"--workdir", cmd.Dir}...)
-	args = append(args, d.Container)
+	args = append(args, dockerConnectionContainer)
 	args = append(args, cmd.Path)
 	args = append(args, cmd.Args...)
 
@@ -84,7 +85,11 @@ func (d Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) 
 }
 
 func (d Docker) String() string {
-	return fmt.Sprintf("%s@docker:%s", d.User, d.Container)
+	return fmt.Sprintf("%s", d.Connection)
+}
+
+func (d Docker) Type() string {
+	return "docker"
 }
 
 func (d Docker) Close() error {

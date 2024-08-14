@@ -426,6 +426,10 @@ func (s Ssh) String() string {
 	return s.Hostname
 }
 
+func (s Ssh) Type() string {
+	return s.Host.Type()
+}
+
 func (s Ssh) Close() error {
 	return s.client.Close()
 }
