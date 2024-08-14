@@ -48,12 +48,19 @@ jobs:
           key: linux-${{ inputs.GOARCH }}-${{ hashFiles('**/go.sum', '**/*.go') }}
           restore-keys: linux-${{ inputs.GOARCH }}-
       # Update Deps
-      - name: Update Deps
+      - name: Update Go
         if: ${{ inputs.update-deps == true }}
         run: |
-          set -ex
           ./build.sh go-update
+      - name: Update Go Dependencies
+        if: ${{ inputs.update-deps == true }}
+        run: |
           ./build.sh go-get-u
+      # Update Deps
+      - name: Diff
+        if: ${{ inputs.update-deps == true }}
+        run: |
+          git diff
         shell: bash
       # Build
       - name: Build
