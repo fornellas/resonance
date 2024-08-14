@@ -15,7 +15,7 @@ import (
 // Docker uses docker exec to target a running container.
 type Docker struct {
 	cmdHost
-	// Username or UID (format: "<name|uid>[:<group|gid>]") and Container Name ( eg: root@ubuntu )
+	// User/group and image in the format "<name|uid>[:<group|gid>@<image>" (eg: root@ubuntu)
 	Connection string
 }
 
