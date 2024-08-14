@@ -89,7 +89,7 @@ func (d Docker) String() string {
 }
 
 func (d Docker) Type() string {
-	return "docker"
+	return d.Host.Type()
 }
 
 func (d Docker) Close() error {

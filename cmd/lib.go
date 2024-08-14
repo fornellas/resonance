@@ -19,9 +19,12 @@ var defaultSsh = ""
 
 var docker string
 var defaultDocker = ""
+<<<<<<< HEAD
 
 var options string
 var defaultOptions = ""
+=======
+>>>>>>> 3c0f26e (chore: Define docker string as a single parameter for the Command Line)
 
 var sudo bool
 var defaultSudo = false
@@ -76,6 +79,7 @@ func addHostFlagsCommon(cmd *cobra.Command) {
 	)
 
 	cmd.Flags().StringVarP(
+<<<<<<< HEAD
 		&docker, "target-docker", "d", defaultDocker,
 		"Applies configuration to given Docker container name \n"+
 			"Use given format 'USER@CONTAINER_ID'",
@@ -88,6 +92,21 @@ func addHostFlagsCommon(cmd *cobra.Command) {
 			"	disable-agent: Disables copying temporary a small agent to remote hosts.\n"+
 			"		This can make things very slow, as without the agent, iteraction require running multiple commands.\n"+
 			"		The only (unusual) use case for this is when the host architecture is not supported by the agent.",
+=======
+		&docker, "docker", "", defaultDocker,
+		"Applies configuration to given Docker container name \n"+
+			"Use given format 'USER@CONTAINER_ID'",
+	)
+
+	cmd.Flags().BoolVarP(
+		&sudo, "sudo", "", defaultSudo,
+		"Use sudo when interacting with host",
+	)
+
+	cmd.Flags().BoolVarP(
+		&disableAgent, "disable-agent", "", defaultDisableAgent,
+		"Disables copying temporary a small agent to remote hosts. This can make things very slow, as without the agent, iteraction require running multiple commands. The only (unusual) use case for this is when the host architecture is not supported by the agent.",
+>>>>>>> 3c0f26e (chore: Define docker string as a single parameter for the Command Line)
 	)
 }
 
@@ -117,5 +136,6 @@ func init() {
 		docker = defaultDocker
 		storeHostTargetPath = defaultStoreHostTargetPath
 		options = defaultOptions
+		storeHostTargetPath = defaultStoreHostTargetPath
 	})
 }
