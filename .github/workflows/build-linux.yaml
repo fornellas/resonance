@@ -55,7 +55,7 @@ jobs:
       - name: Update Go Dependencies
         if: ${{ inputs.update-deps == true }}
         run: |
-          ./build.sh go-get-u
+          ./build.sh go-get-u-t
       # Update Deps
       - name: Diff
         if: ${{ inputs.update-deps == true }}
