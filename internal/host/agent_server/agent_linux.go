@@ -21,9 +21,9 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/fornellas/resonance/host"
-	iHost "github.com/fornellas/resonance/internal/host"
 	"github.com/fornellas/resonance/internal/host/agent_server/api"
 	aNet "github.com/fornellas/resonance/internal/host/agent_server/net"
+	"github.com/fornellas/resonance/internal/host/local_run"
 )
 
 func internalServerError(w http.ResponseWriter, err error) {
@@ -267,7 +267,7 @@ func PostRunFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 			Stderr: stderrBuff,
 		}
 
-		waitStatus, err := iHost.LocalRun(ctx, cmd)
+		waitStatus, err := local_run.Run(ctx, cmd)
 		if err != nil {
 			internalServerError(w, err)
 			return
