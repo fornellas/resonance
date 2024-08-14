@@ -23,8 +23,16 @@ var defaultSsh = ""
 var docker string
 var defaultDocker = ""
 
+<<<<<<< HEAD
 var options string
 var defaultOptions = ""
+=======
+var sudo bool
+var defaultSudo = false
+
+var disableAgent bool
+var defaultDisableAgent = false
+>>>>>>> eee95cc (chore: Define docker string as a single parameter for the Command Line)
 
 var storeValue = NewStoreValue()
 
@@ -109,6 +117,4 @@ func init() {
 		docker = defaultDocker
 		storeHostTargetPath = defaultStoreHostTargetPath
 		options = defaultOptions
-		storeHostTargetPath = defaultStoreHostTargetPath
-	})
 }

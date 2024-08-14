@@ -27,7 +27,11 @@ var ValidateCmd = &cobra.Command{
 		}
 		defer hst.Close()
 
+<<<<<<< HEAD
 		logger.Info("🔍 Validating", "path", path, "target", hst)
+=======
+		logger.Info("🔍 Validating", "path", path, hst.Type(), hst)
+>>>>>>> eee95cc (chore: Define docker string as a single parameter for the Command Line)
 
 		resources, err := iResouresPkg.LoadPath(ctx, path)
 		if err != nil {
