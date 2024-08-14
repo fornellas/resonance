@@ -19,21 +19,9 @@ var defaultSsh = ""
 
 var docker string
 var defaultDocker = ""
-<<<<<<< HEAD
 
 var options string
 var defaultOptions = ""
-=======
->>>>>>> 3c0f26e (chore: Define docker string as a single parameter for the Command Line)
-
-var options string
-var defaultOptions = ""
-
-var sudo bool
-var defaultSudo = false
-
-var disableAgent bool
-var defaultDisableAgent = false
 
 var storeValue = NewStoreValue()
 
@@ -49,7 +37,7 @@ func wrapHost(ctx context.Context, hst host.Host) (host.Host, error) {
 			return nil, err
 		}
 	case "sudo,disable-agent", "disable-agent,sudo":
-		if !disableAgent && ssh != "" {
+		if ssh != "" {
 			var err error
 			hst, err = ihost.NewAgent(ctx, hst)
 			if err != nil {
@@ -61,7 +49,7 @@ func wrapHost(ctx context.Context, hst host.Host) (host.Host, error) {
 			}
 		}
 	case "disable-agent":
-		if !disableAgent && ssh != "" {
+		if ssh != "" {
 			var err error
 			hst, err = ihost.NewAgent(ctx, hst)
 			if err != nil {
@@ -82,8 +70,6 @@ func addHostFlagsCommon(cmd *cobra.Command) {
 	)
 
 	cmd.Flags().StringVarP(
-<<<<<<< HEAD
-<<<<<<< HEAD
 		&docker, "target-docker", "d", defaultDocker,
 		"Applies configuration to given Docker container name \n"+
 			"Use given format 'USER@CONTAINER_ID'",
@@ -96,35 +82,6 @@ func addHostFlagsCommon(cmd *cobra.Command) {
 			"	disable-agent: Disables copying temporary a small agent to remote hosts.\n"+
 			"		This can make things very slow, as without the agent, iteraction require running multiple commands.\n"+
 			"		The only (unusual) use case for this is when the host architecture is not supported by the agent.",
-=======
-		&docker, "docker", "", defaultDocker,
-		"Applies configuration to given Docker container name \n"+
-			"Use given format 'USER@CONTAINER_ID'",
-	)
-
-	cmd.Flags().BoolVarP(
-		&sudo, "sudo", "", defaultSudo,
-		"Use sudo when interacting with host",
-	)
-
-	cmd.Flags().BoolVarP(
-		&disableAgent, "disable-agent", "", defaultDisableAgent,
-		"Disables copying temporary a small agent to remote hosts. This can make things very slow, as without the agent, iteraction require running multiple commands. The only (unusual) use case for this is when the host architecture is not supported by the agent.",
->>>>>>> 3c0f26e (chore: Define docker string as a single parameter for the Command Line)
-=======
-		&docker, "target-docker", "d", defaultDocker,
-		"Applies configuration to given Docker container name \n"+
-			"Use given format 'USER@CONTAINER_ID'",
-	)
-	cmd.Flags().StringVarP(
-		&options, "target-options", "o", defaultDocker,
-		"Usage: --target-options=sudo,disable-agent \n"+
-			"Applies options to your connection: \n"+
-			"	sudo: Use sudo when interacting with host. \n"+
-			"	disable-agent: Disables copying temporary a small agent to remote hosts.\n"+
-			"		This can make things very slow, as without the agent, iteraction require running multiple commands.\n"+
-			"		The only (unusual) use case for this is when the host architecture is not supported by the agent.",
->>>>>>> 6e5af48 (feat: Added shorthand and new command structure)
 	)
 }
 
