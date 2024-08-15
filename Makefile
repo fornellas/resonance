@@ -505,10 +505,19 @@ clean: clean-build
 .PHONY: ci-help
 ci-help:
 	@echo 'ci: runs the whole build'
+	@echo 'ci-dev: similar to ci, but uses options that speed up the build, at the expense of minimal signal loss;'
 help: ci-help
 
 .PHONY: ci
 ci: lint test build
+
+.PHONY: ci-dev
+ci-dev:
+	$(MAKE) $(MFLAGS) MAKELEVEL= ci \
+		LINT_GOVULNCHECK_DISABLE=1 \
+		GO_TEST_NO_COVER=1 \
+		GO_TEST_BUILD_FLAGS_NO_RACE=1 \
+		GO_BUILD_AGENT_NATIVE_ONLY=1
 
 ##
 ## rrb
@@ -525,6 +534,7 @@ rrb-help:
 	@echo ' use RRB_PATTERN to set the pattern (default: $(RRB_PATTERN))'
 	@echo ' use RRB_MAKE_TARGET to set the make target (default: $(RRB_MAKE_TARGET))'
 	@echo ' use RRB_EXTRA_CMD to set a command to run after the build is successful (default: $(RRB_EXTRA_CMD))'
+	@echo 'rrb-dev: similar to rrb, but with RRB_MAKE_TARGET=ci-dev'
 help: rrb-help
 
 .PHONY: rrb
@@ -536,6 +546,11 @@ rrb: go
 		--pattern $(RRB_PATTERN) \
 		-- \
 		sh -c "$(MAKE) $(MFLAGS) $(RRB_MAKE_TARGET) && $(RRB_EXTRA_CMD)"
+
+.PHONY: rrb-dev
+rrb-dev:
+	$(MAKE) $(MFLAGS) MAKELEVEL= ci \
+		rrb RRB_MAKE_TARGET=ci-dev
 
 endif
 
