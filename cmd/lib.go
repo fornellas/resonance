@@ -4,6 +4,9 @@ import (
 	"context"
 	"os"
 
+	"fmt"
+	"strings"
+
 	"github.com/spf13/cobra"
 
 	"github.com/fornellas/resonance/host"
@@ -30,34 +33,31 @@ var defaultStoreHostTargetPath = "/var/lib/resonance"
 
 func wrapHost(ctx context.Context, hst host.Host) (host.Host, error) {
 	var err error
-	switch options {
-	case "sudo":
+
+	optionsMap := map[string]bool{
+		"sudo":          false,
+		"disable-agent": false,
+	}
+
+	for _, o := range strings.Split(options, ",") {
+		if _, ok := optionsMap[o]; !ok {
+			return nil, fmt.Errorf("invalid option: %s", o)
+		}
+		optionsMap[o] = true
+	}
+
+	if optionsMap["sudo"] {
 		hst, err = ihost.NewSudo(ctx, hst)
 		if err != nil {
 			return nil, err
 		}
-	case "sudo,disable-agent", "disable-agent,sudo":
-		if ssh != "" {
-			var err error
-			hst, err = ihost.NewAgent(ctx, hst)
-			if err != nil {
-				return nil, err
-			}
-			hst, err = ihost.NewSudo(ctx, hst)
-			if err != nil {
-				return nil, err
-			}
+	}
+
+	if hst.Type() != "localhost" && !optionsMap["disable-agent"] {
+		hst, err = ihost.NewAgent(ctx, hst)
+		if err != nil {
+			return nil, err
 		}
-	case "disable-agent":
-		if ssh != "" {
-			var err error
-			hst, err = ihost.NewAgent(ctx, hst)
-			if err != nil {
-				return nil, err
-			}
-		}
-	default:
-		return hst, nil
 	}
 
 	return hst, nil
@@ -72,16 +72,13 @@ func addHostFlagsCommon(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(
 		&docker, "target-docker", "d", defaultDocker,
 		"Applies configuration to given Docker container name \n"+
-			"Use given format 'USER@CONTAINER_ID'",
+			"Use given format '[<user>]@<container_name>|<container_id>'",
 	)
 	cmd.Flags().StringVarP(
 		&options, "target-options", "o", defaultDocker,
-		"Usage: --target-options=sudo,disable-agent \n"+
-			"Applies options to your connection: \n"+
-			"	sudo: Use sudo when interacting with host. \n"+
-			"	disable-agent: Disables copying temporary a small agent to remote hosts.\n"+
-			"		This can make things very slow, as without the agent, iteraction require running multiple commands.\n"+
-			"		The only (unusual) use case for this is when the host architecture is not supported by the agent.",
+		"Comma separated list of target options: \n"+
+			"	\"sudo\", to run as root via sudo; \n"+
+			"	\"disable-agent\", disable ephemeral agent usage (MUCH slower, only use for CPU architectures where there's no agent support)",
 	)
 }
 
