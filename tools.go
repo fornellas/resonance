@@ -10,5 +10,6 @@ import (
 	_ "github.com/jandelgado/gcov2lcov"
 	_ "github.com/rakyll/gotest"
 	_ "golang.org/x/tools/cmd/goimports"
+	_ "golang.org/x/vuln/cmd/govulncheck"
 	_ "honnef.co/go/tools/cmd/staticcheck"
 )
