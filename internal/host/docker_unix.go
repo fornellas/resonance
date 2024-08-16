@@ -56,7 +56,7 @@ func (d Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) 
 	parts := strings.Split(d.ConnectionString, "@")
 
 	if len(parts) < 2 {
-		return host.WaitStatus{}, fmt.Errorf("Invalid connection string format")
+		return host.WaitStatus{}, fmt.Errorf("invalid connection string format")
 	}
 
 	dockerConnectionUser := parts[0]
