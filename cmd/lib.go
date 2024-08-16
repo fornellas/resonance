@@ -38,25 +38,26 @@ func wrapHost(ctx context.Context, hst host.Host) (host.Host, error) {
 		"sudo":          false,
 		"disable-agent": false,
 	}
-
-	for _, o := range strings.Split(options, ",") {
-		if _, ok := optionsMap[o]; !ok {
-			return nil, fmt.Errorf("invalid option: %s", o)
+	if options != "" {
+		for _, o := range strings.Split(options, ",") {
+			if _, ok := optionsMap[o]; !ok {
+				return nil, fmt.Errorf("invalid option: %s", o)
+			}
+			optionsMap[o] = true
 		}
-		optionsMap[o] = true
-	}
 
-	if optionsMap["sudo"] {
-		hst, err = ihost.NewSudo(ctx, hst)
-		if err != nil {
-			return nil, err
+		if optionsMap["sudo"] {
+			hst, err = ihost.NewSudo(ctx, hst)
+			if err != nil {
+				return nil, err
+			}
 		}
-	}
 
-	if hst.Type() != "localhost" && !optionsMap["disable-agent"] {
-		hst, err = ihost.NewAgent(ctx, hst)
-		if err != nil {
-			return nil, err
+		if hst.Type() != "localhost" && !optionsMap["disable-agent"] {
+			hst, err = ihost.NewAgent(ctx, hst)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
