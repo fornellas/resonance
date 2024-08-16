@@ -20,6 +20,9 @@ var defaultSsh = ""
 var docker string
 var defaultDocker = ""
 
+var options string
+var defaultOptions = ""
+
 var sudo bool
 var defaultSudo = false
 
@@ -33,19 +36,34 @@ var defaultStoreHostTargetPath = "/var/lib/resonance"
 
 func wrapHost(ctx context.Context, hst host.Host) (host.Host, error) {
 	var err error
-	if sudo {
+	switch options {
+	case "sudo":
 		hst, err = ihost.NewSudo(ctx, hst)
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	if !disableAgent && ssh != "" {
-		var err error
-		hst, err = ihost.NewAgent(ctx, hst)
-		if err != nil {
-			return nil, err
+	case "sudo,disable-agent", "disable-agent,sudo":
+		if !disableAgent && ssh != "" {
+			var err error
+			hst, err = ihost.NewAgent(ctx, hst)
+			if err != nil {
+				return nil, err
+			}
+			hst, err = ihost.NewSudo(ctx, hst)
+			if err != nil {
+				return nil, err
+			}
 		}
+	case "disable-agent":
+		if !disableAgent && ssh != "" {
+			var err error
+			hst, err = ihost.NewAgent(ctx, hst)
+			if err != nil {
+				return nil, err
+			}
+		}
+	default:
+		return hst, nil
 	}
 
 	return hst, nil
@@ -53,24 +71,23 @@ func wrapHost(ctx context.Context, hst host.Host) (host.Host, error) {
 
 func addHostFlagsCommon(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(
-		&ssh, "ssh", "", defaultSsh,
+		&ssh, "target-ssh", "s", defaultSsh,
 		"Applies configuration to given hostname using SSH in the format: [<user>[;fingerprint=<host-key fingerprint>]@]<host>[:<port>]",
 	)
 
 	cmd.Flags().StringVarP(
-		&docker, "docker", "", defaultDocker,
+		&docker, "target-docker", "d", defaultDocker,
 		"Applies configuration to given Docker container name \n"+
 			"Use given format 'USER@CONTAINER_ID'",
 	)
-
-	cmd.Flags().BoolVarP(
-		&sudo, "sudo", "", defaultSudo,
-		"Use sudo when interacting with host",
-	)
-
-	cmd.Flags().BoolVarP(
-		&disableAgent, "disable-agent", "", defaultDisableAgent,
-		"Disables copying temporary a small agent to remote hosts. This can make things very slow, as without the agent, iteraction require running multiple commands. The only (unusual) use case for this is when the host architecture is not supported by the agent.",
+	cmd.Flags().StringVarP(
+		&options, "target-options", "o", defaultDocker,
+		"Usage: --target-options=sudo,disable-agent \n"+
+			"Applies options to your connection: \n"+
+			"	sudo: Use sudo when interacting with host. \n"+
+			"	disable-agent: Disables copying temporary a small agent to remote hosts.\n"+
+			"		This can make things very slow, as without the agent, iteraction require running multiple commands.\n"+
+			"		The only (unusual) use case for this is when the host architecture is not supported by the agent.",
 	)
 }
 
@@ -98,8 +115,7 @@ func init() {
 	resetFlagsFns = append(resetFlagsFns, func() {
 		ssh = defaultSsh
 		docker = defaultDocker
-		sudo = defaultSudo
-		disableAgent = defaultDisableAgent
 		storeHostTargetPath = defaultStoreHostTargetPath
+		options = defaultOptions
 	})
 }

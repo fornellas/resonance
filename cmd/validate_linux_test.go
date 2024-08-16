@@ -38,7 +38,7 @@ func TestValidate(t *testing.T) {
 		cmd := TestCmd{
 			Args: []string{
 				"validate",
-				"--localhost",
+				"--target-localhost",
 				resourcesDir,
 			},
 			ExpectStderrContains: []string{
@@ -80,7 +80,7 @@ func TestValidate(t *testing.T) {
 			cmd := TestCmd{
 				Args: []string{
 					"validate",
-					"--localhost",
+					"--target-localhost",
 					resourcesFile,
 				},
 				ExpectedCode:         tc.ExpectedCode,

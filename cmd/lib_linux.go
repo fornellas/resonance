@@ -34,7 +34,7 @@ func GetHost(ctx context.Context) (host.Host, error) {
 			return nil, err
 		}
 	} else {
-		return nil, errors.New("no target host specified: must pass either --localhost, --ssh or --docker-container")
+		return nil, errors.New("no target host specified: must pass either --target-localhost, --target-ssh or --target-docker")
 	}
 
 	return wrapHost(ctx, hst)
@@ -42,7 +42,7 @@ func GetHost(ctx context.Context) (host.Host, error) {
 
 func AddHostFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVarP(
-		&localhost, "localhost", "", defaultLocalhost,
+		&localhost, "target-localhost", "1", defaultLocalhost,
 		"Applies configuration to the same machine running the command",
 	)
 
