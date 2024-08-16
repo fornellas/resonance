@@ -16,12 +16,12 @@ import (
 type Docker struct {
 	cmdHost
 	// User/group and image in the format "<name|uid>[:<group|gid>@<image>" (eg: root@ubuntu)
-	Connection string
+	ConnectionString string
 }
 
 func NewDocker(ctx context.Context, connection string) (Docker, error) {
 	dockerHst := Docker{
-		Connection: connection,
+		ConnectionString: connection,
 	}
 	dockerHst.cmdHost.Host = &dockerHst
 	return dockerHst, nil
@@ -53,8 +53,14 @@ func (d Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) 
 		args = append(args, "--interactive")
 	}
 
-	dockerConnectionUser := strings.Split(d.Connection, "@")[0]
-	dockerConnectionContainer := strings.Split(d.Connection, "@")[1]
+	parts := strings.Split(d.ConnectionString, "@")
+
+	if len(parts) < 2 {
+		return host.WaitStatus{}, fmt.Errorf("Invalid connection string format")
+	}
+
+	dockerConnectionUser := parts[0]
+	dockerConnectionContainer := parts[1]
 
 	args = append(args, []string{"--user", dockerConnectionUser}...)
 	args = append(args, []string{"--workdir", cmd.Dir}...)
@@ -85,7 +91,7 @@ func (d Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) 
 }
 
 func (d Docker) String() string {
-	return fmt.Sprintf(d.Connection)
+	return fmt.Sprintf(d.ConnectionString)
 }
 
 func (d Docker) Type() string {
