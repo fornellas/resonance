@@ -73,7 +73,7 @@ func addHostFlagsCommon(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(
 		&docker, "target-docker", "d", defaultDocker,
 		"Applies configuration to given Docker container name \n"+
-			"Use given format '[<user>]@<container_name>|<container_id>'",
+			"Use given format '[<name|uid>[:<group|gid>]@]<image>'",
 	)
 	cmd.Flags().StringVarP(
 		&options, "target-options", "o", defaultDocker,
