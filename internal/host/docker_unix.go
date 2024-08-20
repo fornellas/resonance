@@ -55,12 +55,17 @@ func (d Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) 
 
 	parts := strings.Split(d.ConnectionString, "@")
 
-	if len(parts) < 2 {
-		return host.WaitStatus{}, fmt.Errorf("invalid connection string format")
+	var dockerConnectionUser, dockerConnectionContainer string
+	switch len(parts) {
+	case 1:
+		dockerConnectionUser = "0:0"
+		dockerConnectionContainer = parts[0]
+	case 2:
+		dockerConnectionUser = parts[0]
+		dockerConnectionContainer = parts[1]
+	default:
+		return host.WaitStatus{}, fmt.Errorf("invalid connection string format: %s", d.ConnectionString)
 	}
-
-	dockerConnectionUser := parts[0]
-	dockerConnectionContainer := parts[1]
 
 	args = append(args, []string{"--user", dockerConnectionUser}...)
 	args = append(args, []string{"--workdir", cmd.Dir}...)
