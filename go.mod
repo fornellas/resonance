@@ -1,6 +1,6 @@
 module github.com/fornellas/resonance
 
-go 1.22.5
+go 1.23.0
 
 require (
 	github.com/alessio/shellescape v1.4.2
@@ -19,17 +19,17 @@ require (
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/multierr v1.11.0
-	golang.org/x/crypto v0.25.0
-	golang.org/x/net v0.27.0
-	golang.org/x/term v0.22.0
-	golang.org/x/tools v0.23.0
+	golang.org/x/crypto v0.26.0
+	golang.org/x/net v0.28.0
+	golang.org/x/term v0.23.0
+	golang.org/x/tools v0.24.0
 	golang.org/x/vuln v1.1.3
 	gopkg.in/yaml.v3 v3.0.1
-	honnef.co/go/tools v0.4.7
+	honnef.co/go/tools v0.5.1
 )
 
 require (
-	github.com/BurntSushi/toml v1.4.0 // indirect
+	github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c // indirect
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
 	github.com/bmatcuk/doublestar/v4 v4.6.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -43,7 +43,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
-	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
+	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
@@ -52,17 +52,17 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
-	github.com/spf13/cast v1.6.0 // indirect
+	github.com/spf13/cast v1.7.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/williammartin/subreaper v0.0.0-20181101193406-731d9ece6883 // indirect
-	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
-	golang.org/x/exp/typeparams v0.0.0-20240613232115-7f521ea00fb8 // indirect
-	golang.org/x/image v0.18.0 // indirect
-	golang.org/x/mod v0.19.0 // indirect
-	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/sys v0.22.0 // indirect
-	golang.org/x/telemetry v0.0.0-20240522233618-39ace7a40ae7 // indirect
-	golang.org/x/text v0.16.0 // indirect
+	golang.org/x/exp v0.0.0-20240823005443-9b4947da3948 // indirect
+	golang.org/x/exp/typeparams v0.0.0-20240823005443-9b4947da3948 // indirect
+	golang.org/x/image v0.19.0 // indirect
+	golang.org/x/mod v0.20.0 // indirect
+	golang.org/x/sync v0.8.0 // indirect
+	golang.org/x/sys v0.24.0 // indirect
+	golang.org/x/telemetry v0.0.0-20240815150606-0693e6240b9b // indirect
+	golang.org/x/text v0.17.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 )
 
