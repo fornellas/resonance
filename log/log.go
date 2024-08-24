@@ -44,23 +44,21 @@ func MustLogger(ctx context.Context) *slog.Logger {
 	return logger
 }
 
-// Retrieves the logger value from the context, previously set with [WithLogger]. If its handler
-// implements [IndentableHandler], then it WithIndent(), and set the new logger value to a
-// copy of the context. If the handler does not implement [IndentableHandler], return the original
-// context and the retrieved logger.
+// MustContextLoggerSection creates a new log section.
+// It fetches a logger value from the context, previously set with WithLogger, and logs given
+// msg and args as info.
+// If its handler implements [IndentableHandler], then it WithIndent(), and set the new logger value
+// to a copy of the context.
+// If the handler does not implement [IndentableHandler], return the originalcontext and the
+// retrieved logger.
 // It panics if no logger value has been set previously.
-func MustContextLoggerIndented(ctx context.Context) (context.Context, *slog.Logger) {
+func MustContextLoggerSection(ctx context.Context, msg string, args ...any) (context.Context, *slog.Logger) {
 	logger := MustLogger(ctx)
+	logger.Info(msg, args...)
 	handler, ok := logger.Handler().(IndentableHandler)
 	if ok {
 		logger = slog.New(handler.WithIndent())
 		ctx = WithLogger(ctx, logger)
 	}
 	return ctx, logger
-}
-
-// Similar to [MustContextLoggerIndented], but only returns the logger, not the context.
-func MustLoggerIndented(ctx context.Context) *slog.Logger {
-	_, logger := MustContextLoggerIndented(ctx)
-	return logger
 }
