@@ -33,7 +33,6 @@ func (br cmdHost) Chmod(ctx context.Context, name string, mode os.FileMode) erro
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Chmod", "name", name, "mode", mode)
-	ctx, _ = log.MustContextLoggerIndented(ctx)
 
 	cmd := host.Cmd{
 		Path: "chmod",
@@ -65,7 +64,6 @@ func (br cmdHost) Chown(ctx context.Context, name string, uid, gid int) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Chown", "name", name, "uid", uid, "gid", gid)
-	ctx, _ = log.MustContextLoggerIndented(ctx)
 
 	cmd := host.Cmd{
 		Path: "chown",
@@ -97,7 +95,6 @@ func (br cmdHost) Lookup(ctx context.Context, username string) (*user.User, erro
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Lookup", "username", username)
-	ctx, _ = log.MustContextLoggerIndented(ctx)
 
 	cmd := host.Cmd{
 		Path: "cat",
@@ -146,7 +143,6 @@ func (br cmdHost) LookupGroup(ctx context.Context, name string) (*user.Group, er
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("LookupGroup", "name", name)
-	ctx, _ = log.MustContextLoggerIndented(ctx)
 
 	cmd := host.Cmd{
 		Path: "cat",
@@ -213,7 +209,6 @@ func (br cmdHost) Lstat(ctx context.Context, name string) (host.HostFileInfo, er
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Lstat", "name", name)
-	ctx, _ = log.MustContextLoggerIndented(ctx)
 
 	stdout, err := br.stat(ctx, name)
 	if err != nil {
@@ -302,7 +297,6 @@ func (br cmdHost) Mkdir(ctx context.Context, name string, perm os.FileMode) erro
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Mkdir", "name", name, "perm", perm)
-	ctx, _ = log.MustContextLoggerIndented(ctx)
 
 	cmd := host.Cmd{
 		Path: "mkdir",
@@ -335,7 +329,6 @@ func (br cmdHost) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("ReadFile", "name", name)
-	ctx, _ = log.MustContextLoggerIndented(ctx)
 
 	cmd := host.Cmd{
 		Path: "cat",
@@ -385,7 +378,6 @@ func (br cmdHost) Remove(ctx context.Context, name string) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Remove", "name", name)
-	ctx, _ = log.MustContextLoggerIndented(ctx)
 
 	cmd := host.Cmd{
 		Path: "rm",
@@ -417,7 +409,6 @@ func (br cmdHost) WriteFile(ctx context.Context, name string, data []byte, perm 
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("WriteFile", "name", name, "data", data, "perm", perm)
-	ctx, _ = log.MustContextLoggerIndented(ctx)
 
 	var chmod bool
 	if _, err := br.Lstat(ctx, name); errors.Is(err, os.ErrNotExist) {
