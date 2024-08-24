@@ -2,6 +2,8 @@ package resources
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"reflect"
@@ -202,6 +204,32 @@ func GetResourceTypeName(resource Resource) string {
 	return reflect.TypeOf(resource).Elem().Name()
 }
 
+// GetResourceId returnss a string Type:Id for the resource.
+func GetResourceTypeId(resource Resource) string {
+	return fmt.Sprintf("%s:%s", GetResourceTypeName(resource), GetResourceId(resource))
+}
+
+// GetResourceYaml returns a string representing the resource as Yaml.
+func GetResourceYaml(resource Resource) string {
+	bs, err := yaml.Marshal(resource)
+	if err != nil {
+		panic(err)
+	}
+	return strings.Trim(string(bs), "\n")
+}
+
+// HashResource returns a hex encoded string that is a hashed value, function of the given
+// resource type and its Id
+func HashResource(resource Resource) string {
+	name := fmt.Sprintf(
+		"%s:%s",
+		GetResourceTypeName(resource),
+		GetResourceId(resource),
+	)
+	hash := sha256.Sum256([]byte(name))
+	return hex.EncodeToString(hash[:])
+}
+
 var resourceMap = map[string]reflect.Type{}
 
 func registerResource(resourceType reflect.Type) {
@@ -389,6 +417,15 @@ func NewResourcesWithSameIds(resources Resources) Resources {
 	}
 
 	return nr
+}
+
+// GetResourcesYaml returns a string representing the resource as Yaml.
+func GetResourcesYaml(resources Resources) string {
+	bs, err := yaml.Marshal(resources)
+	if err != nil {
+		panic(err)
+	}
+	return strings.Trim(string(bs), "\n")
 }
 
 // A SingleResource is something that can be configured independently of all resources of the same
