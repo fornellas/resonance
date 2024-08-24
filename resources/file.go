@@ -40,28 +40,6 @@ func (f *File) Validate() error {
 		return fmt.Errorf("'path' must be absolute")
 	}
 
-	if f.Remove {
-		if f.Content != "" {
-			return fmt.Errorf("'content' can not be set when 'remove' is true")
-		}
-		if f.Perm != os.FileMode(0) {
-			return fmt.Errorf("'perm' can not be set when 'remove' is true")
-		}
-		if f.Uid != 0 {
-			return fmt.Errorf("'uid' can not be set when 'remove' is true")
-		}
-		if f.User != "" {
-			return fmt.Errorf("'user' can not be set when 'remove' is true")
-		}
-		if f.Gid != 0 {
-			return fmt.Errorf("'gid' can not be set when 'remove' is true")
-		}
-		if f.Group != "" {
-			return fmt.Errorf("'group' can not be set when 'remove' is true")
-		}
-		return nil
-	}
-
 	if f.Uid != 0 && f.User != "" {
 		return fmt.Errorf("can't set both 'uid' and 'user'")
 	}
