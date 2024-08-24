@@ -138,10 +138,7 @@ func copyReader(ctx context.Context, hst host.Host, reader io.Reader, path strin
 }
 
 func NewAgent(ctx context.Context, hst host.Host) (*AgentClient, error) {
-	logger := log.MustLogger(ctx)
-	logger.Info("🐈 Agent")
-
-	ctx, _ = log.MustContextLoggerIndented(ctx)
+	ctx, _ = log.MustContextLoggerSection(ctx, "🐈 Agent")
 
 	agentPath, err := getTmpFile(ctx, hst, "resonance_agent")
 	if err != nil {

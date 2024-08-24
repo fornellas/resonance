@@ -226,12 +226,15 @@ func NewSsh(
 	port int,
 	timeout time.Duration,
 ) (Ssh, error) {
-	logger := log.MustLogger(ctx)
-	logger.Info(
+	ctx, _ = log.MustContextLoggerSection(
+		ctx,
 		"🖧 SSH",
-		"user", user, "fingerprint", fingerprint, "host", host, "port", port, "timeout", timeout,
+		"user", user,
+		"fingerprint", fingerprint,
+		"host", host,
+		"port", port,
+		"timeout", timeout,
 	)
-	ctx, _ = log.MustContextLoggerIndented(ctx)
 
 	signers, err := sshGetSigners(ctx)
 	if err != nil {

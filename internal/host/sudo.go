@@ -125,9 +125,7 @@ type Sudo struct {
 }
 
 func NewSudo(ctx context.Context, hst host.Host) (*Sudo, error) {
-	logger := log.MustLogger(ctx)
-	logger.Info("⚡ Sudo")
-	ctx, _ = log.MustContextLoggerIndented(ctx)
+	ctx, _ = log.MustContextLoggerSection(ctx, "⚡ Sudo")
 
 	sudoHost := Sudo{
 		Host: hst,
