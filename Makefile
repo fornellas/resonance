@@ -113,6 +113,7 @@ GOIMPORTS_LOCAL := $(GO_MODULE)
 ##
 
 GOVULNCHECK := $(GO) run golang.org/x/vuln/cmd/govulncheck
+LINT_GOVULNCHECK_DISABLE :=
 
 ##
 ## staticcheck
@@ -299,10 +300,12 @@ lint: goimports
 
 # govulncheck
 
+ifneq ($(LINT_GOVULNCHECK_DISABLE),1)
 .PHONY: govulncheck
 govulncheck: go-generate go go-mod-tidy
 	$(GOVULNCHECK) $(GO_MODULE)/...
 lint: govulncheck
+endif
 
 # staticcheck
 
@@ -346,8 +349,8 @@ go-update: go
 
 # go get -u
 
-.PHONY: go-get-u
-go-get-u: go go-mod-tidy
+.PHONY: go-get-u-t
+go-get-u-t: go go-mod-tidy
 	$(GO) get -u ./...
 
 ##
@@ -475,7 +478,7 @@ build: clean-agent
 go-generate: clean-agent
 goimports: clean-agent
 go-mod-tidy: clean-agent
-go-get-u: clean-agent
+go-get-u-t: clean-agent
 staticcheck: clean-agent
 misspell: clean-agent
 gocyclo: clean-agent
