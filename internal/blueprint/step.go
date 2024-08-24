@@ -2,12 +2,14 @@ package blueprint
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 
 	"gopkg.in/yaml.v3"
 
 	"github.com/fornellas/resonance/host"
+	"github.com/fornellas/resonance/log"
 	resourcesPkg "github.com/fornellas/resonance/resources"
 )
 
@@ -16,7 +18,7 @@ type Step struct {
 	singleResource resourcesPkg.SingleResource
 	groupResource  resourcesPkg.GroupResource
 	groupResources resourcesPkg.Resources
-	requiredBy     []*Step
+	requiredBy     Steps
 }
 
 func NewSingleResourceStep(singleResource resourcesPkg.SingleResource) *Step {
@@ -31,17 +33,29 @@ func NewGroupResourceStep(groupResource resourcesPkg.GroupResource) *Step {
 	}
 }
 
+func (s *Step) IsSingleResource() bool {
+	return s.singleResource != nil
+}
+
+func (s *Step) IsGroupResource() bool {
+	return s.groupResource != nil
+}
+
+func (s *Step) MustGroupResource() resourcesPkg.GroupResource {
+	if s.groupResource == nil {
+		panic("bug: not a GroupResource")
+	}
+	return s.groupResource
+}
+
 func (s *Step) String() string {
 	if s.singleResource != nil {
-		return fmt.Sprintf(
-			"%s: %s",
-			resourcesPkg.GetResourceTypeName(s.singleResource), resourcesPkg.GetResourceId(s.singleResource),
-		)
+		return resourcesPkg.GetResourceTypeId(s.singleResource)
 	}
 
 	if s.groupResource != nil {
 		return fmt.Sprintf(
-			"%s: %s",
+			"%s:%s",
 			resourcesPkg.GetGroupResourceTypeName(s.groupResource), s.groupResources.Ids(),
 		)
 	}
@@ -60,7 +74,11 @@ func (s *Step) appendRequiredByStep(step *Step) {
 	s.requiredBy = append(s.requiredBy, step)
 }
 
-func (s *Step) resolve(ctx context.Context, hst host.Host) error {
+// Resolve the state with information that may be required from the host for all Resources.
+func (s *Step) Resolve(ctx context.Context, hst host.Host) error {
+	logger := log.MustLogger(ctx)
+	logger.Info("Resolving step", "step", s)
+
 	if s.singleResource != nil {
 		err := s.singleResource.Resolve(ctx, hst)
 		if err != nil {
@@ -86,7 +104,8 @@ func (s *Step) resolve(ctx context.Context, hst host.Host) error {
 	panic("bug: invalid state")
 }
 
-func (s *Step) load(ctx context.Context, hst host.Host) (*Step, error) {
+// Load returns a copy of the Step, with all resource states loaded from given Host.
+func (s *Step) Load(ctx context.Context, hst host.Host) (*Step, error) {
 	ns := *s
 	if s.singleResource != nil {
 		resosurce := resourcesPkg.NewResourceWithSameId(s.singleResource)
@@ -215,4 +234,105 @@ func (s *Step) Resources() resourcesPkg.Resources {
 	resources = append(resources, s.groupResources...)
 
 	return resources
+}
+
+type Steps []*Step
+
+func NewSteps(resources resourcesPkg.Resources) (Steps, error) {
+	steps := Steps{}
+
+	typeToStepMap := map[string]*Step{}
+
+	requiredSteps := Steps{}
+	pastRequiredSteps := map[*Step]bool{}
+
+	for _, resource := range resources {
+		var step *Step = nil
+
+		typeName := reflect.TypeOf(resource).Elem().Name()
+
+		if resourcesPkg.IsGroupResource(typeName) {
+			var ok bool
+			step, ok = typeToStepMap[typeName]
+			if !ok {
+				groupResource := resourcesPkg.GetGroupResourceByTypeName(typeName)
+				if groupResource == nil {
+					panic("bug: invalid resource type")
+				}
+				step = NewGroupResourceStep(groupResource)
+				typeToStepMap[typeName] = step
+				steps = append(steps, step)
+			}
+			step.AppendGroupResource(resource)
+		} else {
+			singleResource, ok := resource.(resourcesPkg.SingleResource)
+			if !ok {
+				panic(fmt.Sprintf("bug: Resource is not SingleResource: %#v", resource))
+			}
+			step = NewSingleResourceStep(singleResource)
+			steps = append(steps, step)
+		}
+
+		var extraRequiredStep *Step = nil
+		for _, requiredStep := range requiredSteps {
+			if _, ok := pastRequiredSteps[step]; !ok {
+				if requiredStep != step {
+					requiredStep.appendRequiredByStep(step)
+					pastRequiredSteps[requiredStep] = true
+				}
+			} else {
+				extraRequiredStep = requiredStep
+			}
+		}
+
+		requiredSteps = Steps{step}
+		if extraRequiredStep != nil {
+			requiredSteps = append(requiredSteps, extraRequiredStep)
+		}
+	}
+
+	steps, err := topologicalSortSteps(steps)
+	if err != nil {
+		return nil, err
+	}
+
+	return steps, nil
+}
+
+func topologicalSortSteps(steps Steps) (Steps, error) {
+	dependantCount := map[*Step]int{}
+	for _, step := range steps {
+		if _, ok := dependantCount[step]; !ok {
+			dependantCount[step] = 0
+		}
+		for _, requiredStep := range step.requiredBy {
+			dependantCount[requiredStep]++
+		}
+	}
+
+	noDependantsSteps := Steps{}
+	for _, step := range steps {
+		if dependantCount[step] == 0 {
+			noDependantsSteps = append(noDependantsSteps, step)
+		}
+	}
+
+	sortedSteps := Steps{}
+	for len(noDependantsSteps) > 0 {
+		step := noDependantsSteps[0]
+		noDependantsSteps = noDependantsSteps[1:]
+		sortedSteps = append(sortedSteps, step)
+		for _, dependantStep := range step.requiredBy {
+			dependantCount[dependantStep]--
+			if dependantCount[dependantStep] == 0 {
+				noDependantsSteps = append(noDependantsSteps, dependantStep)
+			}
+		}
+	}
+
+	if len(sortedSteps) != len(steps) {
+		return nil, errors.New("unable to topological sort, cycle detected")
+	}
+
+	return sortedSteps, nil
 }
