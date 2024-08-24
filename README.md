@@ -66,6 +66,12 @@ Or start a bash[^3] development shell:
 make shell
 ```
 
+[^1]: unnofficial in the sense that it is _not_ the same as it happens on CI, as unforeseen environment differences may impact the signal. Additionally, a lot of code / tests is Linux only (eg: `*_linux.go`), so none of this signal will be available on MacOS.
+
+[^2]: note that brew install the command as `gmake`. Apple's ancient `make` shipped with MacOS will NOT work.
+
+[^3]: bash must be installed separately, eg, under MacOS, `brew install bash`.
+
 ### Using gopls, the Go Language Server
 
 Your editor may already support using [gopls](https://github.com/golang/tools/tree/master/gopls), and you should follow its documentation on how to set it up. This may require having the correct go (and gopls) versions installed and available for your editor. This can be annoying and error prone.
@@ -74,21 +80,17 @@ In this scenario, you should leverage the "no container" option:
 
 ```shell
 make shell
-make ci # install all development tools
+make ci # installs all development tools
 ```
 
 And then start you code editor from the development shell (eg: for Sublime, do `subl .`). This enables the code editor to have access to all the _exact_ versions of tools required.
 
 ### Faster builds
 
-The default build (`ci`) gives you the best signal, but it may not be fast enough during development. You can disable some features, which should speed up things during development:
+The default build with `ci` reproduces the official build, but this may be too slow during development. You can use one of the `*-dev` targets to do a "dev build": bulid is a lot faster, at the expense of minimal signal loss:
 
 ```shell
-./build.sh ci \
-	LINT_GOVULNCHECK_DISABLE=1 \
-	GO_TEST_NO_COVER=1 \
-	GO_BUILD_FLAGS_NO_RACE=1 \
-	GO_BUILD_AGENT_NATIVE_ONLY=1
+./build.sh ci-dev # or "make ci-dev"
 ```
 
 ### Automatic builds on Linux
@@ -103,8 +105,4 @@ First, start rrb:
 
 then just edit the files with your preferred editor. As soon as you save any file, the build will be automatically run, interrupting any ongoing build, so you always get a fresh signal.
 
-[^1]: unnofficial in the sense that it is _not_ the same as it happens on CI, as unforeseen environment differences may impact the signal. Additionally, a lot of code / tests is Linux only (eg: `*_linux.go`), so none of this signal will be available on MacOS.
-
-[^2]: note that brew install the command as `gmake`. Apple's ancient `make` shipped with MacOS will NOT work.
-
-[^3]: bash must be installed separately, eg, under MacOS, `brew install bash`.
+There's also a `rrb-dev` target, which yields faster builds during development.
