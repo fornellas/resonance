@@ -67,7 +67,7 @@ func LoadFile(ctx context.Context, path string) (resourcesPkg.Resources, error) 
 					return nil, fmt.Errorf("failed to load resource file: %s:%d: %s", path, resourceMapNode.Line, err.Error())
 				}
 
-				if err := resource.Validate(); err != nil {
+				if err := resourcesPkg.ValidateResource(resource); err != nil {
 					return nil, fmt.Errorf("failed to load resource file: %s:%d: %s", path, resourceMapNode.Line, err.Error())
 				}
 			}
