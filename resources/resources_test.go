@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"encoding/hex"
 	"reflect"
 	"testing"
 
@@ -82,6 +83,35 @@ func TestGetResourceId(t *testing.T) {
 
 func TestGetResourceTypeName(t *testing.T) {
 	require.Equal(t, "File", GetResourceTypeName(&File{Path: "/foo"}))
+}
+
+func TestGetResourceTypeId(t *testing.T) {
+	require.Equal(t, "File:/foo", GetResourceTypeId(&File{Path: "/foo"}))
+}
+
+func TestGetResourceYaml(t *testing.T) {
+	require.Equal(t, "path: /foo", GetResourceYaml(&File{Path: "/foo"}))
+}
+
+func TestHashResource(t *testing.T) {
+	hash := HashResource(&File{Path: "/foo"})
+
+	require.Len(t, hash, 64)
+
+	_, err := hex.DecodeString(hash)
+	require.NoError(t, err)
+
+	require.Equal(
+		t,
+		HashResource(&File{Path: "/foo"}),
+		HashResource(&File{Path: "/foo", Uid: 33, Gid: 33}),
+	)
+
+	require.NotEqual(
+		t,
+		HashResource(&File{Path: "/foo"}),
+		HashResource(&File{Path: "/bar"}),
+	)
 }
 
 func TestGetResourceByTypeName(t *testing.T) {
@@ -186,6 +216,26 @@ func TestResourceMap(t *testing.T) {
 			Version: "2",
 		}),
 	))
+}
+
+func TestGetResourcesYaml(t *testing.T) {
+	testResources := Resources{
+		&File{
+			Path: "/tmp/foo",
+			Perm: 0644,
+		},
+		&APTPackage{
+			Package: "foo",
+		},
+	}
+
+	testResourcesYamlStr := `- File:
+    path: /tmp/foo
+    perm: 420
+- APTPackage:
+    package: foo`
+
+	require.Equal(t, testResourcesYamlStr, GetResourcesYaml(testResources))
 }
 
 func TestResourcesYAML(t *testing.T) {
