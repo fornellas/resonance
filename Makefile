@@ -113,6 +113,7 @@ GOIMPORTS_LOCAL := $(GO_MODULE)
 ##
 
 GOVULNCHECK := $(GO) run golang.org/x/vuln/cmd/govulncheck
+LINT_GOVULNCHECK_DISABLE :=
 
 ##
 ## staticcheck
@@ -299,10 +300,12 @@ lint: goimports
 
 # govulncheck
 
+ifneq ($(LINT_GOVULNCHECK_DISABLE),1)
 .PHONY: govulncheck
 govulncheck: go-generate go go-mod-tidy
 	$(GOVULNCHECK) $(GO_MODULE)/...
 lint: govulncheck
+endif
 
 # staticcheck
 
