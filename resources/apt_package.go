@@ -31,13 +31,6 @@ func (a *APTPackage) Validate() error {
 		return fmt.Errorf("`package` must match regexp %s: %s", validAptPackageNameRegexp, a.Version)
 	}
 
-	// Remove
-	if a.Remove {
-		if a.Version != "" {
-			return fmt.Errorf("'version' can not be set when 'remove' is true")
-		}
-	}
-
 	// Version
 	// https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
 	if strings.HasSuffix(a.Version, "+") {
