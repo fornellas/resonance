@@ -8,7 +8,6 @@ import (
 
 	blueprintPkg "github.com/fornellas/resonance/internal/blueprint"
 	"github.com/fornellas/resonance/internal/diff"
-	hostPkg "github.com/fornellas/resonance/internal/host"
 	"github.com/fornellas/resonance/log"
 	resourcesPkg "github.com/fornellas/resonance/resources"
 )
@@ -25,10 +24,9 @@ func getTestBlueprint(t *testing.T, ctx context.Context) *blueprintPkg.Blueprint
 			Version: "1.2.3",
 		},
 	}
-	host := hostPkg.Local{}
-	blueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, resources, host)
+	blueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, resources)
 	require.NoError(t, err)
-	return &blueprint
+	return blueprint
 }
 
 func testStore(t *testing.T, store Store) {
