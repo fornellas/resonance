@@ -26,7 +26,7 @@ func (b Blueprint) Graphviz() (string, error) {
 	defer graph.Close()
 
 	gNodeMap := map[string]*cgraph.Node{}
-	for _, step := range b {
+	for _, step := range b.Steps {
 		name := step.String()
 		gNode, err := graph.CreateNode(name)
 		if err != nil {
@@ -35,7 +35,7 @@ func (b Blueprint) Graphviz() (string, error) {
 		gNodeMap[name] = gNode
 	}
 
-	for _, step := range b {
+	for _, step := range b.Steps {
 		gNode := gNodeMap[step.String()]
 		for _, toStep := range step.requiredBy {
 			toGNode := gNodeMap[toStep.String()]
