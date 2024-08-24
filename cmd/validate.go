@@ -35,8 +35,12 @@ var ValidateCmd = &cobra.Command{
 			Exit(1)
 		}
 
-		blueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, resources, hst)
+		blueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, resources)
 		if err != nil {
+			logger.Error(err.Error())
+			Exit(1)
+		}
+		if err := blueprint.Resolve(ctx, hst); err != nil {
 			logger.Error(err.Error())
 			Exit(1)
 		}

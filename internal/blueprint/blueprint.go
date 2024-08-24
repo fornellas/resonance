@@ -13,14 +13,17 @@ import (
 )
 
 // Blueprint holds a full desired state for a host.
-type Blueprint []*Step
+type Blueprint struct {
+	Steps       []*Step
+	resourceMap resourcesPkg.ResourceMap
+}
 
-func newBlueprintFromRessources(resources resourcesPkg.Resources) Blueprint {
-	blueprint := Blueprint{}
+func newBlueprintFromRessources(resources resourcesPkg.Resources) *Blueprint {
+	blueprint := &Blueprint{}
 
 	typeToStepMap := map[string]*Step{}
 
-	requiredSteps := Blueprint{}
+	requiredSteps := []*Step{}
 	pastRequiredSteps := map[*Step]bool{}
 
 	for _, resource := range resources {
@@ -38,7 +41,7 @@ func newBlueprintFromRessources(resources resourcesPkg.Resources) Blueprint {
 				}
 				step = NewGroupResourceStep(groupResource)
 				typeToStepMap[typeName] = step
-				blueprint = append(blueprint, step)
+				blueprint.Steps = append(blueprint.Steps, step)
 			}
 			step.AppendGroupResource(resource)
 		} else {
@@ -47,20 +50,22 @@ func newBlueprintFromRessources(resources resourcesPkg.Resources) Blueprint {
 				panic(fmt.Sprintf("bug: Resource is not SingleResource: %#v", resource))
 			}
 			step = NewSingleResourceStep(singleResource)
-			blueprint = append(blueprint, step)
+			blueprint.Steps = append(blueprint.Steps, step)
 		}
 
 		var extraRequiredStep *Step = nil
 		for _, requiredStep := range requiredSteps {
 			if _, ok := pastRequiredSteps[step]; !ok {
-				requiredStep.appendRequiredByStep(step)
-				pastRequiredSteps[requiredStep] = true
+				if requiredStep != step {
+					requiredStep.appendRequiredByStep(step)
+					pastRequiredSteps[requiredStep] = true
+				}
 			} else {
 				extraRequiredStep = requiredStep
 			}
 		}
 
-		requiredSteps = Blueprint{step}
+		requiredSteps = []*Step{step}
 		if extraRequiredStep != nil {
 			requiredSteps = append(requiredSteps, extraRequiredStep)
 		}
@@ -71,54 +76,30 @@ func newBlueprintFromRessources(resources resourcesPkg.Resources) Blueprint {
 
 // NewBlueprintFromResources creates a new Blueprint from given Resources, merging GroupResource
 // of the same type in the same step, while respecting the declared order.
-func NewBlueprintFromResources(ctx context.Context, resources resourcesPkg.Resources, hst host.Host) (Blueprint, error) {
-	logger := log.MustLogger(ctx).WithGroup("blueprint")
-	ctx = log.WithLogger(ctx, logger)
-	logger.Info("⚙️ Computing blueprint")
-
+func NewBlueprintFromResources(ctx context.Context, resources resourcesPkg.Resources) (*Blueprint, error) {
 	blueprint := newBlueprintFromRessources(resources)
 
-	blueprint, err := blueprint.topologicalSsort()
+	blueprint, err := blueprint.topologicalSort()
 	if err != nil {
 		return nil, err
 	}
 
-	if err := blueprint.resolve(ctx, hst); err != nil {
-		return nil, err
-	}
+	blueprint.resourceMap = resourcesPkg.NewResourceMap(blueprint.Resources())
 
 	return blueprint, nil
 }
 
-// NewPlanBlueprint calculates a Blueprint based on the lastBlueprint, representing a committed host
-// state, and targetBlueprint, representing the delined host state.
-func NewPlanBlueprint(ctx context.Context, lastBlueprint Blueprint, targetBlueprint Blueprint) (Blueprint, error) {
-	// for resource
-	//   if in lastBlueprint and NOT in targetBlueprint
-	//     destroy
-	//   if in lastBlueprint AND in targetBlueprint
-	//     if equal
-	//       do nothing
-	//     else
-	//       diff
-	//       apply
-	//   if NOT in lastBlueprint and in targetBlueprint
-	//     apply
-	panic("TODO")
-}
-
-func (b Blueprint) String() string {
+func (b *Blueprint) String() string {
 	var buff bytes.Buffer
-	for i, step := range b {
-		i++
-		fmt.Fprintf(&buff, "%d. %s\n", i, step)
+	for _, step := range b.Steps {
+		fmt.Fprintf(&buff, "%s\n", step)
 	}
 	return buff.String()
 }
 
-func (b Blueprint) topologicalSsort() (Blueprint, error) {
+func (b *Blueprint) topologicalSort() (*Blueprint, error) {
 	dependantCount := map[*Step]int{}
-	for _, step := range b {
+	for _, step := range b.Steps {
 		if _, ok := dependantCount[step]; !ok {
 			dependantCount[step] = 0
 		}
@@ -127,14 +108,14 @@ func (b Blueprint) topologicalSsort() (Blueprint, error) {
 		}
 	}
 
-	noDependantsSteps := Blueprint{}
-	for _, step := range b {
+	noDependantsSteps := []*Step{}
+	for _, step := range b.Steps {
 		if dependantCount[step] == 0 {
 			noDependantsSteps = append(noDependantsSteps, step)
 		}
 	}
 
-	sortedSteps := Blueprint{}
+	sortedSteps := []*Step{}
 	for len(noDependantsSteps) > 0 {
 		step := noDependantsSteps[0]
 		noDependantsSteps = noDependantsSteps[1:]
@@ -147,16 +128,20 @@ func (b Blueprint) topologicalSsort() (Blueprint, error) {
 		}
 	}
 
-	if len(sortedSteps) != len(b) {
+	if len(sortedSteps) != len(b.Steps) {
 		return nil, errors.New("unable to topological sort, cycle detected")
 	}
 
-	return sortedSteps, nil
+	return &Blueprint{
+		Steps: sortedSteps,
+	}, nil
 }
 
-func (b Blueprint) resolve(ctx context.Context, hst host.Host) error {
-	for _, step := range b {
-		if err := step.resolve(ctx, hst); err != nil {
+// Resolve the state with information that may be required from the host for all Resources.
+func (b *Blueprint) Resolve(ctx context.Context, hst host.Host) error {
+	ctx, _ = log.MustContextLoggerSection(ctx, "🌟 Resolving Blueprint agaist host")
+	for _, step := range b.Steps {
+		if err := step.Resolve(ctx, hst); err != nil {
 			return err
 		}
 	}
@@ -164,16 +149,32 @@ func (b Blueprint) resolve(ctx context.Context, hst host.Host) error {
 }
 
 // Load returns a copy of the Blueprint, with all resource states loaded from given Host.
-func (b Blueprint) Load(ctx context.Context, hst host.Host) (Blueprint, error) {
-	logger := log.MustLogger(ctx)
-	logger.Info("🔍 Loading Blueprint from host")
-	newBlueprint := make(Blueprint, len(b))
-	for i, step := range b {
-		newStep, err := step.load(ctx, hst)
+func (b *Blueprint) Load(ctx context.Context, hst host.Host) (*Blueprint, error) {
+	newBlueprint := &Blueprint{
+		Steps: make([]*Step, len(b.Steps)),
+	}
+	for i, step := range b.Steps {
+		newStep, err := step.Load(ctx, hst)
 		if err != nil {
 			return nil, err
 		}
-		newBlueprint[i] = newStep
+		newBlueprint.Steps[i] = newStep
 	}
 	return newBlueprint, nil
+}
+
+// Returns all resources from all steps, ordered.
+func (b *Blueprint) Resources() resourcesPkg.Resources {
+	resources := resourcesPkg.Resources{}
+	if b == nil {
+		return resources
+	}
+	for _, step := range b.Steps {
+		resources = append(resources, step.Resources()...)
+	}
+	return resources
+}
+
+func (b *Blueprint) GetResourceWithSameTypeId(resource resourcesPkg.Resource) resourcesPkg.Resource {
+	return b.resourceMap.GetResourceWithSameTypeId(resource)
 }

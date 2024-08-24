@@ -8,6 +8,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/fornellas/resonance/host"
+	"github.com/fornellas/resonance/log"
 	resourcesPkg "github.com/fornellas/resonance/resources"
 )
 
@@ -31,17 +32,29 @@ func NewGroupResourceStep(groupResource resourcesPkg.GroupResource) *Step {
 	}
 }
 
+func (s *Step) IsSingleResource() bool {
+	return s.singleResource != nil
+}
+
+func (s *Step) IsGroupResource() bool {
+	return s.groupResource != nil
+}
+
+func (s *Step) MustGroupResource() resourcesPkg.GroupResource {
+	if s.groupResource == nil {
+		panic("bug: not a GroupResource")
+	}
+	return s.groupResource
+}
+
 func (s *Step) String() string {
 	if s.singleResource != nil {
-		return fmt.Sprintf(
-			"%s: %s",
-			resourcesPkg.GetResourceTypeName(s.singleResource), resourcesPkg.GetResourceId(s.singleResource),
-		)
+		return resourcesPkg.GetResourceTypeId(s.singleResource)
 	}
 
 	if s.groupResource != nil {
 		return fmt.Sprintf(
-			"%s: %s",
+			"%s:%s",
 			resourcesPkg.GetGroupResourceTypeName(s.groupResource), s.groupResources.Ids(),
 		)
 	}
@@ -60,7 +73,11 @@ func (s *Step) appendRequiredByStep(step *Step) {
 	s.requiredBy = append(s.requiredBy, step)
 }
 
-func (s *Step) resolve(ctx context.Context, hst host.Host) error {
+// Resolve the state with information that may be required from the host for all Resources.
+func (s *Step) Resolve(ctx context.Context, hst host.Host) error {
+	logger := log.MustLogger(ctx)
+	logger.Info("Resolving step", "step", s)
+
 	if s.singleResource != nil {
 		err := s.singleResource.Resolve(ctx, hst)
 		if err != nil {
@@ -86,7 +103,8 @@ func (s *Step) resolve(ctx context.Context, hst host.Host) error {
 	panic("bug: invalid state")
 }
 
-func (s *Step) load(ctx context.Context, hst host.Host) (*Step, error) {
+// Load returns a copy of the Step, with all resource states loaded from given Host.
+func (s *Step) Load(ctx context.Context, hst host.Host) (*Step, error) {
 	ns := *s
 	if s.singleResource != nil {
 		resosurce := resourcesPkg.NewResourceWithSameId(s.singleResource)

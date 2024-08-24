@@ -17,6 +17,15 @@ import (
 	"github.com/fornellas/resonance/internal/diff"
 )
 
+// TODO use this type on all Id references:
+// - Id methods here
+// - Resource type struct fields tagged with resosnance:"id".
+// Id for a Ressource. The Id is defined as a single Resource struct field of
+// this type, which a value that uniquely identifies the Resource among other
+// resources of the same type at the same host.
+// Eg: for files, the absolute path is the Id.
+type Id string
+
 // Resource defines a single resource state.
 // It must be marshallable.
 type Resource interface {
