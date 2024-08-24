@@ -220,7 +220,7 @@ func GetResourceYaml(resource Resource) string {
 
 // HashResource returns a hex encoded string that is a hashed value, function of the given
 // resource type and its Id
-func HashResource(resource Resource) string {
+var HashResource = func(resource Resource) string {
 	name := fmt.Sprintf(
 		"%s:%s",
 		GetResourceTypeName(resource),
