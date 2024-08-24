@@ -1,0 +1,12 @@
+githubRepoOwner: fornellas
+githubRepoName: resonance
+githubHost: github.com
+githubRemote: origin
+githubBranch: master
+requireChecks: true
+requireApproval: true
+mergeMethod: rebase
+mergeQueue: false
+forceFetchTags: false
+showPrTitlesInStack: false
+branchPushIndividually: false
