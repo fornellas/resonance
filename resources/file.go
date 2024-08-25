@@ -14,7 +14,7 @@ import (
 // File manages files
 type File struct {
 	// Path is the absolute path to the file
-	Path string `yaml:"path" resonance:"id"`
+	Path string `yaml:"path"`
 	// Whether to remove the file
 	Remove bool `yaml:"remove,omitempty"`
 	// Contents of the file
@@ -36,7 +36,7 @@ func (f *File) Validate() error {
 		return fmt.Errorf("'path' must be set")
 	}
 
-	if !filepath.IsAbs(f.Path) {
+	if !filepath.IsAbs(string(f.Path)) {
 		return fmt.Errorf("'path' must be absolute")
 	}
 
@@ -51,17 +51,13 @@ func (f *File) Validate() error {
 	return nil
 }
 
-func (f *File) Name() string {
-	return f.Path
-}
-
 func (f *File) Load(ctx context.Context, hst host.Host) error {
 	*f = File{
 		Path: f.Path,
 	}
 
 	// Content
-	content, err := hst.ReadFile(ctx, f.Path)
+	content, err := hst.ReadFile(ctx, string(f.Path))
 	if err != nil {
 		if os.IsNotExist(err) {
 			f.Remove = true
@@ -72,7 +68,7 @@ func (f *File) Load(ctx context.Context, hst host.Host) error {
 	f.Content = string(content)
 
 	// FileInfo
-	fileInfo, err := hst.Lstat(ctx, f.Path)
+	fileInfo, err := hst.Lstat(ctx, string(f.Path))
 	if err != nil {
 		return err
 	}
@@ -122,7 +118,7 @@ func (f *File) Resolve(ctx context.Context, hst host.Host) error {
 func (f *File) Apply(ctx context.Context, hst host.Host) error {
 	// Remove
 	if f.Remove {
-		err := hst.Remove(ctx, f.Path)
+		err := hst.Remove(ctx, string(f.Path))
 		if os.IsNotExist(err) {
 			return nil
 		}
@@ -130,24 +126,24 @@ func (f *File) Apply(ctx context.Context, hst host.Host) error {
 	}
 
 	// Content
-	if err := hst.WriteFile(ctx, f.Path, []byte(f.Content), f.Perm); err != nil {
+	if err := hst.WriteFile(ctx, string(f.Path), []byte(f.Content), f.Perm); err != nil {
 		return err
 	}
 
 	// Perm
-	if err := hst.Chmod(ctx, f.Path, f.Perm); err != nil {
+	if err := hst.Chmod(ctx, string(f.Path), f.Perm); err != nil {
 		return err
 	}
 
 	// FileInfo
-	fileInfo, err := hst.Lstat(ctx, f.Path)
+	fileInfo, err := hst.Lstat(ctx, string(f.Path))
 	if err != nil {
 		return err
 	}
 
 	// Uid / Gid
 	if fileInfo.Uid != f.Uid || fileInfo.Gid != f.Gid {
-		if err := hst.Chown(ctx, f.Path, int(f.Uid), int(f.Gid)); err != nil {
+		if err := hst.Chown(ctx, string(f.Path), int(f.Uid), int(f.Gid)); err != nil {
 			return err
 		}
 	}
