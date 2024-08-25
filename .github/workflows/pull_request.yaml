@@ -3,7 +3,7 @@ on:
   pull_request:
     branches:
       - 'master'
-      - 'origin/spr/master/*'
+      - 'spr/master/*'
 jobs:
   linux_386:
     uses: ./.github/workflows/build-linux.yaml
@@ -58,7 +58,7 @@ jobs:
       - name: Block PRs against spr/master/*
         id: check_base
         run: |
-          if [[ "${{ github.base_ref }}" == origin/spr/master/* ]]; then
+          if [[ "${{ github.event.pull_request.base.ref }}" == spr/master/* ]]; then
             echo "Base branch seems to be part of a PR stack: this can't be merged directly. Details: https://github.com/ejoffe/spr."
             exit 1
           fi
