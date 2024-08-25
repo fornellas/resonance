@@ -25,16 +25,21 @@ type Resource interface {
 	Validate() error
 }
 
+// Resource types are expected to be of Kind Struct, and have the first field as string
+var resourceIdFieldIndex = 0
+
+// Resource types are expected to be of Kind Struct, and have the second field as bool
+var resourceRemoveFieldIndex = 1
+
 // ValidateResource wraps Resource.Validate() with some extra common validations.
 func ValidateResource(resource Resource) error {
 	if GetResourceId(resource) == "" {
 		resourceValue := reflect.ValueOf(resource).Elem()
-		i := getResourceIdFieldIndex(resourceValue.Type())
-		fieldValue := resourceValue.FieldByIndex([]int{i})
+		fieldValue := resourceValue.FieldByIndex([]int{resourceIdFieldIndex})
 		if fieldValue.String() == "" {
 			return fmt.Errorf(
 				"resource id field %#v must be set",
-				strings.Split(reflect.TypeOf(resource).Elem().Field(i).Tag.Get("yaml"), ",")[0],
+				strings.Split(reflect.TypeOf(resource).Elem().Field(resourceIdFieldIndex).Tag.Get("yaml"), ",")[0],
 			)
 		}
 	}
@@ -51,72 +56,10 @@ func ValidateResource(resource Resource) error {
 	return resource.Validate()
 }
 
-func getResourceIdFieldIndex(resourceType reflect.Type) int {
-	errorMsgFmt := "bug: %s does not have a single string field with a tag resonance:\"id\""
-
-	var idIndex int = -1
-	for i := 0; i < resourceType.NumField(); i++ {
-		structField := resourceType.FieldByIndex([]int{i})
-
-		if structField.Type.Kind() != reflect.String {
-			continue
-		}
-
-		value, ok := structField.Tag.Lookup("resonance")
-		if !ok {
-			continue
-		}
-
-		if value == "id" {
-			if idIndex >= 0 {
-				panic(fmt.Sprintf(errorMsgFmt, resourceType.Name()))
-			}
-			idIndex = i
-		}
-	}
-	if idIndex >= 0 {
-		return idIndex
-	}
-	panic(fmt.Sprintf(errorMsgFmt, resourceType.Name()))
-}
-
-func getResourceRemoveFieldIndex(resourceType reflect.Type) int {
-	var idIndex int = -1
-	for i := 0; i < resourceType.NumField(); i++ {
-		structField := resourceType.FieldByIndex([]int{i})
-
-		if structField.Type.Kind() != reflect.Bool {
-			continue
-		}
-
-		if structField.Name != "Remove" {
-			continue
-		}
-
-		value, ok := structField.Tag.Lookup("yaml")
-		if ok {
-			if value != "remove,omitempty" {
-				panic(fmt.Sprintf(
-					`bug: %s must tag field %s with yaml:"remove,omitempty": got yaml:"%s"`,
-					resourceType.Name(), structField.Name, value,
-				))
-			}
-		}
-
-		idIndex = i
-		break
-	}
-	if idIndex >= 0 {
-		return idIndex
-	}
-	panic(fmt.Sprintf("bug: %s does not have a Remove bool field", resourceType.Name()))
-}
-
 // validateResourceStructTagYaml helps enforce that all exported fields, have a yaml tag with the
 // omitempty flag set (except for the resonance:"id" tagged field).
 // This is important, as it enables leaner / clearer diffs between Resource objects.
 func validateResourceStructTagYaml(resourceType reflect.Type) {
-	resourceIdFieldIndex := getResourceIdFieldIndex(resourceType)
 	for i := 0; i < resourceType.NumField(); i++ {
 		structField := resourceType.FieldByIndex([]int{i})
 
@@ -177,14 +120,47 @@ func validateResourceStructTagYaml(resourceType reflect.Type) {
 // they have required fields and tags.
 func validateResourceStruct(resourceType reflect.Type) {
 	if resourceType.Kind() != reflect.Struct {
-		panic("bug: Resource Type Kind must be Struct")
+		panic(fmt.Sprintf(
+			"bug: resource %#v must be of Kind struct, got %#v", resourceType.Name(), resourceType.Kind()),
+		)
 	}
 
-	// Validates the id field is tagged
-	getResourceIdFieldIndex(resourceType)
+	if resourceType.NumField() < 2 {
+		panic(fmt.Sprintf("resource %s must have at least 2 fields: one Id first and Remove bool second ", resourceType.Name()))
+	}
 
-	// Validate the Remove field existence
-	getResourceRemoveFieldIndex(resourceType)
+	// Id
+	idStructField := resourceType.FieldByIndex([]int{resourceIdFieldIndex})
+	if idStructField.Type.Kind() != reflect.String {
+		panic(fmt.Sprintf(
+			"bug: resource %#v must have first field of type string, to uniquely identify the resource, got %#v",
+			resourceType.Name(), idStructField.Type.Kind(),
+		))
+	}
+
+	// Remove
+	removeStructField := resourceType.FieldByIndex([]int{resourceRemoveFieldIndex})
+	if removeStructField.Type.Kind() != reflect.Bool {
+		panic(fmt.Sprintf(
+			"bug: resource %#v must have second field of type bool, to indicate resource removal",
+			resourceType.Name(),
+		))
+	}
+	if removeStructField.Name != "Remove" {
+		panic(fmt.Sprintf(
+			"bug: resource %#v must have second field named Remove",
+			resourceType.Name(),
+		))
+	}
+	value, ok := removeStructField.Tag.Lookup("yaml")
+	if ok {
+		if value != "remove,omitempty" {
+			panic(fmt.Sprintf(
+				`bug: %#v must tag field Remove with yaml:"remove,omitempty": got yaml:"%s"`,
+				resourceType.Name(), value,
+			))
+		}
+	}
 
 	validateResourceStructTagYaml(resourceType)
 }
@@ -194,8 +170,7 @@ func validateResourceStruct(resourceType reflect.Type) {
 // the resource among the same type at the same host. Eg: for file, the absolute path is the id.
 func GetResourceId(resource Resource) string {
 	resourceValue := reflect.ValueOf(resource).Elem()
-	i := getResourceIdFieldIndex(resourceValue.Type())
-	fieldValue := resourceValue.FieldByIndex([]int{i})
+	fieldValue := resourceValue.FieldByIndex([]int{resourceIdFieldIndex})
 	return fieldValue.String()
 }
 
@@ -282,24 +257,21 @@ func GetResourceTypeNames() []string {
 // NewResourceWithSameId copiess the given resource, and return
 func NewResourceWithSameId(resource Resource) Resource {
 	value := reflect.New(reflect.TypeOf(resource).Elem())
-	idx := getResourceIdFieldIndex(value.Type().Elem())
-	value.Elem().Field(idx).SetString(GetResourceId(resource))
+	value.Elem().Field(resourceIdFieldIndex).SetString(GetResourceId(resource))
 	return value.Interface().(Resource)
 }
 
 // SetResourceRemove sets the given Resource Remove bool field to true.
 func SetResourceRemove(resource Resource) Resource {
 	value := reflect.ValueOf(resource)
-	idx := getResourceRemoveFieldIndex(value.Type().Elem())
-	value.Elem().Field(idx).SetBool(true)
+	value.Elem().Field(resourceRemoveFieldIndex).SetBool(true)
 	return value.Interface().(Resource)
 }
 
 // GetResourceRemove gets the value of the field Remove bool from given resource
 func GetResourceRemove(resource Resource) bool {
 	value := reflect.ValueOf(resource)
-	idx := getResourceRemoveFieldIndex(value.Type().Elem())
-	return value.Elem().Field(idx).Bool()
+	return value.Elem().Field(resourceRemoveFieldIndex).Bool()
 }
 
 // ResourceMap holds references to various Resource for fast query.

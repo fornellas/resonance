@@ -15,7 +15,7 @@ import (
 // APTPackage manages APT packages.
 type APTPackage struct {
 	// The name of the package
-	Package string `yaml:"package" resonance:"id"`
+	Package string `yaml:"package"`
 	// Whether to remove the package
 	Remove bool `yaml:"remove,omitempty"`
 	// Package version
@@ -27,7 +27,7 @@ var validAptPackageNameRegexp = regexp.MustCompile(`^[a-z0-9][a-z0-9+\-.]{1,}$`)
 
 func (a *APTPackage) Validate() error {
 	// Package
-	if !validAptPackageNameRegexp.MatchString(a.Package) {
+	if !validAptPackageNameRegexp.MatchString(string(a.Package)) {
 		return fmt.Errorf("`package` must match regexp %s: %s", validAptPackageNameRegexp, a.Version)
 	}
 
@@ -41,10 +41,6 @@ func (a *APTPackage) Validate() error {
 	}
 
 	return nil
-}
-
-func (a *APTPackage) Name() string {
-	return a.Package
 }
 
 type APTPackages struct{}
@@ -74,7 +70,7 @@ func (a *APTPackages) Load(ctx context.Context, hst host.Host, resources Resourc
 		Args: []string{"policy"},
 	}
 	for _, aptPackage := range aptPackages {
-		hostCmd.Args = append(hostCmd.Args, aptPackage.Package)
+		hostCmd.Args = append(hostCmd.Args, string(aptPackage.Package))
 	}
 
 	waitStatus, stdout, stderr, err := host.Run(ctx, hst, hostCmd)
@@ -118,7 +114,7 @@ func (a *APTPackages) Load(ctx context.Context, hst host.Host, resources Resourc
 	}
 
 	for _, aptPackage := range aptPackages {
-		installedVersion, ok := pkgInstalledMap[aptPackage.Package]
+		installedVersion, ok := pkgInstalledMap[string(aptPackage.Package)]
 		if !ok {
 			return fmt.Errorf(
 				"failed to get %#v package version: %#v: no version found on output:\n%s",
