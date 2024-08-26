@@ -430,7 +430,7 @@ func (s Ssh) String() string {
 }
 
 func (s Ssh) Type() string {
-	return s.Host.Type()
+	return "ssh"
 }
 
 func (s Ssh) Close() error {

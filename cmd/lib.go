@@ -23,16 +23,8 @@ var defaultSsh = ""
 var docker string
 var defaultDocker = ""
 
-<<<<<<< HEAD
 var options string
 var defaultOptions = ""
-=======
-var sudo bool
-var defaultSudo = false
-
-var disableAgent bool
-var defaultDisableAgent = false
->>>>>>> eee95cc (chore: Define docker string as a single parameter for the Command Line)
 
 var storeValue = NewStoreValue()
 
@@ -49,7 +41,7 @@ func wrapHost(ctx context.Context, hst host.Host) (host.Host, error) {
 	if options != "" {
 		for _, o := range strings.Split(options, ",") {
 			if _, ok := optionsMap[o]; !ok {
-				return nil, fmt.Errorf("invalid option: %s", o)
+				return nil, fmt.Errorf("invalid option: %#v", o)
 			}
 			optionsMap[o] = true
 		}
@@ -117,4 +109,5 @@ func init() {
 		docker = defaultDocker
 		storeHostTargetPath = defaultStoreHostTargetPath
 		options = defaultOptions
+	})
 }

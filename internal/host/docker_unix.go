@@ -15,22 +15,13 @@ import (
 // Docker uses docker exec to target a running container.
 type Docker struct {
 	cmdHost
-<<<<<<< HEAD
 	// User/group and image in the format "[<name|uid>[:<group|gid>]@]<image>" (eg: root@ubuntu)
 	ConnectionString string
-=======
-	// Username or UID (format: "<name|uid>[:<group|gid>]") and Container Name ( eg: root@ubuntu )
-	Connection string
->>>>>>> eee95cc (chore: Define docker string as a single parameter for the Command Line)
 }
 
 func NewDocker(ctx context.Context, connection string) (Docker, error) {
 	dockerHst := Docker{
-<<<<<<< HEAD
 		ConnectionString: connection,
-=======
-		Connection: connection,
->>>>>>> eee95cc (chore: Define docker string as a single parameter for the Command Line)
 	}
 	dockerHst.cmdHost.Host = &dockerHst
 	return dockerHst, nil
@@ -62,7 +53,6 @@ func (d Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) 
 		args = append(args, "--interactive")
 	}
 
-<<<<<<< HEAD
 	parts := strings.Split(d.ConnectionString, "@")
 
 	var dockerConnectionUser, dockerConnectionContainer string
@@ -76,10 +66,6 @@ func (d Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) 
 	default:
 		return host.WaitStatus{}, fmt.Errorf("invalid connection string format: %s", d.ConnectionString)
 	}
-=======
-	dockerConnectionUser := strings.Split(d.Connection, "@")[0]
-	dockerConnectionContainer := strings.Split(d.Connection, "@")[1]
->>>>>>> eee95cc (chore: Define docker string as a single parameter for the Command Line)
 
 	args = append(args, []string{"--user", dockerConnectionUser}...)
 	args = append(args, []string{"--workdir", cmd.Dir}...)
@@ -110,19 +96,11 @@ func (d Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) 
 }
 
 func (d Docker) String() string {
-<<<<<<< HEAD
 	return fmt.Sprintf(d.ConnectionString)
 }
 
 func (d Docker) Type() string {
-	return d.Host.Type()
-=======
-	return fmt.Sprintf("%s", d.Connection)
-}
-
-func (d Docker) Type() string {
 	return "docker"
->>>>>>> eee95cc (chore: Define docker string as a single parameter for the Command Line)
 }
 
 func (d Docker) Close() error {
