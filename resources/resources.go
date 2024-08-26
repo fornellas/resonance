@@ -274,6 +274,20 @@ func GetResourceRemove(resource Resource) bool {
 	return value.Elem().Field(resourceRemoveFieldIndex).Bool()
 }
 
+// Satisfies returns whether aResource satisfies bResource.
+// Eg: if aResource defines a package with a name and a specific version, but
+// bResource specifies a package with the same name, but with any version, then
+// aResource satisfies bResource.
+func Satisfies(aResource, bResource Resource) bool {
+	// FIXME
+	// - check both have the same type.
+	// - if they implement Satisfy interface
+	//   - call the Satisfies function.
+	// - else
+	//   - use DeepEqual
+	return reflect.DeepEqual(aResource, bResource)
+}
+
 // ResourceMap holds references to various Resource for fast query.
 type ResourceMap map[string]map[string]Resource
 
