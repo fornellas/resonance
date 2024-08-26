@@ -190,6 +190,59 @@ func TestGetResourceRemove(t *testing.T) {
 	require.True(t, GetResourceRemove(resource))
 }
 
+func TestSatisfies(t *testing.T) {
+	require.True(t, Satisfies(
+		&File{
+			Path: "foo",
+		},
+		&File{
+			Path: "foo",
+		},
+	))
+
+	require.False(t, Satisfies(
+		&File{
+			Path: "foo",
+		},
+		&File{
+			Path: "foo",
+			Perm: 0644,
+		},
+	))
+
+	require.True(t, Satisfies(
+		&APTPackage{
+			Version: "1",
+		},
+		&APTPackage{
+			Version: "1",
+		},
+	))
+
+	require.True(t, Satisfies(
+		&APTPackage{
+			Version: "1",
+		},
+		&APTPackage{},
+	))
+
+	require.False(t, Satisfies(
+		&APTPackage{},
+		&APTPackage{
+			Version: "1",
+		},
+	))
+
+	require.False(t, Satisfies(
+		&APTPackage{
+			Version: "1",
+		},
+		&APTPackage{
+			Remove: true,
+		},
+	))
+}
+
 func TestResourceMap(t *testing.T) {
 	file := &File{
 		Path: "/foo",
