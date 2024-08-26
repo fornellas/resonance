@@ -1,0 +1,22 @@
+Manual test
+Check what needs to have tests added
+	blueprint
+		step
+		blueprint
+	plan
+		test plans
+			states
+				v0: file0 (before first apply)
+				v1: file1, file0
+				v2: file1, file2
+			plans
+				v0 > v1
+					create file1
+					update file0
+				v1 > v2
+					keep file1
+					restore file0 to v0
+					create file2
+		test define to remove a resource that does not exist
+			diff should be nill, no change
+Address all TODO & FIXME
