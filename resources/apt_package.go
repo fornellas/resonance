@@ -43,6 +43,21 @@ func (a *APTPackage) Validate() error {
 	return nil
 }
 
+func (a *APTPackage) Satisfies(resource Resource) bool {
+	b, ok := resource.(*APTPackage)
+	if !ok {
+		panic("bug: not APTPackage")
+	}
+
+	if a.Version != "" && b.Version == "" {
+		bCopy := *b
+		b = &bCopy
+		b.Version = a.Version
+	}
+
+	return reflect.DeepEqual(a, b)
+}
+
 type APTPackages struct{}
 
 var aptCachePackageRegexp = regexp.MustCompile(`^(.+):$`)

@@ -25,6 +25,16 @@ type Resource interface {
 	Validate() error
 }
 
+// Satisfiable interface can be implemented by resources which can't be compared by simply comparing
+// two structs, as some fields may have specific semants.
+// Eg: if (a) defines a package with a name and a specific version, but
+// (b) specifies a package with the same name, but with any version, then
+// (a) satisfies (b), but (b) does not satisfy (a).
+type Satisfiable interface {
+	// Satisfies returns true only when it satisfies the given resource.
+	Satisfies(resource Resource) bool
+}
+
 // Resource types are expected to be of Kind Struct, and have the first field as string
 var resourceIdFieldIndex = 0
 
@@ -272,6 +282,18 @@ func SetResourceRemove(resource Resource) Resource {
 func GetResourceRemove(resource Resource) bool {
 	value := reflect.ValueOf(resource)
 	return value.Elem().Field(resourceRemoveFieldIndex).Bool()
+}
+
+// Satisfies returns whether (a) satisfies (b).
+// Eg: if (a) defines a package with a name and a specific version, but
+// (b) specifies a package with the same name, but with any version, then
+// (a) satisfies (b).
+func Satisfies(a, b Resource) bool {
+	aSatisfiable, ok := a.(Satisfiable)
+	if !ok {
+		return reflect.DeepEqual(a, b)
+	}
+	return aSatisfiable.Satisfies(b)
 }
 
 // ResourceMap holds references to various Resource for fast query.
