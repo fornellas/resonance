@@ -53,11 +53,11 @@ func wrapHost(ctx context.Context, hst host.Host) (host.Host, error) {
 			}
 		}
 
-		if hst.Type() != "localhost" && !optionsMap["disable-agent"] {
-			hst, err = ihost.NewAgent(ctx, hst)
-			if err != nil {
-				return nil, err
-			}
+	}
+	if hst.Type() != "localhost" && !optionsMap["disable-agent"] {
+		hst, err = ihost.NewAgent(ctx, hst)
+		if err != nil {
+			return nil, err
 		}
 	}
 
