@@ -502,6 +502,10 @@ func (a AgentClient) String() string {
 	return a.Host.String()
 }
 
+func (a AgentClient) Type() string {
+	return a.Host.Type()
+}
+
 func (a *AgentClient) Close() error {
 	a.post("/shutdown", nil)
 	a.Client.CloseIdleConnections()

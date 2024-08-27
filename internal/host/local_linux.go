@@ -92,6 +92,10 @@ func (l Local) String() string {
 	return "localhost"
 }
 
+func (l Local) Type() string {
+	return "localhost"
+}
+
 func (l Local) Close() error {
 	return nil
 }

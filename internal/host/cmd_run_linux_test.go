@@ -75,6 +75,10 @@ func (h cmdHostOnly) String() string {
 	return h.Host.String()
 }
 
+func (h cmdHostOnly) Type() string {
+	return h.Host.Type()
+}
+
 func (h cmdHostOnly) Close() error {
 	return h.Host.Close()
 }
@@ -108,6 +112,10 @@ func (r runner) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) 
 
 func (r runner) String() string {
 	return r.Host.String()
+}
+
+func (r runner) Type() string {
+	return r.Host.Type()
 }
 
 func (r runner) Close() error {

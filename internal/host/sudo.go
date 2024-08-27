@@ -249,6 +249,10 @@ func (s Sudo) String() string {
 	return s.Host.String()
 }
 
+func (s Sudo) Type() string {
+	return s.Host.Type()
+}
+
 func (s Sudo) Close() error {
 	return s.Host.Close()
 }

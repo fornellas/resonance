@@ -4,6 +4,9 @@ import (
 	"context"
 	"os"
 
+	"fmt"
+	"strings"
+
 	"github.com/spf13/cobra"
 
 	"github.com/fornellas/resonance/host"
@@ -17,17 +20,11 @@ var Exit func(int) = func(code int) { os.Exit(code) }
 var ssh string
 var defaultSsh = ""
 
-var dockerContainer string
-var defaultDockerContainer = ""
+var docker string
+var defaultDocker = ""
 
-var dockerUser string
-var defaultDockerUser = "0:0"
-
-var sudo bool
-var defaultSudo = false
-
-var disableAgent bool
-var defaultDisableAgent = false
+var options string
+var defaultOptions = ""
 
 var storeValue = NewStoreValue()
 
@@ -36,15 +33,28 @@ var defaultStoreHostTargetPath = "/var/lib/resonance"
 
 func wrapHost(ctx context.Context, hst host.Host) (host.Host, error) {
 	var err error
-	if sudo {
-		hst, err = ihost.NewSudo(ctx, hst)
-		if err != nil {
-			return nil, err
-		}
-	}
 
-	if !disableAgent && ssh != "" {
-		var err error
+	optionsMap := map[string]bool{
+		"sudo":          false,
+		"disable-agent": false,
+	}
+	if options != "" {
+		for _, o := range strings.Split(options, ",") {
+			if _, ok := optionsMap[o]; !ok {
+				return nil, fmt.Errorf("invalid option: %#v", o)
+			}
+			optionsMap[o] = true
+		}
+
+		if optionsMap["sudo"] {
+			hst, err = ihost.NewSudo(ctx, hst)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+	}
+	if hst.Type() != "localhost" && !optionsMap["disable-agent"] {
 		hst, err = ihost.NewAgent(ctx, hst)
 		if err != nil {
 			return nil, err
@@ -56,28 +66,20 @@ func wrapHost(ctx context.Context, hst host.Host) (host.Host, error) {
 
 func addHostFlagsCommon(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(
-		&ssh, "ssh", "", defaultSsh,
+		&ssh, "target-ssh", "s", defaultSsh,
 		"Applies configuration to given hostname using SSH in the format: [<user>[;fingerprint=<host-key fingerprint>]@]<host>[:<port>]",
 	)
 
 	cmd.Flags().StringVarP(
-		&dockerContainer, "docker-container", "", defaultDockerContainer,
-		"Applies configuration to given Docker container name",
+		&docker, "target-docker", "d", defaultDocker,
+		"Applies configuration to given Docker container name \n"+
+			"Use given format '[<name|uid>[:<group|gid>]@]<image>'",
 	)
-
 	cmd.Flags().StringVarP(
-		&dockerUser, "docker-user", "", defaultDockerUser,
-		"Use given user/group in the format '<name|uid>[:<group|gid>]'",
-	)
-
-	cmd.Flags().BoolVarP(
-		&sudo, "sudo", "", defaultSudo,
-		"Use sudo when interacting with host",
-	)
-
-	cmd.Flags().BoolVarP(
-		&disableAgent, "disable-agent", "", defaultDisableAgent,
-		"Disables copying temporary a small agent to remote hosts. This can make things very slow, as without the agent, iteraction require running multiple commands. The only (unusual) use case for this is when the host architecture is not supported by the agent.",
+		&options, "target-options", "o", defaultDocker,
+		"Comma separated list of target options: \n"+
+			"	\"sudo\", to run as root via sudo; \n"+
+			"	\"disable-agent\", disable ephemeral agent usage (MUCH slower, only use for CPU architectures where there's no agent support)",
 	)
 }
 
@@ -104,10 +106,8 @@ func getStoreCommon(hst host.Host) storePkg.Store {
 func init() {
 	resetFlagsFns = append(resetFlagsFns, func() {
 		ssh = defaultSsh
-		dockerContainer = defaultDockerContainer
-		dockerUser = defaultDockerUser
-		sudo = defaultSudo
-		disableAgent = defaultDisableAgent
+		docker = defaultDocker
 		storeHostTargetPath = defaultStoreHostTargetPath
+		options = defaultOptions
 	})
 }

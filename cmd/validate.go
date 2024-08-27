@@ -27,7 +27,7 @@ var ValidateCmd = &cobra.Command{
 		}
 		defer hst.Close()
 
-		logger.Info("🔍 Validating", "path", path, "host", hst)
+		logger.Info("🔍 Validating", "path", path, "target", hst)
 
 		resources, err := iResouresPkg.LoadPath(ctx, path)
 		if err != nil {

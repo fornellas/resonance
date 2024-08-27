@@ -15,16 +15,13 @@ import (
 // Docker uses docker exec to target a running container.
 type Docker struct {
 	cmdHost
-	// Container name
-	Container string
-	// Username or UID (format: "<name|uid>[:<group|gid>]")
-	User string
+	// User/group and image in the format "[<name|uid>[:<group|gid>]@]<image>" (eg: root@ubuntu)
+	ConnectionString string
 }
 
-func NewDocker(ctx context.Context, container, user string) (Docker, error) {
+func NewDocker(ctx context.Context, connection string) (Docker, error) {
 	dockerHst := Docker{
-		Container: container,
-		User:      user,
+		ConnectionString: connection,
 	}
 	dockerHst.cmdHost.Host = &dockerHst
 	return dockerHst, nil
@@ -55,9 +52,24 @@ func (d Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) 
 	if cmd.Stdin != nil {
 		args = append(args, "--interactive")
 	}
-	args = append(args, []string{"--user", d.User}...)
+
+	parts := strings.Split(d.ConnectionString, "@")
+
+	var dockerConnectionUser, dockerConnectionContainer string
+	switch len(parts) {
+	case 1:
+		dockerConnectionUser = "0:0"
+		dockerConnectionContainer = parts[0]
+	case 2:
+		dockerConnectionUser = parts[0]
+		dockerConnectionContainer = parts[1]
+	default:
+		return host.WaitStatus{}, fmt.Errorf("invalid connection string format: %s", d.ConnectionString)
+	}
+
+	args = append(args, []string{"--user", dockerConnectionUser}...)
 	args = append(args, []string{"--workdir", cmd.Dir}...)
-	args = append(args, d.Container)
+	args = append(args, dockerConnectionContainer)
 	args = append(args, cmd.Path)
 	args = append(args, cmd.Args...)
 
@@ -84,7 +96,11 @@ func (d Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) 
 }
 
 func (d Docker) String() string {
-	return fmt.Sprintf("%s@docker:%s", d.User, d.Container)
+	return fmt.Sprintf(d.ConnectionString)
+}
+
+func (d Docker) Type() string {
+	return "docker"
 }
 
 func (d Docker) Close() error {
