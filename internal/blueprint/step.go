@@ -1,10 +1,12 @@
 package blueprint
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 
@@ -48,6 +50,18 @@ func (s *Step) MustGroupResource() resourcesPkg.GroupResource {
 	return s.groupResource
 }
 
+func (s *Step) Type() string {
+	if s.singleResource != nil {
+		return resourcesPkg.GetResourceTypeName(s.singleResource)
+	}
+
+	if s.groupResource != nil {
+		return resourcesPkg.GetGroupResourceTypeName(s.groupResource)
+	}
+
+	panic("bug: invalid state")
+}
+
 func (s *Step) String() string {
 	if s.singleResource != nil {
 		return resourcesPkg.GetResourceTypeId(s.singleResource)
@@ -61,6 +75,33 @@ func (s *Step) String() string {
 	}
 
 	panic("bug: invalid state")
+}
+
+func (s *Step) DetailedString() string {
+	var buff bytes.Buffer
+
+	fmt.Fprintf(&buff, "%s:\n", s.Type())
+
+	for _, resource := range s.Resources() {
+		lines := strings.Split(
+			resourcesPkg.GetResourceYaml(resource),
+			"\n",
+		)
+		if s.singleResource != nil {
+			fmt.Fprintf(
+				&buff, "  %s",
+				strings.Join(lines, "\n  "),
+			)
+		}
+		if s.groupResource != nil {
+			fmt.Fprintf(
+				&buff, "  - %s\n",
+				strings.Join(lines, "\n    "),
+			)
+		}
+	}
+
+	return strings.TrimSuffix(buff.String(), "\n")
 }
 
 func (s *Step) AppendGroupResource(resource resourcesPkg.Resource) {
