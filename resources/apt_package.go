@@ -17,7 +17,7 @@ type APTPackage struct {
 	// The name of the package
 	Package string `yaml:"package"`
 	// Whether to remove the package
-	Remove bool `yaml:"remove,omitempty"`
+	Absent bool `yaml:"absent,omitempty"`
 	// Package version
 	Version string `yaml:"version,omitempty"`
 }
@@ -138,7 +138,7 @@ func (a *APTPackages) Load(ctx context.Context, hst host.Host, resources Resourc
 		}
 
 		if installedVersion == "(none)" {
-			aptPackage.Remove = true
+			aptPackage.Absent = true
 		} else {
 			aptPackage.Version = installedVersion
 		}
@@ -158,7 +158,7 @@ func (a *APTPackages) Apply(ctx context.Context, hst host.Host, resources Resour
 	pkgArgs := make([]string, len(aptPackages))
 	for i, aptPackage := range aptPackages {
 		var pkgArg string
-		if aptPackage.Remove {
+		if aptPackage.Absent {
 			pkgArg = fmt.Sprintf("%s-", aptPackage.Package)
 		} else {
 			pkgArg = fmt.Sprintf("%s=%s", aptPackage.Package, aptPackage.Version)

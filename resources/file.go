@@ -16,7 +16,7 @@ type File struct {
 	// Path is the absolute path to the file
 	Path string `yaml:"path"`
 	// Whether to remove the file
-	Remove bool `yaml:"remove,omitempty"`
+	Absent bool `yaml:"absent,omitempty"`
 	// Contents of the file
 	Content string `yaml:"content,omitempty"`
 	// File permissions
@@ -60,7 +60,7 @@ func (f *File) Load(ctx context.Context, hst host.Host) error {
 	content, err := hst.ReadFile(ctx, string(f.Path))
 	if err != nil {
 		if os.IsNotExist(err) {
-			f.Remove = true
+			f.Absent = true
 			return nil
 		}
 		return err
@@ -117,7 +117,7 @@ func (f *File) Resolve(ctx context.Context, hst host.Host) error {
 
 func (f *File) Apply(ctx context.Context, hst host.Host) error {
 	// Remove
-	if f.Remove {
+	if f.Absent {
 		err := hst.Remove(ctx, string(f.Path))
 		if os.IsNotExist(err) {
 			return nil
