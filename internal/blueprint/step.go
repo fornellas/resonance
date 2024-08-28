@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -109,6 +110,11 @@ func (s *Step) AppendGroupResource(resource resourcesPkg.Resource) {
 		panic("bug: can't add Resource to non GroupResource Step")
 	}
 	s.groupResources = append(s.groupResources, resource)
+	slices.SortFunc(s.groupResources, func(a, b resourcesPkg.Resource) int {
+		return strings.Compare(
+			resourcesPkg.GetResourceId(a), resourcesPkg.GetResourceId(b),
+		)
+	})
 }
 
 func (s *Step) appendRequiredByStep(step *Step) {

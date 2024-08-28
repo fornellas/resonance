@@ -48,29 +48,29 @@ single_resource:
 			groupResource: &resourcesPkg.APTPackages{},
 			groupResources: resourcesPkg.Resources{
 				&resourcesPkg.APTPackage{
-					Package: "foo",
-					Version: "1",
-				},
-				&resourcesPkg.APTPackage{
 					Package: "bar",
 					Version: "2",
+				},
+				&resourcesPkg.APTPackage{
+					Package: "foo",
+					Version: "1",
 				},
 			},
 			string: "APTPackages:bar,foo",
 			detailedString: `APTPackages:
-  - package: foo
-    version: "1"
   - package: bar
-    version: "2"`,
+    version: "2"
+  - package: foo
+    version: "1"`,
 			yaml: `group_resource_type: APTPackages
 group_resources_type: APTPackage
 group_resources:
     - APTPackage:
-        package: foo
-        version: "1"
-    - APTPackage:
         package: bar
         version: "2"
+    - APTPackage:
+        package: foo
+        version: "1"
 `,
 		},
 	}
@@ -140,10 +140,10 @@ func TestStepResolve(t *testing.T) {
 	require.Equal(t,
 		resourcesPkg.Resources{
 			&resourcesPkg.APTPackage{
-				Package: "foo",
+				Package: "bar",
 			},
 			&resourcesPkg.APTPackage{
-				Package: "bar",
+				Package: "foo",
 			},
 		},
 		step.Resources(),
