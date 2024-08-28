@@ -38,8 +38,9 @@ type Satisfiable interface {
 // Resource types are expected to be of Kind Struct, and have the first field as string
 var resourceIdFieldIndex = 0
 
-// Resource types are expected to be of Kind Struct, and have the second field as bool
-var resourceRemoveFieldIndex = 1
+// Resource types are expected to be of Kind Struct, and have the second field as bool, to indicate
+// whether the resource is absent or not.
+var resourceAbsentFieldIndex = 1
 
 // ValidateResource wraps Resource.Validate() with some extra common validations.
 func ValidateResource(resource Resource) error {
@@ -53,13 +54,13 @@ func ValidateResource(resource Resource) error {
 			)
 		}
 	}
-	if GetResourceRemove(resource) {
-		removeResource := NewResourceWithSameId(resource)
-		SetResourceRemove(removeResource)
-		if !reflect.DeepEqual(removeResource, resource) {
+	if GetResourceAbsent(resource) {
+		absentResource := NewResourceWithSameId(resource)
+		SetResourceAbsent(absentResource)
+		if !reflect.DeepEqual(absentResource, resource) {
 			return fmt.Errorf(
-				"resource has remove set to true, but other fields are set:\n%s",
-				diff.DiffAsYaml(removeResource, resource).String(),
+				"resource has absent set to true, but other fields are set:\n%s",
+				diff.DiffAsYaml(absentResource, resource).String(),
 			)
 		}
 	}
@@ -136,7 +137,7 @@ func validateResourceStruct(resourceType reflect.Type) {
 	}
 
 	if resourceType.NumField() < 2 {
-		panic(fmt.Sprintf("resource %s must have at least 2 fields: one Id first and Remove bool second ", resourceType.Name()))
+		panic(fmt.Sprintf("resource %s must have at least 2 fields: one Id first and Absent bool second ", resourceType.Name()))
 	}
 
 	// Id
@@ -148,25 +149,25 @@ func validateResourceStruct(resourceType reflect.Type) {
 		))
 	}
 
-	// Remove
-	removeStructField := resourceType.FieldByIndex([]int{resourceRemoveFieldIndex})
-	if removeStructField.Type.Kind() != reflect.Bool {
+	// Absent
+	absentStructField := resourceType.FieldByIndex([]int{resourceAbsentFieldIndex})
+	if absentStructField.Type.Kind() != reflect.Bool {
 		panic(fmt.Sprintf(
-			"bug: resource %#v must have second field of type bool, to indicate resource removal",
+			"bug: resource %#v must have second field of type bool, to indicate resource absence",
 			resourceType.Name(),
 		))
 	}
-	if removeStructField.Name != "Remove" {
+	if absentStructField.Name != "Absent" {
 		panic(fmt.Sprintf(
-			"bug: resource %#v must have second field named Remove",
+			"bug: resource %#v must have second field named Absent",
 			resourceType.Name(),
 		))
 	}
-	value, ok := removeStructField.Tag.Lookup("yaml")
+	value, ok := absentStructField.Tag.Lookup("yaml")
 	if ok {
-		if value != "remove,omitempty" {
+		if value != "absent,omitempty" {
 			panic(fmt.Sprintf(
-				`bug: %#v must tag field Remove with yaml:"remove,omitempty": got yaml:"%s"`,
+				`bug: %#v must tag field Absent with yaml:"absent,omitempty": got yaml:"%s"`,
 				resourceType.Name(), value,
 			))
 		}
@@ -271,17 +272,17 @@ func NewResourceWithSameId(resource Resource) Resource {
 	return value.Interface().(Resource)
 }
 
-// SetResourceRemove sets the given Resource Remove bool field to true.
-func SetResourceRemove(resource Resource) Resource {
+// SetResourceAbsent sets the given Resource Absent bool field to true.
+func SetResourceAbsent(resource Resource) Resource {
 	value := reflect.ValueOf(resource)
-	value.Elem().Field(resourceRemoveFieldIndex).SetBool(true)
+	value.Elem().Field(resourceAbsentFieldIndex).SetBool(true)
 	return value.Interface().(Resource)
 }
 
-// GetResourceRemove gets the value of the field Remove bool from given resource
-func GetResourceRemove(resource Resource) bool {
+// GetResourceAbsent gets the value of the field Absent bool from given resource
+func GetResourceAbsent(resource Resource) bool {
 	value := reflect.ValueOf(resource)
-	return value.Elem().Field(resourceRemoveFieldIndex).Bool()
+	return value.Elem().Field(resourceAbsentFieldIndex).Bool()
 }
 
 // Satisfies returns whether (a) satisfies (b).

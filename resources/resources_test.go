@@ -28,13 +28,13 @@ func TestValidateResource(t *testing.T) {
 			errorContains: "resource id field \"path\" must be set",
 		},
 		{
-			name: "remove with other fields set",
+			name: "absent with other fields set",
 			resource: &File{
 				Path:   "/tmp/foo",
+				Absent: true,
 				Perm:   0644,
-				Remove: true,
 			},
-			errorContains: "resource has remove set to true, but other fields are set",
+			errorContains: "resource has absent set to true, but other fields are set",
 		},
 		{
 			name: "invalid state",
@@ -173,21 +173,21 @@ func TestNewResourceWithSameId(t *testing.T) {
 	}
 }
 
-func TestSetResourceRemove(t *testing.T) {
+func TestSetResourceAbsent(t *testing.T) {
 	resource := &File{
 		Path: "/tmp/foo",
 	}
-	SetResourceRemove(resource)
-	require.True(t, resource.Remove)
+	SetResourceAbsent(resource)
+	require.True(t, resource.Absent)
 }
 
-func TestGetResourceRemove(t *testing.T) {
+func TestGetResourceAbsent(t *testing.T) {
 	resource := &File{
 		Path: "/tmp/foo",
 	}
-	require.False(t, GetResourceRemove(resource))
-	resource.Remove = true
-	require.True(t, GetResourceRemove(resource))
+	require.False(t, GetResourceAbsent(resource))
+	resource.Absent = true
+	require.True(t, GetResourceAbsent(resource))
 }
 
 func TestSatisfies(t *testing.T) {
@@ -238,7 +238,7 @@ func TestSatisfies(t *testing.T) {
 			Version: "1",
 		},
 		&APTPackage{
-			Remove: true,
+			Absent: true,
 		},
 	))
 }
