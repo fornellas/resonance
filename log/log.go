@@ -55,10 +55,12 @@ func MustLogger(ctx context.Context) *slog.Logger {
 func MustContextLoggerSection(ctx context.Context, msg string, args ...any) (context.Context, *slog.Logger) {
 	logger := MustLogger(ctx)
 	logger.Info(msg, args...)
-	handler, ok := logger.Handler().(IndentableHandler)
-	if ok {
-		logger = slog.New(handler.WithIndent())
-		ctx = WithLogger(ctx, logger)
+	if logger.Handler().Enabled(ctx, slog.LevelInfo) {
+		handler, ok := logger.Handler().(IndentableHandler)
+		if ok {
+			logger = slog.New(handler.WithIndent())
+			ctx = WithLogger(ctx, logger)
+		}
 	}
 	return ctx, logger
 }
