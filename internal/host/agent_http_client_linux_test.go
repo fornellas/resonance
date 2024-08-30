@@ -9,11 +9,11 @@ import (
 	"github.com/fornellas/resonance/log"
 )
 
-func TestAgent(t *testing.T) {
+func TestHttpAgent(t *testing.T) {
 	ctx := context.Background()
 	ctx = log.WithTestLogger(ctx)
 
-	host, err := NewAgent(ctx, Local{})
+	host, err := NewHttpAgent(ctx, Local{})
 	defer func() { require.NoError(t, host.Close()) }()
 	require.NoError(t, err)
 	testHost(t, host)

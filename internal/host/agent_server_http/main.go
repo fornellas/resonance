@@ -21,8 +21,8 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/fornellas/resonance/host"
-	"github.com/fornellas/resonance/internal/host/agent_server/api"
-	aNet "github.com/fornellas/resonance/internal/host/agent_server/net"
+	"github.com/fornellas/resonance/internal/host/agent_server_http/api"
+	aNet "github.com/fornellas/resonance/internal/host/agent_server_http/net"
 	"github.com/fornellas/resonance/internal/host/local_run"
 )
 

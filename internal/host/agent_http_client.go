@@ -4,140 +4,33 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"crypto/tls"
 	"fmt"
 	"io"
-	"log/slog"
-	"net"
 	"net/http"
 	"os"
 	"os/user"
 	"path/filepath"
-	"regexp"
-	"strings"
 
-	"go.uber.org/multierr"
 	"gopkg.in/yaml.v3"
 
 	"github.com/fornellas/resonance/host"
-	"github.com/fornellas/resonance/internal/host/agent_server/api"
-	aNet "github.com/fornellas/resonance/internal/host/agent_server/net"
-
-	"github.com/alessio/shellescape"
-	"golang.org/x/net/http2"
+	"github.com/fornellas/resonance/internal/host/agent_server_http/api"
 
 	"github.com/fornellas/resonance/log"
 )
 
-var AgentBinGz = map[string][]byte{}
+var AgentHttpBinGz = map[string][]byte{}
 
-// AgentClient interacts with a given Host using an agent that's copied and ran at the
+// AgentHttpClient interacts with a given Host using an agent that's copied and ran at the
 // host.
-type AgentClient struct {
+type AgentHttpClient struct {
 	Host   host.Host
 	path   string
 	Client *http.Client
 	waitCn chan struct{}
 }
 
-func getGoArch(machine string) (string, error) {
-	matched, err := regexp.MatchString("^i[23456]86$", machine)
-	if err != nil {
-		panic(err)
-	}
-	if matched {
-		return "386", nil
-	}
-	matched, err = regexp.MatchString("^x86_64$", machine)
-	if err != nil {
-		panic(err)
-	}
-	if matched {
-		return "amd64", nil
-	}
-	matched, err = regexp.MatchString("^armv6l|armv7l$", machine)
-	if err != nil {
-		panic(err)
-	}
-	if matched {
-		return "arm", nil
-	}
-	matched, err = regexp.MatchString("^aarch64$", machine)
-	if err != nil {
-		panic(err)
-	}
-	if matched {
-		return "arm64", nil
-	}
-	return "", fmt.Errorf("machine %#v not supported by agent", machine)
-}
-
-func getAgentBinGz(ctx context.Context, hst host.Host) ([]byte, error) {
-	cmd := host.Cmd{
-		Path: "uname",
-		Args: []string{"-m"},
-	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, hst, cmd)
-	if err != nil {
-		return nil, err
-	}
-	if !waitStatus.Success() {
-		return nil, fmt.Errorf(
-			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus.String(), stdout, stderr,
-		)
-	}
-	goarch, err := getGoArch(strings.TrimRight(stdout, "\n"))
-	if err != nil {
-		return nil, err
-	}
-	osArch := fmt.Sprintf("linux.%s", goarch)
-
-	agentBinGz, ok := AgentBinGz[osArch]
-	if !ok {
-		return nil, fmt.Errorf("%s not supported by agent", osArch)
-	}
-	return agentBinGz, nil
-}
-
-func getTmpFile(ctx context.Context, hst host.Host, template string) (string, error) {
-	cmd := host.Cmd{
-		Path: "mktemp",
-		Args: []string{"-t", fmt.Sprintf("%s.XXXXXXXX", template)},
-	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, hst, cmd)
-	if err != nil {
-		return "", err
-	}
-	if !waitStatus.Success() {
-		return "", fmt.Errorf(
-			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus.String(), stdout, stderr,
-		)
-	}
-	return strings.TrimRight(stdout, "\n"), nil
-}
-
-func copyReader(ctx context.Context, hst host.Host, reader io.Reader, path string) error {
-	cmd := host.Cmd{
-		Path:  "sh",
-		Args:  []string{"-c", fmt.Sprintf("cat > %s", shellescape.Quote(path))},
-		Stdin: reader,
-	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, hst, cmd)
-	if err != nil {
-		return err
-	}
-	if !waitStatus.Success() {
-		return fmt.Errorf(
-			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus.String(), stdout, stderr,
-		)
-	}
-	return nil
-}
-
-func NewAgent(ctx context.Context, hst host.Host) (*AgentClient, error) {
+func NewHttpAgent(ctx context.Context, hst host.Host) (*AgentHttpClient, error) {
 	ctx, _ = log.MustContextLoggerSection(ctx, "🐈 Agent")
 
 	agentPath, err := getTmpFile(ctx, hst, "resonance_agent")
@@ -163,7 +56,7 @@ func NewAgent(ctx context.Context, hst host.Host) (*AgentClient, error) {
 		return nil, err
 	}
 
-	agent := AgentClient{
+	agent := AgentHttpClient{
 		Host:   hst,
 		path:   agentPath,
 		waitCn: make(chan struct{}),
@@ -176,7 +69,7 @@ func NewAgent(ctx context.Context, hst host.Host) (*AgentClient, error) {
 	return &agent, nil
 }
 
-func (a AgentClient) checkResponseStatus(resp *http.Response) error {
+func (a AgentHttpClient) checkResponseStatus(resp *http.Response) error {
 	if resp.StatusCode == http.StatusOK {
 		return nil
 	} else if resp.StatusCode == http.StatusInternalServerError {
@@ -196,7 +89,7 @@ func (a AgentClient) checkResponseStatus(resp *http.Response) error {
 	}
 }
 
-func (a AgentClient) unmarshalResponse(resp *http.Response, bodyInterface interface{}) error {
+func (a AgentHttpClient) unmarshalResponse(resp *http.Response, bodyInterface interface{}) error {
 	decoder := yaml.NewDecoder(resp.Body)
 	decoder.KnownFields(true)
 	if err := decoder.Decode(bodyInterface); err != nil {
@@ -205,7 +98,7 @@ func (a AgentClient) unmarshalResponse(resp *http.Response, bodyInterface interf
 	return nil
 }
 
-func (a AgentClient) get(path string) (*http.Response, error) {
+func (a AgentHttpClient) get(path string) (*http.Response, error) {
 	resp, err := a.Client.Get(fmt.Sprintf("http://agent%s", path))
 	if err != nil {
 		return nil, err
@@ -218,7 +111,7 @@ func (a AgentClient) get(path string) (*http.Response, error) {
 	return resp, nil
 }
 
-func (a AgentClient) post(path string, bodyInterface interface{}) (*http.Response, error) {
+func (a AgentHttpClient) post(path string, bodyInterface interface{}) (*http.Response, error) {
 	url := fmt.Sprintf("http://agent%s", path)
 
 	contentType := "application/yaml"
@@ -237,7 +130,7 @@ func (a AgentClient) post(path string, bodyInterface interface{}) (*http.Respons
 	return resp, a.checkResponseStatus(resp)
 }
 
-func (a AgentClient) delete(path string) (*http.Response, error) {
+func (a AgentHttpClient) delete(path string) (*http.Response, error) {
 	url := fmt.Sprintf("http://agent%s", path)
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
@@ -256,7 +149,7 @@ func (a AgentClient) delete(path string) (*http.Response, error) {
 	return resp, nil
 }
 
-func (a AgentClient) put(path string, body io.Reader) (*http.Response, error) {
+func (a AgentHttpClient) put(path string, body io.Reader) (*http.Response, error) {
 	url := fmt.Sprintf("http://agent%s", path)
 	req, err := http.NewRequest("PUT", url, body)
 	if err != nil {
@@ -275,7 +168,7 @@ func (a AgentClient) put(path string, body io.Reader) (*http.Response, error) {
 	return resp, nil
 }
 
-func (a AgentClient) Chmod(ctx context.Context, name string, mode os.FileMode) error {
+func (a AgentHttpClient) Chmod(ctx context.Context, name string, mode os.FileMode) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Chmod", "name", name, "mode", mode)
@@ -292,7 +185,7 @@ func (a AgentClient) Chmod(ctx context.Context, name string, mode os.FileMode) e
 	return err
 }
 
-func (a AgentClient) Chown(ctx context.Context, name string, uid, gid int) error {
+func (a AgentHttpClient) Chown(ctx context.Context, name string, uid, gid int) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Chown", "name", name, "uid", uid, "gid", gid)
@@ -310,7 +203,7 @@ func (a AgentClient) Chown(ctx context.Context, name string, uid, gid int) error
 	return err
 }
 
-func (a AgentClient) Lookup(ctx context.Context, username string) (*user.User, error) {
+func (a AgentHttpClient) Lookup(ctx context.Context, username string) (*user.User, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Lookup", "username", username)
@@ -327,7 +220,7 @@ func (a AgentClient) Lookup(ctx context.Context, username string) (*user.User, e
 	return &u, nil
 }
 
-func (a AgentClient) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
+func (a AgentHttpClient) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("LookupGroup", "name", name)
@@ -344,7 +237,7 @@ func (a AgentClient) LookupGroup(ctx context.Context, name string) (*user.Group,
 	return &g, nil
 }
 
-func (a AgentClient) Lstat(ctx context.Context, name string) (host.HostFileInfo, error) {
+func (a AgentHttpClient) Lstat(ctx context.Context, name string) (host.HostFileInfo, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Lstat", "name", name)
@@ -366,7 +259,7 @@ func (a AgentClient) Lstat(ctx context.Context, name string) (host.HostFileInfo,
 	return hfi, nil
 }
 
-func (a AgentClient) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
+func (a AgentHttpClient) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Mkdir", "name", name)
@@ -383,7 +276,7 @@ func (a AgentClient) Mkdir(ctx context.Context, name string, perm os.FileMode) e
 	return err
 }
 
-func (a AgentClient) ReadFile(ctx context.Context, name string) ([]byte, error) {
+func (a AgentHttpClient) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("ReadFile", "name", name)
@@ -405,7 +298,7 @@ func (a AgentClient) ReadFile(ctx context.Context, name string) ([]byte, error) 
 	return contents, nil
 }
 
-func (a AgentClient) Remove(ctx context.Context, name string) error {
+func (a AgentHttpClient) Remove(ctx context.Context, name string) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Remove", "name", name)
@@ -422,7 +315,7 @@ func (a AgentClient) Remove(ctx context.Context, name string) error {
 	return nil
 }
 
-func (a AgentClient) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
+func (a AgentHttpClient) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Run", "cmd", cmd)
@@ -481,7 +374,7 @@ func (a AgentClient) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, er
 	return cs.WaitStatus, nil
 }
 
-func (a AgentClient) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
+func (a AgentHttpClient) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("WriteFile", "name", name, "data", data, "perm", perm)
@@ -498,100 +391,17 @@ func (a AgentClient) WriteFile(ctx context.Context, name string, data []byte, pe
 	return nil
 }
 
-func (a AgentClient) String() string {
+func (a AgentHttpClient) String() string {
 	return a.Host.String()
 }
 
-func (a AgentClient) Type() string {
+func (a AgentHttpClient) Type() string {
 	return a.Host.Type()
 }
 
-func (a *AgentClient) Close() error {
+func (a *AgentHttpClient) Close() error {
 	a.post("/shutdown", nil)
 	a.Client.CloseIdleConnections()
 	<-a.waitCn
 	return a.Host.Close()
-}
-
-type writerLogger struct {
-	Logger *slog.Logger
-}
-
-func (wl writerLogger) Write(b []byte) (int, error) {
-	lines := strings.Split(string(b), "\n")
-	for i, line := range lines {
-		if len(line) == 0 && i+1 == len(lines) {
-			break
-		}
-		wl.Logger.Error("Agent", "line", line)
-	}
-	return len(b), nil
-}
-
-func (a *AgentClient) spawn(ctx context.Context) error {
-	logger := log.MustLogger(ctx)
-
-	stdinReader, stdinWriter, err := os.Pipe()
-	if err != nil {
-		return err
-	}
-
-	stdoutReader, stdoutWriter, err := os.Pipe()
-	if err != nil {
-		return err
-	}
-
-	a.Client = &http.Client{
-		Transport: &http2.Transport{
-			DialTLSContext: func(
-				ctx context.Context, network, addr string, cfg *tls.Config,
-			) (net.Conn, error) {
-				return aNet.Conn{
-					Reader: stdoutReader,
-					Writer: stdinWriter,
-				}, nil
-			},
-			AllowHTTP: true,
-		},
-	}
-
-	go func() {
-		defer func() { a.waitCn <- struct{}{} }()
-		waitStatus, err := a.Host.Run(ctx, host.Cmd{
-			Path:   a.path,
-			Stdin:  stdinReader,
-			Stdout: stdoutWriter,
-			Stderr: writerLogger{
-				Logger: logger,
-			},
-		})
-		if err != nil {
-			logger.Error("failed to run agent", "err", err)
-		}
-		if !waitStatus.Success() {
-			logger.Error("agent exited with error", "error", waitStatus)
-		}
-		stdinWriter.Close()
-		stdoutReader.Close()
-		stdinReader.Close()
-		stdoutWriter.Close()
-	}()
-
-	resp, err := a.get("/ping")
-	if err != nil {
-		return multierr.Combine(err, a.Close())
-	}
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return multierr.Combine(err, a.Close())
-	}
-	if string(bodyBytes) != "Pong" {
-		return multierr.Combine(
-			fmt.Errorf("pinging agent failed: unexpected body %#v", string(bodyBytes)),
-			a.Close(),
-		)
-	}
-
-	return nil
 }
