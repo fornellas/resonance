@@ -346,12 +346,14 @@ go-update: go
 	set -e
 	set -o pipefail
 	$(GO) mod edit -go $$(curl -s https://go.dev/VERSION?m=text | head -n 1 | cut -c 3-)
+update-deps: go-update
 
 # go get -u
 
 .PHONY: go-get-u-t
 go-get-u-t: go go-mod-tidy
 	$(GO) get -u ./...
+update-deps: go-get-u-t
 
 ##
 ## Test
@@ -521,6 +523,18 @@ ci-dev:
 		GO_TEST_NO_COVER=1 \
 		GO_TEST_BUILD_FLAGS_NO_RACE=1 \
 		GO_BUILD_AGENT_NATIVE_ONLY=1
+
+##
+## update
+##
+
+.PHONY: update-deps-help
+update-deps-help:
+	@echo 'update-deps: Update all dependencies'
+help: update-deps-help
+
+.PHONY: update-deps
+update-deps:
 
 ##
 ## rrb
