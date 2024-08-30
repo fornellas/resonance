@@ -194,6 +194,33 @@ GCOV2LCOV := $(GO) run github.com/jandelgado/gcov2lcov
 GO_TEST_MIN_COVERAGE := 50
 
 ##
+## protobuf
+##
+
+PROTOC_VERSION := 28.0
+
+ifeq ($(UNAME_S),Linux)
+PROTOC_OS := linux
+else
+ifeq ($(UNAME_S),Darwin)
+PROTOC_OS := osx
+else
+$(error Unsupported system: $(UNAME_S))
+endif
+endif
+
+SHELL_PROTOC_ARCH := case $(UNAME_M) in i[23456]86) echo x86_32;; x86_64) echo x86_64;; aarch64|arm64) echo aarch_64;; *) echo Unknown machine $(UNAME_M) 1>&2 ; exit 1 ;; esac
+PROTOC_ARCH ?= $(shell $(SHELL_PROTOC_ARCH))
+ifneq ($(.SHELLSTATUS),0)
+  $(error $(SHELL_PROTOC_ARCH): $(PROTOC_ARCH))
+endif
+
+PROTOC_BIN_PATH := $(CACHE_PATH)/protoc/$(PROTOC_VERSION)/$(PROTOC_OS)-$(PROTOC_ARCH)
+PATH := $(PROTOC_BIN_PATH):$(PATH)
+
+PROTOC := $(PROTOC_BIN_PATH)/protoc
+
+##
 ## go build
 ##
 
@@ -264,6 +291,47 @@ clean-go:
 clean: clean-go
 
 ##
+## Protobuf
+##
+
+.PHONY: install-protoc
+install-protoc:
+	set -e
+	if [ -x $(PROTOC_BIN_PATH)/protoc ] ; then exit ; fi
+	mkdir -p $(PROTOC_BIN_PATH)
+	curl -sSfL https://github.com/protocolbuffers/protobuf/releases/download/v$(PROTOC_VERSION)/protoc-$(PROTOC_VERSION)-$(PROTOC_OS)-$(PROTOC_ARCH).zip > $(CACHE_PATH)/protoc.zip
+	unzip -p $(CACHE_PATH)/protoc.zip bin/protoc > $(PROTOC_BIN_PATH)/protoc.tmp
+	chmod +x $(PROTOC_BIN_PATH)/protoc.tmp
+	mv $(PROTOC_BIN_PATH)/protoc.tmp $(PROTOC_BIN_PATH)/protoc
+
+.PHONY: clean-install-protoc
+clean-install-protoc:
+	rm -f $(PROTOC_BIN_PATH)/protoc.tmp
+	rm -f $(PROTOC_BIN_PATH)/protoc
+clean: clean-install-protoc
+
+.PHONY: install-protoc-gen-go-grpc
+install-protoc-gen-go-grpc: go
+	$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc
+
+.PHONY: install-protoc-gen-go
+install-protoc-gen-go: go
+	$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go
+
+.PHONY: gen-protofiles
+gen-protofiles: install-protoc install-protoc-gen-go install-protoc-gen-go-grpc
+	$(PROTOC) \
+		--go_out=. \
+		--go_opt=paths=source_relative \
+		--go-grpc_out=. \
+		--go-grpc_opt=paths=source_relative \
+		./internal/grpc/proto/*.proto
+
+.PHONY: clean-gen-protofiles
+clean-gen-protofiles:
+	rm -f ./internal/grpc/proto/*.pb.go
+
+##
 ## Lint
 ##
 
@@ -287,7 +355,7 @@ go-generate: go
 # go mod tidy
 
 .PHONY: go-mod-tidy
-go-mod-tidy: go go-generate
+go-mod-tidy: go go-generate gen-protofiles
 	$(GO) mod tidy
 lint: go-mod-tidy
 
@@ -377,7 +445,7 @@ help: test-help
 # gotest
 
 .PHONY: gotest
-gotest: go go-generate
+gotest: go go-generate gen-protofiles
 	$(GO_TEST) \
 		$(GO_BUILD_FLAGS_COMMON) \
 		$(call go_test_build_flags,$(GOOS)_$(GOARCH_NATIVE)) \
@@ -451,7 +519,7 @@ help: build-help
 # agent http
 
 .PHONY: build-agent-http-%
-build-agent-http-%: go-generate
+build-agent-http-%: go-generate gen-protofiles
 	set -e
 	GOARCH=$* GOOS=linux $(GO) \
 		build \
@@ -494,7 +562,7 @@ go-vet: clean-agent
 # build
 
 .PHONY: build
-build: go go-generate build-agent
+build: go go-generate build-agent gen-protofiles
 	$(GO) \
 		build \
 		-o resonance.$(GOOS).$(GOARCH) \
