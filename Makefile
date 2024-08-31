@@ -217,7 +217,7 @@ GO_BUILD_MAX_AGENT_SIZE := 5242880
 
 RRB := $(GO) run github.com/fornellas/rrb
 RRB_DEBOUNCE ?= 500ms
-RRB_IGNORE_PATTERN ?= '$(CACHE_PATH)/**/*,internal/host/agent_*_*_gz.go'
+RRB_IGNORE_PATTERN ?= 'internal/host/agent_server_http_linux_*_gz.go'
 RRB_LOG_LEVEL ?= info
 RRB_PATTERN ?= '**/*.{go},Makefile'
 RRB_MAKE_TARGET ?= ci
@@ -383,7 +383,7 @@ gotest: go go-generate
 		$(GO_TEST_PACKAGES) \
 		$(GO_TEST_BINARY_FLAGS) \
 		$(GO_TEST_BINARY_FLAGS_EXTRA)
-gotest: build-agent-$(GOARCH_NATIVE)
+gotest: build-agent-native
 test: gotest
 
 .PHONY: clean-gotest
@@ -437,6 +437,8 @@ endif
 ## Build
 ##
 
+# help
+
 .PHONY: build-help
 build-help:
 	@echo 'build: build everything'
@@ -444,35 +446,38 @@ build-help:
 	@echo '  use GO_BUILD_AGENT_NATIVE_ONLY=1 to only build agent to native arch (faster)'
 help: build-help
 
-.PHONY: build-agent-%
-build-agent-%: go-generate
+# agent http
+
+.PHONY: build-agent-http-%
+build-agent-http-%: go-generate
 	set -e
 	GOARCH=$* GOOS=linux $(GO) \
 		build \
-		-o internal/host/agent_server/agent_server_linux_$* \
+		-o internal/host/agent_server_http/agent_server_http_linux_$* \
 		$(GO_BUILD_FLAGS_COMMON) \
 		$(GO_BUILD_FLAGS) \
-		./internal/host/agent_server/
-	gzip < internal/host/agent_server/agent_server_linux_$* > internal/host/agent_server/agent_server_linux_$*.gz
-	if ! size=$$(stat -f %z internal/host/agent_server/agent_server_linux_$*.gz  2>/dev/null) ; then size=$$(stat --printf=%s internal/host/agent_server/agent_server_linux_$*.gz) ; fi
+		./internal/host/agent_server_http/
+	gzip < internal/host/agent_server_http/agent_server_http_linux_$* > internal/host/agent_server_http/agent_server_http_linux_$*.gz
+	if ! size=$$(stat -f %z internal/host/agent_server_http/agent_server_http_linux_$*.gz  2>/dev/null) ; then size=$$(stat --printf=%s internal/host/agent_server_http/agent_server_http_linux_$*.gz) ; fi
 	[ "$$size" -gt $(GO_BUILD_MAX_AGENT_SIZE) ] && { echo "Compressed agent size exceeds $(GO_BUILD_MAX_AGENT_SIZE) bytes" ; exit 1 ; }
-	cat << EOF > internal/host/agent_server_linux_$*_gz.go
+	cat << EOF > internal/host/agent_server_http_linux_$*_gz.go
 	package host
 	import _ "embed"
-	//go:embed agent_server/agent_server_linux_$*.gz
-	var agent_server_linux_$* []byte
+	//go:embed agent_server_http/agent_server_http_linux_$*.gz
+	var agent_server_http_linux_$* []byte
 	func init() {
-		AgentBinGz["linux.$*"] = agent_server_linux_$*
+		AgentHttpBinGz["linux.$*"] = agent_server_http_linux_$*
 	}
 	EOF
-build-agent: $(foreach GOARCH,$(GO_BUILD_AGENT_GOARCHS),build-agent-$(GOARCH))
+build-agent: $(foreach GOARCH,$(GO_BUILD_AGENT_GOARCHS),build-agent-http-$(GOARCH))
+build-agent-native: build-agent-http-$(GOARCH_NATIVE)
 
-.PHONY: clean-agent-%
-clean-agent-%:
-	rm -f internal/host/agent_server/agent_server_linux_$*
-	rm -f internal/host/agent_server/agent_server_linux_$*.gz
-	rm -rf internal/host/agent_server_linux_$*_gz.go
-clean-agent: $(foreach GOARCH,$(GO_BUILD_AGENT_GOARCHS),clean-agent-$(GOARCH))
+.PHONY: clean-build-agent-http-%
+clean-build-agent-http-%:
+	rm -f internal/host/agent_server_http/agent_server_http_linux_$*
+	rm -f internal/host/agent_server_http/agent_server_http_linux_$*.gz
+	rm -f internal/host/agent_server_http_linux_$*_gz.go
+clean-agent: $(foreach GOARCH,$(GO_BUILD_AGENT_GOARCHS),clean-build-agent-http-$(GOARCH))
 clean: clean-agent
 build: clean-agent
 go-generate: clean-agent
@@ -483,6 +488,8 @@ staticcheck: clean-agent
 misspell: clean-agent
 gocyclo: clean-agent
 go-vet: clean-agent
+
+# build
 
 .PHONY: build
 build: go go-generate build-agent
