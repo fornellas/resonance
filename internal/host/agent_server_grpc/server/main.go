@@ -9,7 +9,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/fornellas/resonance/internal/grpc/proto"
+	"github.com/fornellas/resonance/internal/host/agent_server_grpc/proto"
 )
 
 type commandServiceServer struct {
