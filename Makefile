@@ -330,7 +330,7 @@ gen-protofiles: install-protoc install-protoc-gen-go install-protoc-gen-go-grpc
 .PHONY: clean-gen-protofiles
 clean-gen-protofiles:
 	rm -f ./internal/grpc/proto/*.pb.go
-
+clean: clean-gen-protofiles
 ##
 ## Lint
 ##

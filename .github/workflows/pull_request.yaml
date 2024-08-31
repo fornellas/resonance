@@ -15,11 +15,12 @@ jobs:
     with:
       GOARCH: amd64
     secrets: inherit
-  linux_arm:
-    uses: ./.github/workflows/build-linux.yaml
-    with:
-      GOARCH: arm
-    secrets: inherit
+  # disabled because arm is not supported by protobuf
+  # linux_arm:
+  #   uses: ./.github/workflows/build-linux.yaml
+  #   with:
+  #     GOARCH: arm
+  #   secrets: inherit
   linux_arm64:
     uses: ./.github/workflows/build-linux.yaml
     with:
