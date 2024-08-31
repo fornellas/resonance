@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "github.com/fornellas/resonance/internal/grpc/proto";
+option go_package = "github.com/fornellas/resonance/internal/host/agent_server_grpc/proto";
 
 package resonance;
 
