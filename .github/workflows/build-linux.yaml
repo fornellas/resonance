@@ -47,6 +47,9 @@ jobs:
           path: ${{ env.XDG_CACHE_HOME }}
           key: linux-${{ inputs.GOARCH }}-${{ hashFiles('**/go.sum', '**/*.go') }}
           restore-keys: linux-${{ inputs.GOARCH }}-
+      # Install unzip
+      - name: Install unzip
+        run: sudo apt-get -y install unzip
       # Update Deps
       - name: Update Deps
         if: ${{ inputs.update-deps == true }}

@@ -4,7 +4,8 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
 	build-essential \
 	ca-certificates \
 	git \
-	less
+	less \
+	unzip
 RUN passwd -d root
 ARG USER
 ARG GROUP

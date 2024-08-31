@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+option go_package = "github.com/fornellas/resonance/internal/grpc/proto";
+
+package resonance;
+
+service CommandService {
+  rpc Ping(PingRequest) returns (PingResponse) {}
+}
+
+message PingRequest {}
+
+message PingResponse {
+  string message = 1;
+}
+
+service FileService {
+  rpc PutFile(PutFileRequest) returns (PutFileResponse) {}
+}
+
+message PutFileRequest {
+  string name = 1;
+  bytes content = 2;
+  int32 perm = 3; // Permission in Unix-style (e.g., 0644)
+}
+
+message PutFileResponse {
+  string status = 1;
+}
