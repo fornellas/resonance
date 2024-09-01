@@ -641,8 +641,9 @@ rrb: go
 
 .PHONY: rrb-dev
 rrb-dev:
-	$(MAKE) $(MFLAGS) MAKELEVEL= ci \
-		rrb RRB_MAKE_TARGET=ci-dev
+	$(MAKE) $(MFLAGS) MAKELEVEL= \
+		rrb \
+			RRB_MAKE_TARGET=ci-dev
 
 endif
 
