@@ -4,11 +4,16 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
+
+	resouresPkg "github.com/fornellas/resonance/resources"
 )
 
 func captureOutput(t *testing.T, fn func()) (stdout string, stderr string) {
@@ -100,5 +105,20 @@ func (c *TestCmd) Run(t *testing.T) {
 
 	for _, str := range c.ExpectStderrContains {
 		require.Contains(t, stderr, str, "stderr does not contain expected content")
+	}
+}
+
+func WriteResourcesFile(t *testing.T, path string, resources resouresPkg.Resources) {
+	resourcesBytes, err := yaml.Marshal(resources)
+	if err != nil {
+		require.NoError(t, err)
+	}
+
+	dir := filepath.Dir(path)
+	err = os.MkdirAll(dir, fs.FileMode(0755))
+	require.NoError(t, err)
+
+	if err := os.WriteFile(path, resourcesBytes, os.FileMode(0644)); err != nil {
+		require.NoError(t, err)
 	}
 }

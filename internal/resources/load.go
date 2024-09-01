@@ -128,7 +128,6 @@ func LoadDir(ctx context.Context, dir string) (resourcesPkg.Resources, error) {
 
 // Load Resources from path, which can be either a file or a directory.
 func LoadPath(ctx context.Context, path string) (resourcesPkg.Resources, error) {
-	ctx, _ = log.MustContextLoggerSection(ctx, "📂 Loading resources", "path", path)
 	var resources resourcesPkg.Resources
 
 	fileInfo, err := os.Stat(path)

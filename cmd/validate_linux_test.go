@@ -5,21 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"gopkg.in/yaml.v3"
-
 	resouresPkg "github.com/fornellas/resonance/resources"
 )
-
-func WriteResourcesFile(t *testing.T, path string, resources resouresPkg.Resources) {
-	resourcesBytes, err := yaml.Marshal(resources)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.WriteFile(path, resourcesBytes, os.FileMode(0644)); err != nil {
-		t.Fatal(err)
-	}
-}
 
 func TestValidate(t *testing.T) {
 	tempDir := t.TempDir()
