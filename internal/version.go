@@ -2,6 +2,8 @@ package internal
 
 import (
 	_ "embed"
+	"fmt"
+	"runtime"
 	"strings"
 )
 
@@ -12,5 +14,9 @@ import (
 var Version string
 
 func init() {
-	Version = strings.TrimSuffix(Version, "\n")
+	Version = fmt.Sprintf(
+		"%s.%s.%s",
+		strings.TrimSuffix(Version, "\n"),
+		runtime.GOOS, runtime.GOARCH,
+	)
 }
