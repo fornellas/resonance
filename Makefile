@@ -219,6 +219,7 @@ PROTOC_BIN_PATH := $(CACHE_PATH)/protoc/$(PROTOC_VERSION)/$(PROTOC_OS)-$(PROTOC_
 PATH := $(PROTOC_BIN_PATH):$(PATH)
 
 PROTOC := $(PROTOC_BIN_PATH)/protoc
+PROTOC_PROTO_PATH := ./internal/host/agent_server_grpc/proto
 
 ##
 ## go build
@@ -244,7 +245,7 @@ GO_BUILD_MAX_AGENT_SIZE := 5242880
 
 RRB := $(GO) run github.com/fornellas/rrb
 RRB_DEBOUNCE ?= 500ms
-RRB_IGNORE_PATTERN ?= 'internal/host/agent_server_http_linux_*_gz.go'
+RRB_IGNORE_PATTERN ?= 'internal/host/agent_server_http_linux_*_gz.go,internal/host/agent_server_grpc/proto/*.pb.go'
 RRB_LOG_LEVEL ?= info
 RRB_PATTERN ?= '**/*.{go},Makefile'
 RRB_MAKE_TARGET ?= ci
@@ -325,11 +326,11 @@ gen-protofiles: install-protoc install-protoc-gen-go install-protoc-gen-go-grpc
 		--go_opt=paths=source_relative \
 		--go-grpc_out=. \
 		--go-grpc_opt=paths=source_relative \
-		./internal/grpc/proto/*.proto
+		$(PROTOC_PROTO_PATH)/*.proto
 
 .PHONY: clean-gen-protofiles
 clean-gen-protofiles:
-	rm -f ./internal/grpc/proto/*.pb.go
+	rm -f $(PROTOC_PROTO_PATH)/*.pb.go
 clean: clean-gen-protofiles
 ##
 ## Lint
@@ -558,6 +559,30 @@ staticcheck: clean-agent
 misspell: clean-agent
 gocyclo: clean-agent
 go-vet: clean-agent
+
+# agent grpc
+
+.PHONY: build-agent-grpc-test
+build-agent-grpc-test: go go-generate build-agent gen-protofiles
+	$(GO) \
+		build \
+		-o internal/host/agent_server_grpc/client/client.$(GOOS).$(GOARCH) \
+		$(GO_BUILD_FLAGS_COMMON) \
+		$(GO_BUILD_FLAGS) \
+		./internal/host/agent_server_grpc/client/
+	$(GO) \
+		build \
+		-o internal/host/agent_server_grpc/server/server.$(GOOS).$(GOARCH) \
+		$(GO_BUILD_FLAGS_COMMON) \
+		$(GO_BUILD_FLAGS) \
+		./internal/host/agent_server_grpc/server/
+build: build-agent-grpc-test
+
+.PHONY: clean-build-agent-grpc-test
+clean-build-agent-grpc-test:
+	rm -f internal/host/agent_server_grpc/client/client.$(GOOS).$(GOARCH)
+	rm -f internal/host/agent_server_grpc/server/server.$(GOOS).$(GOARCH)
+clean: clean-build-agent-grpc-test
 
 # build
 
