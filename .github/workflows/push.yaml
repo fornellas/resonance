@@ -18,13 +18,6 @@ jobs:
       upload-artifact: ${{ startsWith(github.ref, 'refs/tags/') }}
       GOARCH: amd64
     secrets: inherit
-  # disabled because arm is not supported by protobuf
-  # linux_arm:
-  #   uses: ./.github/workflows/build-linux.yaml
-  #   with:
-  #     upload-artifact: ${{ startsWith(github.ref, 'refs/tags/') }}
-  #     GOARCH: arm
-  #   secrets: inherit
   linux_arm64:
     uses: ./.github/workflows/build-linux.yaml
     with:
@@ -54,7 +47,6 @@ jobs:
     needs:
       - linux_386
       - linux_amd64
-      - linux_arm
       - linux_arm64
       - darwin_amd64
       - darwin_arm64
@@ -65,9 +57,6 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: ${{ needs.linux_amd64.outputs.artifact }}
-      - uses: actions/download-artifact@v3
-        with:
-          name: ${{ needs.linux_arm.outputs.artifact }}
       - uses: actions/download-artifact@v3
         with:
           name: ${{ needs.linux_arm64.outputs.artifact }}
@@ -83,7 +72,6 @@ jobs:
           files: |
             ${{ needs.linux_386.outputs.artifact }}
             ${{ needs.linux_amd64.outputs.artifact }}
-            ${{ needs.linux_arm.outputs.artifact }}
             ${{ needs.linux_arm64.outputs.artifact }}
             ${{ needs.darwin_amd64.outputs.artifact }}
             ${{ needs.darwin_arm64.outputs.artifact }}
@@ -97,7 +85,6 @@ jobs:
     needs:
       - linux_386
       - linux_amd64
-      - linux_arm
       - linux_arm64
       - darwin_amd64
       - darwin_arm64
