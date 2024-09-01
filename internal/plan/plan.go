@@ -7,8 +7,10 @@ import (
 	"slices"
 	"strings"
 
+	hostPkg "github.com/fornellas/resonance/host"
 	blueprintPkg "github.com/fornellas/resonance/internal/blueprint"
 	"github.com/fornellas/resonance/internal/diff"
+	"github.com/fornellas/resonance/log"
 	resourcesPkg "github.com/fornellas/resonance/resources"
 )
 
@@ -149,6 +151,47 @@ func (a *Action) DetailedString() string {
 	}
 }
 
+// Apply commits all required changes for action to given Host.
+func (a *Action) Apply(ctx context.Context, host hostPkg.Host) error {
+	args := []any{}
+	diffStr := a.DiffString()
+	if len(diffStr) > 0 {
+		args = append(args, []any{"diff", diffStr}...)
+	}
+	ctx, _ = log.MustContextLoggerSection(ctx, a.String(), args...)
+
+	if len(a.ApplyResources) == 0 {
+		return nil
+	}
+
+	isGroupResource := resourcesPkg.IsGroupResource(
+		resourcesPkg.GetResourceTypeName(a.ApplyResources[0]),
+	)
+
+	if isGroupResource {
+		groupResource := resourcesPkg.GetGroupResourceByTypeName(a.ResourceType)
+		if groupResource == nil {
+			panic("bug: bad GroupResource")
+		}
+		if err := groupResource.Apply(ctx, host, a.ApplyResources); err != nil {
+			return err
+		}
+	} else {
+		if len(a.ApplyResources) != 1 {
+			panic("bug: can't have more than one SingleResource")
+		}
+		singleResource, ok := a.ApplyResources[0].(resourcesPkg.SingleResource)
+		if !ok {
+			panic("bug: is not SingleResource")
+		}
+		if err := singleResource.Apply(ctx, host); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Plan holds all actions required to apply changes to a host.
 // This enables evaluating all changes before they are applied.
 type Plan []*Action
@@ -235,4 +278,17 @@ func NewPlan(
 		plan[i] = NewAction(step, beforeResourceMap)
 	}
 	return plan, nil
+}
+
+// Apply commits all required changes for plan to given Host.
+func (p Plan) Apply(ctx context.Context, host hostPkg.Host) error {
+	ctx, _ = log.MustContextLoggerSection(ctx, "⚙️ Applying")
+
+	for _, action := range p {
+		if err := action.Apply(ctx, host); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

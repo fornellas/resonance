@@ -330,6 +330,10 @@ func (m ResourceMap) GetResourceWithSameTypeId(resource Resource) Resource {
 	return r
 }
 
+func (m ResourceMap) HasResourceWithSameTypeId(resource Resource) bool {
+	return m.GetResourceWithSameTypeId(resource) != nil
+}
+
 type Resources []Resource
 
 func (r Resources) Ids() string {
