@@ -51,19 +51,19 @@ jobs:
       - darwin_amd64
       - darwin_arm64
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4.1.7
         with:
           name: ${{ needs.linux_386.outputs.artifact }}
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4.1.7
         with:
           name: ${{ needs.linux_amd64.outputs.artifact }}
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4.1.7
         with:
           name: ${{ needs.linux_arm64.outputs.artifact }}
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4.1.7
         with:
           name: ${{ needs.darwin_amd64.outputs.artifact }}
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4.1.7
         with:
           name: ${{ needs.darwin_arm64.outputs.artifact }}
       - name: Release
