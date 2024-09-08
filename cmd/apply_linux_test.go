@@ -21,14 +21,16 @@ func TestApply(t *testing.T) {
 	err := os.MkdirAll(filesDir, fs.FileMode(0755))
 	require.NoError(t, err)
 	fileContent := "bar"
+	fileUid := uint32(os.Geteuid())
+	fileGid := uint32(os.Getgid())
 
 	resources := resouresPkg.Resources{
 		&resouresPkg.File{
 			Path:    filepath.Join(filesDir, "bar"),
 			Perm:    os.FileMode(0644),
 			Content: fileContent,
-			Uid:     uint32(os.Geteuid()),
-			Gid:     uint32(os.Getgid()),
+			Uid:     fileUid,
+			Gid:     fileGid,
 		},
 	}
 
@@ -50,10 +52,10 @@ func TestApply(t *testing.T) {
       -absent: true
       +content: bar
       +perm: 420
-      +uid: 1000
-      +gid: 1000
+      +uid: %d
+      +gid: %d
 🧹 State cleanup`,
-				filesDir, filesDir,
+				filesDir, filesDir, fileUid, fileGid,
 			)},
 		}).Run(t)
 	})
