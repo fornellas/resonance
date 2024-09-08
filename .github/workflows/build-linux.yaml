@@ -54,7 +54,7 @@ jobs:
       - name: Update Deps
         if: ${{ inputs.update-deps == true }}
         run: |
-          ./build.sh update-deps
+          ./make.sh update-deps
       # Update Deps
       - name: Diff
         if: ${{ inputs.update-deps == true }}
@@ -64,7 +64,7 @@ jobs:
       # Build
       - name: Build
         run: |
-          ./build.sh ci
+          ./make.sh ci
         shell: bash
       # Git Status
       - name: git status
@@ -108,7 +108,7 @@ jobs:
           allow-empty: true
       # Clean
       - name: Clean
-        run: ./build.sh clean
+        run: ./make.sh clean
         shell: bash
       # Git ls-files --others
       - name: git ls-files --others

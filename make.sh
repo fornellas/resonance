@@ -5,7 +5,7 @@ set -o pipefail
 
 function usage() {
 	echo "Usage: [DOCKER_PLATFORM=os/arch] $0 target"
-	echo "Runs the build in a predictable Docker environment."
+	echo "Runs make in a predictable Docker environment."
 	echo "'target' is a build target (try 'help')."
 	echo "DOCKER_PLATFORM can optionally be set."
 	exit 1
