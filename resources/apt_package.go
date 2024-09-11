@@ -17,6 +17,10 @@ import (
 type APTPackage struct {
 	// The name of the package
 	Package string `yaml:"package"`
+	// FIXME add this field. TBD
+	//   Satisfies: how to deal with different archs
+	//   Load: should consider dpkg --print-architecture
+	// Architecture []string `yaml:"architecture"`
 	// Whether to remove the package
 	Absent bool `yaml:"absent,omitempty"`
 	// Package version
