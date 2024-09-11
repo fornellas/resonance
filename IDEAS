@@ -1,0 +1,32 @@
+FIX
+    Action
+        if no diff, don't add action
+    APTPackage
+        Name
+            Can be input as $package:$arch
+            Resolve() must simplify to
+                $package
+                    for $arch=native, $arch=all
+
+resources
+    debian alternatives
+        /etc/alternatives/*
+        symbolic link to /etc/alternatives/*
+            add ignore link target pattern to CLI
+
+    /etc/fstab
+
+    user/group
+        /etc/group
+        /etc/gshadow
+        /etc/passwd
+        /etc/shadow
+
+    /etc/hostname
+
+    /etc/hosts
+
+    /etc/networks
+
+    systemd
+        /etc/systemd/system/*

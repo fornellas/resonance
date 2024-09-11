@@ -16,24 +16,36 @@ import (
 // APTPackage manages APT packages.
 type APTPackage struct {
 	// The name of the package
+	// See https://www.debian.org/doc/debian-policy/ch-controlfields.html#package
 	Package string `yaml:"package"`
+	// Architectures.
+	// See https://www.debian.org/doc/debian-policy/ch-controlfields.html#architecture
+	Architectures []string `yaml:"architecture"`
+	// Package version.
+	// See https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
+	Version string `yaml:"version,omitempty"`
 	// Whether to remove the package
 	Absent bool `yaml:"absent,omitempty"`
-	// Package version
-	Version string `yaml:"version,omitempty"`
 }
 
-// https://www.debian.org/doc/debian-policy/ch-controlfields.html#package
-var validAptPackageNameRegexp = regexp.MustCompile(`^[a-z0-9][a-z0-9+\-.]{1,}$`)
+var validDpkgPackageRegexp = regexp.MustCompile(`^[a-z0-9][a-z0-9+\-.]{1,}$`)
+
+var validDpkgArchitectureRegexp = regexp.MustCompile(`^[a-z0-9][a-z0-9-]+$`)
 
 func (a *APTPackage) Validate() error {
 	// Package
-	if !validAptPackageNameRegexp.MatchString(string(a.Package)) {
-		return fmt.Errorf("`package` must match regexp %s: %s", validAptPackageNameRegexp, a.Version)
+	if !validDpkgPackageRegexp.MatchString(string(a.Package)) {
+		return fmt.Errorf("invalid package: %#v", a.Package)
+	}
+
+	// Architectures
+	for _, architecture := range a.Architectures {
+		if !validDpkgArchitectureRegexp.MatchString(architecture) {
+			return fmt.Errorf("invalid package: %#v", architecture)
+		}
 	}
 
 	// Version
-	// https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
 	if strings.HasSuffix(a.Version, "+") {
 		return fmt.Errorf("`version` can't end in +: %s", a.Version)
 	}
@@ -55,6 +67,8 @@ func (a *APTPackage) Satisfies(resource Resource) bool {
 		b = &bCopy
 		b.Version = a.Version
 	}
+
+	// FIXME Architectures
 
 	return reflect.DeepEqual(a, b)
 }
@@ -78,6 +92,7 @@ func (a *APTPackages) getAptPackages(resources Resources) []*APTPackage {
 	return aptPackages
 }
 
+// FIXME Architectures
 func (a *APTPackages) Load(ctx context.Context, hst types.Host, resources Resources) error {
 	aptPackages := a.getAptPackages(resources)
 
@@ -103,6 +118,7 @@ func (a *APTPackages) Load(ctx context.Context, hst types.Host, resources Resour
 	pkgInstalledMap := map[string]string{}
 	pkgCandidateMap := map[string]string{}
 	var pkg string
+	// FIXME stream output with scanner
 	for _, line := range strings.Split(stdout, "\n") {
 		matches := aptCachePackageRegexp.FindStringSubmatch(line)
 		if len(matches) == 2 {
@@ -152,6 +168,7 @@ func (a *APTPackages) Resolve(ctx context.Context, hst types.Host, resources Res
 	return nil
 }
 
+// FIXME Architectures
 func (a *APTPackages) Apply(ctx context.Context, hst types.Host, resources Resources) error {
 	aptPackages := a.getAptPackages(resources)
 
