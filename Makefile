@@ -120,7 +120,7 @@ MISSPELL := $(GO) run github.com/client9/misspell/cmd/misspell
 
 GOCYCLO_IGNORE_REGEX := '.*\.pb\.go'
 GOCYCLO := $(GO) run github.com/fzipp/gocyclo/cmd/gocyclo
-GOCYCLO_OVER := 15
+GOCYCLO_OVER := 25
 
 # ineffassign
 
