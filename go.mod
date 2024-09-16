@@ -23,7 +23,7 @@ require (
 	golang.org/x/term v0.24.0
 	golang.org/x/tools v0.25.0
 	golang.org/x/vuln v1.1.3
-	google.golang.org/grpc v1.66.1
+	google.golang.org/grpc v1.66.2
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1
 	google.golang.org/protobuf v1.34.2
 	gopkg.in/yaml.v3 v3.0.1
@@ -59,7 +59,7 @@ require (
 	golang.org/x/mod v0.21.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
 	golang.org/x/sys v0.25.0 // indirect
-	golang.org/x/telemetry v0.0.0-20240906150435-6d9f2eb83631 // indirect
+	golang.org/x/telemetry v0.0.0-20240913163558-c4c42c540963 // indirect
 	golang.org/x/text v0.18.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
