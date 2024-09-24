@@ -33,15 +33,19 @@ type Host interface {
 	// that reads from /etc/group.
 	LookupGroup(ctx context.Context, name string) (*user.Group, error)
 
-	// Lstat works similar to os.Lstat, but returns HostFileInfo with some
-	// extra methods.
-	Lstat(ctx context.Context, name string) (HostFileInfo, error)
+	// Lstat works similar to os.Lstat, but returns a custom FileInfo struct instead of the
+	// os.FileInfo interface.
+	Lstat(ctx context.Context, name string) (FileInfo, error)
 
 	// Mkdir works similar to os.Mkdir.
 	Mkdir(ctx context.Context, name string, perm os.FileMode) error
 
 	// ReadFile works similar to os.ReadFile.
 	ReadFile(ctx context.Context, name string) ([]byte, error)
+
+	// ReadDir works similar to os.ReadDir, but returns a cumstom DirEntry struct instead of the
+	// os.DirEntry interface.
+	ReadDir(ctx context.Context, name string) ([]DirEntry, error)
 
 	// // Readlink works similar to os.Readlink.
 	// Readlink(ctx context.Context, name string) (string, error)

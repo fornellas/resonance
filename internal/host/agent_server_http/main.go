@@ -116,14 +116,13 @@ func GetFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 				return
 			}
 			stat_t := fileInfo.Sys().(*syscall.Stat_t)
-			hfi := host.HostFileInfo{
-				Name:    filepath.Base(name),
-				Size:    fileInfo.Size(),
-				Mode:    fileInfo.Mode(),
-				ModTime: fileInfo.ModTime(),
-				IsDir:   fileInfo.IsDir(),
-				Uid:     stat_t.Uid,
-				Gid:     stat_t.Gid,
+			hfi := host.FileInfo{
+				Name:     filepath.Base(name),
+				Size:     fileInfo.Size(),
+				FileMode: fileInfo.Mode(),
+				ModTime:  fileInfo.ModTime(),
+				Uid:      stat_t.Uid,
+				Gid:      stat_t.Gid,
 			}
 			marshalResponse(w, hfi)
 			return

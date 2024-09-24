@@ -3,7 +3,7 @@ package host
 import (
 	"fmt"
 	"io"
-	"io/fs"
+	"os"
 	"strings"
 	"time"
 )
@@ -84,12 +84,17 @@ func (ws *WaitStatus) String() string {
 	return str
 }
 
-type HostFileInfo struct {
-	Name    string
-	Size    int64
-	Mode    fs.FileMode
-	ModTime time.Time
-	IsDir   bool
-	Uid     uint32
-	Gid     uint32
+type FileInfo struct {
+	Name     string
+	Size     int64
+	FileMode os.FileMode
+	ModTime  time.Time
+	Uid      uint32
+	Gid      uint32
 }
+
+func (f *FileInfo) IsDir() bool {
+	return f.FileMode.IsDir()
+}
+
+type DirEntry FileInfo

@@ -5,7 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
+	"math"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -29,7 +31,7 @@ type cmdHost struct {
 	Host host.Host
 }
 
-func (br cmdHost) Chmod(ctx context.Context, name string, mode os.FileMode) error {
+func (c cmdHost) Chmod(ctx context.Context, name string, mode os.FileMode) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Chmod", "name", name, "mode", mode)
@@ -38,7 +40,7 @@ func (br cmdHost) Chmod(ctx context.Context, name string, mode os.FileMode) erro
 		Path: "chmod",
 		Args: []string{fmt.Sprintf("%o", mode), name},
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, c.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -60,7 +62,7 @@ func (br cmdHost) Chmod(ctx context.Context, name string, mode os.FileMode) erro
 	)
 }
 
-func (br cmdHost) Chown(ctx context.Context, name string, uid, gid int) error {
+func (c cmdHost) Chown(ctx context.Context, name string, uid, gid int) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Chown", "name", name, "uid", uid, "gid", gid)
@@ -69,7 +71,7 @@ func (br cmdHost) Chown(ctx context.Context, name string, uid, gid int) error {
 		Path: "chown",
 		Args: []string{fmt.Sprintf("%d.%d", uid, gid), name},
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, c.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -91,7 +93,7 @@ func (br cmdHost) Chown(ctx context.Context, name string, uid, gid int) error {
 	)
 }
 
-func (br cmdHost) Lookup(ctx context.Context, username string) (*user.User, error) {
+func (c cmdHost) Lookup(ctx context.Context, username string) (*user.User, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Lookup", "username", username)
@@ -100,7 +102,7 @@ func (br cmdHost) Lookup(ctx context.Context, username string) (*user.User, erro
 		Path: "cat",
 		Args: []string{"/etc/passwd"},
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, c.Host, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +141,7 @@ func (br cmdHost) Lookup(ctx context.Context, username string) (*user.User, erro
 	return nil, user.UnknownUserError(username)
 }
 
-func (br cmdHost) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
+func (c cmdHost) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("LookupGroup", "name", name)
@@ -148,7 +150,7 @@ func (br cmdHost) LookupGroup(ctx context.Context, name string) (*user.Group, er
 		Path: "cat",
 		Args: []string{"/etc/group"},
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, c.Host, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -181,12 +183,12 @@ func (br cmdHost) LookupGroup(ctx context.Context, name string) (*user.Group, er
 	return nil, user.UnknownGroupError(name)
 }
 
-func (br cmdHost) stat(ctx context.Context, name string) (string, error) {
+func (c cmdHost) stat(ctx context.Context, name string) (string, error) {
 	cmd := host.Cmd{
 		Path: "stat",
 		Args: []string{"--format=%d,%i,%h,%f,%u,%g,%t,%T,%s,%o,%b,%x,%y,%z", name},
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, c.Host, cmd)
 	if err != nil {
 		return "", err
 	}
@@ -205,19 +207,19 @@ func (br cmdHost) stat(ctx context.Context, name string) (string, error) {
 	return stdout, nil
 }
 
-func (br cmdHost) Lstat(ctx context.Context, name string) (host.HostFileInfo, error) {
+func (c cmdHost) Lstat(ctx context.Context, name string) (host.FileInfo, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Lstat", "name", name)
 
-	stdout, err := br.stat(ctx, name)
+	stdout, err := c.stat(ctx, name)
 	if err != nil {
-		return host.HostFileInfo{}, err
+		return host.FileInfo{}, err
 	}
 
 	tokens := strings.Split(strings.TrimRight(stdout, "\n"), ",")
 	if len(tokens) != 14 {
-		return host.HostFileInfo{}, fmt.Errorf("unable to parse stat output: %s", tokens)
+		return host.FileInfo{}, fmt.Errorf("unable to parse stat output: %s", tokens)
 	}
 
 	// dev, err := strconv.ParseUint(tokens[0], 10, 64)
@@ -237,25 +239,25 @@ func (br cmdHost) Lstat(ctx context.Context, name string) (host.HostFileInfo, er
 
 	statMode, err := strconv.ParseUint(tokens[3], 16, 32)
 	if err != nil {
-		return host.HostFileInfo{}, fmt.Errorf("unable to parse mode: %s", tokens[3])
+		return host.FileInfo{}, fmt.Errorf("unable to parse mode: %s", tokens[3])
 	}
 	mode := fs.FileMode(uint32(statMode) & (uint32(fs.ModeType) | uint32(fs.ModePerm)))
 
 	uid, err := strconv.ParseUint(tokens[4], 10, 32)
 	if err != nil {
-		return host.HostFileInfo{}, fmt.Errorf("unable to parse uid: %s", tokens[4])
+		return host.FileInfo{}, fmt.Errorf("unable to parse uid: %s", tokens[4])
 	}
 
 	gid, err := strconv.ParseUint(tokens[5], 10, 32)
 	if err != nil {
-		return host.HostFileInfo{}, fmt.Errorf("unable to parse gid: %s", tokens[5])
+		return host.FileInfo{}, fmt.Errorf("unable to parse gid: %s", tokens[5])
 	}
 
 	// fileInfo.stat_t.Rdev = column[7] // uint64
 
 	size, err := strconv.ParseInt(tokens[8], 10, 64)
 	if err != nil {
-		return host.HostFileInfo{}, fmt.Errorf("unable to parse Size: %s", tokens[8])
+		return host.FileInfo{}, fmt.Errorf("unable to parse Size: %s", tokens[8])
 	}
 
 	// blksize, err := strconv.ParseInt(tokens[9], 10, 64)
@@ -272,28 +274,25 @@ func (br cmdHost) Lstat(ctx context.Context, name string) (host.HostFileInfo, er
 
 	modTime, err := time.Parse("2006-01-02 15:04:05.999999999 -0700", tokens[12])
 	if err != nil {
-		return host.HostFileInfo{}, fmt.Errorf("unable to parse modTime: %s: %w", tokens[12], err)
+		return host.FileInfo{}, fmt.Errorf("unable to parse modTime: %s: %w", tokens[12], err)
 	}
-
-	isDir := (uint32(statMode) & uint32(fs.ModeDir)) > 0
 
 	// ctimTime, err := time.Parse("2006-01-02 15:04:05.999999999 -0700", tokens[13])
 	// if err != nil {
 	// 	return host.HostFileInfo{}, fmt.Errorf("unable to parse ctim: %s: %w", tokens[13], err)
 	// }
 
-	return host.HostFileInfo{
-		Name:    filepath.Base(name),
-		Size:    size,
-		Mode:    mode,
-		ModTime: modTime,
-		IsDir:   isDir,
-		Uid:     uint32(uid),
-		Gid:     uint32(gid),
+	return host.FileInfo{
+		Name:     filepath.Base(name),
+		Size:     size,
+		FileMode: mode,
+		ModTime:  modTime,
+		Uid:      uint32(uid),
+		Gid:      uint32(gid),
 	}, nil
 }
 
-func (br cmdHost) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
+func (c cmdHost) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Mkdir", "name", name, "perm", perm)
@@ -302,7 +301,7 @@ func (br cmdHost) Mkdir(ctx context.Context, name string, perm os.FileMode) erro
 		Path: "mkdir",
 		Args: []string{name},
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, c.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -322,10 +321,10 @@ func (br cmdHost) Mkdir(ctx context.Context, name string, perm os.FileMode) erro
 		)
 	}
 
-	return br.Chmod(ctx, name, perm)
+	return c.Chmod(ctx, name, perm)
 }
 
-func (br cmdHost) ReadFile(ctx context.Context, name string) ([]byte, error) {
+func (c cmdHost) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("ReadFile", "name", name)
@@ -334,7 +333,7 @@ func (br cmdHost) ReadFile(ctx context.Context, name string) ([]byte, error) {
 		Path: "cat",
 		Args: []string{name},
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, c.Host, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -353,12 +352,114 @@ func (br cmdHost) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	return []byte(stdout), nil
 }
 
-func (br cmdHost) rmdir(ctx context.Context, name string) error {
+func (c cmdHost) ReadDir(ctx context.Context, name string) ([]host.DirEntry, error) {
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("ReadDir", "name", name)
+
+	cmd := host.Cmd{
+		Path: "find",
+		Args: []string{
+			fmt.Sprintf("%s/", name),
+			"-mindepth", "1",
+			"-maxdepth", "1",
+			"-printf", "%y %m %U %G %s %T+ %f\\0",
+		},
+		Env: []string{
+			"TZ=GMT",
+		},
+	}
+	waitStatus, stdout, stderr, err := host.Run(ctx, c.Host, cmd)
+	if err != nil {
+		return nil, err
+	}
+	if !waitStatus.Success() {
+		if strings.Contains(stderr, "Permission denied") {
+			return nil, os.ErrPermission
+		}
+		if strings.Contains(stderr, "No such file or directory") {
+			return nil, os.ErrNotExist
+		}
+		return nil, fmt.Errorf(
+			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
+		)
+	}
+	entries := bytes.Split([]byte(stdout), []byte{0})
+	var dirEntries []host.DirEntry
+
+	for _, entry := range entries {
+		fmt.Printf("enttry: %#v\n", string(entry))
+		reader := strings.NewReader(string(entry))
+
+		var dirEntry host.DirEntry
+		var fileType rune
+		var modYear int
+		var modMonth int
+		var modDay int
+		var modHour int
+		var modMinute int
+		var modSecondF float64
+
+		_, err := fmt.Fscanf(
+			reader,
+			"%c %o %d %d %d %d-%d-%d+%d:%d:%f %s\n",
+			&fileType,
+			&dirEntry.FileMode,
+			&dirEntry.Uid,
+			&dirEntry.Gid,
+			&dirEntry.Size,
+			&modYear,
+			&modMonth,
+			&modDay,
+			&modHour,
+			&modMinute,
+			&modSecondF,
+			&dirEntry.Name,
+		)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, fmt.Errorf("error parsing output: %w: %#v", err, string(entry))
+		}
+
+		switch fileType {
+		case 's':
+			dirEntry.FileMode |= fs.ModeSocket
+		case 'l':
+			dirEntry.FileMode |= fs.ModeSymlink
+		case 'r':
+			continue
+		case 'b':
+			dirEntry.FileMode |= fs.ModeDevice
+		case 'd':
+			dirEntry.FileMode |= fs.ModeDir
+		case 'c':
+			dirEntry.FileMode |= fs.ModeCharDevice
+		case 'f':
+			dirEntry.FileMode |= fs.ModeNamedPipe
+		}
+
+		modSec, modNsec := math.Modf(modSecondF)
+		modNsec = modNsec * 1000000000
+
+		modTime := time.Date(modYear, time.Month(modMonth), modDay, modHour, modMinute, int(modSec), int(modNsec), time.UTC)
+
+		dirEntry.ModTime = modTime.In(time.Local)
+
+		dirEntries = append(dirEntries, dirEntry)
+	}
+
+	return dirEntries, nil
+}
+
+func (c cmdHost) rmdir(ctx context.Context, name string) error {
 	cmd := host.Cmd{
 		Path: "rmdir",
 		Args: []string{name},
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, c.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -374,7 +475,7 @@ func (br cmdHost) rmdir(ctx context.Context, name string) error {
 	return nil
 }
 
-func (br cmdHost) Remove(ctx context.Context, name string) error {
+func (c cmdHost) Remove(ctx context.Context, name string) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Remove", "name", name)
@@ -383,13 +484,13 @@ func (br cmdHost) Remove(ctx context.Context, name string) error {
 		Path: "rm",
 		Args: []string{name},
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, c.Host, cmd)
 	if err != nil {
 		return err
 	}
 	if !waitStatus.Success() {
 		if strings.Contains(stderr, "Is a directory") {
-			return br.rmdir(ctx, name)
+			return c.rmdir(ctx, name)
 		}
 		if strings.Contains(stderr, "Permission denied") {
 			return os.ErrPermission
@@ -405,13 +506,13 @@ func (br cmdHost) Remove(ctx context.Context, name string) error {
 	return nil
 }
 
-func (br cmdHost) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
+func (c cmdHost) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("WriteFile", "name", name, "data", data, "perm", perm)
 
 	var chmod bool
-	if _, err := br.Lstat(ctx, name); errors.Is(err, os.ErrNotExist) {
+	if _, err := c.Lstat(ctx, name); errors.Is(err, os.ErrNotExist) {
 		chmod = true
 	}
 	cmd := host.Cmd{
@@ -419,7 +520,7 @@ func (br cmdHost) WriteFile(ctx context.Context, name string, data []byte, perm 
 		Args:  []string{"-c", fmt.Sprintf("cat > %s", shellescape.Quote(name))},
 		Stdin: bytes.NewReader(data),
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, c.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -439,7 +540,7 @@ func (br cmdHost) WriteFile(ctx context.Context, name string, data []byte, perm 
 		)
 	}
 	if chmod {
-		return br.Chmod(ctx, name, perm)
+		return c.Chmod(ctx, name, perm)
 	}
 	return nil
 }

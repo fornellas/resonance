@@ -74,7 +74,7 @@ func (f *File) Load(ctx context.Context, hst host.Host) error {
 	}
 
 	// Perm
-	f.Perm = fileInfo.Mode
+	f.Perm = fileInfo.FileMode
 
 	// Uid
 	f.Uid = fileInfo.Uid

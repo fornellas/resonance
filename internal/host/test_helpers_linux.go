@@ -12,6 +12,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -123,6 +124,22 @@ func testHost(t *testing.T, hst host.Host) {
 		require.NoError(t, err)
 		file.Close()
 		t.Run("Success", func(t *testing.T) {
+
+			// FIXME
+			// Test for all file type bits 0170000
+			//	0140000 socket
+			//	0120000 symbolic link
+			//	0100000 regular file
+			//	0060000 block device
+			//	0040000 directory
+			//	0020000 character device
+			//	0010000 FIFO
+			// Test for all mode bits 07777
+			//   04000 SUID
+			//   02000 SGID
+			//   01000 sticky bit
+			//   00777 owner, group, others permissions
+
 			outputBuffer.Reset()
 			fileInfo, err := os.Lstat(name)
 			require.NoError(t, err)
@@ -130,15 +147,16 @@ func testHost(t *testing.T, hst host.Host) {
 			require.NoError(t, err)
 			require.Equal(t, fileInfo.Name(), hostFileInfo.Name)
 			require.Equal(t, fileInfo.Size(), hostFileInfo.Size)
-			require.Equal(t, fileInfo.Mode(), hostFileInfo.Mode)
+			require.Equal(t, fileInfo.Mode(), hostFileInfo.FileMode)
 			require.Equal(t, fileInfo.ModTime(), hostFileInfo.ModTime)
-			require.Equal(t, fileInfo.IsDir(), hostFileInfo.IsDir)
+			require.Equal(t, fileInfo.IsDir(), hostFileInfo.IsDir())
 			stat_t := fileInfo.Sys().(*syscall.Stat_t)
 			require.Equal(t, stat_t.Uid, hostFileInfo.Uid)
 			require.Equal(t, stat_t.Gid, hostFileInfo.Gid)
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()
+			skipIfRoot(t)
 			_, err := hst.Lstat(ctx, "/etc/ssl/private/foo")
 			require.ErrorIs(t, err, os.ErrPermission)
 		})
@@ -196,12 +214,108 @@ func testHost(t *testing.T, hst host.Host) {
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()
+			skipIfRoot(t)
 			_, err := hst.ReadFile(ctx, "/etc/shadow")
 			require.ErrorIs(t, err, os.ErrPermission)
 		})
 		t.Run("ErrNotExist", func(t *testing.T) {
 			outputBuffer.Reset()
 			_, err := hst.ReadFile(ctx, "/non-existent")
+			require.ErrorIs(t, err, os.ErrNotExist)
+		})
+	})
+
+	t.Run("ReadDir", func(t *testing.T) {
+		t.Run("Success", func(t *testing.T) {
+			outputBuffer.Reset()
+
+			// FIXME
+			// Test for all file type bits 0170000
+			//	0140000 socket
+			//	0120000 symbolic link
+			//	0100000 regular file
+			//	0060000 block device
+			//	0040000 directory
+			//	0020000 character device
+			//	0010000 FIFO
+			// Test for all mode bits 07777
+			//   04000 SUID
+			//   02000 SGID
+			//   01000 sticky bit
+			//   00777 owner, group, others permissions
+
+			dir := t.TempDir()
+
+			expectedNames := map[string]bool{}
+
+			data := []byte("data")
+			fileMode := os.FileMode(01640)
+			startTime := time.Now()
+
+			name1 := "foo"
+			expectedNames[name1] = true
+			err := os.WriteFile(filepath.Join(dir, name1), data, fileMode)
+			require.NoError(t, err)
+
+			name2 := "bar"
+			expectedNames[name2] = true
+			err = os.WriteFile(filepath.Join(dir, name2), data, fileMode)
+			require.NoError(t, err)
+
+			name3 := "sub"
+			expectedNames[name3] = true
+			subDir := filepath.Join(dir, name3)
+			dirMode := os.FileMode(01740)
+			err = os.Mkdir(subDir, dirMode)
+			require.NoError(t, err)
+			err = os.WriteFile(filepath.Join(subDir, "nope"), data, fileMode)
+			require.NoError(t, err)
+
+			err = os.WriteFile(filepath.Join(dir, name2), data, fileMode)
+			require.NoError(t, err)
+
+			dirEntries, err := hst.ReadDir(ctx, dir)
+			require.NoError(t, err)
+			require.Len(t, dirEntries, len(expectedNames))
+
+			for _, dirEntry := range dirEntries {
+				if dirEntry.FileMode.IsDir() {
+					require.Equal(t, dirMode, dirEntry.FileMode&fs.ModePerm)
+				} else {
+					require.Equal(t, int64(len(data)), dirEntry.Size)
+					require.Equal(t, fileMode, dirEntry.FileMode&fs.ModePerm)
+					require.Equal(t, os.FileMode(0), dirEntry.FileMode&fs.ModeType)
+				}
+				require.True(t, startTime.Compare(dirEntry.ModTime) >= 0)
+				require.Equal(t, uint32(os.Getuid()), dirEntry.Uid)
+				require.Equal(t, uint32(os.Getgid()), dirEntry.Gid)
+				delete(expectedNames, dirEntry.Name)
+			}
+			require.Empty(t, expectedNames)
+		})
+		t.Run("PathError", func(t *testing.T) {
+			outputBuffer.Reset()
+
+			filePath := filepath.Join(t.TempDir(), "foo")
+			err := os.WriteFile(filePath, []byte("foo"), os.FileMode(0600))
+			require.NoError(t, err)
+
+			dirEntries, err := hst.ReadDir(ctx, filePath)
+			require.Empty(t, dirEntries)
+			_, ok := err.(*fs.PathError)
+			require.True(t, ok)
+		})
+		t.Run("ErrPermission", func(t *testing.T) {
+			outputBuffer.Reset()
+			skipIfRoot(t)
+			dirEntries, err := hst.ReadDir(ctx, "/etc/ssl/private")
+			require.Empty(t, dirEntries)
+			require.ErrorIs(t, err, os.ErrPermission)
+		})
+		t.Run("ErrNotExist", func(t *testing.T) {
+			outputBuffer.Reset()
+			dirEntries, err := hst.ReadDir(ctx, "/non-existent")
+			require.Empty(t, dirEntries)
 			require.ErrorIs(t, err, os.ErrNotExist)
 		})
 	})

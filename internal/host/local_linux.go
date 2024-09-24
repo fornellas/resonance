@@ -39,22 +39,21 @@ func (l Local) LookupGroup(ctx context.Context, name string) (*user.Group, error
 	return user.LookupGroup(name)
 }
 
-func (l Local) Lstat(ctx context.Context, name string) (host.HostFileInfo, error) {
+func (l Local) Lstat(ctx context.Context, name string) (host.FileInfo, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Lstat", "name", name)
 	fileInfo, err := os.Lstat(name)
 	if err != nil {
-		return host.HostFileInfo{}, err
+		return host.FileInfo{}, err
 	}
 	stat_t := fileInfo.Sys().(*syscall.Stat_t)
-	return host.HostFileInfo{
-		Name:    filepath.Base(name),
-		Size:    fileInfo.Size(),
-		Mode:    fileInfo.Mode(),
-		ModTime: fileInfo.ModTime(),
-		IsDir:   fileInfo.IsDir(),
-		Uid:     stat_t.Uid,
-		Gid:     stat_t.Gid,
+	return host.FileInfo{
+		Name:     filepath.Base(name),
+		Size:     fileInfo.Size(),
+		FileMode: fileInfo.Mode(),
+		ModTime:  fileInfo.ModTime(),
+		Uid:      stat_t.Uid,
+		Gid:      stat_t.Gid,
 	}, nil
 }
 
@@ -68,6 +67,29 @@ func (l Local) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("ReadFile", "name", name)
 	return os.ReadFile(name)
+}
+
+func (l Local) ReadDir(ctx context.Context, name string) ([]host.DirEntry, error) {
+	logger := log.MustLogger(ctx)
+	logger.Debug("ReadDir", "name", name)
+	osDirEntries, err := os.ReadDir(name)
+	dirEntries := make([]host.DirEntry, len(osDirEntries))
+	for i, osDirEntry := range osDirEntries {
+		fileInfo, err := osDirEntry.Info()
+		if err != nil {
+			return dirEntries, err
+		}
+		stat_t := fileInfo.Sys().(*syscall.Stat_t)
+		dirEntries[i] = host.DirEntry{
+			Name:     osDirEntry.Name(),
+			Size:     fileInfo.Size(),
+			FileMode: fileInfo.Mode(),
+			ModTime:  fileInfo.ModTime(),
+			Uid:      stat_t.Uid,
+			Gid:      stat_t.Gid,
+		}
+	}
+	return dirEntries, err
 }
 
 func (l Local) Remove(ctx context.Context, name string) error {

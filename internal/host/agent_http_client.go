@@ -237,23 +237,23 @@ func (a AgentHttpClient) LookupGroup(ctx context.Context, name string) (*user.Gr
 	return &g, nil
 }
 
-func (a AgentHttpClient) Lstat(ctx context.Context, name string) (host.HostFileInfo, error) {
+func (a AgentHttpClient) Lstat(ctx context.Context, name string) (host.FileInfo, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Lstat", "name", name)
 
 	if !filepath.IsAbs(name) {
-		return host.HostFileInfo{}, fmt.Errorf("path must be absolute: %s", name)
+		return host.FileInfo{}, fmt.Errorf("path must be absolute: %s", name)
 	}
 
 	resp, err := a.get(fmt.Sprintf("/file%s?lstat=true", name))
 	if err != nil {
-		return host.HostFileInfo{}, err
+		return host.FileInfo{}, err
 	}
 
-	var hfi host.HostFileInfo
+	var hfi host.FileInfo
 	if err := a.unmarshalResponse(resp, &hfi); err != nil {
-		return host.HostFileInfo{}, err
+		return host.FileInfo{}, err
 	}
 	hfi.ModTime = hfi.ModTime.Local()
 	return hfi, nil
@@ -296,6 +296,10 @@ func (a AgentHttpClient) ReadFile(ctx context.Context, name string) ([]byte, err
 	}
 
 	return contents, nil
+}
+
+func (a AgentHttpClient) ReadDir(ctx context.Context, name string) ([]host.DirEntry, error) {
+	panic("TODO AgentHttpClientv.ReadDir")
 }
 
 func (a AgentHttpClient) Remove(ctx context.Context, name string) error {
