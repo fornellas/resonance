@@ -132,6 +132,7 @@ MISSPELL := $(GO) run github.com/client9/misspell/cmd/misspell
 ## gocyclo
 ##
 
+GOCYCLO_IGNORE_REGEX := '.*\.pb\.go'
 GOCYCLO := $(GO) run github.com/fzipp/gocyclo/cmd/gocyclo
 GOCYCLO_OVER := 15
 
@@ -237,7 +238,7 @@ else
 GO_BUILD_AGENT_GOARCHS := $(GOARCH)
 endif
 
-GO_BUILD_MAX_AGENT_SIZE := 5242880
+GO_BUILD_MAX_AGENT_SIZE := 8000000
 
 ##
 ## rrb
@@ -245,7 +246,7 @@ GO_BUILD_MAX_AGENT_SIZE := 5242880
 
 RRB := $(GO) run github.com/fornellas/rrb
 RRB_DEBOUNCE ?= 500ms
-RRB_IGNORE_PATTERN ?= 'internal/host/agent_server_http_linux_*_gz.go,internal/host/agent_server_grpc/proto/*.pb.go'
+RRB_IGNORE_PATTERN ?= 'internal/host/agent_server_http_linux_*_gz.go,internal/host/agent_server_grpc_linux_*_gz.go,internal/host/agent_server_grpc/proto/*.pb.go'
 RRB_LOG_LEVEL ?= info
 RRB_PATTERN ?= '**/*.{go},Makefile'
 RRB_MAKE_TARGET ?= ci
@@ -332,6 +333,7 @@ gen-protofiles: install-protoc install-protoc-gen-go install-protoc-gen-go-grpc
 clean-gen-protofiles:
 	rm -f $(PROTOC_PROTO_PATH)/*.pb.go
 clean: clean-gen-protofiles
+
 ##
 ## Lint
 ##
@@ -399,7 +401,8 @@ lint: misspell
 
 .PHONY: gocyclo
 gocyclo: go go-generate go-mod-tidy
-	$(GOCYCLO) -over $(GOCYCLO_OVER) -avg .
+	$(GOCYCLO) -over $(GOCYCLO_OVER) -avg -ignore $(GOCYCLO_IGNORE_REGEX) .
+
 lint: gocyclo
 
 # go vet
@@ -520,7 +523,7 @@ help: build-help
 # agent http
 
 .PHONY: build-agent-http-%
-build-agent-http-%: go-generate gen-protofiles
+build-agent-http-%: go-generate
 	set -e
 	GOARCH=$* GOOS=linux $(GO) \
 		build \
@@ -549,6 +552,42 @@ clean-build-agent-http-%:
 	rm -f internal/host/agent_server_http/agent_server_http_linux_$*.gz
 	rm -f internal/host/agent_server_http_linux_$*_gz.go
 clean-agent: $(foreach GOARCH,$(GO_BUILD_AGENT_GOARCHS),clean-build-agent-http-$(GOARCH))
+
+# agent grpc
+
+.PHONY: build-agent-grpc-%
+build-agent-grpc-%: go-generate gen-protofiles
+	set -e
+	GOARCH=$* GOOS=linux $(GO) \
+		build \
+		-o internal/host/agent_server_grpc/agent_server_grpc_linux_$* \
+		$(GO_BUILD_FLAGS_COMMON) \
+		$(GO_BUILD_FLAGS) \
+		./internal/host/agent_server_grpc/
+	gzip < internal/host/agent_server_grpc/agent_server_grpc_linux_$* > internal/host/agent_server_grpc/agent_server_grpc_linux_$*.gz
+	if ! size=$$(stat -f %z internal/host/agent_server_grpc/agent_server_grpc_linux_$*.gz  2>/dev/null) ; then size=$$(stat --printf=%s internal/host/agent_server_grpc/agent_server_grpc_linux_$*.gz) ; fi
+	[ "$$size" -gt $(GO_BUILD_MAX_AGENT_SIZE) ] && { echo "Compressed agent size exceeds $(GO_BUILD_MAX_AGENT_SIZE) bytes" ; exit 1 ; }
+	cat << EOF > internal/host/agent_server_grpc_linux_$*_gz.go
+	package host
+	import _ "embed"
+	//go:embed agent_server_grpc/agent_server_grpc_linux_$*.gz
+	var agent_server_grpc_linux_$* []byte
+	func init() {
+		AgentGrpcBinGz["linux.$*"] = agent_server_grpc_linux_$*
+	}
+	EOF
+build-agent: $(foreach GOARCH,$(GO_BUILD_AGENT_GOARCHS),build-agent-grpc-$(GOARCH))
+build-agent-native: build-agent-grpc-$(GOARCH_NATIVE)
+
+.PHONY: clean-build-agent-grpc-%
+clean-build-agent-grpc-%:
+	rm -f internal/host/agent_server_grpc/agent_server_grpc_linux_$*
+	rm -f internal/host/agent_server_grpc/agent_server_grpc_linux_$*.gz
+	rm -f internal/host/agent_server_grpc_linux_$*_gz.go
+clean-agent: $(foreach GOARCH,$(GO_BUILD_AGENT_GOARCHS),clean-build-agent-grpc-$(GOARCH))
+
+# clean agent
+
 clean: clean-agent
 build: clean-agent
 go-generate: clean-agent
@@ -559,30 +598,6 @@ staticcheck: clean-agent
 misspell: clean-agent
 gocyclo: clean-agent
 go-vet: clean-agent
-
-# agent grpc
-
-.PHONY: build-agent-grpc-test
-build-agent-grpc-test: go go-generate build-agent gen-protofiles
-	$(GO) \
-		build \
-		-o internal/host/agent_server_grpc/client/client.$(GOOS).$(GOARCH) \
-		$(GO_BUILD_FLAGS_COMMON) \
-		$(GO_BUILD_FLAGS) \
-		./internal/host/agent_server_grpc/client/
-	$(GO) \
-		build \
-		-o internal/host/agent_server_grpc/server/server.$(GOOS).$(GOARCH) \
-		$(GO_BUILD_FLAGS_COMMON) \
-		$(GO_BUILD_FLAGS) \
-		./internal/host/agent_server_grpc/server/
-build: build-agent-grpc-test
-
-.PHONY: clean-build-agent-grpc-test
-clean-build-agent-grpc-test:
-	rm -f internal/host/agent_server_grpc/client/client.$(GOOS).$(GOARCH)
-	rm -f internal/host/agent_server_grpc/server/server.$(GOOS).$(GOARCH)
-clean: clean-build-agent-grpc-test
 
 # build
 

@@ -3,10 +3,11 @@
 /cover.txt
 /internal/.git-toplevel
 /internal/.version
+/internal/host/agent_server_grpc_linux_*_gz.go
+/internal/host/agent_server_grpc/agent_server_grpc_linux_*
+/internal/host/agent_server_grpc/agent_server_grpc_linux_*.gz
 /internal/host/agent_server_grpc/proto/*.pb.go
-/internal/host/agent_server_grpc/server/server.*.*
-/internal/host/agent_server_grpc/client/client.*.*
+/internal/host/agent_server_http_linux_*_gz.go
 /internal/host/agent_server_http/agent_server_http_linux_*
 /internal/host/agent_server_http/agent_server_http_linux_*.gz
-/internal/host/agent_server_http_linux_*_gz.go
 /resonance.*.*

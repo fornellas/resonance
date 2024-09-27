@@ -70,3 +70,35 @@ func (c Conn) SetReadDeadline(t time.Time) error {
 func (c Conn) SetWriteDeadline(t time.Time) error {
 	return os.ErrNoDeadline
 }
+
+type Listener struct {
+	connChan chan net.Conn
+}
+
+func NewListener(conn net.Conn) *Listener {
+	l := &Listener{
+		connChan: make(chan net.Conn, 1),
+	}
+	l.connChan <- conn
+	return l
+}
+
+func (l *Listener) Accept() (net.Conn, error) {
+	conn, ok := <-l.connChan
+	if !ok {
+		return nil, io.EOF
+	}
+	return conn, nil
+}
+
+func (l *Listener) Close() error {
+	close(l.connChan)
+	return nil
+}
+
+func (l *Listener) Addr() net.Addr {
+	return Addr{
+		Reader: nil,
+		Writer: nil,
+	}
+}
