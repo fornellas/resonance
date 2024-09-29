@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"os"
 	"os/user"
+	"syscall"
 )
 
 // Host defines an interface for interacting with a host
 type Host interface {
-	// Chmod works similar to os.Chmod.
-	Chmod(ctx context.Context, name string, mode os.FileMode) error
+	// Chmod works similar to syscall.Chmod.
+	Chmod(ctx context.Context, name string, mode uint32) error
 
 	// Chown works similar to os.Chown.
 	Chown(ctx context.Context, name string, uid, gid int) error
@@ -33,10 +34,10 @@ type Host interface {
 	// that reads from /etc/group.
 	LookupGroup(ctx context.Context, name string) (*user.Group, error)
 
-	// Lstat works similar to os.Lstat, but returns HostFileInfo with some
-	// extra methods.
-	Lstat(ctx context.Context, name string) (HostFileInfo, error)
+	// Stat works similar to syscall.Lstat.
+	Lstat(ctx context.Context, name string) (*syscall.Stat_t, error)
 
+	// FIXME add tests to check whether perm covers 07777 mode bits
 	// Mkdir works similar to os.Mkdir.
 	Mkdir(ctx context.Context, name string, perm os.FileMode) error
 
@@ -55,6 +56,7 @@ type Host interface {
 	// // Symlink works similar to os.Symlink.
 	// Symlink(ctx context.Context, oldname, newname string) error
 
+	// FIXME add tests to check whether perm covers 07777 mode bits
 	// WriteFile works similar to os.WriteFile.
 	WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error
 

@@ -2,6 +2,7 @@ package plan
 
 import (
 	"context"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -64,8 +65,8 @@ func TestSaveOriginalResourcesState(t *testing.T) {
 
 	filePath := filepath.Join(t.TempDir(), "foo")
 	fileContent := "foo"
-	filePerm := os.FileMode(0644)
-	err := host.WriteFile(ctx, filePath, []byte("foo"), filePerm)
+	var fileMode uint32 = 0644
+	err := host.WriteFile(ctx, filePath, []byte("foo"), fs.FileMode(fileMode))
 	require.NoError(t, err)
 	fileResource := &resouresPkg.File{
 		Path:    filePath,
@@ -88,7 +89,7 @@ func TestSaveOriginalResourcesState(t *testing.T) {
 		&resouresPkg.File{
 			Path:    filePath,
 			Content: fileContent,
-			Perm:    filePerm,
+			Mode:    fileMode,
 			Uid:     uint32(os.Getuid()),
 			Gid:     uint32(os.Getgid()),
 		},

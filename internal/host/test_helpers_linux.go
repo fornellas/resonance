@@ -40,12 +40,13 @@ func testHost(t *testing.T, hst host.Host) {
 		file.Close()
 		t.Run("Success", func(t *testing.T) {
 			outputBuffer.Reset()
-			fileMode := os.FileMode(0247)
+			var fileMode uint32 = 03247
 			err = hst.Chmod(ctx, name, fileMode)
 			require.NoError(t, err)
-			fileInfo, err := os.Lstat(name)
+			var stat_t syscall.Stat_t
+			err := syscall.Lstat(name, &stat_t)
 			require.NoError(t, err)
-			require.Equal(t, fileMode, fileInfo.Mode())
+			require.Equal(t, fileMode, stat_t.Mode&07777)
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()
@@ -124,18 +125,12 @@ func testHost(t *testing.T, hst host.Host) {
 		file.Close()
 		t.Run("Success", func(t *testing.T) {
 			outputBuffer.Reset()
-			fileInfo, err := os.Lstat(name)
-			require.NoError(t, err)
-			hostFileInfo, err := hst.Lstat(ctx, name)
-			require.NoError(t, err)
-			require.Equal(t, fileInfo.Name(), hostFileInfo.Name)
-			require.Equal(t, fileInfo.Size(), hostFileInfo.Size)
-			require.Equal(t, fileInfo.Mode(), hostFileInfo.Mode)
-			require.Equal(t, fileInfo.ModTime(), hostFileInfo.ModTime)
-			require.Equal(t, fileInfo.IsDir(), hostFileInfo.IsDir)
-			stat_t := fileInfo.Sys().(*syscall.Stat_t)
-			require.Equal(t, stat_t.Uid, hostFileInfo.Uid)
-			require.Equal(t, stat_t.Gid, hostFileInfo.Gid)
+			panic("TODO refactor to cover all file types & mode bits etc")
+			// panic("TODO add test to see if Lstat does NOT follow symlink")
+			// fileInfo, err := os.Lstat(name)
+			// require.NoError(t, err)
+			// _, err := hst.Lstat(ctx, name)
+
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()

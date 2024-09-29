@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"syscall"
 
 	"gopkg.in/yaml.v3"
 
@@ -38,7 +39,7 @@ func NewHttpAgent(ctx context.Context, hst host.Host) (*AgentHttpClient, error) 
 		return nil, err
 	}
 
-	if err := hst.Chmod(ctx, agentPath, os.FileMode(0755)); err != nil {
+	if err := hst.Chmod(ctx, agentPath, 0755); err != nil {
 		return nil, err
 	}
 
@@ -168,7 +169,7 @@ func (a AgentHttpClient) put(path string, body io.Reader) (*http.Response, error
 	return resp, nil
 }
 
-func (a AgentHttpClient) Chmod(ctx context.Context, name string, mode os.FileMode) error {
+func (a AgentHttpClient) Chmod(ctx context.Context, name string, mode uint32) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Chmod", "name", name, "mode", mode)
@@ -237,26 +238,27 @@ func (a AgentHttpClient) LookupGroup(ctx context.Context, name string) (*user.Gr
 	return &g, nil
 }
 
-func (a AgentHttpClient) Lstat(ctx context.Context, name string) (host.HostFileInfo, error) {
+func (a AgentHttpClient) Lstat(ctx context.Context, name string) (*syscall.Stat_t, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Lstat", "name", name)
+	panic("TODO AgentHttpClient.Lstat")
 
-	if !filepath.IsAbs(name) {
-		return host.HostFileInfo{}, fmt.Errorf("path must be absolute: %s", name)
-	}
+	// if !filepath.IsAbs(name) {
+	// 	return host.HostFileInfo{}, fmt.Errorf("path must be absolute: %s", name)
+	// }
 
-	resp, err := a.get(fmt.Sprintf("/file%s?lstat=true", name))
-	if err != nil {
-		return host.HostFileInfo{}, err
-	}
+	// resp, err := a.get(fmt.Sprintf("/file%s?lstat=true", name))
+	// if err != nil {
+	// 	return host.HostFileInfo{}, err
+	// }
 
-	var hfi host.HostFileInfo
-	if err := a.unmarshalResponse(resp, &hfi); err != nil {
-		return host.HostFileInfo{}, err
-	}
-	hfi.ModTime = hfi.ModTime.Local()
-	return hfi, nil
+	// var hfi host.HostFileInfo
+	// if err := a.unmarshalResponse(resp, &hfi); err != nil {
+	// 	return host.HostFileInfo{}, err
+	// }
+	// hfi.ModTime = hfi.ModTime.Local()
+	// return hfi, nil
 }
 
 func (a AgentHttpClient) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
@@ -270,7 +272,7 @@ func (a AgentHttpClient) Mkdir(ctx context.Context, name string, perm os.FileMod
 
 	_, err := a.post(fmt.Sprintf("/file%s", name), api.File{
 		Action: api.Mkdir,
-		Mode:   perm,
+		Mode:   uint32(perm),
 	})
 
 	return err

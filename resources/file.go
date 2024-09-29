@@ -2,7 +2,9 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -11,7 +13,9 @@ import (
 	"github.com/fornellas/resonance/host"
 )
 
-// File manages files
+var fileModeMask uint32 = 07777
+
+// File manages regular files
 type File struct {
 	// Path is the absolute path to the file
 	Path string `yaml:"path"`
@@ -19,8 +23,9 @@ type File struct {
 	Absent bool `yaml:"absent,omitempty"`
 	// Contents of the file
 	Content string `yaml:"content,omitempty"`
-	// File permissions
-	Perm os.FileMode `yaml:"perm,omitempty"`
+	// File mode bits, the 12 bits corresponding to the mask 07777 on the stat.st_mode field.
+	// See inode(7) stat.st_mode field (in Go, syscall.Stat_t.Mode).
+	Mode uint32 `yaml:"mode,omitempty"`
 	// User ID owner of the file
 	Uid uint32 `yaml:"uid,omitempty"`
 	// User name owner of the file
@@ -33,19 +38,23 @@ type File struct {
 
 func (f *File) Validate() error {
 	if f.Path == "" {
-		return fmt.Errorf("'path' must be set")
+		return errors.New("'path' must be set")
 	}
 
 	if !filepath.IsAbs(string(f.Path)) {
-		return fmt.Errorf("'path' must be absolute")
+		return errors.New("'path' must be absolute")
+	}
+
+	if f.Mode & ^fileModeMask != 0 {
+		return fmt.Errorf("'mode' bits must respect %#o mask", fileModeMask)
 	}
 
 	if f.Uid != 0 && f.User != "" {
-		return fmt.Errorf("can't set both 'uid' and 'user'")
+		return errors.New("can't set both 'uid' and 'user'")
 	}
 
 	if f.Gid != 0 && f.Group != "" {
-		return fmt.Errorf("can't set both 'gid' and 'group'")
+		return errors.New("can't set both 'gid' and 'group'")
 	}
 
 	return nil
@@ -67,20 +76,20 @@ func (f *File) Load(ctx context.Context, hst host.Host) error {
 	}
 	f.Content = string(content)
 
-	// FileInfo
-	fileInfo, err := hst.Lstat(ctx, string(f.Path))
+	// Stat_t
+	stat_t, err := hst.Lstat(ctx, string(f.Path))
 	if err != nil {
 		return err
 	}
 
 	// Perm
-	f.Perm = fileInfo.Mode
+	f.Mode = stat_t.Mode & fileModeMask
 
 	// Uid
-	f.Uid = fileInfo.Uid
+	f.Uid = stat_t.Uid
 
 	// Gid
-	f.Gid = fileInfo.Gid
+	f.Gid = stat_t.Gid
 
 	return nil
 }
@@ -126,23 +135,23 @@ func (f *File) Apply(ctx context.Context, hst host.Host) error {
 	}
 
 	// Content
-	if err := hst.WriteFile(ctx, string(f.Path), []byte(f.Content), f.Perm); err != nil {
+	if err := hst.WriteFile(ctx, string(f.Path), []byte(f.Content), fs.FileMode(f.Mode)); err != nil {
 		return err
 	}
 
 	// Perm
-	if err := hst.Chmod(ctx, string(f.Path), f.Perm); err != nil {
+	if err := hst.Chmod(ctx, string(f.Path), f.Mode); err != nil {
 		return err
 	}
 
 	// FileInfo
-	fileInfo, err := hst.Lstat(ctx, string(f.Path))
+	stat_t, err := hst.Lstat(ctx, string(f.Path))
 	if err != nil {
 		return err
 	}
 
 	// Uid / Gid
-	if fileInfo.Uid != f.Uid || fileInfo.Gid != f.Gid {
+	if stat_t.Uid != f.Uid || stat_t.Gid != f.Gid {
 		if err := hst.Chown(ctx, string(f.Path), int(f.Uid), int(f.Gid)); err != nil {
 			return err
 		}

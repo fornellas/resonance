@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"os/user"
-	"path/filepath"
 	"syscall"
 
 	"github.com/fornellas/resonance/host"
@@ -15,10 +14,10 @@ import (
 // Local interacts with the local machine running the code.
 type Local struct{}
 
-func (l Local) Chmod(ctx context.Context, name string, mode os.FileMode) error {
+func (l Local) Chmod(ctx context.Context, name string, mode uint32) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Chmod", "name", name, "mode", mode)
-	return os.Chmod(name, mode)
+	return syscall.Chmod(name, mode)
 }
 
 func (l Local) Chown(ctx context.Context, name string, uid, gid int) error {
@@ -39,23 +38,16 @@ func (l Local) LookupGroup(ctx context.Context, name string) (*user.Group, error
 	return user.LookupGroup(name)
 }
 
-func (l Local) Lstat(ctx context.Context, name string) (host.HostFileInfo, error) {
+func (l Local) Lstat(ctx context.Context, name string) (*syscall.Stat_t, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Lstat", "name", name)
-	fileInfo, err := os.Lstat(name)
+
+	var stat_t syscall.Stat_t
+	err := syscall.Lstat(name, &stat_t)
 	if err != nil {
-		return host.HostFileInfo{}, err
+		return nil, err
 	}
-	stat_t := fileInfo.Sys().(*syscall.Stat_t)
-	return host.HostFileInfo{
-		Name:    filepath.Base(name),
-		Size:    fileInfo.Size(),
-		Mode:    fileInfo.Mode(),
-		ModTime: fileInfo.ModTime(),
-		IsDir:   fileInfo.IsDir(),
-		Uid:     stat_t.Uid,
-		Gid:     stat_t.Gid,
-	}, nil
+	return &stat_t, nil
 }
 
 func (l Local) Mkdir(ctx context.Context, name string, perm os.FileMode) error {

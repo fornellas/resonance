@@ -72,21 +72,21 @@ func PutFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 		}
 		name = fmt.Sprintf("%c%s", os.PathSeparator, name)
 
-		perms, ok := r.URL.Query()["perm"]
+		modes, ok := r.URL.Query()["mode"]
 		if !ok {
 			internalServerError(w, errors.New("missing perm from query"))
 			return
 		}
-		if len(perms) != 1 {
-			internalServerError(w, fmt.Errorf("received multiple perm: %#v", perms))
+		if len(modes) != 1 {
+			internalServerError(w, fmt.Errorf("received multiple mode: %#v", modes))
 			return
 		}
-		permInt, err := strconv.ParseInt(perms[0], 10, 32)
+		modeInt, err := strconv.ParseInt(modes[0], 10, 32)
 		if err != nil {
-			internalServerError(w, fmt.Errorf("failed to parse perm: %#v: %s", perms[0], err))
+			internalServerError(w, fmt.Errorf("failed to parse mode: %#v: %s", modes[0], err))
 			return
 		}
-		perm := os.FileMode(permInt)
+		mode := os.FileMode(modeInt)
 
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -94,7 +94,7 @@ func PutFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		if err := os.WriteFile(name, body, perm); err != nil {
+		if err := os.WriteFile(name, body, mode); err != nil {
 			internalServerError(w, err)
 			return
 		}
@@ -109,24 +109,25 @@ func GetFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 		}
 		name = fmt.Sprintf("%c%s", os.PathSeparator, name)
 
-		if lstat, ok := r.URL.Query()["lstat"]; ok && len(lstat) == 1 && lstat[0] == "true" {
-			fileInfo, err := os.Lstat(name)
-			if err != nil {
-				internalServerError(w, err)
-				return
-			}
-			stat_t := fileInfo.Sys().(*syscall.Stat_t)
-			hfi := host.HostFileInfo{
-				Name:    filepath.Base(name),
-				Size:    fileInfo.Size(),
-				Mode:    fileInfo.Mode(),
-				ModTime: fileInfo.ModTime(),
-				IsDir:   fileInfo.IsDir(),
-				Uid:     stat_t.Uid,
-				Gid:     stat_t.Gid,
-			}
-			marshalResponse(w, hfi)
-			return
+		if lstat, ok := r.URL.Query()["stat"]; ok && len(lstat) == 1 && lstat[0] == "true" {
+			panic("GetFileFn stat")
+			// fileInfo, err := os.Lstat(name)
+			// if err != nil {
+			// 	internalServerError(w, err)
+			// 	return
+			// }
+			// stat_t := fileInfo.Sys().(*syscall.Stat_t)
+			// hfi := host.HostFileInfo{
+			// 	Name:    filepath.Base(name),
+			// 	Size:    fileInfo.Size(),
+			// 	Mode:    fileInfo.Mode(),
+			// 	ModTime: fileInfo.ModTime(),
+			// 	IsDir:   fileInfo.IsDir(),
+			// 	Uid:     stat_t.Uid,
+			// 	Gid:     stat_t.Gid,
+			// }
+			// marshalResponse(w, hfi)
+			// return
 		} else {
 			contexts, err := os.ReadFile(name)
 			if err != nil {
@@ -161,7 +162,7 @@ func PostFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 
 		switch file.Action {
 		case api.Chmod:
-			if err := os.Chmod(name, file.Mode); err != nil {
+			if err := syscall.Chmod(name, file.Mode); err != nil {
 				internalServerError(w, err)
 			}
 		case api.Chown:
@@ -169,7 +170,7 @@ func PostFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 				internalServerError(w, err)
 			}
 		case api.Mkdir:
-			if err := os.Mkdir(name, file.Mode); err != nil {
+			if err := os.Mkdir(name, fs.FileMode(file.Mode)); err != nil {
 				internalServerError(w, err)
 			}
 		default:

@@ -19,7 +19,7 @@ const (
 
 type File struct {
 	Action FileAction
-	Mode   os.FileMode
+	Mode   uint32
 	Uid    int
 	Gid    int
 }

@@ -3,9 +3,7 @@ package host
 import (
 	"fmt"
 	"io"
-	"io/fs"
 	"strings"
-	"time"
 )
 
 // Cmd represents a command to be run.
@@ -82,14 +80,4 @@ func (ws *WaitStatus) String() string {
 	}
 
 	return str
-}
-
-type HostFileInfo struct {
-	Name    string
-	Size    int64
-	Mode    fs.FileMode
-	ModTime time.Time
-	IsDir   bool
-	Uid     uint32
-	Gid     uint32
 }
