@@ -197,124 +197,211 @@ func (br cmdHost) LookupGroup(ctx context.Context, name string) (*user.Group, er
 	return nil, user.UnknownGroupError(name)
 }
 
-func (br cmdHost) stat(ctx context.Context, name string) (string, error) {
-	cmd := host.Cmd{
-		Path: "stat",
-		Args: []string{"--format=%d,%i,%h,%f,%u,%g,%t,%T,%s,%o,%b,%x,%y,%z", name},
-	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
-	if err != nil {
-		return "", err
-	}
-	if !waitStatus.Success() {
-		if strings.Contains(stderr, "Permission denied") {
-			return "", os.ErrPermission
-		}
-		if strings.Contains(stderr, "No such file or directory") {
-			return "", os.ErrNotExist
-		}
-		return "", fmt.Errorf(
-			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus.String(), stdout, stderr,
-		)
-	}
-	return stdout, nil
+type statField struct {
+	format string
+	fn     func(string, *host.Stat_t) error
 }
 
-func (br cmdHost) Lstat(ctx context.Context, name string) (host.HostFileInfo, error) {
+func newStatField(format string, fn func(value string, stat_t *host.Stat_t) error) statField {
+	return statField{format: format, fn: fn}
+}
+
+var statTimeFormat = "2006-01-02 15:04:05.999999999 -0700"
+
+var statFields = []statField{
+	// device number in decimal (st_dev)
+	newStatField("%d", func(value string, stat_t *host.Stat_t) error {
+		var err error
+		stat_t.Dev, err = strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("unable to parse dev: %s", value)
+		}
+		return nil
+	}),
+	// inode number
+	newStatField("%i", func(value string, stat_t *host.Stat_t) error {
+		var err error
+		stat_t.Ino, err = strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("unable to parse ino: %s", value)
+		}
+		return nil
+	}),
+	// number of hard links
+	newStatField("%h", func(value string, stat_t *host.Stat_t) error {
+		var err error
+		stat_t.Nlink, err = strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("unable to parse nlink: %s", value)
+		}
+		return nil
+	}),
+	// raw mode in hex
+	newStatField("%f", func(value string, stat_t *host.Stat_t) error {
+		mode64, err := strconv.ParseUint(value, 16, 32)
+		if err != nil {
+			return fmt.Errorf("unable to parse mode: %s", value)
+		}
+		stat_t.Mode = uint32(mode64)
+		return nil
+	}),
+	// user ID of owner
+	newStatField("%u", func(value string, stat_t *host.Stat_t) error {
+		uid64, err := strconv.ParseUint(value, 10, 32)
+		if err != nil {
+			return fmt.Errorf("unable to parse uid: %s", value)
+		}
+		stat_t.Uid = uint32(uid64)
+		return nil
+	}),
+	// group ID of owner
+	newStatField("%g", func(value string, stat_t *host.Stat_t) error {
+		gid64, err := strconv.ParseUint(value, 10, 32)
+		if err != nil {
+			return fmt.Errorf("unable to parse gid: %s", value)
+		}
+		stat_t.Gid = uint32(gid64)
+		return nil
+	}),
+	// device type in decimal (st_rdev)
+	newStatField("%r", func(value string, stat_t *host.Stat_t) error {
+		if value == "?" {
+			return nil
+		}
+		var err error
+		stat_t.Rdev, err = strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("unable to parse rdev: %s", value)
+		}
+		return nil
+	}),
+	// total size, in bytes
+	newStatField("%s", func(value string, stat_t *host.Stat_t) error {
+		var err error
+		stat_t.Size, err = strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("unable to parse size: %s", value)
+		}
+		return nil
+	}),
+	// the size in bytes of each block reported by %b
+	newStatField("%B", func(value string, stat_t *host.Stat_t) error {
+		var err error
+		stat_t.Blksize, err = strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("unable to parse blksize: %s", value)
+		}
+		return nil
+	}),
+	// number of blocks allocated (see %B)
+	newStatField("%b", func(value string, stat_t *host.Stat_t) error {
+		var err error
+		stat_t.Blocks, err = strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("unable to parse blocks: %s", value)
+		}
+		return nil
+	}),
+	// time of last access, human-readable
+	newStatField("%x", func(value string, stat_t *host.Stat_t) error {
+		var err error
+		atimTime, err := time.Parse(statTimeFormat, value)
+		if err != nil {
+			return fmt.Errorf("unable to parse atim: %s: %w", value, err)
+		}
+		stat_t.Atim = host.Timespec{
+			Sec:  atimTime.Unix(),
+			Nsec: atimTime.UnixNano() % 1e9,
+		}
+		return nil
+	}),
+	// time of last data modification, human-readable
+	newStatField("%y", func(value string, stat_t *host.Stat_t) error {
+		var err error
+		mtimTime, err := time.Parse(statTimeFormat, value)
+		if err != nil {
+			return fmt.Errorf("unable to parse mtim: %s: %w", value, err)
+		}
+		stat_t.Mtim = host.Timespec{
+			Sec:  mtimTime.Unix(),
+			Nsec: mtimTime.UnixNano() % 1e9,
+		}
+		return nil
+	}),
+	// time of last status change, human-readable
+	newStatField("%z", func(value string, stat_t *host.Stat_t) error {
+		var err error
+		ctimTime, err := time.Parse(statTimeFormat, value)
+		if err != nil {
+			return fmt.Errorf("unable to parse ctim: %s: %w", value, err)
+		}
+		stat_t.Ctim = host.Timespec{
+			Sec:  ctimTime.Unix(),
+			Nsec: ctimTime.UnixNano() % 1e9,
+		}
+		return nil
+	}),
+}
+
+func (br cmdHost) Lstat(ctx context.Context, name string) (*host.Stat_t, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Lstat", "name", name)
 
 	if !filepath.IsAbs(name) {
-		return host.HostFileInfo{}, &fs.PathError{
+		return nil, &fs.PathError{
 			Op:   "Lstat",
 			Path: name,
 			Err:  errors.New("path must be absolute"),
 		}
 	}
 
-	stdout, err := br.stat(ctx, name)
+	var format string
+	for i, field := range statFields {
+		if i > 0 {
+			format += ","
+		}
+		format += field.format
+	}
+
+	cmd := host.Cmd{
+		Path: "stat",
+		Args: []string{
+			fmt.Sprintf("--format=%s", format),
+			name,
+		},
+	}
+	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
 	if err != nil {
-		return host.HostFileInfo{}, err
+		return nil, err
+	}
+	if !waitStatus.Success() {
+		if strings.Contains(stderr, "Permission denied") {
+			return nil, os.ErrPermission
+		}
+		if strings.Contains(stderr, "No such file or directory") {
+			return nil, os.ErrNotExist
+		}
+		return nil, fmt.Errorf(
+			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
+		)
 	}
 
-	tokens := strings.Split(strings.TrimRight(stdout, "\n"), ",")
-	if len(tokens) != 14 {
-		return host.HostFileInfo{}, fmt.Errorf("unable to parse stat output: %s", tokens)
+	values := strings.Split(strings.TrimRight(stdout, "\n"), ",")
+	if len(values) != len(statFields) {
+		return nil, fmt.Errorf("unable to parse stat output: %#v", stdout)
 	}
 
-	// dev, err := strconv.ParseUint(tokens[0], 10, 64)
-	// if err != nil {
-	// 	return host.HostFileInfo{}, fmt.Errorf("unable to parse dev: %s", tokens[0])
-	// }
-
-	// ino, err := strconv.ParseUint(tokens[1], 10, 64)
-	// if err != nil {
-	// 	return host.HostFileInfo{}, fmt.Errorf("unable to parse ino: %s", tokens[1])
-	// }
-
-	// nlink, err := strconv.ParseUint(tokens[2], 10, 64)
-	// if err != nil {
-	// 	return host.HostFileInfo{}, fmt.Errorf("unable to parse nlink: %s", tokens[2])
-	// }
-
-	statMode, err := strconv.ParseUint(tokens[3], 16, 32)
-	if err != nil {
-		return host.HostFileInfo{}, fmt.Errorf("unable to parse mode: %s", tokens[3])
-	}
-	mode := fs.FileMode(uint32(statMode) & (uint32(fs.ModeType) | uint32(fs.ModePerm)))
-
-	uid, err := strconv.ParseUint(tokens[4], 10, 32)
-	if err != nil {
-		return host.HostFileInfo{}, fmt.Errorf("unable to parse uid: %s", tokens[4])
+	var stat_t host.Stat_t
+	for i, value := range values {
+		err := statFields[i].fn(value, &stat_t)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse stat %#v output: %w", statFields[i].format, err)
+		}
 	}
 
-	gid, err := strconv.ParseUint(tokens[5], 10, 32)
-	if err != nil {
-		return host.HostFileInfo{}, fmt.Errorf("unable to parse gid: %s", tokens[5])
-	}
-
-	// fileInfo.stat_t.Rdev = column[7] // uint64
-
-	size, err := strconv.ParseInt(tokens[8], 10, 64)
-	if err != nil {
-		return host.HostFileInfo{}, fmt.Errorf("unable to parse Size: %s", tokens[8])
-	}
-
-	// blksize, err := strconv.ParseInt(tokens[9], 10, 64)
-	// if err != nil {
-	// 	return host.HostFileInfo{}, fmt.Errorf("unable to parse blksize: %s", tokens[9])
-	// }
-
-	// fileInfo.stat_t.Blocks = column[10] // int64
-
-	// atimTime, err := time.Parse("2006-01-02 15:04:05.999999999 -0700", tokens[11])
-	// if err != nil {
-	// 	return host.HostFileInfo{}, fmt.Errorf("unable to parse atim: %s: %w", tokens[11], err)
-	// }
-
-	modTime, err := time.Parse("2006-01-02 15:04:05.999999999 -0700", tokens[12])
-	if err != nil {
-		return host.HostFileInfo{}, fmt.Errorf("unable to parse modTime: %s: %w", tokens[12], err)
-	}
-
-	isDir := (uint32(statMode) & uint32(fs.ModeDir)) > 0
-
-	// ctimTime, err := time.Parse("2006-01-02 15:04:05.999999999 -0700", tokens[13])
-	// if err != nil {
-	// 	return host.HostFileInfo{}, fmt.Errorf("unable to parse ctim: %s: %w", tokens[13], err)
-	// }
-
-	return host.HostFileInfo{
-		Name:    filepath.Base(name),
-		Size:    size,
-		Mode:    mode,
-		ModTime: modTime,
-		IsDir:   isDir,
-		Uid:     uint32(uid),
-		Gid:     uint32(gid),
-	}, nil
+	return &stat_t, nil
 }
 
 func (br cmdHost) Mkdir(ctx context.Context, name string, perm os.FileMode) error {

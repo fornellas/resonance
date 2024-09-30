@@ -32,7 +32,7 @@ func TestValidateResource(t *testing.T) {
 			resource: &File{
 				Path:   "/tmp/foo",
 				Absent: true,
-				Perm:   0644,
+				Mode:   0644,
 			},
 			errorContains: "resource has absent set to true, but other fields are set",
 		},
@@ -65,7 +65,7 @@ func TestGetResourceId(t *testing.T) {
 		{
 			Resource: &File{
 				Path: "/tmp/foo",
-				Perm: 0644,
+				Mode: 0644,
 			},
 			Id: "/tmp/foo",
 		},
@@ -149,7 +149,7 @@ func TestNewResourceWithSameId(t *testing.T) {
 		{
 			Resource: &File{
 				Path: "/tmp/foo",
-				Perm: 0644,
+				Mode: 0644,
 			},
 			ResourceCopyWithOnlyId: &File{
 				Path: "/tmp/foo",
@@ -206,7 +206,7 @@ func TestSatisfies(t *testing.T) {
 		},
 		&File{
 			Path: "foo",
-			Perm: 0644,
+			Mode: 0644,
 		},
 	))
 
@@ -246,7 +246,7 @@ func TestSatisfies(t *testing.T) {
 func TestResourceMap(t *testing.T) {
 	file := &File{
 		Path: "/foo",
-		Perm: 0644,
+		Mode: 0644,
 	}
 	aptPackage := &APTPackage{
 		Package: "bash",
@@ -258,7 +258,7 @@ func TestResourceMap(t *testing.T) {
 		file,
 		resourceMap.GetResourceWithSameTypeId(&File{
 			Path: "/foo",
-			Perm: 0777,
+			Mode: 0777,
 		}),
 	))
 
@@ -275,7 +275,7 @@ func TestGetResourcesYaml(t *testing.T) {
 	testResources := Resources{
 		&File{
 			Path: "/tmp/foo",
-			Perm: 0644,
+			Mode: 0644,
 		},
 		&APTPackage{
 			Package: "foo",
@@ -284,7 +284,7 @@ func TestGetResourcesYaml(t *testing.T) {
 
 	testResourcesYamlStr := `- File:
     path: /tmp/foo
-    perm: 420
+    mode: 420
 - APTPackage:
     package: foo`
 
@@ -295,7 +295,7 @@ func TestResourcesYAML(t *testing.T) {
 	testResources := Resources{
 		&File{
 			Path: "/tmp/foo",
-			Perm: 0644,
+			Mode: 0644,
 		},
 		&APTPackage{
 			Package: "foo",
@@ -304,7 +304,7 @@ func TestResourcesYAML(t *testing.T) {
 
 	testResourcesYamlStr := `- File:
     path: /tmp/foo
-    perm: 420
+    mode: 420
 - APTPackage:
     package: foo
 `
@@ -339,7 +339,7 @@ func TestNewResourcesWithSameIds(t *testing.T) {
 			Resources{
 				&File{
 					Path: "/tmp/foo",
-					Perm: 0644,
+					Mode: 0644,
 				},
 				&APTPackage{
 					Package: "foo",

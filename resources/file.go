@@ -19,8 +19,8 @@ type File struct {
 	Absent bool `yaml:"absent,omitempty"`
 	// Contents of the file
 	Content string `yaml:"content,omitempty"`
-	// File permissions
-	Perm os.FileMode `yaml:"perm,omitempty"`
+	// Mode bits
+	Mode uint32 `yaml:"mode,omitempty"`
 	// User ID owner of the file
 	Uid uint32 `yaml:"uid,omitempty"`
 	// User name owner of the file
@@ -68,19 +68,19 @@ func (f *File) Load(ctx context.Context, hst host.Host) error {
 	f.Content = string(content)
 
 	// FileInfo
-	fileInfo, err := hst.Lstat(ctx, string(f.Path))
+	stat_t, err := hst.Lstat(ctx, string(f.Path))
 	if err != nil {
 		return err
 	}
 
 	// Perm
-	f.Perm = fileInfo.Mode
+	f.Mode = stat_t.Mode & 07777
 
 	// Uid
-	f.Uid = fileInfo.Uid
+	f.Uid = stat_t.Uid
 
 	// Gid
-	f.Gid = fileInfo.Gid
+	f.Gid = stat_t.Gid
 
 	return nil
 }
@@ -126,12 +126,12 @@ func (f *File) Apply(ctx context.Context, hst host.Host) error {
 	}
 
 	// Content
-	if err := hst.WriteFile(ctx, string(f.Path), []byte(f.Content), f.Perm); err != nil {
+	if err := hst.WriteFile(ctx, string(f.Path), []byte(f.Content), os.FileMode(f.Mode)); err != nil {
 		return err
 	}
 
 	// Perm
-	if err := hst.Chmod(ctx, string(f.Path), f.Perm); err != nil {
+	if err := hst.Chmod(ctx, string(f.Path), os.FileMode(f.Mode)); err != nil {
 		return err
 	}
 

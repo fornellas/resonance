@@ -59,31 +59,47 @@ func (l Local) LookupGroup(ctx context.Context, name string) (*user.Group, error
 	return user.LookupGroup(name)
 }
 
-func (l Local) Lstat(ctx context.Context, name string) (host.HostFileInfo, error) {
+func (l Local) Lstat(ctx context.Context, name string) (*host.Stat_t, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Lstat", "name", name)
 
 	if !filepath.IsAbs(name) {
-		return host.HostFileInfo{}, &fs.PathError{
+		return nil, &fs.PathError{
 			Op:   "Lstat",
 			Path: name,
 			Err:  errors.New("path must be absolute"),
 		}
 	}
 
-	fileInfo, err := os.Lstat(name)
+	var syscallStat_t syscall.Stat_t
+	err := syscall.Lstat(name, &syscallStat_t)
 	if err != nil {
-		return host.HostFileInfo{}, err
+		return nil, err
 	}
-	stat_t := fileInfo.Sys().(*syscall.Stat_t)
-	return host.HostFileInfo{
-		Name:    filepath.Base(name),
-		Size:    fileInfo.Size(),
-		Mode:    fileInfo.Mode(),
-		ModTime: fileInfo.ModTime(),
-		IsDir:   fileInfo.IsDir(),
-		Uid:     stat_t.Uid,
-		Gid:     stat_t.Gid,
+
+	return &host.Stat_t{
+		Dev:     syscallStat_t.Dev,
+		Ino:     syscallStat_t.Ino,
+		Nlink:   uint64(syscallStat_t.Nlink),
+		Mode:    syscallStat_t.Mode,
+		Uid:     syscallStat_t.Uid,
+		Gid:     syscallStat_t.Gid,
+		Rdev:    syscallStat_t.Rdev,
+		Size:    syscallStat_t.Size,
+		Blksize: int64(syscallStat_t.Blksize),
+		Blocks:  syscallStat_t.Blocks,
+		Atim: host.Timespec{
+			Sec:  int64(syscallStat_t.Atim.Sec),
+			Nsec: int64(syscallStat_t.Atim.Nsec),
+		},
+		Mtim: host.Timespec{
+			Sec:  int64(syscallStat_t.Mtim.Sec),
+			Nsec: int64(syscallStat_t.Mtim.Nsec),
+		},
+		Ctim: host.Timespec{
+			Sec:  int64(syscallStat_t.Ctim.Sec),
+			Nsec: int64(syscallStat_t.Ctim.Nsec),
+		},
 	}, nil
 }
 

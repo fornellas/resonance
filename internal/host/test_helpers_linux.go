@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"net"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -25,6 +27,21 @@ func skipIfRoot(t *testing.T) {
 	if u.Uid == "0" {
 		t.SkipNow()
 	}
+}
+
+func getBlockDevicePath(t *testing.T) string {
+	dirEntries, err := os.ReadDir("/dev")
+	require.NoError(t, err)
+	for _, dirEntry := range dirEntries {
+		fileInfo, err := dirEntry.Info()
+		require.NoError(t, err)
+		stat_t := fileInfo.Sys().(*syscall.Stat_t)
+		if (stat_t.Mode & syscall.S_IFMT) == syscall.S_IFBLK {
+			return filepath.Join("/dev", dirEntry.Name())
+		}
+	}
+	t.SkipNow()
+	return ""
 }
 
 func testHost(t *testing.T, hst host.Host) {
@@ -128,24 +145,145 @@ func testHost(t *testing.T, hst host.Host) {
 	})
 
 	t.Run("Lstat", func(t *testing.T) {
-		name := filepath.Join(t.TempDir(), "foo")
-		file, err := os.Create(name)
-		require.NoError(t, err)
-		file.Close()
 		t.Run("Success", func(t *testing.T) {
 			outputBuffer.Reset()
-			fileInfo, err := os.Lstat(name)
+
+			name := filepath.Join(t.TempDir(), "foo")
+			file, err := os.Create(name)
 			require.NoError(t, err)
-			hostFileInfo, err := hst.Lstat(ctx, name)
+			file.Close()
+
+			var expectedStat_t syscall.Stat_t
+			err = syscall.Lstat(name, &expectedStat_t)
 			require.NoError(t, err)
-			require.Equal(t, fileInfo.Name(), hostFileInfo.Name)
-			require.Equal(t, fileInfo.Size(), hostFileInfo.Size)
-			require.Equal(t, fileInfo.Mode(), hostFileInfo.Mode)
-			require.Equal(t, fileInfo.ModTime(), hostFileInfo.ModTime)
-			require.Equal(t, fileInfo.IsDir(), hostFileInfo.IsDir)
-			stat_t := fileInfo.Sys().(*syscall.Stat_t)
-			require.Equal(t, stat_t.Uid, hostFileInfo.Uid)
-			require.Equal(t, stat_t.Gid, hostFileInfo.Gid)
+
+			stat_t, err := hst.Lstat(ctx, name)
+			require.NoError(t, err)
+
+			t.Run("Dev", func(t *testing.T) {
+				require.Equal(t, expectedStat_t.Dev, stat_t.Dev)
+			})
+			t.Run("Ino", func(t *testing.T) {
+				require.Equal(t, expectedStat_t.Ino, stat_t.Ino)
+			})
+			t.Run("Nlink", func(t *testing.T) {
+				require.Equal(t, uint64(expectedStat_t.Nlink), stat_t.Nlink)
+			})
+			t.Run("Mode", func(t *testing.T) {
+				t.Run("S_IFMT", func(t *testing.T) {
+					t.Run("socket", func(t *testing.T) {
+						socketPath := filepath.Join(t.TempDir(), "socket")
+						listener, err := net.Listen("unix", socketPath)
+						require.NoError(t, err)
+						defer listener.Close()
+						socketStat_t, err := hst.Lstat(ctx, socketPath)
+						require.NoError(t, err)
+						require.True(t, socketStat_t.Mode&syscall.S_IFMT == syscall.S_IFSOCK)
+					})
+					t.Run("symbolic link", func(t *testing.T) {
+						linkPath := filepath.Join(t.TempDir(), "symlink")
+						require.NoError(t, syscall.Symlink("foo", linkPath))
+						linkStat_t, err := hst.Lstat(ctx, linkPath)
+						require.NoError(t, err)
+						require.True(t, linkStat_t.Mode&syscall.S_IFMT == syscall.S_IFLNK)
+					})
+					t.Run("regular file", func(t *testing.T) {
+						require.True(t, stat_t.Mode&syscall.S_IFMT == syscall.S_IFREG)
+					})
+					t.Run("block device", func(t *testing.T) {
+						blockStat_t, err := hst.Lstat(ctx, getBlockDevicePath(t))
+						require.NoError(t, err)
+						require.True(t, blockStat_t.Mode&syscall.S_IFMT == syscall.S_IFBLK)
+					})
+					t.Run("directory", func(t *testing.T) {
+						dirStat_t, err := hst.Lstat(ctx, "/dev")
+						require.NoError(t, err)
+						require.True(t, dirStat_t.Mode&syscall.S_IFMT == syscall.S_IFDIR)
+					})
+					t.Run("character device", func(t *testing.T) {
+						charStat_t, err := hst.Lstat(ctx, "/dev/tty")
+						require.NoError(t, err)
+						require.True(t, charStat_t.Mode&syscall.S_IFMT == syscall.S_IFCHR)
+					})
+					t.Run("FIFO", func(t *testing.T) {
+						fifoPath := filepath.Join(t.TempDir(), "fifo")
+						require.NoError(t, syscall.Mkfifo(fifoPath, 0644))
+						fifoStat_t, err := hst.Lstat(ctx, fifoPath)
+						require.NoError(t, err)
+						require.True(t, fifoStat_t.Mode&syscall.S_IFMT == syscall.S_IFIFO)
+					})
+				})
+				t.Run("Mode bits", func(t *testing.T) {
+					for _, mode := range []uint32{
+						// Mode  bits
+						syscall.S_ISUID, // 04000 set-user-ID bit
+						syscall.S_ISGID, // 02000 set-group-ID bit
+						syscall.S_ISVTX, // 01000 sticky bit
+						// Mode permission bits
+						syscall.S_IRWXU, // 00700 owner has read, write, and execute permission
+						syscall.S_IRUSR, // 00400 owner has read permission
+						syscall.S_IWUSR, // 00200 owner has write permission
+						syscall.S_IXUSR, // 00100 owner has execute permission
+						syscall.S_IRWXG, // 00070 group has read, write, and execute permission
+						syscall.S_IRGRP, // 00040 group has read permission
+						syscall.S_IWGRP, // 00020 group has write permission
+						syscall.S_IXGRP, // 00010 group has execute permission
+						syscall.S_IRWXO, // 00007 others (not in group) have read, write, and execute permission
+						syscall.S_IROTH, // 00004 others have read permission
+						syscall.S_IWOTH, // 00002 others have write permission
+						syscall.S_IXOTH, // 00001 others have execute permission
+					} {
+						err := syscall.Chmod(name, mode)
+						require.NoError(t, err)
+
+						stat_t, err := hst.Lstat(ctx, name)
+						require.NoError(t, err)
+
+						require.Equal(t, mode, stat_t.Mode&07777)
+					}
+				})
+			})
+			t.Run("Uid", func(t *testing.T) {
+				require.Equal(t, expectedStat_t.Uid, stat_t.Uid)
+			})
+			t.Run("Gid", func(t *testing.T) {
+				require.Equal(t, expectedStat_t.Gid, stat_t.Gid)
+			})
+			t.Run("Rdev", func(t *testing.T) {
+				require.Equal(t, expectedStat_t.Rdev, stat_t.Rdev)
+			})
+			t.Run("Size", func(t *testing.T) {
+				require.Equal(t, expectedStat_t.Size, stat_t.Size)
+			})
+			t.Run("Blksize", func(t *testing.T) {
+				// This value may differ (eg: stat syscall returns 512 while stat command returns 4k),
+				// so we assert only that this is non-zero.
+				require.Greater(t, stat_t.Blksize, int64(0))
+			})
+			t.Run("Blocks", func(t *testing.T) {
+				require.Equal(t, expectedStat_t.Blocks, stat_t.Blocks)
+			})
+			t.Run("Atim", func(t *testing.T) {
+				require.Equal(
+					t,
+					time.Unix(int64(expectedStat_t.Atim.Sec), int64(expectedStat_t.Atim.Nsec)),
+					time.Unix(stat_t.Atim.Sec, stat_t.Atim.Nsec),
+				)
+			})
+			t.Run("Mtim", func(t *testing.T) {
+				require.Equal(
+					t,
+					time.Unix(int64(expectedStat_t.Mtim.Sec), int64(expectedStat_t.Mtim.Nsec)),
+					time.Unix(stat_t.Mtim.Sec, stat_t.Mtim.Nsec),
+				)
+			})
+			t.Run("Ctim", func(t *testing.T) {
+				require.Equal(
+					t,
+					time.Unix(int64(expectedStat_t.Ctim.Sec), int64(expectedStat_t.Ctim.Nsec)),
+					time.Unix(stat_t.Ctim.Sec, stat_t.Ctim.Nsec),
+				)
+			})
 		})
 		t.Run("path must be absolute", func(t *testing.T) {
 			outputBuffer.Reset()

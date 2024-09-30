@@ -33,9 +33,8 @@ type Host interface {
 	// that reads from /etc/group.
 	LookupGroup(ctx context.Context, name string) (*user.Group, error)
 
-	// Lstat works similar to os.Lstat, but returns HostFileInfo with some
-	// extra methods.
-	Lstat(ctx context.Context, name string) (HostFileInfo, error)
+	// Lstat works similar to syscal.Lstat
+	Lstat(ctx context.Context, name string) (*Stat_t, error)
 
 	// Mkdir works similar to os.Mkdir.
 	Mkdir(ctx context.Context, name string, perm os.FileMode) error

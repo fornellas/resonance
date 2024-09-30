@@ -41,10 +41,10 @@ func (h cmdHostOnly) LookupGroup(ctx context.Context, name string) (*user.Group,
 	return nil, err
 }
 
-func (h cmdHostOnly) Lstat(ctx context.Context, name string) (host.HostFileInfo, error) {
+func (h cmdHostOnly) Lstat(ctx context.Context, name string) (*host.Stat_t, error) {
 	err := errors.New("unexpected call received: Lstat")
 	h.T.Fatal(err)
-	return host.HostFileInfo{}, err
+	return nil, err
 }
 
 func (h cmdHostOnly) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
