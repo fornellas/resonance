@@ -2,25 +2,15 @@ package host
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"log/slog"
-	"net"
-	"net/http"
-	"os"
 	"regexp"
 	"strings"
 
-	"go.uber.org/multierr"
-
 	"github.com/fornellas/resonance/host"
-	aNet "github.com/fornellas/resonance/internal/host/agent_server_http/net"
 
 	"github.com/alessio/shellescape"
-	"golang.org/x/net/http2"
-
-	"github.com/fornellas/resonance/log"
 )
 
 func getGoArch(machine string) (string, error) {
@@ -53,34 +43,6 @@ func getGoArch(machine string) (string, error) {
 		return "arm64", nil
 	}
 	return "", fmt.Errorf("machine %#v not supported by agent", machine)
-}
-
-func getAgentBinGz(ctx context.Context, hst host.Host) ([]byte, error) {
-	cmd := host.Cmd{
-		Path: "uname",
-		Args: []string{"-m"},
-	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, hst, cmd)
-	if err != nil {
-		return nil, err
-	}
-	if !waitStatus.Success() {
-		return nil, fmt.Errorf(
-			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus.String(), stdout, stderr,
-		)
-	}
-	goarch, err := getGoArch(strings.TrimRight(stdout, "\n"))
-	if err != nil {
-		return nil, err
-	}
-	osArch := fmt.Sprintf("linux.%s", goarch)
-
-	agentBinGz, ok := AgentHttpBinGz[osArch]
-	if !ok {
-		return nil, fmt.Errorf("%s not supported by agent", osArch)
-	}
-	return agentBinGz, nil
 }
 
 func getTmpFile(ctx context.Context, hst host.Host, template string) (string, error) {
@@ -133,72 +95,4 @@ func (wl writerLogger) Write(b []byte) (int, error) {
 		wl.Logger.Error("Agent", "line", line)
 	}
 	return len(b), nil
-}
-
-func (a *AgentHttpClient) spawn(ctx context.Context) error {
-	logger := log.MustLogger(ctx)
-
-	stdinReader, stdinWriter, err := os.Pipe()
-	if err != nil {
-		return err
-	}
-
-	stdoutReader, stdoutWriter, err := os.Pipe()
-	if err != nil {
-		return err
-	}
-
-	a.Client = &http.Client{
-		Transport: &http2.Transport{
-			DialTLSContext: func(
-				ctx context.Context, network, addr string, cfg *tls.Config,
-			) (net.Conn, error) {
-				return aNet.Conn{
-					Reader: stdoutReader,
-					Writer: stdinWriter,
-				}, nil
-			},
-			AllowHTTP: true,
-		},
-	}
-
-	go func() {
-		defer func() { a.waitCn <- struct{}{} }()
-		waitStatus, err := a.Host.Run(ctx, host.Cmd{
-			Path:   a.path,
-			Stdin:  stdinReader,
-			Stdout: stdoutWriter,
-			Stderr: writerLogger{
-				Logger: logger,
-			},
-		})
-		if err != nil {
-			logger.Error("failed to run agent", "err", err)
-		}
-		if !waitStatus.Success() {
-			logger.Error("agent exited with error", "error", waitStatus)
-		}
-		stdinWriter.Close()
-		stdoutReader.Close()
-		stdinReader.Close()
-		stdoutWriter.Close()
-	}()
-
-	resp, err := a.get("/ping")
-	if err != nil {
-		return multierr.Combine(err, a.Close())
-	}
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return multierr.Combine(err, a.Close())
-	}
-	if string(bodyBytes) != "Pong" {
-		return multierr.Combine(
-			fmt.Errorf("pinging agent failed: unexpected body %#v", string(bodyBytes)),
-			a.Close(),
-		)
-	}
-
-	return nil
 }

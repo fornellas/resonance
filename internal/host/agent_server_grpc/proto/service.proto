@@ -4,8 +4,10 @@ option go_package = "github.com/fornellas/resonance/internal/host/agent_server_g
 
 package resonance;
 
-service CommandService {
+service HostService {
   rpc Ping(PingRequest) returns (PingResponse) {}
+  rpc Chmod(ChmodRequest) returns (ChmodResponse) {}
+  rpc Chown(ChownRequest) returns (ChownResponse) {}
 }
 
 message PingRequest {}
@@ -14,16 +16,22 @@ message PingResponse {
   string message = 1;
 }
 
-service FileService {
-  rpc PutFile(PutFileRequest) returns (PutFileResponse) {}
-}
-
-message PutFileRequest {
+message ChmodRequest {
   string name = 1;
-  bytes content = 2;
-  int32 perm = 3; // Permission in Unix-style (e.g., 0644)
+  int32  mode = 2;
 }
 
-message PutFileResponse {
+message ChmodResponse {
+  string status = 1;
+}
+
+message ChownRequest {
+  string name = 1;
+  int32  uid = 2;
+  int32  gid = 3;
+
+}
+
+message ChownResponse {
   string status = 1;
 }
