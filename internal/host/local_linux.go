@@ -2,6 +2,8 @@ package host
 
 import (
 	"context"
+	"errors"
+	"io/fs"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -18,12 +20,30 @@ type Local struct{}
 func (l Local) Chmod(ctx context.Context, name string, mode os.FileMode) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Chmod", "name", name, "mode", mode)
+
+	if !filepath.IsAbs(name) {
+		return &fs.PathError{
+			Op:   "Chmod",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
+	}
+
 	return os.Chmod(name, mode)
 }
 
 func (l Local) Chown(ctx context.Context, name string, uid, gid int) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Chown", "name", name, "uid", uid, "gid", gid)
+
+	if !filepath.IsAbs(name) {
+		return &fs.PathError{
+			Op:   "Chown",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
+	}
+
 	return os.Chown(name, uid, gid)
 }
 
@@ -42,6 +62,15 @@ func (l Local) LookupGroup(ctx context.Context, name string) (*user.Group, error
 func (l Local) Lstat(ctx context.Context, name string) (host.HostFileInfo, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Lstat", "name", name)
+
+	if !filepath.IsAbs(name) {
+		return host.HostFileInfo{}, &fs.PathError{
+			Op:   "Lstat",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
+	}
+
 	fileInfo, err := os.Lstat(name)
 	if err != nil {
 		return host.HostFileInfo{}, err
@@ -61,18 +90,45 @@ func (l Local) Lstat(ctx context.Context, name string) (host.HostFileInfo, error
 func (l Local) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Mkdir", "name", name, "perm", perm)
+
+	if !filepath.IsAbs(name) {
+		return &fs.PathError{
+			Op:   "Mkdir",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
+	}
+
 	return os.Mkdir(name, perm)
 }
 
 func (l Local) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("ReadFile", "name", name)
+
+	if !filepath.IsAbs(name) {
+		return nil, &fs.PathError{
+			Op:   "ReadFile",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
+	}
+
 	return os.ReadFile(name)
 }
 
 func (l Local) Remove(ctx context.Context, name string) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Remove", "name", name)
+
+	if !filepath.IsAbs(name) {
+		return &fs.PathError{
+			Op:   "Remove",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
+	}
+
 	return os.Remove(name)
 }
 
@@ -85,6 +141,15 @@ func (l Local) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 func (l Local) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("WriteFile", "name", name, "data", data, "perm", perm)
+
+	if !filepath.IsAbs(name) {
+		return &fs.PathError{
+			Op:   "WriteFile",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
+	}
+
 	return os.WriteFile(name, data, perm)
 }
 

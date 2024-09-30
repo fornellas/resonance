@@ -47,6 +47,11 @@ func testHost(t *testing.T, hst host.Host) {
 			require.NoError(t, err)
 			require.Equal(t, fileMode, fileInfo.Mode())
 		})
+		t.Run("path must be absolute", func(t *testing.T) {
+			outputBuffer.Reset()
+			err = hst.Chmod(ctx, "foo/bar", os.FileMode(0644))
+			require.ErrorContains(t, err, "path must be absolute")
+		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()
 			skipIfRoot(t)
@@ -72,6 +77,11 @@ func testHost(t *testing.T, hst host.Host) {
 			stat_t := fileInfo.Sys().(*syscall.Stat_t)
 			err = hst.Chown(ctx, name, int(stat_t.Uid), int(stat_t.Gid))
 			require.NoError(t, err)
+		})
+		t.Run("path must be absolute", func(t *testing.T) {
+			outputBuffer.Reset()
+			err = hst.Chown(ctx, "foo/bar", 0, 0)
+			require.ErrorContains(t, err, "path must be absolute")
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()
@@ -137,6 +147,11 @@ func testHost(t *testing.T, hst host.Host) {
 			require.Equal(t, stat_t.Uid, hostFileInfo.Uid)
 			require.Equal(t, stat_t.Gid, hostFileInfo.Gid)
 		})
+		t.Run("path must be absolute", func(t *testing.T) {
+			outputBuffer.Reset()
+			_, err := hst.Lstat(ctx, "foo/bar")
+			require.ErrorContains(t, err, "path must be absolute")
+		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()
 			_, err := hst.Lstat(ctx, "/etc/ssl/private/foo")
@@ -160,6 +175,11 @@ func testHost(t *testing.T, hst host.Host) {
 			require.NoError(t, err)
 			require.True(t, fileInfo.IsDir())
 			require.Equal(t, fileMode, fileInfo.Mode()&fs.ModePerm)
+		})
+		t.Run("path must be absolute", func(t *testing.T) {
+			outputBuffer.Reset()
+			err := hst.Mkdir(ctx, "foo/bar", 0750)
+			require.ErrorContains(t, err, "path must be absolute")
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()
@@ -194,6 +214,11 @@ func testHost(t *testing.T, hst host.Host) {
 			require.NoError(t, err)
 			require.Equal(t, data, readData)
 		})
+		t.Run("path must be absolute", func(t *testing.T) {
+			outputBuffer.Reset()
+			_, err := hst.ReadFile(ctx, "foo/bar")
+			require.ErrorContains(t, err, "path must be absolute")
+		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()
 			_, err := hst.ReadFile(ctx, "/etc/shadow")
@@ -227,6 +252,11 @@ func testHost(t *testing.T, hst host.Host) {
 			require.NoError(t, err)
 			_, err = os.Lstat(name)
 			require.ErrorIs(t, err, os.ErrNotExist)
+		})
+		t.Run("path must be absolute", func(t *testing.T) {
+			outputBuffer.Reset()
+			err := hst.Remove(ctx, "foo/bar")
+			require.ErrorContains(t, err, "path must be absolute")
 		})
 		t.Run("ErrPermission file", func(t *testing.T) {
 			outputBuffer.Reset()
@@ -332,25 +362,35 @@ func testHost(t *testing.T, hst host.Host) {
 			})
 		})
 		t.Run("Dir", func(t *testing.T) {
-			outputBuffer.Reset()
-			dir := t.TempDir()
-			waitStatus, stdout, stderr, err := host.Run(ctx, hst, host.Cmd{
-				Path: "pwd",
-				Dir:  dir,
+			t.Run("Success", func(t *testing.T) {
+				outputBuffer.Reset()
+				dir := t.TempDir()
+				waitStatus, stdout, stderr, err := host.Run(ctx, hst, host.Cmd{
+					Path: "pwd",
+					Dir:  dir,
+				})
+				require.NoError(t, err)
+				t.Cleanup(func() {
+					if t.Failed() {
+						t.Logf("\noutput:\n%s\n", outputBuffer.String())
+						t.Logf("\nstdout:\n%s\nstderr:\n%s\n", stdout, stderr)
+					}
+				})
+				require.True(t, waitStatus.Success())
+				require.Equal(t, 0, waitStatus.ExitCode)
+				require.True(t, waitStatus.Exited)
+				require.Equal(t, "", waitStatus.Signal)
+				require.Equal(t, fmt.Sprintf("%s\n", dir), stdout)
+				require.Equal(t, "", stderr)
 			})
-			require.NoError(t, err)
-			t.Cleanup(func() {
-				if t.Failed() {
-					t.Logf("\noutput:\n%s\n", outputBuffer.String())
-					t.Logf("\nstdout:\n%s\nstderr:\n%s\n", stdout, stderr)
-				}
+			t.Run("path must be absolute", func(t *testing.T) {
+				outputBuffer.Reset()
+				_, _, _, err := host.Run(ctx, hst, host.Cmd{
+					Path: "pwd",
+					Dir:  "foo/bar",
+				})
+				require.ErrorContains(t, err, "path must be absolute")
 			})
-			require.True(t, waitStatus.Success())
-			require.Equal(t, 0, waitStatus.ExitCode)
-			require.True(t, waitStatus.Exited)
-			require.Equal(t, "", waitStatus.Signal)
-			require.Equal(t, fmt.Sprintf("%s\n", dir), stdout)
-			require.Equal(t, "", stderr)
 		})
 		t.Run("Stdin", func(t *testing.T) {
 			outputBuffer.Reset()
@@ -391,6 +431,11 @@ func testHost(t *testing.T, hst host.Host) {
 			require.NoError(t, err)
 			require.False(t, fileInfo.IsDir())
 			require.Equal(t, fileMode, fileInfo.Mode()&fs.ModePerm)
+		})
+		t.Run("path must be absolute", func(t *testing.T) {
+			outputBuffer.Reset()
+			err := hst.WriteFile(ctx, "foo/bar", []byte{}, 0600)
+			require.ErrorContains(t, err, "path must be absolute")
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()

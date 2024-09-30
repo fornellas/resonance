@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"os"
 	"os/user"
@@ -340,6 +341,13 @@ func (s Ssh) runEnv(ctx context.Context, cmd host.Cmd, ignoreCmdEnv bool) (host.
 
 	if cmd.Dir == "" {
 		cmd.Dir = "/tmp"
+	}
+	if !filepath.IsAbs(cmd.Dir) {
+		return host.WaitStatus{}, &fs.PathError{
+			Op:   "Run",
+			Path: cmd.Dir,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 
 	var args []string
