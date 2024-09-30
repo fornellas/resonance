@@ -34,6 +34,14 @@ func (br cmdHost) Chmod(ctx context.Context, name string, mode os.FileMode) erro
 
 	logger.Debug("Chmod", "name", name, "mode", mode)
 
+	if !filepath.IsAbs(name) {
+		return &fs.PathError{
+			Op:   "Chmod",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
+	}
+
 	cmd := host.Cmd{
 		Path: "chmod",
 		Args: []string{fmt.Sprintf("%o", mode), name},
@@ -64,6 +72,14 @@ func (br cmdHost) Chown(ctx context.Context, name string, uid, gid int) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Chown", "name", name, "uid", uid, "gid", gid)
+
+	if !filepath.IsAbs(name) {
+		return &fs.PathError{
+			Op:   "Chown",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
+	}
 
 	cmd := host.Cmd{
 		Path: "chown",
@@ -210,6 +226,14 @@ func (br cmdHost) Lstat(ctx context.Context, name string) (host.HostFileInfo, er
 
 	logger.Debug("Lstat", "name", name)
 
+	if !filepath.IsAbs(name) {
+		return host.HostFileInfo{}, &fs.PathError{
+			Op:   "Lstat",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
+	}
+
 	stdout, err := br.stat(ctx, name)
 	if err != nil {
 		return host.HostFileInfo{}, err
@@ -298,6 +322,14 @@ func (br cmdHost) Mkdir(ctx context.Context, name string, perm os.FileMode) erro
 
 	logger.Debug("Mkdir", "name", name, "perm", perm)
 
+	if !filepath.IsAbs(name) {
+		return &fs.PathError{
+			Op:   "Mkdir",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
+	}
+
 	cmd := host.Cmd{
 		Path: "mkdir",
 		Args: []string{name},
@@ -329,6 +361,14 @@ func (br cmdHost) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("ReadFile", "name", name)
+
+	if !filepath.IsAbs(name) {
+		return nil, &fs.PathError{
+			Op:   "ReadFile",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
+	}
 
 	cmd := host.Cmd{
 		Path: "cat",
@@ -379,6 +419,14 @@ func (br cmdHost) Remove(ctx context.Context, name string) error {
 
 	logger.Debug("Remove", "name", name)
 
+	if !filepath.IsAbs(name) {
+		return &fs.PathError{
+			Op:   "Remove",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
+	}
+
 	cmd := host.Cmd{
 		Path: "rm",
 		Args: []string{name},
@@ -409,6 +457,14 @@ func (br cmdHost) WriteFile(ctx context.Context, name string, data []byte, perm 
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("WriteFile", "name", name, "data", data, "perm", perm)
+
+	if !filepath.IsAbs(name) {
+		return &fs.PathError{
+			Op:   "WriteFile",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
+	}
 
 	var chmod bool
 	if _, err := br.Lstat(ctx, name); errors.Is(err, os.ErrNotExist) {

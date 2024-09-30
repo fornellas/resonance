@@ -2,8 +2,11 @@ package local_run
 
 import (
 	"context"
+	"errors"
+	"io/fs"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -26,6 +29,13 @@ func Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 
 	if cmd.Dir == "" {
 		cmd.Dir = "/tmp"
+	}
+	if !filepath.IsAbs(cmd.Dir) {
+		return host.WaitStatus{}, &fs.PathError{
+			Op:   "Run",
+			Path: cmd.Dir,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 	execCmd.Dir = cmd.Dir
 
