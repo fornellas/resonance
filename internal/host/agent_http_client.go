@@ -339,26 +339,26 @@ func (a AgentHttpClient) LookupGroup(ctx context.Context, name string) (*user.Gr
 	return &g, nil
 }
 
-func (a AgentHttpClient) Lstat(ctx context.Context, name string) (host.HostFileInfo, error) {
+func (a AgentHttpClient) Lstat(ctx context.Context, name string) (*host.Stat_t, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Lstat", "name", name)
 
 	if !filepath.IsAbs(name) {
-		return host.HostFileInfo{}, fmt.Errorf("path must be absolute: %s", name)
+		return nil, fmt.Errorf("path must be absolute: %s", name)
 	}
 
 	resp, err := a.get(fmt.Sprintf("/file%s?lstat=true", name))
 	if err != nil {
-		return host.HostFileInfo{}, err
+		return nil, err
 	}
 
-	var hfi host.HostFileInfo
-	if err := a.unmarshalResponse(resp, &hfi); err != nil {
-		return host.HostFileInfo{}, err
+	var stat_t host.Stat_t
+	if err := a.unmarshalResponse(resp, &stat_t); err != nil {
+		return nil, err
 	}
-	hfi.ModTime = hfi.ModTime.Local()
-	return hfi, nil
+
+	return &stat_t, nil
 }
 
 func (a AgentHttpClient) Mkdir(ctx context.Context, name string, perm os.FileMode) error {

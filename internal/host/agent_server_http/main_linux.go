@@ -110,22 +110,36 @@ func GetFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 		name = fmt.Sprintf("%c%s", os.PathSeparator, name)
 
 		if lstat, ok := r.URL.Query()["lstat"]; ok && len(lstat) == 1 && lstat[0] == "true" {
-			fileInfo, err := os.Lstat(name)
+			var syscallStat_t syscall.Stat_t
+			err := syscall.Lstat(name, &syscallStat_t)
 			if err != nil {
 				internalServerError(w, err)
 				return
 			}
-			stat_t := fileInfo.Sys().(*syscall.Stat_t)
-			hfi := host.HostFileInfo{
-				Name:    filepath.Base(name),
-				Size:    fileInfo.Size(),
-				Mode:    fileInfo.Mode(),
-				ModTime: fileInfo.ModTime(),
-				IsDir:   fileInfo.IsDir(),
-				Uid:     stat_t.Uid,
-				Gid:     stat_t.Gid,
-			}
-			marshalResponse(w, hfi)
+			marshalResponse(w, host.Stat_t{
+				Dev:     syscallStat_t.Dev,
+				Ino:     syscallStat_t.Ino,
+				Nlink:   uint64(syscallStat_t.Nlink),
+				Mode:    syscallStat_t.Mode,
+				Uid:     syscallStat_t.Uid,
+				Gid:     syscallStat_t.Gid,
+				Rdev:    syscallStat_t.Rdev,
+				Size:    syscallStat_t.Size,
+				Blksize: int64(syscallStat_t.Blksize),
+				Blocks:  syscallStat_t.Blocks,
+				Atim: host.Timespec{
+					Sec:  int64(syscallStat_t.Atim.Sec),
+					Nsec: int64(syscallStat_t.Atim.Nsec),
+				},
+				Mtim: host.Timespec{
+					Sec:  int64(syscallStat_t.Mtim.Sec),
+					Nsec: int64(syscallStat_t.Mtim.Nsec),
+				},
+				Ctim: host.Timespec{
+					Sec:  int64(syscallStat_t.Ctim.Sec),
+					Nsec: int64(syscallStat_t.Ctim.Nsec),
+				},
+			})
 			return
 		} else {
 			contexts, err := os.ReadFile(name)

@@ -262,7 +262,7 @@ func (a AgentGrpcClient) LookupGroup(ctx context.Context, name string) (*user.Gr
 	// return &g, nil
 }
 
-func (a AgentGrpcClient) Lstat(ctx context.Context, name string) (host.HostFileInfo, error) {
+func (a AgentGrpcClient) Lstat(ctx context.Context, name string) (*host.Stat_t, error) {
 	panic("todo lstat")
 	// 	logger := log.MustLogger(ctx)
 

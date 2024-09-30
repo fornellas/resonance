@@ -3,9 +3,7 @@ package host
 import (
 	"fmt"
 	"io"
-	"io/fs"
 	"strings"
-	"time"
 )
 
 // Cmd represents a command to be run.
@@ -84,12 +82,25 @@ func (ws *WaitStatus) String() string {
 	return str
 }
 
-type HostFileInfo struct {
-	Name    string
-	Size    int64
-	Mode    fs.FileMode
-	ModTime time.Time
-	IsDir   bool
+// Timespec from syscall.Timespec for Linux
+type Timespec struct {
+	Sec  int64
+	Nsec int64
+}
+
+// Stat_t from syscall.Stat_t for Linux
+type Stat_t struct {
+	Dev     uint64
+	Ino     uint64
+	Nlink   uint64
+	Mode    uint32
 	Uid     uint32
 	Gid     uint32
+	Rdev    uint64
+	Size    int64
+	Blksize int64
+	Blocks  int64
+	Atim    Timespec
+	Mtim    Timespec
+	Ctim    Timespec
 }

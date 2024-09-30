@@ -30,16 +30,16 @@ func TestStepMisc(t *testing.T) {
 			resourceType: "File",
 			singleResource: &resourcesPkg.File{
 				Path: "/tmp/foo",
-				Perm: 0644,
+				Mode: 0644,
 			},
 			string: "File:/tmp/foo",
 			detailedString: `File:
   path: /tmp/foo
-  perm: 420`,
+  mode: 420`,
 			yaml: `single_resource_type: File
 single_resource:
     path: /tmp/foo
-    perm: 420
+    mode: 420
 `,
 		},
 		{

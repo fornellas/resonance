@@ -23,7 +23,7 @@ func TestPlan(t *testing.T) {
 		resources := resouresPkg.Resources{
 			&resouresPkg.File{
 				Path:    filepath.Join(filesDir, "bar"),
-				Perm:    os.FileMode(0644),
+				Mode:    0644,
 				Content: "bar",
 				User:    "root",
 				Group:   "root",
@@ -47,7 +47,7 @@ func TestPlan(t *testing.T) {
       path: %s/bar
       -absent: true
       +content: bar
-      +perm: 420
+      +mode: 420
 🎆 Planning successful`,
 				filesDir, filesDir,
 			)},
@@ -64,15 +64,15 @@ func TestPlan(t *testing.T) {
 		err := os.MkdirAll(filesDir, fs.FileMode(0755))
 		require.NoError(t, err)
 		filePath := filepath.Join(filesDir, "bar")
-		filePerm := os.FileMode(0644)
+		var fileMode uint32 = 0644
 		fileContent := "bar"
-		err = os.WriteFile(filePath, []byte(fileContent), filePerm)
+		err = os.WriteFile(filePath, []byte(fileContent), os.FileMode(fileMode))
 		require.NoError(t, err)
 
 		resources := resouresPkg.Resources{
 			&resouresPkg.File{
 				Path:    filePath,
-				Perm:    filePerm,
+				Mode:    fileMode,
 				Content: fileContent,
 				Uid:     uint32(os.Geteuid()),
 				Gid:     uint32(os.Getegid()),

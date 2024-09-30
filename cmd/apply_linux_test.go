@@ -27,7 +27,7 @@ func TestApply(t *testing.T) {
 	resources := resouresPkg.Resources{
 		&resouresPkg.File{
 			Path:    filepath.Join(filesDir, "bar"),
-			Perm:    os.FileMode(0644),
+			Mode:    0644,
 			Content: fileContent,
 			Uid:     fileUid,
 			Gid:     fileGid,
@@ -51,7 +51,7 @@ func TestApply(t *testing.T) {
       path: %s/bar
       -absent: true
       +content: bar
-      +perm: 420
+      +mode: 420
       +uid: %d
       +gid: %d
 🧹 State cleanup`,

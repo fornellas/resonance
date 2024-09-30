@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -16,7 +15,7 @@ func TestValidate(t *testing.T) {
 	successResources := resouresPkg.Resources{
 		&resouresPkg.File{
 			Path: filepath.Join(tempDir, "foo"),
-			Perm: os.FileMode(0644),
+			Mode: 0644,
 		},
 	}
 
@@ -54,7 +53,7 @@ func TestValidate(t *testing.T) {
 			Resources: resouresPkg.Resources{
 				&resouresPkg.File{
 					Path: filepath.Join(tempDir, "foo"),
-					Perm: os.FileMode(0644),
+					Mode: 0644,
 					User: "bad-user-name",
 				},
 			},
