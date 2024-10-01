@@ -17,7 +17,7 @@ import (
 // Local interacts with the local machine running the code.
 type Local struct{}
 
-func (l Local) Chmod(ctx context.Context, name string, mode os.FileMode) error {
+func (l Local) Chmod(ctx context.Context, name string, mode uint32) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Chmod", "name", name, "mode", mode)
 
@@ -29,7 +29,7 @@ func (l Local) Chmod(ctx context.Context, name string, mode os.FileMode) error {
 		}
 	}
 
-	return os.Chmod(name, mode)
+	return syscall.Chmod(name, mode)
 }
 
 func (l Local) Chown(ctx context.Context, name string, uid, gid int) error {

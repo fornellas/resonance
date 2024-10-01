@@ -17,7 +17,7 @@ type cmdHostOnly struct {
 	Host host.Host
 }
 
-func (h cmdHostOnly) Chmod(ctx context.Context, name string, mode os.FileMode) error {
+func (h cmdHostOnly) Chmod(ctx context.Context, name string, mode uint32) error {
 	err := errors.New("unexpected call received: Chmod")
 	h.T.Fatal(err)
 	return err

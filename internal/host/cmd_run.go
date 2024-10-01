@@ -29,7 +29,7 @@ type cmdHost struct {
 	Host host.Host
 }
 
-func (br cmdHost) Chmod(ctx context.Context, name string, mode os.FileMode) error {
+func (br cmdHost) Chmod(ctx context.Context, name string, mode uint32) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Chmod", "name", name, "mode", mode)
@@ -441,7 +441,7 @@ func (br cmdHost) Mkdir(ctx context.Context, name string, mode uint32) error {
 		)
 	}
 
-	return br.Chmod(ctx, name, fs.FileMode(mode))
+	return br.Chmod(ctx, name, mode)
 }
 
 func (br cmdHost) ReadFile(ctx context.Context, name string) ([]byte, error) {
@@ -582,7 +582,7 @@ func (br cmdHost) WriteFile(ctx context.Context, name string, data []byte, perm 
 		)
 	}
 	if chmod {
-		return br.Chmod(ctx, name, perm)
+		return br.Chmod(ctx, name, uint32(perm))
 	}
 	return nil
 }

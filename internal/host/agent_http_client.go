@@ -72,7 +72,7 @@ func NewHttpAgent(ctx context.Context, hst host.Host) (*AgentHttpClient, error) 
 		return nil, err
 	}
 
-	if err := hst.Chmod(ctx, agentPath, os.FileMode(0755)); err != nil {
+	if err := hst.Chmod(ctx, agentPath, 0755); err != nil {
 		return nil, err
 	}
 
@@ -270,7 +270,7 @@ func (a AgentHttpClient) put(path string, body io.Reader) (*http.Response, error
 	return resp, nil
 }
 
-func (a AgentHttpClient) Chmod(ctx context.Context, name string, mode os.FileMode) error {
+func (a AgentHttpClient) Chmod(ctx context.Context, name string, mode uint32) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Chmod", "name", name, "mode", mode)
@@ -281,7 +281,7 @@ func (a AgentHttpClient) Chmod(ctx context.Context, name string, mode os.FileMod
 
 	_, err := a.post(fmt.Sprintf("/file%s", name), api.File{
 		Action: api.Chmod,
-		Mode:   uint32(mode),
+		Mode:   mode,
 	})
 
 	return err

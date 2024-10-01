@@ -57,16 +57,16 @@ func testHost(t *testing.T, hst host.Host) {
 		file.Close()
 		t.Run("Success", func(t *testing.T) {
 			outputBuffer.Reset()
-			fileMode := os.FileMode(0247)
+			var fileMode uint32 = 01257
 			err = hst.Chmod(ctx, name, fileMode)
 			require.NoError(t, err)
-			fileInfo, err := os.Lstat(name)
-			require.NoError(t, err)
-			require.Equal(t, fileMode, fileInfo.Mode())
+			var stat_t syscall.Stat_t
+			require.NoError(t, syscall.Lstat(name, &stat_t))
+			require.Equal(t, fileMode, stat_t.Mode&07777)
 		})
 		t.Run("path must be absolute", func(t *testing.T) {
 			outputBuffer.Reset()
-			err = hst.Chmod(ctx, "foo/bar", os.FileMode(0644))
+			err = hst.Chmod(ctx, "foo/bar", 0644)
 			require.ErrorContains(t, err, "path must be absolute")
 		})
 		t.Run("ErrPermission", func(t *testing.T) {

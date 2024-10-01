@@ -69,7 +69,7 @@ func NewGrpcAgent(ctx context.Context, hst host.Host) (*AgentGrpcClient, error) 
 		return nil, err
 	}
 
-	if err := hst.Chmod(ctx, agentPath, os.FileMode(0755)); err != nil {
+	if err := hst.Chmod(ctx, agentPath, 0755); err != nil {
 		return nil, err
 	}
 
@@ -167,7 +167,7 @@ func (a *AgentGrpcClient) spawn(ctx context.Context) error {
 	return nil
 }
 
-func (a AgentGrpcClient) Chmod(ctx context.Context, name string, mode os.FileMode) error {
+func (a AgentGrpcClient) Chmod(ctx context.Context, name string, mode uint32) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Chmod", "name", name, "mode", mode)
 
@@ -178,7 +178,7 @@ func (a AgentGrpcClient) Chmod(ctx context.Context, name string, mode os.FileMod
 	Client := proto.NewHostServiceClient(a.Client)
 	_, err := Client.Chmod(ctx, &proto.ChmodRequest{
 		Name: name,
-		Mode: int32(mode),
+		Mode: mode,
 	})
 
 	if err != nil {
