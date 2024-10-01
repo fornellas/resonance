@@ -3,7 +3,6 @@ package host
 import (
 	"context"
 	"errors"
-	"os"
 	"os/user"
 	"testing"
 
@@ -65,7 +64,7 @@ func (h cmdHostOnly) Remove(ctx context.Context, name string) error {
 	return err
 }
 
-func (h cmdHostOnly) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
+func (h cmdHostOnly) WriteFile(ctx context.Context, name string, data []byte, mode uint32) error {
 	err := errors.New("unexpected call received: WriteFile")
 	h.T.Fatal(err)
 	return err

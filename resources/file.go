@@ -126,7 +126,7 @@ func (f *File) Apply(ctx context.Context, hst host.Host) error {
 	}
 
 	// Content
-	if err := hst.WriteFile(ctx, string(f.Path), []byte(f.Content), os.FileMode(f.Mode)); err != nil {
+	if err := hst.WriteFile(ctx, string(f.Path), []byte(f.Content), f.Mode); err != nil {
 		return err
 	}
 

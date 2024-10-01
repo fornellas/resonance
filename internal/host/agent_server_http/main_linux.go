@@ -72,21 +72,21 @@ func PutFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 		}
 		name = fmt.Sprintf("%c%s", os.PathSeparator, name)
 
-		perms, ok := r.URL.Query()["perm"]
+		modes, ok := r.URL.Query()["mode"]
 		if !ok {
-			internalServerError(w, errors.New("missing perm from query"))
+			internalServerError(w, errors.New("missing mode from query"))
 			return
 		}
-		if len(perms) != 1 {
-			internalServerError(w, fmt.Errorf("received multiple perm: %#v", perms))
+		if len(modes) != 1 {
+			internalServerError(w, fmt.Errorf("received multiple mode: %#v", modes))
 			return
 		}
-		permInt, err := strconv.ParseInt(perms[0], 10, 32)
+		modeInt, err := strconv.ParseUint(modes[0], 10, 32)
 		if err != nil {
-			internalServerError(w, fmt.Errorf("failed to parse perm: %#v: %s", perms[0], err))
+			internalServerError(w, fmt.Errorf("failed to parse mode: %#v: %s", modes[0], err))
 			return
 		}
-		perm := os.FileMode(permInt)
+		mode := uint32(modeInt)
 
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -94,7 +94,11 @@ func PutFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		if err := os.WriteFile(name, body, perm); err != nil {
+		if err := os.WriteFile(name, body, fs.FileMode(mode)); err != nil {
+			internalServerError(w, err)
+			return
+		}
+		if err := syscall.Chmod(name, mode); err != nil {
 			internalServerError(w, err)
 			return
 		}

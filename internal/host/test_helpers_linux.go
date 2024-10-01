@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/fs"
 	"net"
 	"os"
 	"os/user"
@@ -559,16 +558,15 @@ func testHost(t *testing.T, hst host.Host) {
 			outputBuffer.Reset()
 			name := filepath.Join(t.TempDir(), "foo")
 			data := []byte("foo")
-			fileMode := os.FileMode(0600)
+			var fileMode uint32 = 01607
 			err := hst.WriteFile(ctx, name, data, fileMode)
 			require.NoError(t, err)
 			readData, err := os.ReadFile(name)
 			require.NoError(t, err)
 			require.Equal(t, data, readData)
-			fileInfo, err := os.Lstat(name)
-			require.NoError(t, err)
-			require.False(t, fileInfo.IsDir())
-			require.Equal(t, fileMode, fileInfo.Mode()&fs.ModePerm)
+			var stat_t syscall.Stat_t
+			require.NoError(t, syscall.Lstat(name, &stat_t))
+			require.Equal(t, fileMode, stat_t.Mode&07777)
 		})
 		t.Run("path must be absolute", func(t *testing.T) {
 			outputBuffer.Reset()
@@ -584,27 +582,26 @@ func testHost(t *testing.T, hst host.Host) {
 		t.Run("ovewrite file", func(t *testing.T) {
 			outputBuffer.Reset()
 			name := filepath.Join(t.TempDir(), "foo")
-			fileMode := os.FileMode(0600)
+			var fileMode uint32 = 01607
 			err := hst.WriteFile(ctx, name, []byte{}, fileMode)
 			require.NoError(t, err)
 			data := []byte("foo")
-			newFileMode := os.FileMode(0640)
+			var newFileMode uint32 = 02675
 			err = hst.WriteFile(ctx, name, data, newFileMode)
 			require.NoError(t, err)
 			readData, err := os.ReadFile(name)
 			require.NoError(t, err)
 			require.Equal(t, data, readData)
-			fileInfo, err := os.Lstat(name)
-			require.NoError(t, err)
-			require.False(t, fileInfo.IsDir())
-			require.Equal(t, fileMode, fileInfo.Mode()&fs.ModePerm)
+			var stat_t syscall.Stat_t
+			require.NoError(t, syscall.Lstat(name, &stat_t))
+			require.Equal(t, newFileMode, stat_t.Mode&07777)
 		})
 		t.Run("is directory", func(t *testing.T) {
 			outputBuffer.Reset()
 			name := filepath.Join(t.TempDir(), "foo")
 			err := os.Mkdir(name, os.FileMode(0700))
 			require.NoError(t, err)
-			err = hst.WriteFile(ctx, name, []byte{}, os.FileMode(0640))
+			err = hst.WriteFile(ctx, name, []byte{}, 0640)
 			require.Error(t, err)
 		})
 		t.Run("ErrNotExist", func(t *testing.T) {

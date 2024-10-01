@@ -540,10 +540,10 @@ func (br cmdHost) Remove(ctx context.Context, name string) error {
 	return nil
 }
 
-func (br cmdHost) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
+func (br cmdHost) WriteFile(ctx context.Context, name string, data []byte, mode uint32) error {
 	logger := log.MustLogger(ctx)
 
-	logger.Debug("WriteFile", "name", name, "data", data, "perm", perm)
+	logger.Debug("WriteFile", "name", name, "data", data, "mode", mode)
 
 	if !filepath.IsAbs(name) {
 		return &fs.PathError{
@@ -553,10 +553,6 @@ func (br cmdHost) WriteFile(ctx context.Context, name string, data []byte, perm 
 		}
 	}
 
-	var chmod bool
-	if _, err := br.Lstat(ctx, name); errors.Is(err, os.ErrNotExist) {
-		chmod = true
-	}
 	cmd := host.Cmd{
 		Path:  "sh",
 		Args:  []string{"-c", fmt.Sprintf("cat > %s", shellescape.Quote(name))},
@@ -581,8 +577,6 @@ func (br cmdHost) WriteFile(ctx context.Context, name string, data []byte, perm 
 			cmd, waitStatus.String(), stdout, stderr,
 		)
 	}
-	if chmod {
-		return br.Chmod(ctx, name, uint32(perm))
-	}
-	return nil
+
+	return br.Chmod(ctx, name, mode)
 }
