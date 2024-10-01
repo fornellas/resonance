@@ -157,9 +157,9 @@ func (l Local) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	return local_run.Run(ctx, cmd)
 }
 
-func (l Local) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
+func (l Local) WriteFile(ctx context.Context, name string, data []byte, mode uint32) error {
 	logger := log.MustLogger(ctx)
-	logger.Debug("WriteFile", "name", name, "data", data, "perm", perm)
+	logger.Debug("WriteFile", "name", name, "data", data, "mode", mode)
 
 	if !filepath.IsAbs(name) {
 		return &fs.PathError{
@@ -169,7 +169,10 @@ func (l Local) WriteFile(ctx context.Context, name string, data []byte, perm os.
 		}
 	}
 
-	return os.WriteFile(name, data, perm)
+	if err := os.WriteFile(name, data, fs.FileMode(mode)); err != nil {
+		return err
+	}
+	return syscall.Chmod(name, mode)
 }
 
 func (l Local) String() string {

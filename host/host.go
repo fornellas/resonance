@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"os"
 	"os/user"
 )
 
@@ -54,8 +53,8 @@ type Host interface {
 	// // Symlink works similar to os.Symlink.
 	// Symlink(ctx context.Context, oldname, newname string) error
 
-	// WriteFile works similar to os.WriteFile.
-	WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error
+	// WriteFile works similar to os.WriteFile, but receives mode as is syscall.Chmod argument.
+	WriteFile(ctx context.Context, name string, data []byte, mode uint32) error
 
 	// A string representation of the host which uniquely identifies it, eg, its FQDN.
 	String() string

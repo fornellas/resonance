@@ -222,7 +222,7 @@ func (s *HostStore) saveYaml(ctx context.Context, obj any, path string) error {
 		return err
 	}
 
-	return s.Host.WriteFile(ctx, path, blueprintBytes, os.FileMode(0600))
+	return s.Host.WriteFile(ctx, path, blueprintBytes, 0600)
 }
 
 func (s *HostStore) SaveLastBlueprint(ctx context.Context, blueprint *blueprintPkg.Blueprint) error {

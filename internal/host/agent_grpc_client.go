@@ -406,7 +406,7 @@ func (a AgentGrpcClient) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus
 	// return cs.WaitStatus, nil
 }
 
-func (a AgentGrpcClient) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
+func (a AgentGrpcClient) WriteFile(ctx context.Context, name string, data []byte, mode uint32) error {
 	panic("todo write file")
 	// 	logger := log.MustLogger(ctx)
 

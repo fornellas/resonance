@@ -476,16 +476,16 @@ func (a AgentHttpClient) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus
 	return cs.WaitStatus, nil
 }
 
-func (a AgentHttpClient) WriteFile(ctx context.Context, name string, data []byte, perm os.FileMode) error {
+func (a AgentHttpClient) WriteFile(ctx context.Context, name string, data []byte, mode uint32) error {
 	logger := log.MustLogger(ctx)
 
-	logger.Debug("WriteFile", "name", name, "data", data, "perm", perm)
+	logger.Debug("WriteFile", "name", name, "data", data, "mode", mode)
 
 	if !filepath.IsAbs(name) {
 		return fmt.Errorf("path must be absolute: %s", name)
 	}
 
-	_, err := a.put(fmt.Sprintf("/file%s?perm=%d", name, perm), bytes.NewReader(data))
+	_, err := a.put(fmt.Sprintf("/file%s?mode=%d", name, mode), bytes.NewReader(data))
 	if err != nil {
 		return err
 	}
