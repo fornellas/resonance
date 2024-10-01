@@ -306,13 +306,13 @@ func testHost(t *testing.T, hst host.Host) {
 		t.Run("Success", func(t *testing.T) {
 			outputBuffer.Reset()
 			name := filepath.Join(t.TempDir(), "foo")
-			fileMode := os.FileMode(0500)
+			var fileMode uint32 = 1542
 			err := hst.Mkdir(ctx, name, fileMode)
 			require.NoError(t, err)
-			fileInfo, err := os.Lstat(name)
-			require.NoError(t, err)
-			require.True(t, fileInfo.IsDir())
-			require.Equal(t, fileMode, fileInfo.Mode()&fs.ModePerm)
+			var stat_t syscall.Stat_t
+			require.NoError(t, syscall.Lstat(name, &stat_t))
+			require.True(t, stat_t.Mode&syscall.S_IFMT == syscall.S_IFDIR)
+			require.Equal(t, fileMode, stat_t.Mode&07777)
 		})
 		t.Run("path must be absolute", func(t *testing.T) {
 			outputBuffer.Reset()

@@ -175,15 +175,19 @@ func PostFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 
 		switch file.Action {
 		case api.Chmod:
-			if err := os.Chmod(name, file.Mode); err != nil {
+			if err := syscall.Chmod(name, file.Mode); err != nil {
 				internalServerError(w, err)
 			}
 		case api.Chown:
-			if err := os.Chown(name, file.Uid, file.Gid); err != nil {
+			if err := syscall.Chown(name, file.Uid, file.Gid); err != nil {
 				internalServerError(w, err)
 			}
 		case api.Mkdir:
-			if err := os.Mkdir(name, file.Mode); err != nil {
+			if err := syscall.Mkdir(name, file.Mode); err != nil {
+				internalServerError(w, err)
+				return
+			}
+			if err := syscall.Chmod(name, file.Mode); err != nil {
 				internalServerError(w, err)
 			}
 		default:

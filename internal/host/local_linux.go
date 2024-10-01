@@ -103,9 +103,9 @@ func (l Local) Lstat(ctx context.Context, name string) (*host.Stat_t, error) {
 	}, nil
 }
 
-func (l Local) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
+func (l Local) Mkdir(ctx context.Context, name string, mode uint32) error {
 	logger := log.MustLogger(ctx)
-	logger.Debug("Mkdir", "name", name, "perm", perm)
+	logger.Debug("Mkdir", "name", name, "mode", mode)
 
 	if !filepath.IsAbs(name) {
 		return &fs.PathError{
@@ -115,7 +115,10 @@ func (l Local) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
 		}
 	}
 
-	return os.Mkdir(name, perm)
+	if err := syscall.Mkdir(name, mode); err != nil {
+		return err
+	}
+	return syscall.Chmod(name, mode)
 }
 
 func (l Local) ReadFile(ctx context.Context, name string) ([]byte, error) {

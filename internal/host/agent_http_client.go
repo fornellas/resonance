@@ -281,7 +281,7 @@ func (a AgentHttpClient) Chmod(ctx context.Context, name string, mode os.FileMod
 
 	_, err := a.post(fmt.Sprintf("/file%s", name), api.File{
 		Action: api.Chmod,
-		Mode:   mode,
+		Mode:   uint32(mode),
 	})
 
 	return err
@@ -361,7 +361,7 @@ func (a AgentHttpClient) Lstat(ctx context.Context, name string) (*host.Stat_t, 
 	return &stat_t, nil
 }
 
-func (a AgentHttpClient) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
+func (a AgentHttpClient) Mkdir(ctx context.Context, name string, mode uint32) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Mkdir", "name", name)
@@ -372,7 +372,7 @@ func (a AgentHttpClient) Mkdir(ctx context.Context, name string, perm os.FileMod
 
 	_, err := a.post(fmt.Sprintf("/file%s", name), api.File{
 		Action: api.Mkdir,
-		Mode:   perm,
+		Mode:   mode,
 	})
 
 	return err
