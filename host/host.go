@@ -36,8 +36,8 @@ type Host interface {
 	// Lstat works similar to syscal.Lstat
 	Lstat(ctx context.Context, name string) (*Stat_t, error)
 
-	// Mkdir works similar to os.Mkdir.
-	Mkdir(ctx context.Context, name string, perm os.FileMode) error
+	// Mkdir works similar to syscall.Mkdir, but no umask is applied.
+	Mkdir(ctx context.Context, name string, mode uint32) error
 
 	// ReadFile works similar to os.ReadFile.
 	ReadFile(ctx context.Context, name string) ([]byte, error)
