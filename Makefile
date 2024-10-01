@@ -248,7 +248,7 @@ RRB := $(GO) run github.com/fornellas/rrb
 RRB_DEBOUNCE ?= 500ms
 RRB_IGNORE_PATTERN ?= 'internal/host/agent_server_http_linux_*_gz.go,internal/host/agent_server_grpc_linux_*_gz.go,internal/host/agent_server_grpc/proto/*.pb.go'
 RRB_LOG_LEVEL ?= info
-RRB_PATTERN ?= '**/*.{go},Makefile'
+RRB_PATTERN ?= '**/*.go,**/*.proto,Makefile'
 RRB_MAKE_TARGET ?= ci
 RRB_EXTRA_CMD ?= true
 

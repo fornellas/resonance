@@ -131,7 +131,7 @@ func (f *File) Apply(ctx context.Context, hst host.Host) error {
 	}
 
 	// Perm
-	if err := hst.Chmod(ctx, string(f.Path), os.FileMode(f.Mode)); err != nil {
+	if err := hst.Chmod(ctx, string(f.Path), f.Mode); err != nil {
 		return err
 	}
 
