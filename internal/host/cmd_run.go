@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/user"
@@ -402,6 +403,97 @@ func (br cmdHost) Lstat(ctx context.Context, name string) (*host.Stat_t, error) 
 	}
 
 	return &stat_t, nil
+}
+
+func getFindFileType(fileType rune) (uint8, error) {
+	switch fileType {
+	case 's':
+		return syscall.DT_SOCK, nil
+	case 'l':
+		return syscall.DT_LNK, nil
+	case 'f':
+		return syscall.DT_REG, nil
+	case 'b':
+		return syscall.DT_BLK, nil
+	case 'd':
+		return syscall.DT_DIR, nil
+	case 'c':
+		return syscall.DT_CHR, nil
+	case 'p':
+		return syscall.DT_FIFO, nil
+	default:
+		return 0, fmt.Errorf("unexpected file type from find: %c", fileType)
+	}
+}
+
+func (br cmdHost) ReadDir(ctx context.Context, name string) ([]host.DirEnt, error) {
+	logger := log.MustLogger(ctx)
+	logger.Debug("ReadDir", "name", name)
+
+	if !filepath.IsAbs(name) {
+		return nil, &fs.PathError{
+			Op:   "Lstat",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
+	}
+
+	name = filepath.Clean(name)
+
+	cmd := host.Cmd{
+		Path: "find",
+		Args: []string{name, "-maxdepth", "1", "-printf", "%i %y %p\\0"},
+	}
+	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	if err != nil {
+		return nil, err
+	}
+	if !waitStatus.Success() {
+		if strings.Contains(stderr, "Permission denied") {
+			return nil, os.ErrPermission
+		}
+		if strings.Contains(stderr, "No such file or directory") {
+			return nil, os.ErrNotExist
+		}
+		return nil, fmt.Errorf(
+			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
+		)
+	}
+
+	values := strings.Split(stdout, "\000")
+
+	dirEnts := []host.DirEnt{}
+
+	for _, value := range values[:len(values)-1] {
+		dirEnt := host.DirEnt{}
+		var fileType rune
+		n, err := fmt.Sscanf(value, "%d %c %s", &dirEnt.Ino, &fileType, &dirEnt.Name)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, fmt.Errorf("failed to scan find output: %#v: %w", value, err)
+		}
+		if n != 3 {
+			return nil, fmt.Errorf("failed to scan find output: %#v", value)
+		}
+
+		if filepath.Clean(dirEnt.Name) == name {
+			continue
+		}
+
+		dirEnt.Name = filepath.Base(dirEnt.Name)
+
+		dirEnt.Type, err = getFindFileType(fileType)
+		if err != nil {
+			return nil, err
+		}
+
+		dirEnts = append(dirEnts, dirEnt)
+	}
+
+	return dirEnts, nil
 }
 
 func (br cmdHost) Mkdir(ctx context.Context, name string, mode uint32) error {

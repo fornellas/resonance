@@ -10,7 +10,7 @@ import (
 	"syscall"
 
 	"github.com/fornellas/resonance/host"
-	"github.com/fornellas/resonance/internal/host/local_run"
+	"github.com/fornellas/resonance/internal/host/lib"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -103,6 +103,13 @@ func (l Local) Lstat(ctx context.Context, name string) (*host.Stat_t, error) {
 	}, nil
 }
 
+func (l Local) ReadDir(ctx context.Context, name string) ([]host.DirEnt, error) {
+	logger := log.MustLogger(ctx)
+	logger.Debug("ReadDir", "name", name)
+
+	return lib.ReadDir(ctx, name)
+}
+
 func (l Local) Mkdir(ctx context.Context, name string, mode uint32) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Mkdir", "name", name, "mode", mode)
@@ -154,7 +161,7 @@ func (l Local) Remove(ctx context.Context, name string) error {
 func (l Local) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Run", "cmd", cmd)
-	return local_run.Run(ctx, cmd)
+	return lib.Run(ctx, cmd)
 }
 
 func (l Local) WriteFile(ctx context.Context, name string, data []byte, mode uint32) error {

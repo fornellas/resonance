@@ -301,6 +301,74 @@ func testHost(t *testing.T, hst host.Host) {
 		})
 	})
 
+	t.Run("ReadDir", func(t *testing.T) {
+		t.Run("Success", func(t *testing.T) {
+			outputBuffer.Reset()
+
+			dirPath := t.TempDir()
+
+			expectedTypeMap := map[string]uint8{}
+
+			// socket
+			socketPath := filepath.Join(dirPath, "socket")
+			listener, err := net.Listen("unix", socketPath)
+			require.NoError(t, err)
+			defer listener.Close()
+			expectedTypeMap["socket"] = syscall.DT_SOCK
+
+			// symbolic link
+			linkPath := filepath.Join(dirPath, "symlink")
+			require.NoError(t, syscall.Symlink("foo", linkPath))
+			expectedTypeMap["symlink"] = syscall.DT_LNK
+
+			// regular file
+			file, err := os.Create(filepath.Join(dirPath, "regular"))
+			require.NoError(t, err)
+			defer file.Close()
+			expectedTypeMap["regular"] = syscall.DT_REG
+
+			// block device: can't test without root
+
+			// directory
+			require.NoError(t, os.Mkdir(filepath.Join(dirPath, "directory"), os.FileMode(0700)))
+			expectedTypeMap["directory"] = syscall.DT_DIR
+
+			// character device: can't test without root
+
+			// FIFO
+			require.NoError(t, syscall.Mkfifo(filepath.Join(dirPath, "FIFO"), 0644))
+			expectedTypeMap["FIFO"] = syscall.DT_FIFO
+
+			dirEnts, err := hst.ReadDir(ctx, dirPath)
+			require.NoError(t, err)
+
+			inodeMap := map[uint64]bool{}
+			for _, dirEnt := range dirEnts {
+				require.NotContains(t, inodeMap, dirEnt.Ino)
+				inodeMap[dirEnt.Ino] = true
+				require.Contains(t, expectedTypeMap, dirEnt.Name)
+				require.Equal(t, expectedTypeMap[dirEnt.Name], dirEnt.Type)
+				delete(expectedTypeMap, dirEnt.Name)
+			}
+			require.Empty(t, expectedTypeMap)
+		})
+		t.Run("path must be absolute", func(t *testing.T) {
+			outputBuffer.Reset()
+			_, err := hst.ReadDir(ctx, "foo")
+			require.ErrorContains(t, err, "path must be absolute")
+		})
+		t.Run("ErrPermission", func(t *testing.T) {
+			outputBuffer.Reset()
+			_, err := hst.ReadDir(ctx, "/etc/ssl/private/foo")
+			require.ErrorIs(t, err, os.ErrPermission)
+		})
+		t.Run("ErrNotExist", func(t *testing.T) {
+			outputBuffer.Reset()
+			_, err := hst.ReadDir(ctx, "/non-existent")
+			require.ErrorIs(t, err, os.ErrNotExist)
+		})
+	})
+
 	t.Run("Mkdir", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
 			outputBuffer.Reset()

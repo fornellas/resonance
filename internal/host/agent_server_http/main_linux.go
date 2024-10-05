@@ -23,7 +23,7 @@ import (
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/internal/host/agent_server_http/api"
 	aNet "github.com/fornellas/resonance/internal/host/agent_server_http/net"
-	"github.com/fornellas/resonance/internal/host/local_run"
+	"github.com/fornellas/resonance/internal/host/lib"
 )
 
 func internalServerError(w http.ResponseWriter, err error) {
@@ -144,6 +144,14 @@ func GetFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 					Nsec: int64(syscallStat_t.Ctim.Nsec),
 				},
 			})
+			return
+		} else if readDir, ok := r.URL.Query()["read_dir"]; ok && len(readDir) == 1 && readDir[0] == "true" {
+			dirEnts, err := lib.ReadDir(ctx, name)
+			if err != nil {
+				internalServerError(w, err)
+				return
+			}
+			marshalResponse(w, dirEnts)
 			return
 		} else {
 			contexts, err := os.ReadFile(name)
@@ -289,7 +297,7 @@ func PostRunFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 			Stderr: stderrBuff,
 		}
 
-		waitStatus, err := local_run.Run(ctx, cmd)
+		waitStatus, err := lib.Run(ctx, cmd)
 		if err != nil {
 			internalServerError(w, err)
 			return

@@ -7,7 +7,7 @@ import (
 	"os/user"
 )
 
-// Host defines an interface for interacting with a host
+// Host defines an interface for interacting with a Linux host
 type Host interface {
 	// Chmod works similar to syscall.Chmod.
 	Chmod(ctx context.Context, name string, mode uint32) error
@@ -34,6 +34,9 @@ type Host interface {
 
 	// Lstat works similar to syscal.Lstat
 	Lstat(ctx context.Context, name string) (*Stat_t, error)
+
+	// ReadDir reads the named directory, returning all its DirEnt.
+	ReadDir(ctx context.Context, name string) ([]DirEnt, error)
 
 	// Mkdir works similar to syscall.Mkdir, but no umask is applied.
 	Mkdir(ctx context.Context, name string, mode uint32) error
