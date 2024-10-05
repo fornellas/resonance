@@ -46,6 +46,12 @@ func (h cmdHostOnly) Lstat(ctx context.Context, name string) (*host.Stat_t, erro
 	return nil, err
 }
 
+func (h cmdHostOnly) ReadDir(ctx context.Context, name string) ([]host.DirEnt, error) {
+	err := errors.New("unexpected call received: ReadDir")
+	h.T.Fatal(err)
+	return nil, err
+}
+
 func (h cmdHostOnly) Mkdir(ctx context.Context, name string, mode uint32) error {
 	err := errors.New("unexpected call received: Mkdir")
 	h.T.Fatal(err)

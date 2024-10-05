@@ -361,6 +361,28 @@ func (a AgentHttpClient) Lstat(ctx context.Context, name string) (*host.Stat_t, 
 	return &stat_t, nil
 }
 
+func (a AgentHttpClient) ReadDir(ctx context.Context, name string) ([]host.DirEnt, error) {
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("ReadDir", "name", name)
+
+	if !filepath.IsAbs(name) {
+		return nil, fmt.Errorf("path must be absolute: %s", name)
+	}
+
+	resp, err := a.get(fmt.Sprintf("/file%s?read_dir=true", name))
+	if err != nil {
+		return nil, err
+	}
+
+	dirEnts := []host.DirEnt{}
+	if err := a.unmarshalResponse(resp, &dirEnts); err != nil {
+		return nil, err
+	}
+
+	return dirEnts, nil
+}
+
 func (a AgentHttpClient) Mkdir(ctx context.Context, name string, mode uint32) error {
 	logger := log.MustLogger(ctx)
 

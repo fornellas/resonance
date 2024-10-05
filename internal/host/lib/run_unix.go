@@ -1,4 +1,4 @@
-package local_run
+package lib
 
 import (
 	"context"

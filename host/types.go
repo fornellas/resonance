@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"syscall"
 )
 
 // Cmd represents a command to be run.
@@ -103,4 +104,39 @@ type Stat_t struct {
 	Atim    Timespec
 	Mtim    Timespec
 	Ctim    Timespec
+}
+
+// Dirent is similar to syscall.Dirent
+type DirEnt struct {
+	Ino  uint64
+	Type uint8
+	Name string
+}
+
+func (d *DirEnt) IsBlockDevice() bool {
+	return d.Type == syscall.DT_BLK
+}
+
+func (d *DirEnt) IsCharacterDevice() bool {
+	return d.Type == syscall.DT_CHR
+}
+
+func (d *DirEnt) IsDirectory() bool {
+	return d.Type == syscall.DT_DIR
+}
+
+func (d *DirEnt) IsFIFO() bool {
+	return d.Type == syscall.DT_FIFO
+}
+
+func (d *DirEnt) IsSymbolicLink() bool {
+	return d.Type == syscall.DT_LNK
+}
+
+func (d *DirEnt) IsRegularFile() bool {
+	return d.Type == syscall.DT_REG
+}
+
+func (d *DirEnt) IsUnixDomainSocket() bool {
+	return d.Type == syscall.DT_SOCK
 }

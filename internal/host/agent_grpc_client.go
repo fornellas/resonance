@@ -287,6 +287,10 @@ func (a AgentGrpcClient) Lstat(ctx context.Context, name string) (*host.Stat_t, 
 	// return hfi, nil
 }
 
+func (a AgentGrpcClient) ReadDir(ctx context.Context, name string) ([]host.DirEnt, error) {
+	panic("TODO AgentGrpcClient.ReadDir")
+}
+
 func (a AgentGrpcClient) Mkdir(ctx context.Context, name string, mode uint32) error {
 	panic("todo mkdir")
 	// 	logger := log.MustLogger(ctx)
