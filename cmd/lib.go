@@ -54,7 +54,7 @@ func wrapHost(ctx context.Context, hst host.Host) (host.Host, error) {
 		}
 
 	}
-	if hst.Type() != "localhost" && !optionsMap["disable-agent"] {
+	if !optionsMap["disable-agent"] && (optionsMap["sudo"] || hst.Type() != "localhost") {
 		hst, err = ihost.NewHttpAgent(ctx, hst)
 		if err != nil {
 			return nil, err
