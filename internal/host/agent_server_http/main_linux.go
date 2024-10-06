@@ -337,20 +337,20 @@ func main() {
 
 	router.
 		Methods("PUT").
-		Path("/file/{name:.+}").
+		Path("/file/{name:.*}").
 		HandlerFunc(PutFileFn(ctx))
 	router.
 		Methods("GET").
-		Path("/file/{name:.+}").
+		Path("/file/{name:.*}").
 		HandlerFunc(GetFileFn(ctx))
 	router.
 		Methods("POST").
-		Path("/file/{name:.+}").
+		Path("/file/{name:.*}").
 		Headers("Content-Type", "application/yaml").
 		HandlerFunc(PostFileFn(ctx))
 	router.
 		Methods("DELETE").
-		Path("/file/{name:.+}").
+		Path("/file/{name:.*}").
 		HandlerFunc(DeleteFileFn(ctx))
 
 	router.
