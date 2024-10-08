@@ -1,0 +1,53 @@
+name: Build and Release Go Multi-Arch Binaries
+
+on:
+  push:
+    tags:
+      - "v*" # Trigger workflow on version tags (e.g., v1.0.0)
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [linux, windows, darwin]
+        arch: [amd64, arm64, 386]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.23"
+
+      - name: Build Binary
+        run: |
+          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -gcflags=all="-N -l" -ldflags="-s -w" -o resonance-${{ matrix.os }}-${{ matrix.arch }}
+
+      - name: Archive Build
+        run: |
+          zip -j resonance-${{ matrix.os }}-${{ matrix.arch }}.zip resonance-${{ matrix.os }}-${{ matrix.arch }}
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: myapp-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist/myapp-${{ matrix.os }}-${{ matrix.arch }}.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: resonance-${{ matrix.os }}-${{ matrix.arch }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: "*.zip"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
