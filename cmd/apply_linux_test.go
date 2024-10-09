@@ -26,11 +26,11 @@ func TestApply(t *testing.T) {
 
 	resources := resouresPkg.Resources{
 		&resouresPkg.File{
-			Path:    filepath.Join(filesDir, "bar"),
-			Mode:    0644,
-			Content: fileContent,
-			Uid:     fileUid,
-			Gid:     fileGid,
+			Path:        filepath.Join(filesDir, "bar"),
+			Mode:        0644,
+			RegularFile: &fileContent,
+			Uid:         &fileUid,
+			Gid:         &fileGid,
 		},
 	}
 
@@ -50,7 +50,7 @@ func TestApply(t *testing.T) {
     diff:
       path: %s/bar
       -absent: true
-      +content: bar
+      +regular_file: bar
       +mode: 420
       +uid: %d
       +gid: %d

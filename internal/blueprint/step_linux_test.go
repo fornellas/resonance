@@ -117,14 +117,20 @@ func TestStepResolve(t *testing.T) {
 	ctx = log.WithTestLogger(ctx)
 	localhost := hostPkg.Local{}
 
+	fileContent := "foo"
+	user := "root"
 	step := NewSingleResourceStep(&resourcesPkg.File{
-		Path: "/bin",
-		User: "root",
+		Path:        "/bin",
+		RegularFile: &fileContent,
+		User:        &user,
 	})
 	step.Resolve(ctx, localhost)
 	require.Equal(t,
 		&resourcesPkg.File{
-			Path: "/bin",
+			Path:        "/bin",
+			RegularFile: &fileContent,
+			Uid:         new(uint32),
+			Gid:         new(uint32),
 		},
 		step.Resources()[0],
 	)

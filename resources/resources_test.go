@@ -10,6 +10,7 @@ import (
 )
 
 func TestValidateResource(t *testing.T) {
+	regularFile := "foo"
 	type testCase struct {
 		name          string
 		resource      Resource
@@ -19,7 +20,8 @@ func TestValidateResource(t *testing.T) {
 		{
 			name: "valid",
 			resource: &File{
-				Path: "/tmp/foo",
+				Path:        "/tmp/foo",
+				RegularFile: &regularFile,
 			},
 		},
 		{
@@ -39,7 +41,8 @@ func TestValidateResource(t *testing.T) {
 		{
 			name: "invalid state",
 			resource: &File{
-				Path: "foo",
+				Path:        "foo",
+				RegularFile: &regularFile,
 			},
 			errorContains: "'path' must be absolute",
 		},
@@ -101,10 +104,12 @@ func TestHashResource(t *testing.T) {
 	_, err := hex.DecodeString(hash)
 	require.NoError(t, err)
 
+	uid := uint32(33)
+	gid := uint32(33)
 	require.Equal(
 		t,
 		HashResource(&File{Path: "/foo"}),
-		HashResource(&File{Path: "/foo", Uid: 33, Gid: 33}),
+		HashResource(&File{Path: "/foo", Uid: &uid, Gid: &gid}),
 	)
 
 	require.NotEqual(

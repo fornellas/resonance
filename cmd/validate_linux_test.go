@@ -12,10 +12,12 @@ func TestValidate(t *testing.T) {
 	resourcesDir := tempDir
 	resourcesFile := filepath.Join(tempDir, "resources.yaml")
 
+	regularFile := "foo"
 	successResources := resouresPkg.Resources{
 		&resouresPkg.File{
-			Path: filepath.Join(tempDir, "foo"),
-			Mode: 0644,
+			Path:        filepath.Join(tempDir, "foo"),
+			RegularFile: &regularFile,
+			Mode:        0644,
 		},
 	}
 
@@ -42,6 +44,7 @@ func TestValidate(t *testing.T) {
 		ExpectStderrContains []string
 	}
 
+	badUser := "bad-user-name"
 	for _, tc := range []testCase{
 		{
 			Name:                 "success",
@@ -54,7 +57,7 @@ func TestValidate(t *testing.T) {
 				&resouresPkg.File{
 					Path: filepath.Join(tempDir, "foo"),
 					Mode: 0644,
-					User: "bad-user-name",
+					User: &badUser,
 				},
 			},
 			ExpectedCode:         1,
