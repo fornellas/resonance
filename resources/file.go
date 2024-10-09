@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"strconv"
+	"strings"
+	"syscall"
 
 	"github.com/fornellas/resonance/host"
 )
@@ -17,9 +19,24 @@ type File struct {
 	Path string `yaml:"path"`
 	// Whether to remove the file
 	Absent bool `yaml:"absent,omitempty"`
-	// Contents of the file
-	Content string `yaml:"content,omitempty"`
-	// Mode bits
+	// Create a socket file
+	Socket bool `yaml:"socket,omitempty"`
+	// Create a symbolic link pointing to given path
+	SymbolicLink string `yaml:"symbolic_link,omitempty"`
+	// Create a regular file with given contents
+	RegularFile string `yaml:"regular_file,omitempty"`
+	// Create a block device file with given majon / minor
+	BlockDevice uint64 `yaml:"block_device,omitempty"`
+	// Create a directory with given contents
+	Directory []File `yaml:"directory,omitempty"`
+	// TODO Directory  Giving an archive file of the contents (eg: .tar, .zip etc).
+	// TODO Directory  Pointing to a URL, which contains the archive file.
+	// TODO Directory  A Git repository checked out at a given commit hash.
+	// Create a character device file with given majon / minor
+	CharacterDevice uint64 `yaml:"character_device,omitempty"`
+	// Create a FIFO file
+	FIFO bool `yaml:"FIFO,omitempty"`
+	// Mode bits, see inode(7)
 	Mode uint32 `yaml:"mode,omitempty"`
 	// User ID owner of the file
 	Uid uint32 `yaml:"uid,omitempty"`
@@ -36,8 +53,12 @@ func (f *File) Validate() error {
 		return fmt.Errorf("'path' must be set")
 	}
 
-	if !filepath.IsAbs(string(f.Path)) {
+	if !filepath.IsAbs(f.Path) {
 		return fmt.Errorf("'path' must be absolute")
+	}
+
+	if filepath.Clean(f.Path) != f.Path {
+		return fmt.Errorf("'path' must be clean")
 	}
 
 	if f.Uid != 0 && f.User != "" {
@@ -48,6 +69,35 @@ func (f *File) Validate() error {
 		return fmt.Errorf("can't set both 'gid' and 'group'")
 	}
 
+	fileTypes := []bool{
+		f.Socket,
+		f.SymbolicLink != "",
+		f.RegularFile != "",
+		f.BlockDevice != 0,
+		len(f.Directory) > 0,
+		f.CharacterDevice != 0,
+		f.FIFO,
+	}
+
+	count := 0
+	for _, isSet := range fileTypes {
+		if isSet {
+			count++
+		}
+	}
+
+	if count > 1 {
+		return fmt.Errorf("at most one file type must be defined")
+	}
+
+	if len(f.Directory) > 0 {
+		for _, subFile := range f.Directory {
+			if !strings.HasPrefix(subFile.Path, f.Path) {
+				return fmt.Errorf("directory entry '%s' is not a subpath of '%s'", subFile.Path, f.Path)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -56,8 +106,7 @@ func (f *File) Load(ctx context.Context, hst host.Host) error {
 		Path: f.Path,
 	}
 
-	// Content
-	content, err := hst.ReadFile(ctx, string(f.Path))
+	stat_t, err := hst.Lstat(ctx, string(f.Path))
 	if err != nil {
 		if os.IsNotExist(err) {
 			f.Absent = true
@@ -65,22 +114,49 @@ func (f *File) Load(ctx context.Context, hst host.Host) error {
 		}
 		return err
 	}
-	f.Content = string(content)
 
-	// FileInfo
-	stat_t, err := hst.Lstat(ctx, string(f.Path))
-	if err != nil {
-		return err
-	}
-
-	// Perm
 	f.Mode = stat_t.Mode & 07777
-
-	// Uid
 	f.Uid = stat_t.Uid
-
-	// Gid
 	f.Gid = stat_t.Gid
+
+	switch stat_t.Mode & syscall.S_IFMT {
+	case syscall.S_IFSOCK:
+		f.Socket = true
+	case syscall.S_IFLNK:
+		// FIXME must readlink
+		// target, err := hst.ReadFile(ctx, string(f.Path))
+		// if err != nil {
+		// 	return err
+		// }
+		// f.SymbolicLink = string(target)
+	case syscall.S_IFREG:
+		content, err := hst.ReadFile(ctx, string(f.Path))
+		if err != nil {
+			return err
+		}
+		f.RegularFile = string(content)
+	case syscall.S_IFBLK:
+		f.BlockDevice = stat_t.Rdev
+	case syscall.S_IFDIR:
+		// TODO
+		// 	entries, err := hst.ReadDir(ctx, string(f.Path))
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// 	f.Directory = make([]File, len(entries))
+		// 	for i, entry := range entries {
+		// 		f.Directory[i] = File{Path: filepath.Join(f.Path, entry.Name)}
+		// 		if err := f.Directory[i].Load(ctx, hst); err != nil {
+		// 			return err
+		// 		}
+		// 	}
+	case syscall.S_IFCHR:
+		f.CharacterDevice = stat_t.Rdev
+	case syscall.S_IFIFO:
+		f.FIFO = true
+	default:
+		panic(fmt.Sprintf("bug: unexpected stat_t.Mode: 0x%x", stat_t.Mode))
+	}
 
 	return nil
 }
@@ -126,7 +202,7 @@ func (f *File) Apply(ctx context.Context, hst host.Host) error {
 	}
 
 	// Content
-	if err := hst.WriteFile(ctx, string(f.Path), []byte(f.Content), f.Mode); err != nil {
+	if err := hst.WriteFile(ctx, string(f.Path), []byte(f.RegularFile), f.Mode); err != nil {
 		return err
 	}
 
