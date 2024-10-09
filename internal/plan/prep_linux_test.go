@@ -23,14 +23,18 @@ func TestCreateAndStoreTargetBlueprint(t *testing.T) {
 
 	host := iHostPkg.Local{}
 
+	regularFile := "foo"
+
 	targetResources := resouresPkg.Resources{
 		&resouresPkg.File{
-			Path: "/bin",
-			User: "root",
+			Path:        "/bin",
+			RegularFile: &regularFile,
+			User:        "root",
 		},
 		&resouresPkg.File{
-			Path: "/lib",
-			User: "root",
+			Path:        "/lib",
+			RegularFile: &regularFile,
+			User:        "root",
 		},
 	}
 
@@ -43,12 +47,14 @@ func TestCreateAndStoreTargetBlueprint(t *testing.T) {
 
 	require.Equal(t, resouresPkg.Resources{
 		&resouresPkg.File{
-			Path: "/bin",
-			Uid:  0,
+			Path:        "/bin",
+			RegularFile: &regularFile,
+			Uid:         0,
 		},
 		&resouresPkg.File{
-			Path: "/lib",
-			Uid:  0,
+			Path:        "/lib",
+			RegularFile: &regularFile,
+			Uid:         0,
 		},
 	}, targetBlueprint.Resources())
 }
@@ -68,8 +74,8 @@ func TestSaveOriginalResourcesState(t *testing.T) {
 	err := host.WriteFile(ctx, filePath, []byte("foo"), fileMode)
 	require.NoError(t, err)
 	fileResource := &resouresPkg.File{
-		Path:    filePath,
-		Content: fileContent,
+		Path:        filePath,
+		RegularFile: &fileContent,
 	}
 
 	targetBlueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, resouresPkg.Resources{
@@ -86,11 +92,11 @@ func TestSaveOriginalResourcesState(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t,
 		&resouresPkg.File{
-			Path:    filePath,
-			Content: fileContent,
-			Mode:    fileMode,
-			Uid:     uint32(os.Getuid()),
-			Gid:     uint32(os.Getgid()),
+			Path:        filePath,
+			RegularFile: &fileContent,
+			Mode:        fileMode,
+			Uid:         uint32(os.Getuid()),
+			Gid:         uint32(os.Getgid()),
 		},
 		resource,
 	)
@@ -111,8 +117,8 @@ func TestLoadOrCreateAndSaveLastBlueprintWithValidation(t *testing.T) {
 	err := host.WriteFile(ctx, filePath, []byte("foo"), fileMode)
 	require.NoError(t, err)
 	fileResource := &resouresPkg.File{
-		Path:    filePath,
-		Content: fileContent,
+		Path:        filePath,
+		RegularFile: &fileContent,
 	}
 
 	targetBlueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, resouresPkg.Resources{

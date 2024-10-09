@@ -131,7 +131,7 @@ func (s *Step) Resolve(ctx context.Context, hst host.Host) error {
 			return err
 		}
 		if err := resourcesPkg.ValidateResource(s.singleResource); err != nil {
-			panic(fmt.Sprintf("bug: Resource Validate() failed after Resoslve(): %s", err.Error()))
+			panic(fmt.Sprintf("bug: Resource Validate() failed after Resolve(): %s", err.Error()))
 		}
 		return nil
 	}
@@ -142,7 +142,7 @@ func (s *Step) Resolve(ctx context.Context, hst host.Host) error {
 			return err
 		}
 		if err := s.groupResources.Validate(); err != nil {
-			panic(fmt.Sprintf("bug: Resource Validate() failed after Resoslve(): %s", err.Error()))
+			panic(fmt.Sprintf("bug: Resource Validate() failed after Resolve(): %s", err.Error()))
 		}
 		return nil
 	}
