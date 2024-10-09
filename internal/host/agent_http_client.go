@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -16,7 +17,6 @@ import (
 
 	"go.uber.org/multierr"
 	"golang.org/x/net/http2"
-	"gopkg.in/yaml.v3"
 
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/internal/host/agent_server_http/api"
@@ -175,8 +175,8 @@ func (a AgentHttpClient) checkResponseStatus(resp *http.Response) error {
 	if resp.StatusCode == http.StatusOK {
 		return nil
 	} else if resp.StatusCode == http.StatusInternalServerError {
-		decoder := yaml.NewDecoder(resp.Body)
-		decoder.KnownFields(true)
+		decoder := json.NewDecoder(resp.Body)
+		decoder.DisallowUnknownFields()
 		var apiErr api.Error
 		if err := decoder.Decode(&apiErr); err != nil {
 			return err
@@ -192,8 +192,8 @@ func (a AgentHttpClient) checkResponseStatus(resp *http.Response) error {
 }
 
 func (a AgentHttpClient) unmarshalResponse(resp *http.Response, bodyInterface interface{}) error {
-	decoder := yaml.NewDecoder(resp.Body)
-	decoder.KnownFields(true)
+	decoder := json.NewDecoder(resp.Body)
+	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(bodyInterface); err != nil {
 		return err
 	}
@@ -216,15 +216,13 @@ func (a AgentHttpClient) get(path string) (*http.Response, error) {
 func (a AgentHttpClient) post(path string, bodyInterface interface{}) (*http.Response, error) {
 	url := fmt.Sprintf("http://agent%s", path)
 
-	contentType := "application/yaml"
-
-	bodyData, err := yaml.Marshal(bodyInterface)
-	if err != nil {
+	body := &bytes.Buffer{}
+	encoder := json.NewEncoder(body)
+	if err := encoder.Encode(bodyInterface); err != nil {
 		return nil, err
 	}
-	body := bytes.NewBuffer(bodyData)
 
-	resp, err := a.Client.Post(url, contentType, body)
+	resp, err := a.Client.Post(url, "application/json", body)
 	if err != nil {
 		return nil, err
 	}
