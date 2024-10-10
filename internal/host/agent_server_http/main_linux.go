@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -18,13 +19,22 @@ import (
 	"github.com/gorilla/mux"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
-	"gopkg.in/yaml.v3"
 
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/internal/host/agent_server_http/api"
 	aNet "github.com/fornellas/resonance/internal/host/agent_server_http/net"
 	"github.com/fornellas/resonance/internal/host/lib"
 )
+
+func marshalResponse(w http.ResponseWriter, bodyInterface interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+
+	encoder := json.NewEncoder(w)
+	err := encoder.Encode(bodyInterface)
+	if err != nil {
+		panic(fmt.Errorf("failed to encode JSON: %w", err))
+	}
+}
 
 func internalServerError(w http.ResponseWriter, err error) {
 	w.WriteHeader(500)
@@ -47,21 +57,7 @@ func internalServerError(w http.ResponseWriter, err error) {
 		apiErr.Message = err.Error()
 	}
 
-	apiErrBytes, err := yaml.Marshal(&apiErr)
-	if err != nil {
-		panic(fmt.Sprintf("failed to marshal error: %s", err))
-	}
-
-	w.Write(apiErrBytes)
-}
-
-func marshalResponse(w http.ResponseWriter, bodyInterface interface{}) {
-	body, err := yaml.Marshal(bodyInterface)
-	if err != nil {
-		panic(fmt.Sprintf("failed to marshal group: %s", err))
-	}
-	w.Header().Set("Content-Type", "application/yaml")
-	w.Write(body)
+	marshalResponse(w, &apiErr)
 }
 
 func PutFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
@@ -177,11 +173,11 @@ func PostFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		decoder := yaml.NewDecoder(r.Body)
-		decoder.KnownFields(true)
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields()
 		var file api.File
 		if err := decoder.Decode(&file); err != nil {
-			internalServerError(w, fmt.Errorf("fail to unmarshal body: %w", err))
+			internalServerError(w, fmt.Errorf("fail to decode JSON: %w", err))
 			return
 		}
 
@@ -262,11 +258,11 @@ func GetUserFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 
 func PostRunFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		decoder := yaml.NewDecoder(r.Body)
-		decoder.KnownFields(true)
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields()
 		var apiCmd api.Cmd
 		if err := decoder.Decode(&apiCmd); err != nil {
-			internalServerError(w, fmt.Errorf("fail to unmarshal body: %w", err))
+			internalServerError(w, fmt.Errorf("fail to decode JSON: %w", err))
 			return
 		}
 
@@ -346,7 +342,7 @@ func main() {
 	router.
 		Methods("POST").
 		Path("/file/{name:.*}").
-		Headers("Content-Type", "application/yaml").
+		Headers("Content-Type", "application/json").
 		HandlerFunc(PostFileFn(ctx))
 	router.
 		Methods("DELETE").
@@ -371,7 +367,7 @@ func main() {
 	router.
 		Methods("POST").
 		Path("/run").
-		Headers("Content-Type", "application/yaml").
+		Headers("Content-Type", "application/json").
 		HandlerFunc(PostRunFn(ctx))
 
 	router.
