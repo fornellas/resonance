@@ -152,15 +152,15 @@ func (a *AgentGrpcClient) spawn(ctx context.Context) error {
 	}()
 
 	Client := proto.NewHostServiceClient(a.Client)
-	pingResp, err := Client.Ping(ctx, &proto.PingRequest{})
+	resp, err := Client.Ping(ctx, &proto.PingRequest{})
 
 	if err != nil {
 		return multierr.Combine(err, a.Close())
 	}
 
-	if pingResp.Message != "Pong" {
+	if resp.Message != "Pong" {
 		defer a.Close()
-		return fmt.Errorf("unexpected response from agent: %s", pingResp.Message)
+		return fmt.Errorf("unexpected response from agent: %s", resp.Message)
 	}
 
 	return nil
@@ -196,8 +196,8 @@ func (a AgentGrpcClient) Chown(ctx context.Context, name string, uid, gid int) e
 	Client := proto.NewHostServiceClient(a.Client)
 	_, err := Client.Chown(ctx, &proto.ChownRequest{
 		Name: name,
-		Uid:  int32(uid),
-		Gid:  int32(gid),
+		Uid:  int64(uid),
+		Gid:  int64(gid),
 	})
 
 	if err != nil {
@@ -214,23 +214,29 @@ func (a AgentGrpcClient) Chown(ctx context.Context, name string, uid, gid int) e
 }
 
 func (a AgentGrpcClient) Lookup(ctx context.Context, username string) (*user.User, error) {
-	panic("todo lookup")
-	// 	logger := log.MustLogger(ctx)
+	logger := log.MustLogger(ctx)
 
-	// 	logger.Debug("Lookup", "username", username)
+	logger.Debug("Lookup", "username", username)
 
-	// 	resp, err := a.get(fmt.Sprintf("/user/%s", username))
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
+	Client := proto.NewHostServiceClient(a.Client)
+	resp, err := Client.Lookup(ctx, &proto.LookupRequest{
+		Username: username,
+	})
 
-	// var u user.User
-	//
-	//	if err := a.unmarshalResponse(resp, &u); err != nil {
-	//		return nil, err
-	//	}
-	//
-	// return &u, nil
+	if err != nil {
+		if strings.Contains(err.Error(), "user: unknown user") {
+			return nil, user.UnknownUserError(username)
+		}
+		return nil, err
+	}
+
+	return &user.User{
+		Uid:      resp.Uid,
+		Gid:      resp.Gid,
+		Username: resp.Username,
+		Name:     resp.Name,
+		HomeDir:  resp.Homedir,
+	}, nil
 }
 
 func (a AgentGrpcClient) LookupGroup(ctx context.Context, name string) (*user.Group, error) {

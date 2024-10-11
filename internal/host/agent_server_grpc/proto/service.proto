@@ -8,6 +8,7 @@ service HostService {
   rpc Ping(PingRequest) returns (PingResponse) {}
   rpc Chmod(ChmodRequest) returns (ChmodResponse) {}
   rpc Chown(ChownRequest) returns (ChownResponse) {}
+  rpc Lookup(LookupRequest) returns (LookupResponse) {}
 }
 
 message PingRequest {}
@@ -27,11 +28,22 @@ message ChmodResponse {
 
 message ChownRequest {
   string name = 1;
-  int32  uid = 2;
-  int32  gid = 3;
-
+  int64  uid = 2;
+  int64  gid = 3;
 }
 
 message ChownResponse {
   string status = 1;
+}
+
+message LookupRequest {
+  string username = 1;
+}
+
+message LookupResponse {
+  string name  = 1;
+  string uid  = 2;
+  string gid = 3;
+  string username = 4;
+  string homedir = 5;
 }

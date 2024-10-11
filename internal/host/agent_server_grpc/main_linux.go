@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
 	"syscall"
 
@@ -38,8 +39,8 @@ func (s *HostService) Chmod(ctx context.Context, req *proto.ChmodRequest) (*prot
 
 func (s *HostService) Chown(ctx context.Context, req *proto.ChownRequest) (*proto.ChownResponse, error) {
 	name := req.Name
-	uid := req.Uid
-	gid := req.Gid
+	uid := int(req.Uid)
+	gid := int(req.Gid)
 
 	if !filepath.IsAbs(name) {
 		return nil, fmt.Errorf("path must be absolute: %s", name)
@@ -50,6 +51,22 @@ func (s *HostService) Chown(ctx context.Context, req *proto.ChownRequest) (*prot
 	}
 
 	return &proto.ChownResponse{Status: "chown successful"}, nil
+}
+
+func (s *HostService) Lookup(ctx context.Context, req *proto.LookupRequest) (*proto.LookupResponse, error) {
+	name := req.Username
+	user, err := user.Lookup(name)
+	if err != nil {
+		return nil, err
+	}
+
+	return &proto.LookupResponse{
+		Uid:      user.Uid,
+		Gid:      user.Gid,
+		Username: user.Username,
+		Name:     user.Name,
+		Homedir:  user.HomeDir,
+	}, nil
 }
 
 func main() {
