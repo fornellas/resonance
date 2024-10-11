@@ -9,7 +9,6 @@ import (
 	"net"
 	"os"
 	"os/user"
-	"path/filepath"
 	"strings"
 
 	"go.uber.org/multierr"
@@ -171,10 +170,6 @@ func (a AgentGrpcClient) Chmod(ctx context.Context, name string, mode uint32) er
 	logger := log.MustLogger(ctx)
 	logger.Debug("Chmod", "name", name, "mode", mode)
 
-	if !filepath.IsAbs(name) {
-		return fmt.Errorf("path must be absolute: %s", name)
-	}
-
 	Client := proto.NewHostServiceClient(a.Client)
 	_, err := Client.Chmod(ctx, &proto.ChmodRequest{
 		Name: name,
@@ -197,10 +192,6 @@ func (a AgentGrpcClient) Chmod(ctx context.Context, name string, mode uint32) er
 func (a AgentGrpcClient) Chown(ctx context.Context, name string, uid, gid int) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Chown", "name", name, "uid", uid, "gid", gid)
-
-	if !filepath.IsAbs(name) {
-		return fmt.Errorf("path must be absolute: %s", name)
-	}
 
 	Client := proto.NewHostServiceClient(a.Client)
 	_, err := Client.Chown(ctx, &proto.ChownRequest{

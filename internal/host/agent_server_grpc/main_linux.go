@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"path/filepath"
+	"syscall"
 
 	"google.golang.org/grpc"
 
@@ -20,8 +23,13 @@ func (s *HostService) Ping(ctx context.Context, req *proto.PingRequest) (*proto.
 
 func (s *HostService) Chmod(ctx context.Context, req *proto.ChmodRequest) (*proto.ChmodResponse, error) {
 	name := req.Name
-	mode := os.FileMode(req.Mode)
-	if err := os.Chmod(name, mode); err != nil {
+	mode := req.Mode
+
+	if !filepath.IsAbs(name) {
+		return nil, fmt.Errorf("path must be absolute: %s", name)
+	}
+
+	if err := syscall.Chmod(name, mode); err != nil {
 		return nil, err
 	}
 
@@ -30,10 +38,14 @@ func (s *HostService) Chmod(ctx context.Context, req *proto.ChmodRequest) (*prot
 
 func (s *HostService) Chown(ctx context.Context, req *proto.ChownRequest) (*proto.ChownResponse, error) {
 	name := req.Name
-	uid := int(req.Uid)
-	gid := int(req.Gid)
+	uid := req.Uid
+	gid := req.Gid
 
-	if err := os.Chown(name, uid, gid); err != nil {
+	if !filepath.IsAbs(name) {
+		return nil, fmt.Errorf("path must be absolute: %s", name)
+	}
+
+	if err := syscall.Chown(name, uid, gid); err != nil {
 		return nil, err
 	}
 
