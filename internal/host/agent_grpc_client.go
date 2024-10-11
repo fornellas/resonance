@@ -5,16 +5,18 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
+	"io"
 	"io/fs"
 	"net"
 	"os"
 	"os/user"
-	"path/filepath"
 	"strings"
 
 	"go.uber.org/multierr"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/internal/host/agent_server_grpc/proto"
@@ -153,15 +155,15 @@ func (a *AgentGrpcClient) spawn(ctx context.Context) error {
 	}()
 
 	Client := proto.NewHostServiceClient(a.Client)
-	pingResp, err := Client.Ping(ctx, &proto.PingRequest{})
+	resp, err := Client.Ping(ctx, &proto.PingRequest{})
 
 	if err != nil {
 		return multierr.Combine(err, a.Close())
 	}
 
-	if pingResp.Message != "Pong" {
+	if resp.Message != "Pong" {
 		defer a.Close()
-		return fmt.Errorf("unexpected response from agent: %s", pingResp.Message)
+		return fmt.Errorf("unexpected response from agent: %s", resp.Message)
 	}
 
 	return nil
@@ -170,10 +172,6 @@ func (a *AgentGrpcClient) spawn(ctx context.Context) error {
 func (a AgentGrpcClient) Chmod(ctx context.Context, name string, mode uint32) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Chmod", "name", name, "mode", mode)
-
-	if !filepath.IsAbs(name) {
-		return fmt.Errorf("path must be absolute: %s", name)
-	}
 
 	Client := proto.NewHostServiceClient(a.Client)
 	_, err := Client.Chmod(ctx, &proto.ChmodRequest{
@@ -198,15 +196,11 @@ func (a AgentGrpcClient) Chown(ctx context.Context, name string, uid, gid int) e
 	logger := log.MustLogger(ctx)
 	logger.Debug("Chown", "name", name, "uid", uid, "gid", gid)
 
-	if !filepath.IsAbs(name) {
-		return fmt.Errorf("path must be absolute: %s", name)
-	}
-
 	Client := proto.NewHostServiceClient(a.Client)
 	_, err := Client.Chown(ctx, &proto.ChownRequest{
 		Name: name,
-		Uid:  int32(uid),
-		Gid:  int32(gid),
+		Uid:  int64(uid),
+		Gid:  int64(gid),
 	})
 
 	if err != nil {
@@ -223,209 +217,311 @@ func (a AgentGrpcClient) Chown(ctx context.Context, name string, uid, gid int) e
 }
 
 func (a AgentGrpcClient) Lookup(ctx context.Context, username string) (*user.User, error) {
-	panic("todo lookup")
-	// 	logger := log.MustLogger(ctx)
+	logger := log.MustLogger(ctx)
 
-	// 	logger.Debug("Lookup", "username", username)
+	logger.Debug("Lookup", "username", username)
 
-	// 	resp, err := a.get(fmt.Sprintf("/user/%s", username))
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
+	Client := proto.NewHostServiceClient(a.Client)
+	resp, err := Client.Lookup(ctx, &proto.LookupRequest{
+		Username: username,
+	})
 
-	// var u user.User
-	//
-	//	if err := a.unmarshalResponse(resp, &u); err != nil {
-	//		return nil, err
-	//	}
-	//
-	// return &u, nil
+	if err != nil {
+		if strings.Contains(err.Error(), "user: unknown user") {
+			return nil, user.UnknownUserError(username)
+		}
+		return nil, err
+	}
+
+	return &user.User{
+		Uid:      resp.Uid,
+		Gid:      resp.Gid,
+		Username: resp.Username,
+		Name:     resp.Name,
+		HomeDir:  resp.Homedir,
+	}, nil
 }
 
 func (a AgentGrpcClient) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
-	panic("todo lookup group")
-	// 	logger := log.MustLogger(ctx)
+	logger := log.MustLogger(ctx)
 
-	// 	logger.Debug("LookupGroup", "name", name)
+	logger.Debug("LookupGroup", "group", name)
 
-	// 	resp, err := a.get(fmt.Sprintf("/group/%s", name))
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
+	Client := proto.NewHostServiceClient(a.Client)
+	resp, err := Client.LookupGroup(ctx, &proto.LookupGroupRequest{
+		Name: name,
+	})
 
-	// var g user.Group
-	//
-	//	if err := a.unmarshalResponse(resp, &g); err != nil {
-	//		return nil, err
-	//	}
-	//
-	// return &g, nil
+	if err != nil {
+		if strings.Contains(err.Error(), "group: unknown group") {
+			return nil, user.UnknownGroupError(name)
+		}
+		return nil, err
+	}
+
+	return &user.Group{
+		Gid:  resp.Gid,
+		Name: resp.Name,
+	}, nil
 }
 
 func (a AgentGrpcClient) Lstat(ctx context.Context, name string) (*host.Stat_t, error) {
-	panic("todo lstat")
-	// 	logger := log.MustLogger(ctx)
+	logger := log.MustLogger(ctx)
 
-	// 	logger.Debug("Lstat", "name", name)
+	logger.Debug("Lstat", "name", name)
 
-	// 	if !filepath.IsAbs(name) {
-	// 		return host.HostFileInfo{}, fmt.Errorf("path must be absolute: %s", name)
-	// 	}
+	client := proto.NewHostServiceClient(a.Client)
+	resp, err := client.Lstat(ctx, &proto.LstatRequest{
+		Name: name,
+	})
+	if err != nil {
+		if status, ok := status.FromError(err); ok {
+			switch status.Code() {
+			case codes.PermissionDenied:
+				return nil, fs.ErrPermission
+			case codes.NotFound:
+				return nil, fs.ErrNotExist
+			}
+		}
+		return nil, err
+	}
 
-	// 	resp, err := a.get(fmt.Sprintf("/file%s?lstat=true", name))
-	// 	if err != nil {
-	// 		return host.HostFileInfo{}, err
-	// }
+	stat_t := host.Stat_t{
+		Dev:     resp.Dev,
+		Ino:     resp.Ino,
+		Mode:    resp.Mode,
+		Nlink:   uint64(resp.Nlink),
+		Uid:     resp.Uid,
+		Gid:     resp.Gid,
+		Rdev:    resp.Rdev,
+		Size:    resp.Size,
+		Blksize: int64(resp.Blksize),
+		Blocks:  resp.Blocks,
+		Atim: host.Timespec{
+			Sec:  resp.Atim.Sec,
+			Nsec: resp.Atim.Nsec,
+		},
+		Mtim: host.Timespec{
+			Sec:  resp.Mtim.Sec,
+			Nsec: resp.Mtim.Nsec,
+		},
+		Ctim: host.Timespec{
+			Sec:  resp.Ctim.Sec,
+			Nsec: resp.Ctim.Nsec,
+		},
+	}
 
-	// var hfi host.HostFileInfo
-	//
-	//	if err := a.unmarshalResponse(resp, &hfi); err != nil {
-	//		return host.HostFileInfo{}, err
-	//	}
-	//
-	// hfi.ModTime = hfi.ModTime.Local()
-	// return hfi, nil
+	return &stat_t, nil
 }
 
 func (a AgentGrpcClient) ReadDir(ctx context.Context, name string) ([]host.DirEnt, error) {
-	panic("TODO AgentGrpcClient.ReadDir")
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("ReadDir", "name", name)
+
+	client := proto.NewHostServiceClient(a.Client)
+	resp, err := client.ReadDir(ctx, &proto.ReadDirRequest{
+		Name: name,
+	})
+
+	if err != nil {
+		if status, ok := status.FromError(err); ok {
+			switch status.Code() {
+			case codes.PermissionDenied:
+				return nil, fs.ErrPermission
+			case codes.NotFound:
+				return nil, fs.ErrNotExist
+			}
+		}
+		return nil, err
+	}
+
+	dirEnts := []host.DirEnt{}
+	for _, protoDirEnt := range resp.Entries {
+		dirEnts = append(dirEnts, host.DirEnt{
+			Name: protoDirEnt.Name,
+			Type: uint8(protoDirEnt.Type),
+			Ino:  protoDirEnt.Ino,
+		})
+	}
+
+	return dirEnts, nil
 }
 
 func (a AgentGrpcClient) Mkdir(ctx context.Context, name string, mode uint32) error {
-	panic("todo mkdir")
-	// 	logger := log.MustLogger(ctx)
+	logger := log.MustLogger(ctx)
 
-	// 	logger.Debug("Mkdir", "name", name)
+	logger.Debug("Mkdir", "name", name)
 
-	// 	if !filepath.IsAbs(name) {
-	// 		return fmt.Errorf("path must be absolute: %s", name)
-	// 	}
+	client := proto.NewHostServiceClient(a.Client)
+	_, err := client.Mkdir(ctx, &proto.MkdirRequest{
+		Name: name,
+		Mode: mode,
+	})
 
-	// 	_, err := a.post(fmt.Sprintf("/file%s", name), api.File{
-	// 		Action: api.Mkdir,
-	// 		Mode:   perm,
-	// 	})
+	if err != nil {
+		if status, ok := status.FromError(err); ok {
+			switch status.Code() {
+			case codes.PermissionDenied:
+				return fs.ErrPermission
+			case codes.NotFound:
+				return fs.ErrNotExist
+			case codes.AlreadyExists:
+				return fs.ErrExist
+			}
+		}
+		return err
+	}
 
-	// return err
+	return nil
 }
 
 func (a AgentGrpcClient) ReadFile(ctx context.Context, name string) ([]byte, error) {
-	panic("todo read file")
-	// 	logger := log.MustLogger(ctx)
+	logger := log.MustLogger(ctx)
 
-	// 	logger.Debug("ReadFile", "name", name)
+	logger.Debug("ReadFile", "name", name)
 
-	// 	if !filepath.IsAbs(name) {
-	// 		return nil, fmt.Errorf("path must be absolute: %s", name)
-	// 	}
+	client := proto.NewHostServiceClient(a.Client)
+	stream, err := client.ReadFile(ctx, &proto.ReadFileRequest{
+		Name: name,
+	})
 
-	// 	resp, err := a.get(fmt.Sprintf("/file%s", name))
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
+	if err != nil {
+		if status, ok := status.FromError(err); ok {
+			switch status.Code() {
+			case codes.PermissionDenied:
+				return nil, os.ErrPermission
+			case codes.NotFound:
+				return nil, os.ErrNotExist
+			}
+		}
+		return nil, err
+	}
 
-	// 	contents, err := io.ReadAll(resp.Body)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
+	var fileData []byte
 
-	// return contents, nil
+	for {
+		resp, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			if status, ok := status.FromError(err); ok {
+				switch status.Code() {
+				case codes.PermissionDenied:
+					return nil, os.ErrPermission
+				case codes.NotFound:
+					return nil, os.ErrNotExist
+				}
+			}
+			return nil, err
+
+		}
+
+		fileData = append(fileData, resp.Chunk...)
+	}
+
+	return fileData, nil
+
 }
 
 func (a AgentGrpcClient) Remove(ctx context.Context, name string) error {
-	panic("todo remove")
-	// 	logger := log.MustLogger(ctx)
+	logger := log.MustLogger(ctx)
 
-	// 	logger.Debug("Remove", "name", name)
+	logger.Debug("Remove", "name", name)
 
-	// 	if !filepath.IsAbs(name) {
-	// 		return fmt.Errorf("path must be absolute: %s", name)
-	// 	}
+	client := proto.NewHostServiceClient(a.Client)
+	_, err := client.Remove(ctx, &proto.RemoveRequest{
+		Name: name,
+	})
 
-	// 	_, err := a.delete(fmt.Sprintf("/file%s", name))
-	// 	if err != nil {
-	// 		return err
-	// 	}
+	if err != nil {
+		if status, ok := status.FromError(err); ok {
+			switch status.Code() {
+			case codes.PermissionDenied:
+				return fs.ErrPermission
+			case codes.NotFound:
+				return fs.ErrNotExist
+			}
+		}
+		return err
+	}
 
-	// return nil
+	return nil
 }
 
 func (a AgentGrpcClient) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
-	panic("todo run")
-	// 	logger := log.MustLogger(ctx)
+	logger := log.MustLogger(ctx)
+	logger.Debug("Run", "cmd", cmd)
 
-	// 	logger.Debug("Run", "cmd", cmd)
+	var stdin []byte
+	if cmd.Stdin != nil {
+		var err error
+		stdin, err = io.ReadAll(cmd.Stdin)
+		if err != nil {
+			return host.WaitStatus{}, err
+		}
+	}
 
-	// 	var stdin []byte
-	// 	if cmd.Stdin != nil {
-	// 		var err error
-	// 		stdin, err = io.ReadAll(cmd.Stdin)
-	// 		if err != nil {
-	// 			return host.WaitStatus{}, err
-	// 		}
-	// }
+	client := proto.NewHostServiceClient(a.Client)
+	resp, err := client.Run(ctx, &proto.RunRequest{
+		Path:  cmd.Path,
+		Args:  cmd.Args,
+		Env:   cmd.Env,
+		Dir:   cmd.Dir,
+		Stdin: stdin,
+	})
 
-	// 	var stdout bool
-	// 	if cmd.Stdout != nil {
-	// 		stdout = true
-	// 	}
+	if err != nil {
+		return host.WaitStatus{}, err
+	}
 
-	// 	var stderr bool
-	// 	if cmd.Stderr != nil {
-	// 		stderr = true
-	// 	}
+	if cmd.Stdout != nil {
+		_, err := io.Copy(cmd.Stdout, bytes.NewReader(resp.Stdout))
+		if err != nil {
+			return host.WaitStatus{}, err
+		}
+	}
 
-	// 	resp, err := a.post("/run", api.Cmd{
-	// 		Path:   cmd.Path,
-	// 		Args:   cmd.Args,
-	// 		Env:    cmd.Env,
-	// 		Dir:    cmd.Dir,
-	// 		Stdin:  stdin,
-	// 		Stdout: stdout,
-	// 		Stderr: stderr,
-	// 	})
-	// 	if err != nil {
-	// 		return host.WaitStatus{}, err
-	// 	}
+	if cmd.Stderr != nil {
+		_, err := io.Copy(cmd.Stderr, bytes.NewReader(resp.Stderr))
+		if err != nil {
+			return host.WaitStatus{}, err
+		}
+	}
 
-	// 	var cs api.CmdResponse
-	// 	if err := a.unmarshalResponse(resp, &cs); err != nil {
-	// 		return host.WaitStatus{}, err
-	// 	}
-
-	// 	if cmd.Stdout != nil {
-	// 		_, err := io.Copy(cmd.Stdout, bytes.NewReader(cs.Stdout))
-	// 		if err != nil {
-	// 			return host.WaitStatus{}, err
-	// 		}
-	// 	}
-
-	// 	if cmd.Stderr != nil {
-	// 		_, err := io.Copy(cmd.Stderr, bytes.NewReader(cs.Stderr))
-	// 		if err != nil {
-	// 			return host.WaitStatus{}, err
-	// 		}
-	// 	}
-
-	// return cs.WaitStatus, nil
+	return host.WaitStatus{
+		ExitCode: int(resp.Waitstatus.Exitcode),
+		Exited:   resp.Waitstatus.Exited,
+		Signal:   resp.Waitstatus.Signal,
+	}, nil
 }
 
-func (a AgentGrpcClient) WriteFile(ctx context.Context, name string, data []byte, mode uint32) error {
-	panic("todo write file")
-	// 	logger := log.MustLogger(ctx)
+func (a AgentGrpcClient) WriteFile(ctx context.Context, name string, data []byte, perm uint32) error {
+	logger := log.MustLogger(ctx)
 
-	// 	logger.Debug("WriteFile", "name", name, "data", data, "perm", perm)
+	logger.Debug("WriteFile", "name", name, "data", data, "perm", perm)
 
-	// 	if !filepath.IsAbs(name) {
-	// 		return fmt.Errorf("path must be absolute: %s", name)
-	// 	}
+	client := proto.NewHostServiceClient(a.Client)
+	_, err := client.WriteFile(ctx, &proto.WriteFileRequest{
+		Name: name,
+		Data: data,
+		Perm: perm,
+	})
 
-	// 	_, err := a.put(fmt.Sprintf("/file%s?perm=%d", name, perm), bytes.NewReader(data))
-	// 	if err != nil {
-	// 		return err
-	// 	}
+	if err != nil {
+		if status, ok := status.FromError(err); ok {
+			switch status.Code() {
+			case codes.PermissionDenied:
+				return fs.ErrPermission
+			case codes.NotFound:
+				return fs.ErrNotExist
+			}
+		}
+		return err
+	}
 
-	// return nil
+	return nil
 }
 
 func (a AgentGrpcClient) String() string {
@@ -437,9 +533,7 @@ func (a AgentGrpcClient) Type() string {
 }
 
 func (a *AgentGrpcClient) Close() error {
-	panic("todo close")
-	// a.post("/shutdown", nil) // to be implemented
-	// a.Client.Close()
-	// <-a.waitCn
-	// return a.Host.Close()
+	fmt.Println("Closing agent")
+	return nil
+	// to be implemented
 }
