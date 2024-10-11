@@ -13,7 +13,9 @@ import (
 
 	"go.uber.org/multierr"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/internal/host/agent_server_grpc/proto"
@@ -240,23 +242,26 @@ func (a AgentGrpcClient) Lookup(ctx context.Context, username string) (*user.Use
 }
 
 func (a AgentGrpcClient) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
-	panic("todo lookup group")
-	// 	logger := log.MustLogger(ctx)
+	logger := log.MustLogger(ctx)
 
-	// 	logger.Debug("LookupGroup", "name", name)
+	logger.Debug("Lookup", "group", name)
 
-	// 	resp, err := a.get(fmt.Sprintf("/group/%s", name))
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
+	Client := proto.NewHostServiceClient(a.Client)
+	resp, err := Client.LookupGroup(ctx, &proto.LookupGroupRequest{
+		Name: name,
+	})
 
-	// var g user.Group
-	//
-	//	if err := a.unmarshalResponse(resp, &g); err != nil {
-	//		return nil, err
-	//	}
-	//
-	// return &g, nil
+	if err != nil {
+		if strings.Contains(err.Error(), "group: unknown group") {
+			return nil, user.UnknownGroupError(name)
+		}
+		return nil, err
+	}
+
+	return &user.Group{
+		Gid:  resp.Gid,
+		Name: resp.Name,
+	}, nil
 }
 
 func (a AgentGrpcClient) Lstat(ctx context.Context, name string) (*host.Stat_t, error) {
@@ -289,21 +294,28 @@ func (a AgentGrpcClient) ReadDir(ctx context.Context, name string) ([]host.DirEn
 }
 
 func (a AgentGrpcClient) Mkdir(ctx context.Context, name string, mode uint32) error {
-	panic("todo mkdir")
-	// 	logger := log.MustLogger(ctx)
+	logger := log.MustLogger(ctx)
 
-	// 	logger.Debug("Mkdir", "name", name)
+	logger.Debug("Mkdir", "name", name)
 
-	// 	if !filepath.IsAbs(name) {
-	// 		return fmt.Errorf("path must be absolute: %s", name)
-	// 	}
+	client := proto.NewHostServiceClient(a.Client)
+	_, err := client.Mkdir(ctx, &proto.MkdirRequest{
+		Name: name,
+		Mode: mode,
+	})
 
-	// 	_, err := a.post(fmt.Sprintf("/file%s", name), api.File{
-	// 		Action: api.Mkdir,
-	// 		Mode:   perm,
-	// 	})
+	if status, ok := status.FromError(err); ok {
+		switch status.Code() {
+		case codes.PermissionDenied:
+			return fs.ErrPermission
+		case codes.AlreadyExists:
+			return fs.ErrExist
+		case codes.NotFound:
+			return fs.ErrNotExist
+		}
+	}
 
-	// return err
+	return err
 }
 
 func (a AgentGrpcClient) ReadFile(ctx context.Context, name string) ([]byte, error) {

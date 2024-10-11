@@ -9,7 +9,10 @@ service HostService {
   rpc Chmod(ChmodRequest) returns (ChmodResponse) {}
   rpc Chown(ChownRequest) returns (ChownResponse) {}
   rpc Lookup(LookupRequest) returns (LookupResponse) {}
+  rpc LookupGroup(LookupGroupRequest) returns (LookupGroupResponse) {}
+  rpc Mkdir(MkdirRequest) returns (Empty) {}
 }
+
 
 message PingRequest {}
 
@@ -47,3 +50,19 @@ message LookupResponse {
   string username = 4;
   string homedir = 5;
 }
+
+message LookupGroupRequest {
+  string name = 1;
+}
+
+message LookupGroupResponse {
+  string name  = 1;
+  string gid = 2;
+}
+
+message MkdirRequest {
+  string name = 1;
+  uint32 mode = 2;
+}
+
+message Empty {}
