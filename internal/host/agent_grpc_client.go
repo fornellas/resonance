@@ -452,60 +452,60 @@ func (a AgentGrpcClient) Remove(ctx context.Context, name string) error {
 
 func (a AgentGrpcClient) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	panic("todo run")
-	// 	logger := log.MustLogger(ctx)
+	// logger := log.MustLogger(ctx)
 
-	// 	logger.Debug("Run", "cmd", cmd)
+	// logger.Debug("Run", "cmd", cmd)
 
-	// 	var stdin []byte
-	// 	if cmd.Stdin != nil {
-	// 		var err error
-	// 		stdin, err = io.ReadAll(cmd.Stdin)
-	// 		if err != nil {
-	// 			return host.WaitStatus{}, err
-	// 		}
-	// }
-
-	// 	var stdout bool
-	// 	if cmd.Stdout != nil {
-	// 		stdout = true
-	// 	}
-
-	// 	var stderr bool
-	// 	if cmd.Stderr != nil {
-	// 		stderr = true
-	// 	}
-
-	// 	resp, err := a.post("/run", api.Cmd{
-	// 		Path:   cmd.Path,
-	// 		Args:   cmd.Args,
-	// 		Env:    cmd.Env,
-	// 		Dir:    cmd.Dir,
-	// 		Stdin:  stdin,
-	// 		Stdout: stdout,
-	// 		Stderr: stderr,
-	// 	})
+	// var stdin []byte
+	// if cmd.Stdin != nil {
+	// 	var err error
+	// 	stdin, err = io.ReadAll(cmd.Stdin)
 	// 	if err != nil {
 	// 		return host.WaitStatus{}, err
 	// 	}
+	// }
 
-	// 	var cs api.CmdResponse
-	// 	if err := a.unmarshalResponse(resp, &cs); err != nil {
+	// var stdout bool
+	// if cmd.Stdout != nil {
+	// 	stdout = true
+	// }
+
+	// var stderr bool
+	// if cmd.Stderr != nil {
+	// 	stderr = true
+	// }
+
+	// resp, err := a.post("/run", api.Cmd{
+	// 	Path:   cmd.Path,
+	// 	Args:   cmd.Args,
+	// 	Env:    cmd.Env,
+	// 	Dir:    cmd.Dir,
+	// 	Stdin:  stdin,
+	// 	Stdout: stdout,
+	// 	Stderr: stderr,
+	// })
+	// if err != nil {
+	// 	return host.WaitStatus{}, err
+	// }
+
+	// var cs api.CmdResponse
+	// if err := a.unmarshalResponse(resp, &cs); err != nil {
+	// 	return host.WaitStatus{}, err
+	// }
+
+	// if cmd.Stdout != nil {
+	// 	_, err := io.Copy(cmd.Stdout, bytes.NewReader(cs.Stdout))
+	// 	if err != nil {
 	// 		return host.WaitStatus{}, err
 	// 	}
+	// }
 
-	// 	if cmd.Stdout != nil {
-	// 		_, err := io.Copy(cmd.Stdout, bytes.NewReader(cs.Stdout))
-	// 		if err != nil {
-	// 			return host.WaitStatus{}, err
-	// 		}
+	// if cmd.Stderr != nil {
+	// 	_, err := io.Copy(cmd.Stderr, bytes.NewReader(cs.Stderr))
+	// 	if err != nil {
+	// 		return host.WaitStatus{}, err
 	// 	}
-
-	// 	if cmd.Stderr != nil {
-	// 		_, err := io.Copy(cmd.Stderr, bytes.NewReader(cs.Stderr))
-	// 		if err != nil {
-	// 			return host.WaitStatus{}, err
-	// 		}
-	// 	}
+	// }
 
 	// return cs.WaitStatus, nil
 }
