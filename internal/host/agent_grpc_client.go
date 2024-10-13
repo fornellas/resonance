@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
+	"io"
 	"io/fs"
 	"net"
 	"os"
@@ -373,26 +374,52 @@ func (a AgentGrpcClient) Mkdir(ctx context.Context, name string, mode uint32) er
 }
 
 func (a AgentGrpcClient) ReadFile(ctx context.Context, name string) ([]byte, error) {
-	panic("todo read file")
-	// 	logger := log.MustLogger(ctx)
+	logger := log.MustLogger(ctx)
 
-	// 	logger.Debug("ReadFile", "name", name)
+	logger.Debug("ReadFile", "name", name)
 
-	// 	if !filepath.IsAbs(name) {
-	// 		return nil, fmt.Errorf("path must be absolute: %s", name)
-	// 	}
+	client := proto.NewHostServiceClient(a.Client)
+	stream, err := client.ReadFile(ctx, &proto.ReadFileRequest{
+		Name: name,
+	})
 
-	// 	resp, err := a.get(fmt.Sprintf("/file%s", name))
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
+	if err != nil {
+		if status, ok := status.FromError(err); ok {
+			switch status.Code() {
+			case codes.PermissionDenied:
+				return nil, os.ErrPermission
+			case codes.NotFound:
+				return nil, os.ErrNotExist
+			}
+		}
+		return nil, err
+	}
 
-	// 	contents, err := io.ReadAll(resp.Body)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
+	var fileData []byte
 
-	// return contents, nil
+	for {
+		resp, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			if status, ok := status.FromError(err); ok {
+				switch status.Code() {
+				case codes.PermissionDenied:
+					return nil, os.ErrPermission
+				case codes.NotFound:
+					return nil, os.ErrNotExist
+				}
+			}
+			return nil, err
+
+		}
+
+		fileData = append(fileData, resp.Chunk...)
+	}
+
+	return fileData, nil
+
 }
 
 func (a AgentGrpcClient) Remove(ctx context.Context, name string) error {

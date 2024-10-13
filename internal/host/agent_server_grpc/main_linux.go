@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/user"
@@ -168,6 +169,45 @@ func (s *HostService) ReadDir(ctx context.Context, req *proto.ReadDirRequest) (*
 	}, nil
 
 }
+
+func (s *HostService) ReadFile(req *proto.ReadFileRequest, stream proto.HostService_ReadFileServer) error {
+	name := req.Name
+
+	if !filepath.IsAbs(name) {
+		return fmt.Errorf("path must be absolute: %s", name)
+	}
+
+	file, err := os.Open(name)
+
+	if err != nil {
+		return getGrpcError(err)
+	}
+
+	defer file.Close()
+
+	buf := make([]byte, 1024)
+
+	for {
+		n, err := file.Read(buf)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return getGrpcError(err)
+		}
+
+		err = stream.Send(&proto.ReadFileResponse{
+			Chunk: buf[:n],
+		})
+		if err != nil {
+			return getGrpcError(err)
+		}
+	}
+
+	return nil
+}
+
+
 
 func getGrpcError(err error) error {
 	if errors.Is(err, fs.ErrPermission) {

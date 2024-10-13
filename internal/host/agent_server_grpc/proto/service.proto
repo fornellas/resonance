@@ -13,6 +13,8 @@ service HostService {
   rpc Mkdir(MkdirRequest) returns (Empty) {}
   rpc Lstat(LstatRequest) returns (LstatResponse) {}
   rpc ReadDir(ReadDirRequest) returns (ReadDirResponse) {}
+  rpc ReadFile(ReadFileRequest) returns (stream ReadFileResponse) {}
+  rpc Remove(RemoveRequest) returns (Empty) {}
 }
 
 
@@ -104,6 +106,18 @@ message DirEnt {
 
 message ReadDirResponse {
   repeated DirEnt entries = 1;
+}
+
+message ReadFileRequest {
+  string name = 1;
+}
+
+message ReadFileResponse {
+  bytes chunk = 1;
+}
+
+message RemoveRequest {
+  string name = 1;
 }
 
 message Empty {}
