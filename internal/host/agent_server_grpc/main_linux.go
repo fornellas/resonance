@@ -207,7 +207,19 @@ func (s *HostService) ReadFile(req *proto.ReadFileRequest, stream proto.HostServ
 	return nil
 }
 
+func (s *HostService) Remove(ctx context.Context, req *proto.RemoveRequest) (*proto.Empty, error) {
+	name := req.Name
 
+	if !filepath.IsAbs(name) {
+		return nil, fmt.Errorf("path must be absolute: %s", name)
+	}
+
+	if err := os.Remove(name); err != nil {
+		return nil, getGrpcError(err)
+	}
+
+	return nil, nil
+}
 
 func getGrpcError(err error) error {
 	if errors.Is(err, fs.ErrPermission) {

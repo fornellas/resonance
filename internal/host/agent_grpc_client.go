@@ -359,18 +359,21 @@ func (a AgentGrpcClient) Mkdir(ctx context.Context, name string, mode uint32) er
 		Mode: mode,
 	})
 
-	if status, ok := status.FromError(err); ok {
-		switch status.Code() {
-		case codes.PermissionDenied:
-			return fs.ErrPermission
-		case codes.AlreadyExists:
-			return fs.ErrExist
-		case codes.NotFound:
-			return fs.ErrNotExist
+	if err != nil {
+		if status, ok := status.FromError(err); ok {
+			switch status.Code() {
+			case codes.PermissionDenied:
+				return fs.ErrPermission
+			case codes.NotFound:
+				return fs.ErrNotExist
+			case codes.AlreadyExists:
+				return fs.ErrExist
+			}
 		}
+		return err
 	}
 
-	return err
+	return nil
 }
 
 func (a AgentGrpcClient) ReadFile(ctx context.Context, name string) ([]byte, error) {
@@ -423,21 +426,28 @@ func (a AgentGrpcClient) ReadFile(ctx context.Context, name string) ([]byte, err
 }
 
 func (a AgentGrpcClient) Remove(ctx context.Context, name string) error {
-	panic("todo remove")
-	// 	logger := log.MustLogger(ctx)
+	logger := log.MustLogger(ctx)
 
-	// 	logger.Debug("Remove", "name", name)
+	logger.Debug("Remove", "name", name)
 
-	// 	if !filepath.IsAbs(name) {
-	// 		return fmt.Errorf("path must be absolute: %s", name)
-	// 	}
+	client := proto.NewHostServiceClient(a.Client)
+	_, err := client.Remove(ctx, &proto.RemoveRequest{
+		Name: name,
+	})
 
-	// 	_, err := a.delete(fmt.Sprintf("/file%s", name))
-	// 	if err != nil {
-	// 		return err
-	// 	}
+	if err != nil {
+		if status, ok := status.FromError(err); ok {
+			switch status.Code() {
+			case codes.PermissionDenied:
+				return fs.ErrPermission
+			case codes.NotFound:
+				return fs.ErrNotExist
+			}
+		}
+		return err
+	}
 
-	// return nil
+	return nil
 }
 
 func (a AgentGrpcClient) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
