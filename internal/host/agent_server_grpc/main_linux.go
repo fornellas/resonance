@@ -16,6 +16,7 @@ import (
 
 	"github.com/fornellas/resonance/internal/host/agent_server_grpc/proto"
 	aNet "github.com/fornellas/resonance/internal/host/agent_server_http/net"
+	"github.com/fornellas/resonance/internal/host/lib"
 )
 
 type HostService struct {
@@ -100,6 +101,74 @@ func (s *HostService) Mkdir(ctx context.Context, req *proto.MkdirRequest) (*prot
 	return nil, getGrpcError(syscall.Chmod(name, mode))
 }
 
+func (s *HostService) Lstat(ctx context.Context, req *proto.LstatRequest) (*proto.LstatResponse, error) {
+	name := req.Name
+
+	if !filepath.IsAbs(name) {
+		return nil, fmt.Errorf("path must be absolute: %s", name)
+	}
+
+	var syscallStat_t syscall.Stat_t
+
+	if err := syscall.Lstat(name, &syscallStat_t); err != nil {
+		return nil, getGrpcError(err)
+	}
+	return &proto.LstatResponse{
+		Dev:     syscallStat_t.Dev,
+		Ino:     syscallStat_t.Ino,
+		Nlink:   syscallStat_t.Nlink,
+		Mode:    syscallStat_t.Mode,
+		Uid:     syscallStat_t.Uid,
+		Gid:     syscallStat_t.Gid,
+		Rdev:    syscallStat_t.Rdev,
+		Size:    syscallStat_t.Size,
+		Blksize: syscallStat_t.Blksize,
+		Blocks:  syscallStat_t.Blocks,
+		Atim: &proto.Timespec{
+			Sec:  syscallStat_t.Atim.Sec,
+			Nsec: syscallStat_t.Atim.Nsec,
+		},
+		Mtim: &proto.Timespec{
+			Sec:  syscallStat_t.Mtim.Sec,
+			Nsec: syscallStat_t.Mtim.Nsec,
+		},
+		Ctim: &proto.Timespec{
+			Sec:  syscallStat_t.Ctim.Sec,
+			Nsec: syscallStat_t.Ctim.Nsec,
+		},
+	}, nil
+
+}
+
+func (s *HostService) ReadDir(ctx context.Context, req *proto.ReadDirRequest) (*proto.ReadDirResponse, error) {
+	name := req.Name
+
+	if !filepath.IsAbs(name) {
+		return nil, fmt.Errorf("path must be absolute: %s", name)
+	}
+
+	dirEnts, err := lib.ReadDir(ctx, name)
+	if err != nil {
+		return nil, getGrpcError(err)
+	}
+
+	protoDirEnts := make([]*proto.DirEnt, 0, len(dirEnts))
+
+	for _, dirEnt := range dirEnts {
+		protoDirEnt := &proto.DirEnt{
+			Name: dirEnt.Name,
+			Type: int32(dirEnt.Type),
+			Ino:  dirEnt.Ino,
+		}
+		protoDirEnts = append(protoDirEnts, protoDirEnt)
+	}
+
+	return &proto.ReadDirResponse{
+		Entries: protoDirEnts,
+	}, nil
+
+}
+
 func getGrpcError(err error) error {
 	if errors.Is(err, fs.ErrPermission) {
 		return status.Error(codes.PermissionDenied, err.Error())
@@ -112,7 +181,6 @@ func getGrpcError(err error) error {
 	}
 	return err
 }
-
 
 func main() {
 

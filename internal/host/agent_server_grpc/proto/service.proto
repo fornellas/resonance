@@ -11,6 +11,8 @@ service HostService {
   rpc Lookup(LookupRequest) returns (LookupResponse) {}
   rpc LookupGroup(LookupGroupRequest) returns (LookupGroupResponse) {}
   rpc Mkdir(MkdirRequest) returns (Empty) {}
+  rpc Lstat(LstatRequest) returns (LstatResponse) {}
+  rpc ReadDir(ReadDirRequest) returns (ReadDirResponse) {}
 }
 
 
@@ -63,6 +65,45 @@ message LookupGroupResponse {
 message MkdirRequest {
   string name = 1;
   uint32 mode = 2;
+}
+
+message LstatRequest {
+  string name = 1;
+}
+
+message LstatResponse {
+  uint64 dev = 1;                 
+  uint64 ino = 2;                  
+  uint32 nlink = 3;                  
+  uint32 mode = 4;                
+  uint32 uid = 5;                 
+  uint32 gid = 6;               
+  uint64 rdev = 7;                
+  int64 size = 8;                  
+  int32 blksize = 9;                
+  int64 blocks = 10;
+  Timespec atim = 11;
+  Timespec mtim = 12;
+  Timespec ctim = 13;              
+}
+
+message Timespec {
+  int64 sec = 1;
+  int64 nsec = 2;
+}
+
+message ReadDirRequest {
+  string name = 1;
+}
+
+message DirEnt {
+  uint64 ino = 1;   
+  int32 type = 2;   
+  string name = 3;  
+}
+
+message ReadDirResponse {
+  repeated DirEnt entries = 1;
 }
 
 message Empty {}

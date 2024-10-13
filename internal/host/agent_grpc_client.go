@@ -244,7 +244,7 @@ func (a AgentGrpcClient) Lookup(ctx context.Context, username string) (*user.Use
 func (a AgentGrpcClient) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
 	logger := log.MustLogger(ctx)
 
-	logger.Debug("Lookup", "group", name)
+	logger.Debug("LookupGroup", "group", name)
 
 	Client := proto.NewHostServiceClient(a.Client)
 	resp, err := Client.LookupGroup(ctx, &proto.LookupGroupRequest{
@@ -265,32 +265,86 @@ func (a AgentGrpcClient) LookupGroup(ctx context.Context, name string) (*user.Gr
 }
 
 func (a AgentGrpcClient) Lstat(ctx context.Context, name string) (*host.Stat_t, error) {
-	panic("todo lstat")
-	// 	logger := log.MustLogger(ctx)
+	logger := log.MustLogger(ctx)
 
-	// 	logger.Debug("Lstat", "name", name)
+	logger.Debug("Lstat", "name", name)
 
-	// 	if !filepath.IsAbs(name) {
-	// 		return host.HostFileInfo{}, fmt.Errorf("path must be absolute: %s", name)
-	// 	}
+	client := proto.NewHostServiceClient(a.Client)
+	resp, err := client.Lstat(ctx, &proto.LstatRequest{
+		Name: name,
+	})
+	if err != nil {
+		if status, ok := status.FromError(err); ok {
+			switch status.Code() {
+			case codes.PermissionDenied:
+				return nil, fs.ErrPermission
+			case codes.NotFound:
+				return nil, fs.ErrNotExist
+			}
+		}
+		return nil, err
+	}
 
-	// 	resp, err := a.get(fmt.Sprintf("/file%s?lstat=true", name))
-	// 	if err != nil {
-	// 		return host.HostFileInfo{}, err
-	// }
+	stat_t := host.Stat_t{
+		Dev:     resp.Dev,
+		Ino:     resp.Ino,
+		Mode:    resp.Mode,
+		Nlink:   uint64(resp.Nlink),
+		Uid:     resp.Uid,
+		Gid:     resp.Gid,
+		Rdev:    resp.Rdev,
+		Size:    resp.Size,
+		Blksize: int64(resp.Blksize),
+		Blocks:  resp.Blocks,
+		Atim: host.Timespec{
+			Sec:  resp.Atim.Sec,
+			Nsec: resp.Atim.Nsec,
+		},
+		Mtim: host.Timespec{
+			Sec:  resp.Mtim.Sec,
+			Nsec: resp.Mtim.Nsec,
+		},
+		Ctim: host.Timespec{
+			Sec:  resp.Ctim.Sec,
+			Nsec: resp.Ctim.Nsec,
+		},
+	}
 
-	// var hfi host.HostFileInfo
-	//
-	//	if err := a.unmarshalResponse(resp, &hfi); err != nil {
-	//		return host.HostFileInfo{}, err
-	//	}
-	//
-	// hfi.ModTime = hfi.ModTime.Local()
-	// return hfi, nil
+	return &stat_t, nil
 }
 
 func (a AgentGrpcClient) ReadDir(ctx context.Context, name string) ([]host.DirEnt, error) {
-	panic("TODO AgentGrpcClient.ReadDir")
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("ReadDir", "name", name)
+
+	client := proto.NewHostServiceClient(a.Client)
+	resp, err := client.ReadDir(ctx, &proto.ReadDirRequest{
+		Name: name,
+	})
+
+	if err != nil {
+		if status, ok := status.FromError(err); ok {
+			switch status.Code() {
+			case codes.PermissionDenied:
+				return nil, fs.ErrPermission
+			case codes.NotFound:
+				return nil, fs.ErrNotExist
+			}
+		}
+		return nil, err
+	}
+
+	dirEnts := []host.DirEnt{}
+	for _, protoDirEnt := range resp.Entries {
+		dirEnts = append(dirEnts, host.DirEnt{
+			Name: protoDirEnt.Name,
+			Type: uint8(protoDirEnt.Type),
+			Ino:  protoDirEnt.Ino,
+		})
+	}
+
+	return dirEnts, nil
 }
 
 func (a AgentGrpcClient) Mkdir(ctx context.Context, name string, mode uint32) error {
