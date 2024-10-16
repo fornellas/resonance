@@ -19,6 +19,20 @@ type File struct {
 	Absent bool `yaml:"absent,omitempty"`
 	// Contents of the file
 	Content string `yaml:"content,omitempty"`
+
+	// Socket          bool
+	// SymbolicLink    string
+	// RegularFile     string
+	// BlockDevice     int
+	// Directory       TBD
+	//   Empty
+	//   Explicitely defining the state of each file inside.
+	//   Giving an archive file of the contents (eg: .tar, .zip etc).
+	//   Pointing to a URL, which contains the archive file.
+	//   A Git repository checked out at a given commit hash.
+	// CharacterDevice int
+	// FIFO            bool
+
 	// Mode bits
 	Mode uint32 `yaml:"mode,omitempty"`
 	// User ID owner of the file
