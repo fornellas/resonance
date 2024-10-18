@@ -68,8 +68,8 @@ func TestSaveOriginalResourcesState(t *testing.T) {
 	err := host.WriteFile(ctx, filePath, []byte("foo"), fileMode)
 	require.NoError(t, err)
 	fileResource := &resouresPkg.File{
-		Path:    filePath,
-		Content: fileContent,
+		Path:        filePath,
+		RegularFile: fileContent,
 	}
 
 	targetBlueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, resouresPkg.Resources{
@@ -86,11 +86,11 @@ func TestSaveOriginalResourcesState(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t,
 		&resouresPkg.File{
-			Path:    filePath,
-			Content: fileContent,
-			Mode:    fileMode,
-			Uid:     uint32(os.Getuid()),
-			Gid:     uint32(os.Getgid()),
+			Path:        filePath,
+			RegularFile: fileContent,
+			Mode:        fileMode,
+			Uid:         uint32(os.Getuid()),
+			Gid:         uint32(os.Getgid()),
 		},
 		resource,
 	)
@@ -111,8 +111,8 @@ func TestLoadOrCreateAndSaveLastBlueprintWithValidation(t *testing.T) {
 	err := host.WriteFile(ctx, filePath, []byte("foo"), fileMode)
 	require.NoError(t, err)
 	fileResource := &resouresPkg.File{
-		Path:    filePath,
-		Content: fileContent,
+		Path:        filePath,
+		RegularFile: fileContent,
 	}
 
 	targetBlueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, resouresPkg.Resources{
