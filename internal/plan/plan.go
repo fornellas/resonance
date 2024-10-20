@@ -61,7 +61,7 @@ func NewAction(step *blueprintPkg.Step, beforeResourceMap resourcesPkg.ResourceM
 		if beforeResource == nil {
 			panic("bug: before resource not found")
 		}
-		var resourceAction *ResourceDiff = nil
+		var resourceAction *ResourceDiff
 		if resourcesPkg.Satisfies(beforeResource, planResource) {
 			resourceAction = NewResourceDiff('✅', planResource, nil)
 		} else {

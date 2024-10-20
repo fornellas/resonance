@@ -137,6 +137,12 @@ GOCYCLO := $(GO) run github.com/fzipp/gocyclo/cmd/gocyclo
 GOCYCLO_OVER := 15
 
 ##
+## ineffassign
+##
+
+INEFFASSIGN := $(GO) run github.com/gordonklaus/ineffassign
+
+##
 ## go test
 ##
 
@@ -404,6 +410,14 @@ gocyclo: go go-generate go-mod-tidy
 	$(GOCYCLO) -over $(GOCYCLO_OVER) -avg -ignore $(GOCYCLO_IGNORE_REGEX) .
 
 lint: gocyclo
+
+# ineffassign
+
+.PHONY: ineffassign
+ineffassign: go go-generate go-mod-tidy
+	$(INEFFASSIGN) ./...
+
+lint: ineffassign
 
 # go vet
 
