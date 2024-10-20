@@ -9,6 +9,7 @@ require (
 	github.com/fornellas/rrb v0.1.1
 	github.com/fzipp/gocyclo v0.6.0
 	github.com/gliderlabs/ssh v0.3.5
+	github.com/gordonklaus/ineffassign v0.1.0
 	github.com/gorilla/mux v1.8.1
 	github.com/jandelgado/gcov2lcov v1.1.1
 	github.com/kylelemons/godebug v1.1.0
