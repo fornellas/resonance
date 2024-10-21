@@ -35,8 +35,8 @@ func TestPlan(t *testing.T) {
 			name: "target=exists,last=absent,original=absent",
 			targetResources: resourcesPkg.Resources{
 				&resourcesPkg.File{
-					Path:    "/foo",
-					Content: "target",
+					Path:        "/foo",
+					RegularFile: "target",
 				},
 			},
 			lastResources: resourcesPkg.Resources{},
@@ -49,41 +49,41 @@ func TestPlan(t *testing.T) {
 			expectedPlan: `File:🔧/foo
   path: /foo
   -absent: true
-  +content: target`,
+  +regular_file: target`,
 		},
 		{
 			name: "target!=original,last=absent,original=exists",
 			targetResources: resourcesPkg.Resources{
 				&resourcesPkg.File{
-					Path:    "/foo",
-					Content: "target",
+					Path:        "/foo",
+					RegularFile: "target",
 				},
 			},
 			lastResources: resourcesPkg.Resources{},
 			originalResources: resourcesPkg.Resources{
 				&resourcesPkg.File{
-					Path:    "/foo",
-					Content: "original",
+					Path:        "/foo",
+					RegularFile: "original",
 				},
 			},
 			expectedPlan: `File:🔄/foo
   path: /foo
-  -content: original
-  +content: target`,
+  -regular_file: original
+  +regular_file: target`,
 		},
 		{
 			name: "target=original,last=absent,original=exists",
 			targetResources: resourcesPkg.Resources{
 				&resourcesPkg.File{
-					Path:    "/foo",
-					Content: "original",
+					Path:        "/foo",
+					RegularFile: "original",
 				},
 			},
 			lastResources: resourcesPkg.Resources{},
 			originalResources: resourcesPkg.Resources{
 				&resourcesPkg.File{
-					Path:    "/foo",
-					Content: "original",
+					Path:        "/foo",
+					RegularFile: "original",
 				},
 			},
 			expectedPlan: `File:✅/foo`,
@@ -93,39 +93,39 @@ func TestPlan(t *testing.T) {
 			targetResources: resourcesPkg.Resources{},
 			lastResources: resourcesPkg.Resources{
 				&resourcesPkg.File{
-					Path:    "/foo",
-					Content: "last",
+					Path:        "/foo",
+					RegularFile: "last",
 				},
 			},
 			originalResources: resourcesPkg.Resources{
 				&resourcesPkg.File{
-					Path:    "/foo",
-					Content: "original",
+					Path:        "/foo",
+					RegularFile: "original",
 				},
 			},
 			expectedPlan: `File:🔄/foo
   path: /foo
-  -content: last
-  +content: original`,
+  -regular_file: last
+  +regular_file: original`,
 		},
 		{
 			name: "target=last,last=exists,original=exists",
 			targetResources: resourcesPkg.Resources{
 				&resourcesPkg.File{
-					Path:    "/foo",
-					Content: "last",
+					Path:        "/foo",
+					RegularFile: "last",
 				},
 			},
 			lastResources: resourcesPkg.Resources{
 				&resourcesPkg.File{
-					Path:    "/foo",
-					Content: "last",
+					Path:        "/foo",
+					RegularFile: "last",
 				},
 			},
 			originalResources: resourcesPkg.Resources{
 				&resourcesPkg.File{
-					Path:    "/foo",
-					Content: "original",
+					Path:        "/foo",
+					RegularFile: "original",
 				},
 			},
 			expectedPlan: `File:✅/foo`,
@@ -134,26 +134,26 @@ func TestPlan(t *testing.T) {
 			name: "target=!last,last=exists,original=exists",
 			targetResources: resourcesPkg.Resources{
 				&resourcesPkg.File{
-					Path:    "/foo",
-					Content: "target",
+					Path:        "/foo",
+					RegularFile: "target",
 				},
 			},
 			lastResources: resourcesPkg.Resources{
 				&resourcesPkg.File{
-					Path:    "/foo",
-					Content: "last",
+					Path:        "/foo",
+					RegularFile: "last",
 				},
 			},
 			originalResources: resourcesPkg.Resources{
 				&resourcesPkg.File{
-					Path:    "/foo",
-					Content: "original",
+					Path:        "/foo",
+					RegularFile: "original",
 				},
 			},
 			expectedPlan: `File:🔄/foo
   path: /foo
-  -content: last
-  +content: target`,
+  -regular_file: last
+  +regular_file: target`,
 		},
 		{
 			name: "target=absent,last=exists,original=exists",
@@ -165,19 +165,19 @@ func TestPlan(t *testing.T) {
 			},
 			lastResources: resourcesPkg.Resources{
 				&resourcesPkg.File{
-					Path:    "/foo",
-					Content: "last",
+					Path:        "/foo",
+					RegularFile: "last",
 				},
 			},
 			originalResources: resourcesPkg.Resources{
 				&resourcesPkg.File{
-					Path:    "/foo",
-					Content: "original",
+					Path:        "/foo",
+					RegularFile: "original",
 				},
 			},
 			expectedPlan: `File:🗑/foo
   path: /foo
-  -content: last
+  -regular_file: last
   +absent: true`,
 		},
 		{
@@ -188,12 +188,12 @@ func TestPlan(t *testing.T) {
 					Version: "3.5.target",
 				},
 				&resourcesPkg.File{
-					Path:    "/baz",
-					Content: "target",
+					Path:        "/baz",
+					RegularFile: "target",
 				},
 				&resourcesPkg.File{
-					Path:    "/foo",
-					Content: "target",
+					Path:        "/foo",
+					RegularFile: "target",
 				},
 			},
 			lastResources: resourcesPkg.Resources{
@@ -202,16 +202,16 @@ func TestPlan(t *testing.T) {
 					Version: "3.4.last",
 				},
 				&resourcesPkg.File{
-					Path:    "/foo",
-					Content: "last",
+					Path:        "/foo",
+					RegularFile: "last",
 				},
 				&resourcesPkg.APTPackage{
 					Package: "fooPkg",
 					Version: "1.2.last",
 				},
 				&resourcesPkg.File{
-					Path:    "/bar",
-					Content: "last",
+					Path:        "/bar",
+					RegularFile: "last",
 				},
 			},
 			originalResources: resourcesPkg.Resources{
@@ -220,20 +220,20 @@ func TestPlan(t *testing.T) {
 					Version: "3.4.original",
 				},
 				&resourcesPkg.File{
-					Path:    "/foo",
-					Content: "original",
+					Path:        "/foo",
+					RegularFile: "original",
 				},
 				&resourcesPkg.APTPackage{
 					Package: "fooPkg",
 					Version: "1.2.original",
 				},
 				&resourcesPkg.File{
-					Path:    "/bar",
-					Content: "original",
+					Path:        "/bar",
+					RegularFile: "original",
 				},
 				&resourcesPkg.File{
-					Path:    "/baz",
-					Content: "original",
+					Path:        "/baz",
+					RegularFile: "original",
 				},
 			},
 			expectedPlan: `APTPackages:🔄barPkg,🔄fooPkg
@@ -247,16 +247,16 @@ func TestPlan(t *testing.T) {
     +version: 1.2.original
 File:🔄/baz
   path: /baz
-  -content: original
-  +content: target
+  -regular_file: original
+  +regular_file: target
 File:🔄/foo
   path: /foo
-  -content: last
-  +content: target
+  -regular_file: last
+  +regular_file: target
 File:🔄/bar
   path: /bar
-  -content: last
-  +content: original`,
+  -regular_file: last
+  +regular_file: original`,
 		},
 	}
 
