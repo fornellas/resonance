@@ -572,6 +572,42 @@ func (br cmdHost) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	return []byte(stdout), nil
 }
 
+func (br cmdHost) Readlink(ctx context.Context, name string) (string, error) {
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("Readlink", "name", name)
+
+	if !filepath.IsAbs(name) {
+		return "", &fs.PathError{
+			Op:   "Readlink",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
+	}
+
+	cmd := host.Cmd{
+		Path: "readlink",
+		Args: []string{"-vn", name},
+	}
+	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	if err != nil {
+		return "", err
+	}
+	if !waitStatus.Success() {
+		if strings.Contains(stderr, "Permission denied") {
+			return "", os.ErrPermission
+		}
+		if strings.Contains(stderr, "No such file or directory") {
+			return "", os.ErrNotExist
+		}
+		return "", fmt.Errorf(
+			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
+		)
+	}
+	return stdout, nil
+}
+
 func (br cmdHost) rmdir(ctx context.Context, name string) error {
 	cmd := host.Cmd{
 		Path: "rmdir",

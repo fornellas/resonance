@@ -332,6 +332,10 @@ func (a AgentGrpcClient) ReadFile(ctx context.Context, name string) ([]byte, err
 	// return contents, nil
 }
 
+func (a AgentGrpcClient) Readlink(ctx context.Context, name string) (string, error) {
+	panic("TODO AgentGrpcClient.Readlink")
+}
+
 func (a AgentGrpcClient) Remove(ctx context.Context, name string) error {
 	panic("todo remove")
 	// 	logger := log.MustLogger(ctx)

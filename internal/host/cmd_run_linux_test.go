@@ -64,6 +64,12 @@ func (h cmdHostOnly) ReadFile(ctx context.Context, name string) ([]byte, error) 
 	return nil, err
 }
 
+func (h cmdHostOnly) Readlink(ctx context.Context, name string) (string, error) {
+	err := errors.New("unexpected call received: Readlink")
+	h.T.Fatal(err)
+	return "", err
+}
+
 func (h cmdHostOnly) Remove(ctx context.Context, name string) error {
 	err := errors.New("unexpected call received: Remove")
 	h.T.Fatal(err)
