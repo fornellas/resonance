@@ -14,6 +14,7 @@ service HostService {
   rpc Lstat(LstatRequest) returns (LstatResponse) {}
   rpc ReadDir(ReadDirRequest) returns (ReadDirResponse) {}
   rpc ReadFile(ReadFileRequest) returns (stream ReadFileResponse) {}
+  rpc ReadLink(ReadLinkRequest) returns (ReadLinkResponse) {}
   rpc WriteFile(WriteFileRequest) returns (Empty) {}
   rpc Remove(RemoveRequest) returns (Empty) {}
   rpc Run(RunRequest) returns (RunResponse) {}
@@ -122,6 +123,14 @@ message WriteFileRequest {
 
 message ReadFileResponse {
   bytes chunk = 1;
+}
+
+message ReadLinkRequest {
+  string name = 1;
+}
+
+message ReadLinkResponse {
+    string destination = 1;
 }
 
 message RemoveRequest {

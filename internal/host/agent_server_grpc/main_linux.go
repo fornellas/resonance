@@ -209,6 +209,23 @@ func (s *HostService) ReadFile(req *proto.ReadFileRequest, stream proto.HostServ
 	return nil
 }
 
+func (s *HostService) ReadLink(ctx context.Context, req *proto.ReadLinkRequest) (*proto.ReadLinkResponse, error) {
+	name := req.Name
+
+	if !filepath.IsAbs(name) {
+		return nil, fmt.Errorf("path must be absolute: %s", name)
+	}
+
+	destination, err := os.Readlink(name)
+	if err != nil {
+		return nil, getGrpcError(err)
+	}
+
+	return &proto.ReadLinkResponse{
+		Destination: destination,
+	}, nil
+}
+
 func (s *HostService) WriteFile(ctx context.Context, req *proto.WriteFileRequest) (*proto.Empty, error) {
 	name := req.Name
 	if !filepath.IsAbs(req.Name) {

@@ -143,6 +143,21 @@ func (l Local) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	return os.ReadFile(name)
 }
 
+func (l Local) Readlink(ctx context.Context, name string) (string, error) {
+	logger := log.MustLogger(ctx)
+	logger.Debug("Readlink", "name", name)
+
+	if !filepath.IsAbs(name) {
+		return "", &fs.PathError{
+			Op:   "Readlink",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
+	}
+
+	return os.Readlink(name)
+}
+
 func (l Local) Remove(ctx context.Context, name string) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Remove", "name", name)
