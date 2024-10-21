@@ -44,8 +44,8 @@ type Host interface {
 	// ReadFile works similar to os.ReadFile.
 	ReadFile(ctx context.Context, name string) ([]byte, error)
 
-	// // Readlink works similar to os.Readlink.
-	// Readlink(ctx context.Context, name string) (string, error)
+	// Readlink works similar to os.Readlink.
+	Readlink(ctx context.Context, name string) (string, error)
 
 	// Remove works similar to os.Remove.
 	Remove(ctx context.Context, name string) error

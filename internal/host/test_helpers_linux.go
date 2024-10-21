@@ -436,6 +436,32 @@ func testHost(t *testing.T, hst host.Host) {
 		})
 	})
 
+	t.Run("Readlink", func(t *testing.T) {
+		t.Run("Success", func(t *testing.T) {
+			outputBuffer.Reset()
+			tempDir := t.TempDir()
+			target := filepath.Join(tempDir, "target")
+			err := os.WriteFile(target, []byte("content"), 0644)
+			require.NoError(t, err)
+			symlink := filepath.Join(tempDir, "symlink")
+			err = os.Symlink(target, symlink)
+			require.NoError(t, err)
+			result, err := hst.Readlink(ctx, symlink)
+			require.NoError(t, err)
+			require.Equal(t, target, result)
+		})
+		t.Run("path must be absolute", func(t *testing.T) {
+			outputBuffer.Reset()
+			_, err := hst.Readlink(ctx, "foo/bar")
+			require.ErrorContains(t, err, "path must be absolute")
+		})
+		t.Run("ErrNotExist", func(t *testing.T) {
+			outputBuffer.Reset()
+			_, err := hst.Readlink(ctx, "/non-existent")
+			require.ErrorIs(t, err, os.ErrNotExist)
+		})
+	})
+
 	t.Run("Remove", func(t *testing.T) {
 		t.Run("Success file", func(t *testing.T) {
 			outputBuffer.Reset()

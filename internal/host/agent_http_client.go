@@ -420,6 +420,28 @@ func (a AgentHttpClient) ReadFile(ctx context.Context, name string) ([]byte, err
 	return contents, nil
 }
 
+func (a AgentHttpClient) Readlink(ctx context.Context, name string) (string, error) {
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("Readlink", "name", name)
+
+	if !filepath.IsAbs(name) {
+		return "", fmt.Errorf("path must be absolute: %s", name)
+	}
+
+	resp, err := a.get(fmt.Sprintf("/file%s?readlink=true", name))
+	if err != nil {
+		return "", err
+	}
+
+	var link string
+	if err := a.unmarshalResponse(resp, &link); err != nil {
+		return "", err
+	}
+
+	return link, nil
+}
+
 func (a AgentHttpClient) Remove(ctx context.Context, name string) error {
 	logger := log.MustLogger(ctx)
 
