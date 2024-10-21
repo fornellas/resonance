@@ -10,7 +10,7 @@ require (
 	github.com/fzipp/gocyclo v0.6.0
 	github.com/gliderlabs/ssh v0.3.5
 	github.com/gorilla/mux v1.8.1
-	github.com/jandelgado/gcov2lcov v1.1.0
+	github.com/jandelgado/gcov2lcov v1.1.1
 	github.com/kylelemons/godebug v1.1.0
 	github.com/rakyll/gotest v0.0.6
 	github.com/spf13/cobra v1.8.1
@@ -59,9 +59,9 @@ require (
 	golang.org/x/mod v0.21.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
 	golang.org/x/sys v0.26.0 // indirect
-	golang.org/x/telemetry v0.0.0-20241004145657-5eebfecbdf1f // indirect
+	golang.org/x/telemetry v0.0.0-20241017030730-50079b310951 // indirect
 	golang.org/x/text v0.19.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20241007155032-5fefd90f89a9 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20241015192408-796eee8c2d53 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 )
 
