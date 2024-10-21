@@ -149,6 +149,14 @@ func GetFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 			}
 			marshalResponse(w, dirEnts)
 			return
+		} else if readlink, ok := r.URL.Query()["readlink"]; ok && len(readlink) == 1 && readlink[0] == "true" {
+			link, err := os.Readlink(name)
+			if err != nil {
+				internalServerError(w, err)
+				return
+			}
+			marshalResponse(w, link)
+			return
 		} else {
 			contexts, err := os.ReadFile(name)
 			if err != nil {

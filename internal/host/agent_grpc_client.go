@@ -425,6 +425,31 @@ func (a AgentGrpcClient) ReadFile(ctx context.Context, name string) ([]byte, err
 
 }
 
+func (a AgentGrpcClient) Readlink(ctx context.Context, name string) (string, error) {
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("Readlink", "name", name)
+
+	client := proto.NewHostServiceClient(a.Client)
+	resp, err := client.ReadLink(ctx, &proto.ReadLinkRequest{
+		Name: name,
+	})
+
+	if err != nil {
+		if status, ok := status.FromError(err); ok {
+			switch status.Code() {
+			case codes.PermissionDenied:
+				return "", os.ErrPermission
+			case codes.NotFound:
+				return "", os.ErrNotExist
+			}
+		}
+		return "", err
+	}
+
+	return resp.Destination, nil
+}
+
 func (a AgentGrpcClient) Remove(ctx context.Context, name string) error {
 	logger := log.MustLogger(ctx)
 
