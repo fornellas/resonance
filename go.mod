@@ -5,7 +5,7 @@ go 1.23.2
 require (
 	github.com/alessio/shellescape v1.4.2
 	github.com/client9/misspell v0.3.4
-	github.com/fatih/color v1.17.0
+	github.com/fatih/color v1.18.0
 	github.com/fornellas/rrb v0.1.1
 	github.com/fzipp/gocyclo v0.6.0
 	github.com/gliderlabs/ssh v0.3.5
@@ -61,7 +61,7 @@ require (
 	golang.org/x/sys v0.26.0 // indirect
 	golang.org/x/telemetry v0.0.0-20241017030730-50079b310951 // indirect
 	golang.org/x/text v0.19.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20241015192408-796eee8c2d53 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20241021214115-324edc3d5d38 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 )
 
