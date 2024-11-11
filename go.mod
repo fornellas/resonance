@@ -1,6 +1,6 @@
 module github.com/fornellas/resonance
 
-go 1.23.2
+go 1.23.3
 
 require (
 	github.com/alessio/shellescape v1.4.2
@@ -19,12 +19,12 @@ require (
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/multierr v1.11.0
-	golang.org/x/crypto v0.28.0
-	golang.org/x/net v0.30.0
-	golang.org/x/term v0.25.0
-	golang.org/x/tools v0.26.0
+	golang.org/x/crypto v0.29.0
+	golang.org/x/net v0.31.0
+	golang.org/x/term v0.26.0
+	golang.org/x/tools v0.27.0
 	golang.org/x/vuln v1.1.3
-	google.golang.org/grpc v1.67.1
+	google.golang.org/grpc v1.68.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1
 	google.golang.org/protobuf v1.35.1
 	gopkg.in/yaml.v3 v3.0.1
@@ -55,14 +55,14 @@ require (
 	github.com/spf13/cast v1.7.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/williammartin/subreaper v0.0.0-20181101193406-731d9ece6883 // indirect
-	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c // indirect
-	golang.org/x/exp/typeparams v0.0.0-20241009180824-f66d83c29e7c // indirect
-	golang.org/x/mod v0.21.0 // indirect
-	golang.org/x/sync v0.8.0 // indirect
-	golang.org/x/sys v0.26.0 // indirect
-	golang.org/x/telemetry v0.0.0-20241028140143-9c0d19e65ba0 // indirect
-	golang.org/x/text v0.19.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20241021214115-324edc3d5d38 // indirect
+	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f // indirect
+	golang.org/x/exp/typeparams v0.0.0-20241108190413-2d47ceb2692f // indirect
+	golang.org/x/mod v0.22.0 // indirect
+	golang.org/x/sync v0.9.0 // indirect
+	golang.org/x/sys v0.27.0 // indirect
+	golang.org/x/telemetry v0.0.0-20241108154256-525ce2e96f55 // indirect
+	golang.org/x/text v0.20.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20241104194629-dd2ea8efbc28 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 )
 
