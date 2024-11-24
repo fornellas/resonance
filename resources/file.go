@@ -143,7 +143,7 @@ func (f *File) Apply(ctx context.Context, hst host.Host) error {
 
 	// Uid / Gid
 	if fileInfo.Uid != f.Uid || fileInfo.Gid != f.Gid {
-		if err := hst.Chown(ctx, string(f.Path), int(f.Uid), int(f.Gid)); err != nil {
+		if err := hst.Chown(ctx, string(f.Path), f.Uid, f.Gid); err != nil {
 			return err
 		}
 	}

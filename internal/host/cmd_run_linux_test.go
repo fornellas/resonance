@@ -22,7 +22,7 @@ func (h cmdHostOnly) Chmod(ctx context.Context, name string, mode uint32) error 
 	return err
 }
 
-func (h cmdHostOnly) Chown(ctx context.Context, name string, uid, gid int) error {
+func (h cmdHostOnly) Chown(ctx context.Context, name string, uid, gid uint32) error {
 	err := errors.New("unexpected call received: Chown")
 	h.T.Fatal(err)
 	return err

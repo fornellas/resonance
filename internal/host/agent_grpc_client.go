@@ -192,7 +192,7 @@ func (a AgentGrpcClient) Chmod(ctx context.Context, name string, mode uint32) er
 	return nil
 }
 
-func (a AgentGrpcClient) Chown(ctx context.Context, name string, uid, gid int) error {
+func (a AgentGrpcClient) Chown(ctx context.Context, name string, uid, gid uint32) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Chown", "name", name, "uid", uid, "gid", gid)
 
@@ -422,7 +422,6 @@ func (a AgentGrpcClient) ReadFile(ctx context.Context, name string) ([]byte, err
 	}
 
 	return fileData, nil
-
 }
 
 func (a AgentGrpcClient) Readlink(ctx context.Context, name string) (string, error) {

@@ -285,7 +285,7 @@ func (a AgentHttpClient) Chmod(ctx context.Context, name string, mode uint32) er
 	return err
 }
 
-func (a AgentHttpClient) Chown(ctx context.Context, name string, uid, gid int) error {
+func (a AgentHttpClient) Chown(ctx context.Context, name string, uid, gid uint32) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Chown", "name", name, "uid", uid, "gid", gid)

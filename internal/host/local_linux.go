@@ -32,7 +32,7 @@ func (l Local) Chmod(ctx context.Context, name string, mode uint32) error {
 	return syscall.Chmod(name, mode)
 }
 
-func (l Local) Chown(ctx context.Context, name string, uid, gid int) error {
+func (l Local) Chown(ctx context.Context, name string, uid, gid uint32) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Chown", "name", name, "uid", uid, "gid", gid)
 
@@ -44,7 +44,7 @@ func (l Local) Chown(ctx context.Context, name string, uid, gid int) error {
 		}
 	}
 
-	return os.Chown(name, uid, gid)
+	return syscall.Chown(name, int(uid), int(gid))
 }
 
 func (l Local) Lookup(ctx context.Context, username string) (*user.User, error) {
