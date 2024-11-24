@@ -91,7 +91,7 @@ func testHost(t *testing.T, hst host.Host) {
 			fileInfo, err := os.Lstat(name)
 			require.NoError(t, err)
 			stat_t := fileInfo.Sys().(*syscall.Stat_t)
-			err = hst.Chown(ctx, name, int(stat_t.Uid), int(stat_t.Gid))
+			err = hst.Chown(ctx, name, stat_t.Uid, stat_t.Gid)
 			require.NoError(t, err)
 		})
 		t.Run("path must be absolute", func(t *testing.T) {

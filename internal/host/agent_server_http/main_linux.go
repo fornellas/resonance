@@ -195,7 +195,7 @@ func PostFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 				internalServerError(w, err)
 			}
 		case api.Chown:
-			if err := syscall.Chown(name, file.Uid, file.Gid); err != nil {
+			if err := syscall.Chown(name, int(file.Uid), int(file.Gid)); err != nil {
 				internalServerError(w, err)
 			}
 		case api.Mkdir:

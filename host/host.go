@@ -12,8 +12,8 @@ type Host interface {
 	// Chmod works similar to syscall.Chmod.
 	Chmod(ctx context.Context, name string, mode uint32) error
 
-	// Chown works similar to os.Chown.
-	Chown(ctx context.Context, name string, uid, gid int) error
+	// Chown works similar to syscall.Chown.
+	Chown(ctx context.Context, name string, uid, gid uint32) error
 
 	// // Hostname works similar to os.Hostname.
 	// Hostname() (ctx context.Context, name string, err error)

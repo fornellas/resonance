@@ -20,8 +20,8 @@ const (
 type File struct {
 	Action FileAction
 	Mode   uint32
-	Uid    int
-	Gid    int
+	Uid    uint32
+	Gid    uint32
 }
 
 type Error struct {
