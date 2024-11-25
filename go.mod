@@ -17,7 +17,7 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.19.0
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	go.uber.org/multierr v1.11.0
 	golang.org/x/crypto v0.29.0
 	golang.org/x/net v0.31.0
@@ -62,7 +62,7 @@ require (
 	golang.org/x/sys v0.27.0 // indirect
 	golang.org/x/telemetry v0.0.0-20241108154256-525ce2e96f55 // indirect
 	golang.org/x/text v0.20.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20241113202542-65e8d215514f // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20241118233622-e639e219e697 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 )
 
