@@ -8,7 +8,17 @@ service HostService {
   rpc Ping(PingRequest) returns (PingResponse) {}
   rpc Chmod(ChmodRequest) returns (ChmodResponse) {}
   rpc Chown(ChownRequest) returns (ChownResponse) {}
+  rpc Lookup(LookupRequest) returns (LookupResponse) {}
+  rpc LookupGroup(LookupGroupRequest) returns (LookupGroupResponse) {}
+  rpc Mkdir(MkdirRequest) returns (Empty) {}
+  rpc Lstat(LstatRequest) returns (LstatResponse) {}
+  rpc ReadDir(ReadDirRequest) returns (ReadDirResponse) {}
+  rpc ReadFile(ReadFileRequest) returns (stream ReadFileResponse) {}
+  rpc WriteFile(WriteFileRequest) returns (Empty) {}
+  rpc Remove(RemoveRequest) returns (Empty) {}
+  rpc Run(RunRequest) returns (RunResponse) {}
 }
+
 
 message PingRequest {}
 
@@ -27,11 +37,115 @@ message ChmodResponse {
 
 message ChownRequest {
   string name = 1;
-  int32  uid = 2;
-  int32  gid = 3;
-
+  int64  uid = 2;
+  int64  gid = 3;
 }
 
 message ChownResponse {
   string status = 1;
 }
+
+message LookupRequest {
+  string username = 1;
+}
+
+message LookupResponse {
+  string name  = 1;
+  string uid  = 2;
+  string gid = 3;
+  string username = 4;
+  string homedir = 5;
+}
+
+message LookupGroupRequest {
+  string name = 1;
+}
+
+message LookupGroupResponse {
+  string name  = 1;
+  string gid = 2;
+}
+
+message MkdirRequest {
+  string name = 1;
+  uint32 mode = 2;
+}
+
+message LstatRequest {
+  string name = 1;
+}
+
+message LstatResponse {
+  uint64 dev = 1;                 
+  uint64 ino = 2;      
+  uint64 nlink = 3;                  
+  uint32 mode = 4;                
+  uint32 uid = 5;                 
+  uint32 gid = 6;   
+  uint64 rdev = 7;                
+  int64 size = 8;
+  int64 blksize = 9;
+  int64 blocks = 10;
+  Timespec atim = 11;
+  Timespec mtim = 12;
+  Timespec ctim = 13;      
+}
+
+message Timespec {
+  int64 sec = 1;
+  int64 nsec = 2;
+}
+
+message ReadDirRequest {
+  string name = 1;
+}
+
+message DirEnt {
+  uint64 ino = 1;   
+  int32 type = 2;   
+  string name = 3;  
+}
+
+message ReadDirResponse {
+  repeated DirEnt entries = 1;
+}
+
+message ReadFileRequest {
+  string name = 1;
+}
+
+message WriteFileRequest {
+  string name = 1;
+  bytes data = 2;
+  uint32 perm = 3;
+}
+
+message ReadFileResponse {
+  bytes chunk = 1;
+}
+
+message RemoveRequest {
+  string name = 1;
+}
+
+message RunRequest {
+  string path = 1;
+  repeated string args = 2;
+  repeated string env = 3;
+  string dir = 4;
+  bytes stdin = 5;
+}
+
+message WaitStatus {
+  int64 exitcode = 1;
+	bool exited = 2;
+  string signal = 3;
+}
+
+message RunResponse {
+  WaitStatus waitstatus = 1;
+  bytes stdout = 2;
+  bytes stderr = 3;
+}
+
+message Empty {}

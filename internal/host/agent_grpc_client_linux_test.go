@@ -10,7 +10,6 @@ import (
 )
 
 func TestGrpcAgent(t *testing.T) {
-	t.Skip("Skipping this test for now")
 	ctx := context.Background()
 	ctx = log.WithTestLogger(ctx)
 
