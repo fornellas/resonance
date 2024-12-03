@@ -489,11 +489,11 @@ func (a AgentGrpcClient) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus
 
 	client := proto.NewHostServiceClient(a.Client)
 	resp, err := client.Run(ctx, &proto.RunRequest{
-		Path:  cmd.Path,
-		Args:  cmd.Args,
-		Env:   cmd.Env,
-		Dir:   cmd.Dir,
-		Stdin: stdin,
+		Path:    cmd.Path,
+		Args:    cmd.Args,
+		EnvVars: cmd.Env,
+		Dir:     cmd.Dir,
+		Stdin:   stdin,
 	})
 
 	if err != nil {

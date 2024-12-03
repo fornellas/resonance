@@ -266,7 +266,7 @@ func (s *HostService) Run(ctx context.Context, req *proto.RunRequest) (*proto.Ru
 	cmd := host.Cmd{
 		Path:   req.Path,
 		Args:   req.Args,
-		Env:    req.Env,
+		Env:    req.EnvVars,
 		Dir:    req.Dir,
 		Stdin:  stdin,
 		Stdout: stdoutBuff,
