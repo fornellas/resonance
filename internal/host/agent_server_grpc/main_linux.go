@@ -22,6 +22,19 @@ import (
 	"github.com/fornellas/resonance/internal/host/lib"
 )
 
+func getGrpcError(err error) error {
+	if errors.Is(err, fs.ErrPermission) {
+		return status.Error(codes.PermissionDenied, err.Error())
+	}
+	if errors.Is(err, fs.ErrExist) {
+		return status.Error(codes.AlreadyExists, err.Error())
+	}
+	if errors.Is(err, fs.ErrNotExist) {
+		return status.Error(codes.NotFound, err.Error())
+	}
+	return err
+}
+
 type HostService struct {
 	proto.UnimplementedHostServiceServer
 }
@@ -90,20 +103,6 @@ func (s *HostService) LookupGroup(ctx context.Context, req *proto.LookupGroupReq
 	}, nil
 }
 
-func (s *HostService) Mkdir(ctx context.Context, req *proto.MkdirRequest) (*proto.Empty, error) {
-	name := req.Name
-	mode := req.Mode
-
-	if !filepath.IsAbs(name) {
-		return nil, fmt.Errorf("path must be absolute: %s", name)
-	}
-
-	if err := syscall.Mkdir(name, mode); err != nil {
-		return nil, getGrpcError(err)
-	}
-	return nil, getGrpcError(syscall.Chmod(name, mode))
-}
-
 func (s *HostService) Lstat(ctx context.Context, req *proto.LstatRequest) (*proto.LstatResponse, error) {
 	name := req.Name
 
@@ -140,7 +139,6 @@ func (s *HostService) Lstat(ctx context.Context, req *proto.LstatRequest) (*prot
 			Nsec: int64(syscallStat_t.Ctim.Nsec),
 		},
 	}, nil
-
 }
 
 func (s *HostService) ReadDir(ctx context.Context, req *proto.ReadDirRequest) (*proto.ReadDirResponse, error) {
@@ -169,7 +167,20 @@ func (s *HostService) ReadDir(ctx context.Context, req *proto.ReadDirRequest) (*
 	return &proto.ReadDirResponse{
 		Entries: protoDirEnts,
 	}, nil
+}
 
+func (s *HostService) Mkdir(ctx context.Context, req *proto.MkdirRequest) (*proto.Empty, error) {
+	name := req.Name
+	mode := req.Mode
+
+	if !filepath.IsAbs(name) {
+		return nil, fmt.Errorf("path must be absolute: %s", name)
+	}
+
+	if err := syscall.Mkdir(name, mode); err != nil {
+		return nil, getGrpcError(err)
+	}
+	return nil, getGrpcError(syscall.Chmod(name, mode))
 }
 
 func (s *HostService) ReadFile(req *proto.ReadFileRequest, stream proto.HostService_ReadFileServer) error {
@@ -226,25 +237,6 @@ func (s *HostService) ReadLink(ctx context.Context, req *proto.ReadLinkRequest) 
 	}, nil
 }
 
-func (s *HostService) WriteFile(ctx context.Context, req *proto.WriteFileRequest) (*proto.Empty, error) {
-	name := req.Name
-	if !filepath.IsAbs(req.Name) {
-		return nil, fmt.Errorf("filepath must be absolute: %s", name)
-	}
-
-	perm := fs.FileMode(req.Perm)
-	err := os.WriteFile(name, req.Data, perm)
-	if err != nil {
-		return nil, getGrpcError(err)
-	}
-
-	if err = syscall.Chmod(name, req.Perm); err != nil {
-		return nil, getGrpcError(err)
-	}
-
-	return nil, nil
-}
-
 func (s *HostService) Remove(ctx context.Context, req *proto.RemoveRequest) (*proto.Empty, error) {
 	name := req.Name
 
@@ -257,19 +249,6 @@ func (s *HostService) Remove(ctx context.Context, req *proto.RemoveRequest) (*pr
 	}
 
 	return nil, nil
-}
-
-func getGrpcError(err error) error {
-	if errors.Is(err, fs.ErrPermission) {
-		return status.Error(codes.PermissionDenied, err.Error())
-	}
-	if errors.Is(err, fs.ErrExist) {
-		return status.Error(codes.AlreadyExists, err.Error())
-	}
-	if errors.Is(err, fs.ErrNotExist) {
-		return status.Error(codes.NotFound, err.Error())
-	}
-	return err
 }
 
 func (s *HostService) Run(ctx context.Context, req *proto.RunRequest) (*proto.RunResponse, error) {
@@ -308,6 +287,25 @@ func (s *HostService) Run(ctx context.Context, req *proto.RunRequest) (*proto.Ru
 		Stdout: stdoutBuff.Bytes(),
 		Stderr: stderrBuff.Bytes(),
 	}, nil
+}
+
+func (s *HostService) WriteFile(ctx context.Context, req *proto.WriteFileRequest) (*proto.Empty, error) {
+	name := req.Name
+	if !filepath.IsAbs(req.Name) {
+		return nil, fmt.Errorf("filepath must be absolute: %s", name)
+	}
+
+	perm := fs.FileMode(req.Perm)
+	err := os.WriteFile(name, req.Data, perm)
+	if err != nil {
+		return nil, getGrpcError(err)
+	}
+
+	if err = syscall.Chmod(name, req.Perm); err != nil {
+		return nil, getGrpcError(err)
+	}
+
+	return nil, nil
 }
 
 func main() {
