@@ -10,16 +10,15 @@ service HostService {
   rpc Chown(ChownRequest) returns (ChownResponse) {}
   rpc Lookup(LookupRequest) returns (LookupResponse) {}
   rpc LookupGroup(LookupGroupRequest) returns (LookupGroupResponse) {}
-  rpc Mkdir(MkdirRequest) returns (Empty) {}
   rpc Lstat(LstatRequest) returns (LstatResponse) {}
   rpc ReadDir(ReadDirRequest) returns (ReadDirResponse) {}
+  rpc Mkdir(MkdirRequest) returns (Empty) {}
   rpc ReadFile(ReadFileRequest) returns (stream ReadFileResponse) {}
   rpc ReadLink(ReadLinkRequest) returns (ReadLinkResponse) {}
-  rpc WriteFile(WriteFileRequest) returns (Empty) {}
   rpc Remove(RemoveRequest) returns (Empty) {}
   rpc Run(RunRequest) returns (RunResponse) {}
+  rpc WriteFile(WriteFileRequest) returns (Empty) {}
 }
-
 
 message PingRequest {}
 
@@ -67,29 +66,8 @@ message LookupGroupResponse {
   string gid = 2;
 }
 
-message MkdirRequest {
-  string name = 1;
-  uint32 mode = 2;
-}
-
 message LstatRequest {
   string name = 1;
-}
-
-message LstatResponse {
-  uint64 dev = 1;                 
-  uint64 ino = 2;      
-  uint64 nlink = 3;                  
-  uint32 mode = 4;                
-  uint32 uid = 5;                 
-  uint32 gid = 6;   
-  uint64 rdev = 7;                
-  int64 size = 8;
-  int64 blksize = 9;
-  int64 blocks = 10;
-  Timespec atim = 11;
-  Timespec mtim = 12;
-  Timespec ctim = 13;      
 }
 
 message Timespec {
@@ -97,28 +75,45 @@ message Timespec {
   int64 nsec = 2;
 }
 
+message LstatResponse {
+  uint64 dev = 1;
+  uint64 ino = 2;
+  uint64 nlink = 3;
+  uint32 mode = 4;
+  uint32 uid = 5;
+  uint32 gid = 6;
+  uint64 rdev = 7;
+  int64 size = 8;
+  int64 blksize = 9;
+  int64 blocks = 10;
+  Timespec atim = 11;
+  Timespec mtim = 12;
+  Timespec ctim = 13;
+}
+
 message ReadDirRequest {
   string name = 1;
 }
 
 message DirEnt {
-  uint64 ino = 1;   
-  int32 type = 2;   
-  string name = 3;  
+  uint64 ino = 1;
+  int32 type = 2;
+  string name = 3;
 }
 
 message ReadDirResponse {
   repeated DirEnt entries = 1;
 }
 
-message ReadFileRequest {
+message Empty {}
+
+message MkdirRequest {
   string name = 1;
+  uint32 mode = 2;
 }
 
-message WriteFileRequest {
+message ReadFileRequest {
   string name = 1;
-  bytes data = 2;
-  uint32 perm = 3;
 }
 
 message ReadFileResponse {
@@ -157,4 +152,8 @@ message RunResponse {
   bytes stderr = 3;
 }
 
-message Empty {}
+message WriteFileRequest {
+  string name = 1;
+  bytes data = 2;
+  uint32 perm = 3;
+}

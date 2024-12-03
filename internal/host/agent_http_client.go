@@ -381,23 +381,6 @@ func (a AgentHttpClient) ReadDir(ctx context.Context, name string) ([]host.DirEn
 	return dirEnts, nil
 }
 
-func (a AgentHttpClient) Mkdir(ctx context.Context, name string, mode uint32) error {
-	logger := log.MustLogger(ctx)
-
-	logger.Debug("Mkdir", "name", name)
-
-	if !filepath.IsAbs(name) {
-		return fmt.Errorf("path must be absolute: %s", name)
-	}
-
-	_, err := a.post(fmt.Sprintf("/file%s", name), api.File{
-		Action: api.Mkdir,
-		Mode:   mode,
-	})
-
-	return err
-}
-
 func (a AgentHttpClient) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	logger := log.MustLogger(ctx)
 
@@ -440,6 +423,23 @@ func (a AgentHttpClient) Readlink(ctx context.Context, name string) (string, err
 	}
 
 	return link, nil
+}
+
+func (a AgentHttpClient) Mkdir(ctx context.Context, name string, mode uint32) error {
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("Mkdir", "name", name)
+
+	if !filepath.IsAbs(name) {
+		return fmt.Errorf("path must be absolute: %s", name)
+	}
+
+	_, err := a.post(fmt.Sprintf("/file%s", name), api.File{
+		Action: api.Mkdir,
+		Mode:   mode,
+	})
+
+	return err
 }
 
 func (a AgentHttpClient) Remove(ctx context.Context, name string) error {
