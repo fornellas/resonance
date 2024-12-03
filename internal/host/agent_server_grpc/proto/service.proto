@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-option go_package = "github.com/fornellas/resonance/internal/host/agent_server_grpc/proto";
-
 package resonance;
+
+option go_package = "github.com/fornellas/resonance/internal/host/agent_server_grpc/proto";
 
 service HostService {
   rpc Ping(PingRequest) returns (PingResponse) {}
@@ -20,7 +20,8 @@ service HostService {
   rpc WriteFile(WriteFileRequest) returns (Empty) {}
 }
 
-message PingRequest {}
+message PingRequest {
+}
 
 message PingResponse {
   string message = 1;
@@ -105,7 +106,8 @@ message ReadDirResponse {
   repeated DirEnt entries = 1;
 }
 
-message Empty {}
+message Empty {
+}
 
 message MkdirRequest {
   string name = 1;
@@ -125,7 +127,7 @@ message ReadLinkRequest {
 }
 
 message ReadLinkResponse {
-    string destination = 1;
+  string destination = 1;
 }
 
 message RemoveRequest {
@@ -135,14 +137,14 @@ message RemoveRequest {
 message RunRequest {
   string path = 1;
   repeated string args = 2;
-  repeated string env = 3;
+  repeated string env_vars = 3;
   string dir = 4;
   bytes stdin = 5;
 }
 
 message WaitStatus {
   int64 exitcode = 1;
-	bool exited = 2;
+  bool exited = 2;
   string signal = 3;
 }
 

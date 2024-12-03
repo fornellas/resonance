@@ -228,6 +228,9 @@ PATH := $(PROTOC_BIN_PATH):$(PATH)
 PROTOC := $(PROTOC_BIN_PATH)/protoc
 PROTOC_PROTO_PATH := ./internal/host/agent_server_grpc/proto
 
+PROTOLINT := $(GO) run github.com/yoheimuta/protolint/cmd/protolint
+PROTOLINT_ARGS :=
+
 ##
 ## go build
 ##
@@ -327,7 +330,7 @@ install-protoc-gen-go: go
 	$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go
 
 .PHONY: gen-protofiles
-gen-protofiles: install-protoc install-protoc-gen-go install-protoc-gen-go-grpc
+gen-protofiles: install-protoc install-protoc-gen-go install-protoc-gen-go-grpc protolint
 	$(PROTOC) \
 		--go_out=. \
 		--go_opt=paths=source_relative \
@@ -350,10 +353,18 @@ clean: clean-gen-protofiles
 lint-help:
 	@echo 'lint: runs all linters'
 	@echo '  use LINT_GOVULNCHECK_DISABLE=1 to disable govulncheck (faster)'
+	@echo '  use PROTOLINT_ARGS to set `protolint lint` arguments (eg: -fix)'
 help: lint-help
 
 .PHONY: lint
 lint:
+
+# protolint
+
+.PHONY: protolint
+protolint:
+	$(PROTOLINT) lint $(PROTOLINT_ARGS) .
+lint: protolint
 
 # Generate
 
