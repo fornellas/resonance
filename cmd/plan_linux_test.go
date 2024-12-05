@@ -19,14 +19,15 @@ func TestPlan(t *testing.T) {
 		resourcesDir := filepath.Join(tempDir, "resources")
 		resourcesFile := filepath.Join(resourcesDir, "resources.yaml")
 		filesDir := filepath.Join(tempDir, "files")
+		fileContent := "bar"
 
 		resources := resouresPkg.Resources{
 			&resouresPkg.File{
-				Path:    filepath.Join(filesDir, "bar"),
-				Mode:    0644,
-				Content: "bar",
-				User:    "root",
-				Group:   "root",
+				Path:        filepath.Join(filesDir, "bar"),
+				Mode:        0644,
+				RegularFile: &fileContent,
+				User:        "root",
+				Group:       "root",
 			},
 		}
 
@@ -46,7 +47,7 @@ func TestPlan(t *testing.T) {
     diff:
       path: %s/bar
       -absent: true
-      +content: bar
+      +regular_file: bar
       +mode: 420
 🎆 Planning successful`,
 				filesDir, filesDir,
@@ -71,11 +72,11 @@ func TestPlan(t *testing.T) {
 
 		resources := resouresPkg.Resources{
 			&resouresPkg.File{
-				Path:    filePath,
-				Mode:    fileMode,
-				Content: fileContent,
-				Uid:     uint32(os.Geteuid()),
-				Gid:     uint32(os.Getegid()),
+				Path:        filePath,
+				Mode:        fileMode,
+				RegularFile: &fileContent,
+				Uid:         uint32(os.Geteuid()),
+				Gid:         uint32(os.Getegid()),
 			},
 		}
 

@@ -12,10 +12,12 @@ func TestValidate(t *testing.T) {
 	resourcesDir := tempDir
 	resourcesFile := filepath.Join(tempDir, "resources.yaml")
 
+	regularFile := "foo"
 	successResources := resouresPkg.Resources{
 		&resouresPkg.File{
-			Path: filepath.Join(tempDir, "foo"),
-			Mode: 0644,
+			Path:        filepath.Join(tempDir, "foo"),
+			RegularFile: &regularFile,
+			Mode:        0644,
 		},
 	}
 
