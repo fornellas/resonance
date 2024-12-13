@@ -15,7 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/alessio/shellescape"
+	"al.essio.dev/pkg/shellescape"
 
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"

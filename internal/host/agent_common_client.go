@@ -10,7 +10,7 @@ import (
 
 	"github.com/fornellas/resonance/host"
 
-	"github.com/alessio/shellescape"
+	"al.essio.dev/pkg/shellescape"
 )
 
 func getGoArch(machine string) (string, error) {
