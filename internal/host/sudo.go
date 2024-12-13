@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/alessio/shellescape"
+	"al.essio.dev/pkg/shellescape"
 	"golang.org/x/term"
 
 	"github.com/fornellas/resonance/host"

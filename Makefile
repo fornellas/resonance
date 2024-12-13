@@ -362,7 +362,7 @@ lint:
 # protolint
 
 .PHONY: protolint
-protolint:
+protolint: go
 	$(PROTOLINT) lint $(PROTOLINT_ARGS) .
 lint: protolint
 
