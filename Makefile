@@ -204,7 +204,7 @@ GO_TEST_MIN_COVERAGE := 50
 ## protobuf
 ##
 
-PROTOC_VERSION := 28.0
+PROTOC_VERSION := 29.2
 
 ifeq ($(UNAME_S),Linux)
 PROTOC_OS := linux
