@@ -10,6 +10,7 @@ import (
 )
 
 func TestValidateResource(t *testing.T) {
+	regularFile := "foo"
 	type testCase struct {
 		name          string
 		resource      Resource
@@ -19,7 +20,8 @@ func TestValidateResource(t *testing.T) {
 		{
 			name: "valid",
 			resource: &File{
-				Path: "/tmp/foo",
+				Path:        "/tmp/foo",
+				RegularFile: &regularFile,
 			},
 		},
 		{
@@ -39,7 +41,8 @@ func TestValidateResource(t *testing.T) {
 		{
 			name: "invalid state",
 			resource: &File{
-				Path: "foo",
+				Path:        "foo",
+				RegularFile: &regularFile,
 			},
 			errorContains: "'path' must be absolute",
 		},
