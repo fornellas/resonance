@@ -253,8 +253,8 @@ func (s Sudo) Type() string {
 	return s.Host.Type()
 }
 
-func (s Sudo) Close() error {
-	return s.Host.Close()
+func (s Sudo) Close(ctx context.Context) error {
+	return s.Host.Close(ctx)
 }
 
 func (s *Sudo) setEnvPath(ctx context.Context) error {

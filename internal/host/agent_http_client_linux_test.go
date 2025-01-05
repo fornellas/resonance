@@ -14,7 +14,7 @@ func TestHttpAgent(t *testing.T) {
 	ctx = log.WithTestLogger(ctx)
 
 	host, err := NewHttpAgent(ctx, Local{})
-	defer func() { require.NoError(t, host.Close()) }()
+	defer func() { require.NoError(t, host.Close(ctx)) }()
 	require.NoError(t, err)
 	testHost(t, host)
 }

@@ -103,6 +103,6 @@ func (d Docker) Type() string {
 	return "docker"
 }
 
-func (d Docker) Close() error {
+func (d Docker) Close(ctx context.Context) error {
 	return nil
 }

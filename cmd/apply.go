@@ -29,7 +29,7 @@ var ApplyCmd = &cobra.Command{
 			logger.Error(err.Error())
 			Exit(1)
 		}
-		defer host.Close()
+		defer host.Close(ctx)
 		logger.Info("🖥️ Target", "host", host)
 
 		store := GetStore(host)

@@ -25,7 +25,7 @@ var ValidateCmd = &cobra.Command{
 			logger.Error(err.Error())
 			Exit(1)
 		}
-		defer hst.Close()
+		defer hst.Close(ctx)
 
 		logger.Info("🔍 Validating", "path", path, "target", hst)
 

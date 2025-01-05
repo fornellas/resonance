@@ -1,6 +1,7 @@
 package host
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -8,6 +9,7 @@ import (
 
 func TestLocal(t *testing.T) {
 	host := Local{}
-	defer func() { require.NoError(t, host.Close()) }()
+	ctx := context.Background()
+	defer func() { require.NoError(t, host.Close(ctx)) }()
 	testHost(t, host)
 }

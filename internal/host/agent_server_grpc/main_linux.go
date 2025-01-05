@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"os/signal"
 	"os/user"
 	"path/filepath"
 	"syscall"
@@ -37,6 +38,7 @@ func getGrpcError(err error) error {
 
 type HostService struct {
 	proto.UnimplementedHostServiceServer
+	grpcServer *grpc.Server
 }
 
 func (s *HostService) Ping(ctx context.Context, req *proto.PingRequest) (*proto.PingResponse, error) {
@@ -308,8 +310,17 @@ func (s *HostService) WriteFile(ctx context.Context, req *proto.WriteFileRequest
 	return nil, nil
 }
 
-func main() {
+func (s *HostService) Shutdown(ctx context.Context, _ *proto.Empty) (*proto.Empty, error) {
+	go func() {
+		// When GracefulStop() is executed, it'll close the connection (and the pipe), generating
+		// a SIGPIPE, so we need to ignore the signal
+		signal.Ignore(syscall.SIGPIPE)
+		s.grpcServer.GracefulStop()
+	}()
+	return nil, nil
+}
 
+func main() {
 	conn := aNet.Conn{
 		Reader: os.Stdin,
 		Writer: os.Stdout,
@@ -319,7 +330,9 @@ func main() {
 
 	grpcServer := grpc.NewServer()
 
-	proto.RegisterHostServiceServer(grpcServer, &HostService{})
+	proto.RegisterHostServiceServer(grpcServer, &HostService{
+		grpcServer: grpcServer,
+	})
 
 	if err := grpcServer.Serve(pipeListener); err != nil {
 		panic(err)

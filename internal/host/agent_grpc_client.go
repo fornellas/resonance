@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -29,10 +30,10 @@ var AgentGrpcBinGz = map[string][]byte{}
 // AgentGrpcClient interacts with a given Host using an agent that's copied and ran at the
 // host.
 type AgentGrpcClient struct {
-	Host   host.Host
-	path   string
-	Client *grpc.ClientConn
-	waitCn chan struct{}
+	Host       host.Host
+	path       string
+	Client     *grpc.ClientConn
+	spawnErrCh chan error
 }
 
 func getGrpcAgentBinGz(ctx context.Context, hst host.Host) ([]byte, error) {
@@ -66,7 +67,7 @@ func getGrpcAgentBinGz(ctx context.Context, hst host.Host) ([]byte, error) {
 func NewGrpcAgent(ctx context.Context, hst host.Host) (*AgentGrpcClient, error) {
 	ctx, _ = log.MustContextLoggerSection(ctx, "🐈 Agent")
 
-	agentPath, err := getTmpFile(ctx, hst, "resonance_agent")
+	agentPath, err := getTmpFile(ctx, hst, "resonance_agent_grpc")
 	if err != nil {
 		return nil, err
 	}
@@ -90,9 +91,9 @@ func NewGrpcAgent(ctx context.Context, hst host.Host) (*AgentGrpcClient, error) 
 	}
 
 	agent := AgentGrpcClient{
-		Host:   hst,
-		path:   agentPath,
-		waitCn: make(chan struct{}),
+		Host:       hst,
+		path:       agentPath,
+		spawnErrCh: make(chan error),
 	}
 
 	if err := agent.spawn(ctx); err != nil {
@@ -133,8 +134,7 @@ func (a *AgentGrpcClient) spawn(ctx context.Context) error {
 	}
 
 	go func() {
-		defer func() { a.waitCn <- struct{}{} }()
-		waitStatus, err := a.Host.Run(ctx, host.Cmd{
+		waitStatus, runErr := a.Host.Run(ctx, host.Cmd{
 			Path:   a.path,
 			Stdin:  stdinReader,
 			Stdout: stdoutWriter,
@@ -142,27 +142,25 @@ func (a *AgentGrpcClient) spawn(ctx context.Context) error {
 				Logger: logger,
 			},
 		})
-		if err != nil {
-			logger.Error("failed to run agent", "err", err)
-		}
+		var waitStatusErr error
 		if !waitStatus.Success() {
-			logger.Error("agent exited with error", "error", waitStatus)
+			waitStatusErr = errors.New(waitStatus.String())
 		}
-		stdinWriter.Close()
-		stdoutReader.Close()
-		stdinReader.Close()
-		stdoutWriter.Close()
+		a.spawnErrCh <- multierr.Combine(
+			runErr,
+			waitStatusErr,
+		)
 	}()
 
 	Client := proto.NewHostServiceClient(a.Client)
 	resp, err := Client.Ping(ctx, &proto.PingRequest{})
 
 	if err != nil {
-		return multierr.Combine(err, a.Close())
+		return multierr.Combine(err, a.Close(ctx))
 	}
 
 	if resp.Message != "Pong" {
-		defer a.Close()
+		defer a.Close(ctx)
 		return fmt.Errorf("unexpected response from agent: %s", resp.Message)
 	}
 
@@ -556,8 +554,21 @@ func (a AgentGrpcClient) Type() string {
 	return a.Host.Type()
 }
 
-func (a *AgentGrpcClient) Close() error {
-	fmt.Println("Closing agent")
-	return nil
-	// to be implemented
+func (a *AgentGrpcClient) Close(ctx context.Context) error {
+	client := proto.NewHostServiceClient(a.Client)
+
+	_, shutdownErr := client.Shutdown(ctx, &proto.Empty{})
+
+	spawnErr := <-a.spawnErrCh
+
+	clientErr := a.Client.Close()
+
+	hostErr := a.Host.Close(ctx)
+
+	return multierr.Combine(
+		shutdownErr,
+		clientErr,
+		spawnErr,
+		hostErr,
+	)
 }
