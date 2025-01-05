@@ -30,10 +30,11 @@ var AgentGrpcBinGz = map[string][]byte{}
 // AgentGrpcClient interacts with a given Host using an agent that's copied and ran at the
 // host.
 type AgentGrpcClient struct {
-	Host       host.Host
-	path       string
-	Client     *grpc.ClientConn
-	spawnErrCh chan error
+	Host              host.Host
+	path              string
+	grpcClientConn    *grpc.ClientConn
+	hostServiceClient proto.HostServiceClient
+	spawnErrCh        chan error
 }
 
 func getGrpcAgentBinGz(ctx context.Context, hst host.Host) ([]byte, error) {
@@ -103,15 +104,6 @@ func NewGrpcAgent(ctx context.Context, hst host.Host) (*AgentGrpcClient, error) 
 	return &agent, nil
 }
 
-func GetDialer(stdoutReader, stdinWriter *os.File) func(context.Context, string) (net.Conn, error) {
-	return func(ctx context.Context, addr string) (net.Conn, error) {
-		return aNet.Conn{
-			Reader: stdoutReader,
-			Writer: stdinWriter,
-		}, nil
-	}
-}
-
 func (a *AgentGrpcClient) spawn(ctx context.Context) error {
 	logger := log.MustLogger(ctx)
 
@@ -126,9 +118,16 @@ func (a *AgentGrpcClient) spawn(ctx context.Context) error {
 	}
 
 	// We just pass "127.0.0.1" to avoid issues with dns resolution, this value is not used
-	a.Client, err = grpc.NewClient("127.0.0.1",
+	a.grpcClientConn, err = grpc.NewClient(
+		"127.0.0.1",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithContextDialer(GetDialer(stdoutReader, stdinWriter)))
+		grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+			return aNet.IOConn{
+				Reader: stdoutReader,
+				Writer: stdinWriter,
+			}, nil
+		}),
+	)
 	if err != nil {
 		return err
 	}
@@ -152,8 +151,8 @@ func (a *AgentGrpcClient) spawn(ctx context.Context) error {
 		)
 	}()
 
-	Client := proto.NewHostServiceClient(a.Client)
-	resp, err := Client.Ping(ctx, &proto.PingRequest{})
+	a.hostServiceClient = proto.NewHostServiceClient(a.grpcClientConn)
+	resp, err := a.hostServiceClient.Ping(ctx, &proto.PingRequest{})
 
 	if err != nil {
 		return multierr.Combine(err, a.Close(ctx))
@@ -171,8 +170,7 @@ func (a AgentGrpcClient) Chmod(ctx context.Context, name string, mode uint32) er
 	logger := log.MustLogger(ctx)
 	logger.Debug("Chmod", "name", name, "mode", mode)
 
-	Client := proto.NewHostServiceClient(a.Client)
-	_, err := Client.Chmod(ctx, &proto.ChmodRequest{
+	_, err := a.hostServiceClient.Chmod(ctx, &proto.ChmodRequest{
 		Name: name,
 		Mode: mode,
 	})
@@ -194,8 +192,7 @@ func (a AgentGrpcClient) Chown(ctx context.Context, name string, uid, gid uint32
 	logger := log.MustLogger(ctx)
 	logger.Debug("Chown", "name", name, "uid", uid, "gid", gid)
 
-	Client := proto.NewHostServiceClient(a.Client)
-	_, err := Client.Chown(ctx, &proto.ChownRequest{
+	_, err := a.hostServiceClient.Chown(ctx, &proto.ChownRequest{
 		Name: name,
 		Uid:  int64(uid),
 		Gid:  int64(gid),
@@ -219,8 +216,7 @@ func (a AgentGrpcClient) Lookup(ctx context.Context, username string) (*user.Use
 
 	logger.Debug("Lookup", "username", username)
 
-	Client := proto.NewHostServiceClient(a.Client)
-	resp, err := Client.Lookup(ctx, &proto.LookupRequest{
+	resp, err := a.hostServiceClient.Lookup(ctx, &proto.LookupRequest{
 		Username: username,
 	})
 
@@ -245,8 +241,7 @@ func (a AgentGrpcClient) LookupGroup(ctx context.Context, name string) (*user.Gr
 
 	logger.Debug("LookupGroup", "group", name)
 
-	Client := proto.NewHostServiceClient(a.Client)
-	resp, err := Client.LookupGroup(ctx, &proto.LookupGroupRequest{
+	resp, err := a.hostServiceClient.LookupGroup(ctx, &proto.LookupGroupRequest{
 		Name: name,
 	})
 
@@ -268,8 +263,7 @@ func (a AgentGrpcClient) Lstat(ctx context.Context, name string) (*host.Stat_t, 
 
 	logger.Debug("Lstat", "name", name)
 
-	client := proto.NewHostServiceClient(a.Client)
-	resp, err := client.Lstat(ctx, &proto.LstatRequest{
+	resp, err := a.hostServiceClient.Lstat(ctx, &proto.LstatRequest{
 		Name: name,
 	})
 	if err != nil {
@@ -317,8 +311,7 @@ func (a AgentGrpcClient) ReadDir(ctx context.Context, name string) ([]host.DirEn
 
 	logger.Debug("ReadDir", "name", name)
 
-	client := proto.NewHostServiceClient(a.Client)
-	resp, err := client.ReadDir(ctx, &proto.ReadDirRequest{
+	resp, err := a.hostServiceClient.ReadDir(ctx, &proto.ReadDirRequest{
 		Name: name,
 	})
 
@@ -351,8 +344,7 @@ func (a AgentGrpcClient) Mkdir(ctx context.Context, name string, mode uint32) er
 
 	logger.Debug("Mkdir", "name", name)
 
-	client := proto.NewHostServiceClient(a.Client)
-	_, err := client.Mkdir(ctx, &proto.MkdirRequest{
+	_, err := a.hostServiceClient.Mkdir(ctx, &proto.MkdirRequest{
 		Name: name,
 		Mode: mode,
 	})
@@ -379,8 +371,7 @@ func (a AgentGrpcClient) ReadFile(ctx context.Context, name string) ([]byte, err
 
 	logger.Debug("ReadFile", "name", name)
 
-	client := proto.NewHostServiceClient(a.Client)
-	stream, err := client.ReadFile(ctx, &proto.ReadFileRequest{
+	stream, err := a.hostServiceClient.ReadFile(ctx, &proto.ReadFileRequest{
 		Name: name,
 	})
 
@@ -427,8 +418,7 @@ func (a AgentGrpcClient) Readlink(ctx context.Context, name string) (string, err
 
 	logger.Debug("Readlink", "name", name)
 
-	client := proto.NewHostServiceClient(a.Client)
-	resp, err := client.ReadLink(ctx, &proto.ReadLinkRequest{
+	resp, err := a.hostServiceClient.ReadLink(ctx, &proto.ReadLinkRequest{
 		Name: name,
 	})
 
@@ -452,8 +442,7 @@ func (a AgentGrpcClient) Remove(ctx context.Context, name string) error {
 
 	logger.Debug("Remove", "name", name)
 
-	client := proto.NewHostServiceClient(a.Client)
-	_, err := client.Remove(ctx, &proto.RemoveRequest{
+	_, err := a.hostServiceClient.Remove(ctx, &proto.RemoveRequest{
 		Name: name,
 	})
 
@@ -485,8 +474,7 @@ func (a AgentGrpcClient) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus
 		}
 	}
 
-	client := proto.NewHostServiceClient(a.Client)
-	resp, err := client.Run(ctx, &proto.RunRequest{
+	resp, err := a.hostServiceClient.Run(ctx, &proto.RunRequest{
 		Path:    cmd.Path,
 		Args:    cmd.Args,
 		EnvVars: cmd.Env,
@@ -524,8 +512,7 @@ func (a AgentGrpcClient) WriteFile(ctx context.Context, name string, data []byte
 
 	logger.Debug("WriteFile", "name", name, "data", data, "perm", perm)
 
-	client := proto.NewHostServiceClient(a.Client)
-	_, err := client.WriteFile(ctx, &proto.WriteFileRequest{
+	_, err := a.hostServiceClient.WriteFile(ctx, &proto.WriteFileRequest{
 		Name: name,
 		Data: data,
 		Perm: perm,
@@ -555,20 +542,22 @@ func (a AgentGrpcClient) Type() string {
 }
 
 func (a *AgentGrpcClient) Close(ctx context.Context) error {
-	client := proto.NewHostServiceClient(a.Client)
 
-	_, shutdownErr := client.Shutdown(ctx, &proto.Empty{})
+	_, shutdownErr := a.hostServiceClient.Shutdown(ctx, &proto.Empty{})
 
-	spawnErr := <-a.spawnErrCh
+	var spawnErr error
+	if shutdownErr == nil {
+		spawnErr = <-a.spawnErrCh
+	}
 
-	clientErr := a.Client.Close()
+	grpcClientConnErr := a.grpcClientConn.Close()
 
-	hostErr := a.Host.Close(ctx)
+	hostCloseErr := a.Host.Close(ctx)
 
 	return multierr.Combine(
 		shutdownErr,
-		clientErr,
+		grpcClientConnErr,
 		spawnErr,
-		hostErr,
+		hostCloseErr,
 	)
 }

@@ -389,10 +389,10 @@ func main() {
 		Handler: h2c.NewHandler(router, server),
 	}
 
-	conn := aNet.Conn{
+	ioConn := aNet.IOConn{
 		Reader: os.Stdin,
 		Writer: os.Stdout,
 	}
 
-	server.ServeConn(conn, serveConnOpts)
+	server.ServeConn(ioConn, serveConnOpts)
 }
