@@ -24,50 +24,50 @@ func (a Addr) String() string {
 	return fmt.Sprintf("%v<>%v", a.Reader, a.Writer)
 }
 
-// Conn implements net.Conn for io.ReadCloser / io.WriteCloser.
-type Conn struct {
+// IOConn implements net.IOConn for io.ReadCloser / io.WriteCloser.
+type IOConn struct {
 	Reader io.ReadCloser
 	Writer io.WriteCloser
 }
 
-func (c Conn) Read(b []byte) (int, error) {
+func (c IOConn) Read(b []byte) (int, error) {
 	n, err := c.Reader.Read(b)
 	return n, err
 }
 
-func (c Conn) Write(b []byte) (int, error) {
+func (c IOConn) Write(b []byte) (int, error) {
 	n, err := c.Writer.Write(b)
 	return n, err
 }
 
-func (c Conn) Close() error {
+func (c IOConn) Close() error {
 	return multierr.Combine(
 		c.Reader.Close(),
 		c.Writer.Close(),
 	)
 }
 
-func (c Conn) LocalAddr() net.Addr {
+func (c IOConn) LocalAddr() net.Addr {
 	return Addr{
 		Reader: c.Reader,
 	}
 }
 
-func (c Conn) RemoteAddr() net.Addr {
+func (c IOConn) RemoteAddr() net.Addr {
 	return Addr{
 		Writer: c.Writer,
 	}
 }
 
-func (c Conn) SetDeadline(t time.Time) error {
+func (c IOConn) SetDeadline(t time.Time) error {
 	return os.ErrNoDeadline
 }
 
-func (c Conn) SetReadDeadline(t time.Time) error {
+func (c IOConn) SetReadDeadline(t time.Time) error {
 	return os.ErrNoDeadline
 }
 
-func (c Conn) SetWriteDeadline(t time.Time) error {
+func (c IOConn) SetWriteDeadline(t time.Time) error {
 	return os.ErrNoDeadline
 }
 

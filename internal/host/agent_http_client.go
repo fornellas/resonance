@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -30,10 +31,10 @@ var AgentHttpBinGz = map[string][]byte{}
 // AgentHttpClient interacts with a given Host using an agent that's copied and ran at the
 // host.
 type AgentHttpClient struct {
-	Host   host.Host
-	path   string
-	Client *http.Client
-	waitCn chan struct{}
+	Host       host.Host
+	path       string
+	Client     *http.Client
+	spawnErrCh chan error
 }
 
 func getHttpAgentBinGz(ctx context.Context, hst host.Host) ([]byte, error) {
@@ -91,9 +92,9 @@ func NewHttpAgent(ctx context.Context, hst host.Host) (*AgentHttpClient, error) 
 	}
 
 	agent := AgentHttpClient{
-		Host:   hst,
-		path:   agentPath,
-		waitCn: make(chan struct{}),
+		Host:       hst,
+		path:       agentPath,
+		spawnErrCh: make(chan error),
 	}
 
 	if err := agent.spawn(ctx); err != nil {
@@ -121,7 +122,7 @@ func (a *AgentHttpClient) spawn(ctx context.Context) error {
 			DialTLSContext: func(
 				ctx context.Context, network, addr string, cfg *tls.Config,
 			) (net.Conn, error) {
-				return aNet.Conn{
+				return aNet.IOConn{
 					Reader: stdoutReader,
 					Writer: stdinWriter,
 				}, nil
@@ -131,8 +132,7 @@ func (a *AgentHttpClient) spawn(ctx context.Context) error {
 	}
 
 	go func() {
-		defer func() { a.waitCn <- struct{}{} }()
-		waitStatus, err := a.Host.Run(ctx, host.Cmd{
+		waitStatus, runErr := a.Host.Run(ctx, host.Cmd{
 			Path:   a.path,
 			Stdin:  stdinReader,
 			Stdout: stdoutWriter,
@@ -140,16 +140,22 @@ func (a *AgentHttpClient) spawn(ctx context.Context) error {
 				Logger: logger,
 			},
 		})
-		if err != nil {
-			logger.Error("failed to run agent", "err", err)
-		}
+		var waitStatusErr error
 		if !waitStatus.Success() {
-			logger.Error("agent exited with error", "error", waitStatus)
+			waitStatusErr = errors.New(waitStatus.String())
 		}
-		stdinWriter.Close()
-		stdoutReader.Close()
-		stdinReader.Close()
-		stdoutWriter.Close()
+		stdinWriterErr := stdinWriter.Close()
+		stdinReaderErr := stdinReader.Close()
+		stdoutWriterErr := stdoutWriter.Close()
+		stdoutReaderErr := stdoutReader.Close()
+		a.spawnErrCh <- multierr.Combine(
+			runErr,
+			waitStatusErr,
+			stdinWriterErr,
+			stdinReaderErr,
+			stdoutWriterErr,
+			stdoutReaderErr,
+		)
 	}()
 
 	resp, err := a.get("/ping")
@@ -544,8 +550,20 @@ func (a AgentHttpClient) Type() string {
 }
 
 func (a *AgentHttpClient) Close(ctx context.Context) error {
-	a.post("/shutdown", nil)
+	_, shutdownErr := a.post("/shutdown", nil)
+
+	var spawnErr error
+	if shutdownErr == nil {
+		spawnErr = <-a.spawnErrCh
+	}
+
 	a.Client.CloseIdleConnections()
-	<-a.waitCn
-	return a.Host.Close(ctx)
+
+	hostErr := a.Host.Close(ctx)
+
+	return multierr.Combine(
+		shutdownErr,
+		spawnErr,
+		hostErr,
+	)
 }

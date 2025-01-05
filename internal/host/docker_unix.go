@@ -96,7 +96,7 @@ func (d Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) 
 }
 
 func (d Docker) String() string {
-	return fmt.Sprintf(d.ConnectionString)
+	return d.ConnectionString
 }
 
 func (d Docker) Type() string {

@@ -148,9 +148,7 @@ func sshGetSigners(ctx context.Context) ([]ssh.Signer, error) {
 	return signers, nil
 }
 
-func sshGetHostKeyCallback(
-	ctx context.Context, host string, port int, fingerprint string,
-) (ssh.HostKeyCallback, error) {
+func sshGetHostKeyCallback(ctx context.Context, fingerprint string) (ssh.HostKeyCallback, error) {
 	logger := log.MustLogger(ctx)
 
 	var fingerprintHostKeyCallback ssh.HostKeyCallback
@@ -241,7 +239,7 @@ func NewSsh(
 	if err != nil {
 		return Ssh{}, err
 	}
-	hostKeyCallback, err := sshGetHostKeyCallback(ctx, host, port, fingerprint)
+	hostKeyCallback, err := sshGetHostKeyCallback(ctx, fingerprint)
 	if err != nil {
 		return Ssh{}, err
 	}
