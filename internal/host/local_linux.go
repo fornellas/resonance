@@ -205,6 +205,6 @@ func (l Local) Type() string {
 	return "localhost"
 }
 
-func (l Local) Close() error {
+func (l Local) Close(ctx context.Context) error {
 	return nil
 }

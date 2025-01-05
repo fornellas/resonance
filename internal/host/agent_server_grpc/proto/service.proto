@@ -18,6 +18,7 @@ service HostService {
   rpc Remove(RemoveRequest) returns (Empty) {}
   rpc Run(RunRequest) returns (RunResponse) {}
   rpc WriteFile(WriteFileRequest) returns (Empty) {}
+  rpc Shutdown(Empty) returns (Empty) {}
 }
 
 message PingRequest {

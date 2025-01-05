@@ -66,7 +66,7 @@ type Host interface {
 	Type() string
 
 	// Close any pending connections (if applicable).
-	Close() error
+	Close(ctx context.Context) error
 }
 
 // Run starts the specified command and waits for it to complete.

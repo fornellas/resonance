@@ -441,6 +441,6 @@ func (s Ssh) Type() string {
 	return "ssh"
 }
 
-func (s Ssh) Close() error {
+func (s Ssh) Close(ctx context.Context) error {
 	return s.client.Close()
 }

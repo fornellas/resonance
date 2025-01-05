@@ -56,6 +56,6 @@ func TestSudo(t *testing.T) {
 
 	host, err := NewSudo(ctx, newLocalRunSudoOnly(t, Local{}))
 	require.NoError(t, err)
-	defer func() { require.NoError(t, host.Close()) }()
+	defer func() { require.NoError(t, host.Close(ctx)) }()
 	testHost(t, host)
 }

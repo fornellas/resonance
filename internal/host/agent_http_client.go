@@ -67,7 +67,7 @@ func getHttpAgentBinGz(ctx context.Context, hst host.Host) ([]byte, error) {
 func NewHttpAgent(ctx context.Context, hst host.Host) (*AgentHttpClient, error) {
 	ctx, _ = log.MustContextLoggerSection(ctx, "🐈 Agent")
 
-	agentPath, err := getTmpFile(ctx, hst, "resonance_agent")
+	agentPath, err := getTmpFile(ctx, hst, "resonance_agent_http")
 	if err != nil {
 		return nil, err
 	}
@@ -154,17 +154,17 @@ func (a *AgentHttpClient) spawn(ctx context.Context) error {
 
 	resp, err := a.get("/ping")
 	if err != nil {
-		return multierr.Combine(err, a.Close())
+		return multierr.Combine(err, a.Close(ctx))
 	}
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return multierr.Combine(err, a.Close())
+		return multierr.Combine(err, a.Close(ctx))
 	}
 	if string(bodyBytes) != "Pong" {
 		return multierr.Combine(
 			fmt.Errorf("pinging agent failed: unexpected body %#v", string(bodyBytes)),
-			a.Close(),
+			a.Close(ctx),
 		)
 	}
 
@@ -543,9 +543,9 @@ func (a AgentHttpClient) Type() string {
 	return a.Host.Type()
 }
 
-func (a *AgentHttpClient) Close() error {
+func (a *AgentHttpClient) Close(ctx context.Context) error {
 	a.post("/shutdown", nil)
 	a.Client.CloseIdleConnections()
 	<-a.waitCn
-	return a.Host.Close()
+	return a.Host.Close(ctx)
 }

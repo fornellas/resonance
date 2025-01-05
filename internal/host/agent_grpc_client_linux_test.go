@@ -14,7 +14,7 @@ func TestGrpcAgent(t *testing.T) {
 	ctx = log.WithTestLogger(ctx)
 
 	host, err := NewGrpcAgent(ctx, Local{})
-	defer func() { require.NoError(t, host.Close()) }()
+	defer func() { require.NoError(t, host.Close(ctx)) }()
 	require.NoError(t, err)
 	testHost(t, host)
 }

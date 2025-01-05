@@ -90,8 +90,8 @@ func (h cmdHostOnly) Type() string {
 	return h.Host.Type()
 }
 
-func (h cmdHostOnly) Close() error {
-	return h.Host.Close()
+func (h cmdHostOnly) Close(ctx context.Context) error {
+	return h.Host.Close(ctx)
 }
 
 type localRunOnly struct {
@@ -129,8 +129,8 @@ func (r runner) Type() string {
 	return r.Host.Type()
 }
 
-func (r runner) Close() error {
-	return r.Host.Close()
+func (r runner) Close(ctx context.Context) error {
+	return r.Host.Close(ctx)
 }
 
 func newRunner(host host.Host) runner {
@@ -144,6 +144,7 @@ func newRunner(host host.Host) runner {
 func TestCmdHost(t *testing.T) {
 	host := newRunner(newLocalRunOnly(t, Local{}))
 	testHost(t, host)
-	defer func() { require.NoError(t, host.Close()) }()
-	require.NoError(t, host.Close())
+	ctx := context.Background()
+	defer func() { require.NoError(t, host.Close(ctx)) }()
+	require.NoError(t, host.Close(ctx))
 }
