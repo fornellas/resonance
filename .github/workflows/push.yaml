@@ -2,7 +2,7 @@ name: push
 on:
   push:
     branches:
-      - 'master'
+      - "master"
     tags:
       - "v*"
 jobs:
@@ -11,18 +11,21 @@ jobs:
     with:
       upload-artifact: ${{ startsWith(github.ref, 'refs/tags/') }}
       GOARCH: 386
+      runs-on: ubuntu-24.04
     secrets: inherit
   linux_amd64:
     uses: ./.github/workflows/build-linux.yaml
     with:
       upload-artifact: ${{ startsWith(github.ref, 'refs/tags/') }}
       GOARCH: amd64
+      runs-on: ubuntu-24.04
     secrets: inherit
   linux_arm64:
     uses: ./.github/workflows/build-linux.yaml
     with:
       upload-artifact: ${{ startsWith(github.ref, 'refs/tags/') }}
       GOARCH: arm64
+      runs-on: ubuntu-24.04-arm
     secrets: inherit
   darwin_amd64:
     uses: ./.github/workflows/build-darwin.yaml
@@ -91,7 +94,7 @@ jobs:
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
-    - name: Coveralls Finished
-      uses: coverallsapp/github-action@v2.3.0
-      with:
-        parallel-finished: true
+      - name: Coveralls Finished
+        uses: coverallsapp/github-action@v2.3.4
+        with:
+          parallel-finished: true
