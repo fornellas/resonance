@@ -9,6 +9,9 @@ on:
       GOARCH:
         required: true
         type: string
+      runs-on:
+        required: true
+        type: string
       update-deps:
         required: false
         type: boolean
@@ -22,24 +25,17 @@ on:
         value: resonance.linux.${{ inputs.GOARCH }}.gz
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs-on }}
     env:
-        GOOS: linux
-        GOARCH: ${{ inputs.GOARCH }}
-        XDG_CACHE_HOME: /tmp/XDG_CACHE_HOME
-        DOCKER_PLATFORM: linux/${{ inputs.GOARCH }}
-        GO_TEST_BINARY_FLAGS_EXTRA: -v
+      GOOS: linux
+      GOARCH: ${{ inputs.GOARCH }}
+      XDG_CACHE_HOME: /tmp/XDG_CACHE_HOME
+      DOCKER_PLATFORM: linux/${{ inputs.GOARCH }}
+      GO_TEST_BINARY_FLAGS_EXTRA: -v
     steps:
       # Checkout
       - name: Checkout
         uses: actions/checkout@v4
-      # Architecture support
-      - name: Architecture support
-        if: ${{ inputs.GOARCH != '386' && inputs.GOARCH != 'amd64' }}
-        run: |
-          sudo apt-get update
-          sudo apt-get -y install binfmt-support qemu-user-static
-        shell: bash
       # Cache restore
       - name: Cache restore
         uses: actions/cache/restore@v4
@@ -100,12 +96,13 @@ jobs:
       # Coveralls
       - name: Coveralls
         if: ${{ inputs.coveralls == true }}
-        uses: coverallsapp/github-action@v2.3.0
+        uses: coverallsapp/github-action@v2.3.4
         with:
           file: cover.lcov
           flag-name: linux.${{ inputs.GOARCH }}
           parallel: true
           allow-empty: true
+          coverage-reporter-platform: ${{ inputs.GOARCH == '386' || inputs.GOARCH == 'amd64' && 'x86_64' || inputs.GOARCH == 'arm64' && 'arm64' }}
       # Clean
       - name: Clean
         run: ./build.sh clean
