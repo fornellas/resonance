@@ -1,6 +1,6 @@
 module github.com/fornellas/resonance
 
-go 1.23.4
+go 1.23.5
 
 require (
 	al.essio.dev/pkg/shellescape v1.5.1
@@ -24,10 +24,10 @@ require (
 	golang.org/x/net v0.34.0
 	golang.org/x/term v0.28.0
 	golang.org/x/tools v0.29.0
-	golang.org/x/vuln v1.1.3
-	google.golang.org/grpc v1.69.2
+	golang.org/x/vuln v1.1.4
+	google.golang.org/grpc v1.69.4
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1
-	google.golang.org/protobuf v1.36.2
+	google.golang.org/protobuf v1.36.3
 	gopkg.in/yaml.v3 v3.0.1
 	honnef.co/go/tools v0.5.1
 )
@@ -36,7 +36,7 @@ require (
 	github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c // indirect
 	github.com/alessio/shellescape v1.4.2 // indirect
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
-	github.com/bmatcuk/doublestar/v4 v4.7.1 // indirect
+	github.com/bmatcuk/doublestar/v4 v4.8.0 // indirect
 	github.com/chavacava/garif v0.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
@@ -70,9 +70,9 @@ require (
 	golang.org/x/mod v0.22.0 // indirect
 	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/sys v0.29.0 // indirect
-	golang.org/x/telemetry v0.0.0-20250105011419-6d9ea865d014 // indirect
+	golang.org/x/telemetry v0.0.0-20250117155846-04cd7bae618c // indirect
 	golang.org/x/text v0.21.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250106144421-5f5ef82da422 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250115164207-1a7da9e5054f // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
