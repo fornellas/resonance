@@ -2,16 +2,15 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
-
-	"fmt"
-	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/fornellas/resonance/host"
 	ihost "github.com/fornellas/resonance/internal/host"
 	storePkg "github.com/fornellas/resonance/internal/store"
+	"github.com/fornellas/resonance/log"
 )
 
 // This is to be used in place of os.Exit() to aid writing test assertions on exit code.
@@ -23,8 +22,8 @@ var defaultSsh = ""
 var docker string
 var defaultDocker = ""
 
-var options string
-var defaultOptions = ""
+var sudo bool
+var defaultSudo = false
 
 var storeValue = NewStoreValue()
 
@@ -32,32 +31,28 @@ var storeHostTargetPath string
 var defaultStoreHostTargetPath = "/var/lib/resonance"
 
 func wrapHost(ctx context.Context, hst host.Host) (host.Host, error) {
-	var err error
+	logger := log.MustLogger(ctx)
 
-	optionsMap := map[string]bool{
-		"sudo":          false,
-		"disable-agent": false,
-	}
-	if options != "" {
-		for _, o := range strings.Split(options, ",") {
-			if _, ok := optionsMap[o]; !ok {
-				return nil, fmt.Errorf("invalid option: %#v", o)
-			}
-			optionsMap[o] = true
-		}
-
-		if optionsMap["sudo"] {
-			hst, err = ihost.NewSudo(ctx, hst)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-	}
-	if !optionsMap["disable-agent"] && (optionsMap["sudo"] || hst.Type() != "localhost") {
-		hst, err = ihost.NewHttpAgent(ctx, hst)
+	if sudo {
+		var err error
+		hst, err = ihost.NewSudo(ctx, hst)
 		if err != nil {
 			return nil, err
+		}
+	}
+
+	if sudo || hst.Type() != "localhost" {
+		var err error
+		hst, err = ihost.NewAgentClient(ctx, hst)
+		if err != nil {
+			if errors.Is(err, ihost.ErrAgentUnsupportedOsArch) {
+				logger.Warn(
+					"Agent has no support for target, expect things to run *really* slow",
+					"err", err,
+				)
+			} else {
+				return nil, err
+			}
 		}
 	}
 
@@ -75,11 +70,10 @@ func addHostFlagsCommon(cmd *cobra.Command) {
 		"Applies configuration to given Docker container name \n"+
 			"Use given format '[<name|uid>[:<group|gid>]@]<image>'",
 	)
-	cmd.Flags().StringVarP(
-		&options, "target-options", "o", defaultDocker,
-		"Comma separated list of target options: \n"+
-			"	\"sudo\", to run as root via sudo; \n"+
-			"	\"disable-agent\", disable ephemeral agent usage (MUCH slower, only use for CPU architectures where there's no agent support)",
+
+	cmd.Flags().BoolVarP(
+		&sudo, "target-sudo", "r", defaultSudo,
+		"Use sudo to gain root privileges",
 	)
 }
 
@@ -108,6 +102,6 @@ func init() {
 		ssh = defaultSsh
 		docker = defaultDocker
 		storeHostTargetPath = defaultStoreHostTargetPath
-		options = defaultOptions
+		sudo = defaultSudo
 	})
 }

@@ -9,11 +9,11 @@ import (
 	"github.com/fornellas/resonance/log"
 )
 
-func TestGrpcAgent(t *testing.T) {
+func TestAgentClient(t *testing.T) {
 	ctx := context.Background()
 	ctx = log.WithTestLogger(ctx)
 
-	host, err := NewGrpcAgent(ctx, Local{})
+	host, err := NewAgentClient(ctx, Local{})
 	defer func() { require.NoError(t, host.Close(ctx)) }()
 	require.NoError(t, err)
 	testHost(t, host)

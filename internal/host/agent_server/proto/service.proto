@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package resonance;
 
-option go_package = "github.com/fornellas/resonance/internal/host/agent_server_grpc/proto";
+option go_package = "github.com/fornellas/resonance/internal/host/agent_server/proto";
 
 service HostService {
   rpc Ping(PingRequest) returns (PingResponse) {}
