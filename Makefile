@@ -307,6 +307,18 @@ install-protoc:
 	mv $(PROTOC_BIN_PATH)/protoc.tmp $(PROTOC_BIN_PATH)/protoc
 install-tools: install-protoc
 
+.PHONY: update-protoc
+update-protoc:
+	set -e
+	V="$$(curl -fv https://github.com/protocolbuffers/protobuf/releases/latest/ 2>&1 | \
+	   grep -Ei '^< location: ' | \
+	   tr / \\n | \
+	   tail -n 1 | \
+	   cut -c 2-)"
+	echo "$$V" > .protoc_version
+	$(MAKE) $(MFLAGS) install-protoc
+update-deps: update-protoc
+
 .PHONY: clean-install-protoc
 clean-install-protoc:
 	rm -f $(CACHE_PATH)/protoc.zip
