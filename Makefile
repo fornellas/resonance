@@ -272,11 +272,13 @@ help:
 ## Clean
 ##
 
+.PHONY: help-clean
+help-clean:
+	@echo 'clean: clean all files'
+help: help-clean
+
 .PHONY: clean
 clean:
-clean-help:
-	@echo 'clean: clean all files'
-help: clean-help
 
 ##
 ## Go
@@ -349,12 +351,12 @@ clean: clean-gen-protofiles
 
 # lint
 
-.PHONY: lint-help
-lint-help:
+.PHONY: help-lint
+help-lint:
 	@echo 'lint: runs all linters'
 	@echo '  use LINT_GOVULNCHECK_DISABLE=1 to disable govulncheck (faster)'
 	@echo '  use PROTOLINT_ARGS to set `protolint lint` arguments (eg: -fix)'
-help: lint-help
+help: help-lint
 
 .PHONY: lint
 lint:
@@ -458,8 +460,8 @@ update-deps: go-get-u-t
 
 # test
 
-.PHONY: test-help
-test-help:
+.PHONY: help-test
+help-test:
 	@echo 'test: runs all tests:'
 	@echo '  use GO_TEST_BUILD_FLAGS to set test build flags (see `go test build`)'
 	@echo '  use GO_TEST_FLAGS to set test flags (see `go help test`)'
@@ -467,7 +469,7 @@ test-help:
 	@echo '  use GO_TEST_BINARY_FLAGS_EXTRA to pass extra flags to the test binary (see `go help testflag`)'
 	@echo '  use GO_TEST_NO_COVER=1 to disable code coverage (faster)'
 	@echo '  use GO_TEST_BUILD_FLAGS_NO_RACE=1 to disable -race build flag (faster)'
-help: test-help
+help: help-test
 
 .PHONY: test
 
@@ -538,12 +540,12 @@ endif
 
 # help
 
-.PHONY: build-help
-build-help:
+.PHONY: help-build
+help-build:
 	@echo 'build: build everything'
 	@echo '  use GO_BUILD_FLAGS to add extra build flags (see `go help build`)'
 	@echo '  use GO_BUILD_AGENT_NATIVE_ONLY=1 to only build agent to native arch (faster)'
-help: build-help
+help: help-build
 
 # agent http
 
@@ -647,11 +649,11 @@ clean: clean-build
 ## ci
 ##
 
-.PHONY: ci-help
-ci-help:
+.PHONY: help-ci
+help-ci:
 	@echo 'ci: runs the whole build'
 	@echo 'ci-dev: similar to ci, but uses options that speed up the build, at the expense of minimal signal loss;'
-help: ci-help
+help: help-ci
 
 .PHONY: ci
 ci: lint test build
@@ -668,10 +670,10 @@ ci-dev:
 ## update
 ##
 
-.PHONY: update-deps-help
-update-deps-help:
+.PHONY: help-update-deps
+help-update-deps:
 	@echo 'update-deps: Update all dependencies'
-help: update-deps-help
+help: help-update-deps
 
 .PHONY: update-deps
 update-deps:
@@ -682,8 +684,8 @@ update-deps:
 
 ifeq ($(GOOS),linux)
 
-.PHONY: rrb-help
-rrb-help:
+.PHONY: help-rrb
+help-rrb:
 	@echo 'rrb: rerun build automatically on file changes'
 	@echo ' use RRB_DEBOUNCE to set debounce (default: $(RRB_DEBOUNCE))'
 	@echo ' use RRB_IGNORE_PATTERN to set ignore pattern (default: $(RRB_IGNORE_PATTERN))'
@@ -692,7 +694,7 @@ rrb-help:
 	@echo ' use RRB_MAKE_TARGET to set the make target (default: $(RRB_MAKE_TARGET))'
 	@echo ' use RRB_EXTRA_CMD to set a command to run after the build is successful (default: $(RRB_EXTRA_CMD))'
 	@echo 'rrb-dev: similar to rrb, but with RRB_MAKE_TARGET=ci-dev'
-help: rrb-help
+help: help-rrb
 
 .PHONY: rrb
 rrb: go
@@ -716,10 +718,10 @@ endif
 ## shell
 ##
 
-.PHONY: shell-help
-shell-help:
+.PHONY: help-shell
+help-shell:
 	@echo 'shell: starts a development shell'
-help: shell-help
+help: help-shell
 
 .PHONY: shell
 shell:
