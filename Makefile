@@ -75,8 +75,10 @@ endif
 GOROOT_PREFIX := $(CACHE_PATH)/GOROOT
 GOROOT := $(GOROOT_PREFIX)/$(GOVERSION).$(GOOS)-$(GOARCH_DOWNLOAD)
 
-GO := $(GOROOT)/bin/go
-PATH := $(GOROOT)/bin:$(PATH)
+export GOBIN := $(GOROOT)/bin
+export GOTOOLDIR := $(GOBIN)
+GO := $(GOBIN)/go
+PATH := $(GOBIN):$(PATH)
 
 export GOPATH := $(CACHE_PATH)/GOPATH
 PATH := $(GOPATH)/bin:$(PATH)
@@ -280,17 +282,15 @@ install-go:
 		mv $(GOROOT_PREFIX)/go $(GOROOT)
 install-tools: install-go
 
-.PHONY: clean-go
-clean-go:
+.PHONY: clean-install-go
+clean-install-go:
 	rm -rf $(GOROOT_PREFIX)
 	rm -rf $(GOCACHE)
 	find $(GOMODCACHE) -print0 | xargs -0 chmod u+w
 	rm -rf $(GOMODCACHE)
-clean: clean-go
+clean: clean-install-go
 
-##
-## Protobuf
-##
+# protoc
 
 .PHONY: install-protoc
 install-protoc:
@@ -305,19 +305,36 @@ install-tools: install-protoc
 
 .PHONY: clean-install-protoc
 clean-install-protoc:
+	rm -f $(CACHE_PATH)/protoc.zip
 	rm -f $(PROTOC_BIN_PATH)/protoc.tmp
 	rm -f $(PROTOC_BIN_PATH)/protoc
 clean: clean-install-protoc
+
+# protoc-gen-go-grpc
 
 .PHONY: install-protoc-gen-go-grpc
 install-protoc-gen-go-grpc: install-go
 	$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc
 install-tools: install-protoc-gen-go-grpc
 
+.PHONY: clean-install-protoc-gen-go-grpc
+clean-install-protoc-gen-go-grpc:
+	rm -f $(GOTOOLDIR)/protoc-gen-go-grpc
+clean: clean-install-protoc-gen-go-grpc
+
 .PHONY: install-protoc-gen-go
 install-protoc-gen-go: install-go
 	$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go
 install-tools: install-protoc-gen-go
+
+.PHONY: clean-install-protoc-gen-go
+clean-install-protoc-gen-go:
+	rm -f $(GOTOOLDIR)/protoc-gen-go
+clean: clean-install-protoc-gen-go
+
+##
+## Protobuf
+##
 
 .PHONY: gen-protofiles
 gen-protofiles: install-protoc install-protoc-gen-go install-protoc-gen-go-grpc protolint
@@ -715,7 +732,7 @@ help: help-shell
 shell: install-tools
 	@echo Make targets:
 	@$(MAKE) help MAKELEVEL=
-	@PATH=$(GOROOT)/bin:$(PATH) \
+	@PATH=$(GOBIN):$(GOTOOLDIR):$(PATH) \
 		GOOS=$(GOOS) \
 		GOARCH=$(GOARCH) \
 		GOROOT=$(GOROOT) \
