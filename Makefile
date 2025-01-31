@@ -1,8 +1,10 @@
 help:
 
 ##
-## Make
+## Variables
 ##
+
+# Make
 
 SHELL := /bin/bash
 .ONESHELL:
@@ -14,9 +16,7 @@ ifeq ($(MAKE_BAD_VERSION),true)
   $(error Make version is below $(MAKE_REQUIRED_MAJOR_VERSION), please update it.)
 endif
 
-##
-## uname
-##
+# uname
 
 SHELL_UNAME_S := uname -s
 UNAME_S := $(shell $(SHELL_UNAME_S))
@@ -30,9 +30,7 @@ ifneq ($(.SHELLSTATUS),0)
 $(error $(SHELL_UNAME_M): $(UNAME_M))
 endif
 
-##
-## Cache
-##
+# Cache
 
 ifeq ($(UNAME_S),Linux)
 XDG_CACHE_HOME ?= $(HOME)/.cache
@@ -46,9 +44,7 @@ endif
 
 CACHE_PATH ?= $(XDG_CACHE_HOME)/resonance
 
-##
-## Go
-##
+# Go
 
 SHELL_GO_VERSION := cat go.mod | awk '/^go /{print $$2}'
 export GOVERSION := go$(shell $(SHELL_GO_VERSION))
@@ -79,8 +75,10 @@ endif
 GOROOT_PREFIX := $(CACHE_PATH)/GOROOT
 GOROOT := $(GOROOT_PREFIX)/$(GOVERSION).$(GOOS)-$(GOARCH_DOWNLOAD)
 
-GO := $(GOROOT)/bin/go
-PATH := $(GOROOT)/bin:$(PATH)
+export GOBIN := $(GOROOT)/bin
+export GOTOOLDIR := $(GOBIN)
+GO := $(GOBIN)/go
+PATH := $(GOBIN):$(PATH)
 
 export GOPATH := $(CACHE_PATH)/GOPATH
 PATH := $(GOPATH)/bin:$(PATH)
@@ -89,9 +87,7 @@ export GOCACHE := $(CACHE_PATH)/GOCACHE
 
 export GOMODCACHE := $(CACHE_PATH)/GOMODCACHE
 
-##
-## Go source
-##
+# Go source
 
 SHELL_GO_MODULE := cat go.mod | awk '/^module /{print $$2}'
 export GO_MODULE := $(shell $(SHELL_GO_MODULE))
@@ -101,50 +97,36 @@ endif
 
 GO_SOURCE_FILES := $$(find $$PWD -name \*.go ! -path '$(CACHE_PATH)/*')
 
-##
-## goimports
-##
+# goimports
 
 GOIMPORTS := $(GO) run golang.org/x/tools/cmd/goimports
 GOIMPORTS_LOCAL := $(GO_MODULE)
 
-##
-## govulncheck
-##
+# govulncheck
 
 GOVULNCHECK := $(GO) run golang.org/x/vuln/cmd/govulncheck
 LINT_GOVULNCHECK_DISABLE :=
 
-##
-## staticcheck
-##
+# staticcheck
 
 STATICCHECK := $(GO) run honnef.co/go/tools/cmd/staticcheck
 export STATICCHECK_CACHE := $(CACHE_PATH)/staticcheck
 
-##
-## misspell
-##
+# misspell
 
 MISSPELL := $(GO) run github.com/client9/misspell/cmd/misspell
 
-##
-## gocyclo
-##
+# gocyclo
 
 GOCYCLO_IGNORE_REGEX := '.*\.pb\.go'
 GOCYCLO := $(GO) run github.com/fzipp/gocyclo/cmd/gocyclo
 GOCYCLO_OVER := 15
 
-##
-## ineffassign
-##
+# ineffassign
 
 INEFFASSIGN := $(GO) run github.com/gordonklaus/ineffassign
 
-##
-## go test
-##
+# go test
 
 GO_TEST := $(GO) run github.com/rakyll/gotest
 
@@ -200,11 +182,13 @@ GCOV2LCOV := $(GO) run github.com/jandelgado/gcov2lcov
 
 GO_TEST_MIN_COVERAGE := 50
 
-##
-## protobuf
-##
+# protobuf
 
-PROTOC_VERSION := 29.2
+SHELL_PROTOC_VERSION := cat .protoc_version
+PROTOC_VERSION := $(shell $(SHELL_PROTOC_VERSION))
+ifneq ($(.SHELLSTATUS),0)
+$(error $(SHELL_PROTOC_VERSION): $(PROTOC_VERSION))
+endif
 
 ifeq ($(UNAME_S),Linux)
 PROTOC_OS := linux
@@ -231,9 +215,7 @@ PROTOC_PROTO_PATH := ./internal/host/agent_server/proto
 PROTOLINT := $(GO) run github.com/yoheimuta/protolint/cmd/protolint
 PROTOLINT_ARGS :=
 
-##
-## go build
-##
+# go build
 
 GO_BUILD_FLAGS :=
 
@@ -249,9 +231,7 @@ endif
 
 GO_BUILD_MAX_AGENT_SIZE := 8000000
 
-##
-## rrb
-##
+# rrb
 
 RRB := $(GO) run github.com/fornellas/rrb
 RRB_DEBOUNCE ?= 500ms
@@ -272,18 +252,30 @@ help:
 ## Clean
 ##
 
+.PHONY: help-clean
+help-clean:
+	@echo 'clean: clean all files'
+help: help-clean
+
 .PHONY: clean
 clean:
-clean-help:
-	@echo 'clean: clean all files'
-help: clean-help
 
 ##
-## Go
+## Install Tools
 ##
 
-.PHONY: go
-go:
+.PHONY: help-install-tools
+help-install-tools:
+	@echo 'install-tools: installs all tool dependencies'
+help: help-install-tools
+
+.PHONY: install-tools
+install-tools:
+
+# Go
+
+.PHONY: install-go
+install-go:
 	set -e
 	if [ -d $(GOROOT) ] ; then exit ; fi
 	rm -rf $(GOROOT_PREFIX)/go
@@ -292,18 +284,17 @@ go:
 		tar -zx -C $(GOROOT_PREFIX) && \
 		touch $(GOROOT_PREFIX)/go &&
 		mv $(GOROOT_PREFIX)/go $(GOROOT)
+install-tools: install-go
 
-.PHONY: clean-go
-clean-go:
+.PHONY: clean-install-go
+clean-install-go:
 	rm -rf $(GOROOT_PREFIX)
 	rm -rf $(GOCACHE)
 	find $(GOMODCACHE) -print0 | xargs -0 chmod u+w
 	rm -rf $(GOMODCACHE)
-clean: clean-go
+clean: clean-install-go
 
-##
-## Protobuf
-##
+# protoc
 
 .PHONY: install-protoc
 install-protoc:
@@ -314,20 +305,55 @@ install-protoc:
 	unzip -p $(CACHE_PATH)/protoc.zip bin/protoc > $(PROTOC_BIN_PATH)/protoc.tmp
 	chmod +x $(PROTOC_BIN_PATH)/protoc.tmp
 	mv $(PROTOC_BIN_PATH)/protoc.tmp $(PROTOC_BIN_PATH)/protoc
+install-tools: install-protoc
+
+.PHONY: update-protoc
+update-protoc:
+	set -e
+	V="$$(curl -fv https://github.com/protocolbuffers/protobuf/releases/latest/ 2>&1 | \
+	   grep -Ei '^< location: ' | \
+	   tr / \\n | \
+	   tail -n 1 | \
+	   cut -c 2-)"
+	echo "$$V" > .protoc_version
+	$(MAKE) $(MFLAGS) install-protoc
+update-deps: update-protoc
 
 .PHONY: clean-install-protoc
 clean-install-protoc:
+	rm -rf $(PROTOC_BIN_PATH)
+	rm -f $(CACHE_PATH)/protoc.zip
 	rm -f $(PROTOC_BIN_PATH)/protoc.tmp
 	rm -f $(PROTOC_BIN_PATH)/protoc
 clean: clean-install-protoc
 
+# protoc-gen-go-grpc
+
 .PHONY: install-protoc-gen-go-grpc
-install-protoc-gen-go-grpc: go
+install-protoc-gen-go-grpc: install-go
 	$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc
+install-tools: install-protoc-gen-go-grpc
+
+.PHONY: clean-install-protoc-gen-go-grpc
+clean-install-protoc-gen-go-grpc:
+	rm -f $(GOTOOLDIR)/protoc-gen-go-grpc
+clean: clean-install-protoc-gen-go-grpc
 
 .PHONY: install-protoc-gen-go
-install-protoc-gen-go: go
+install-protoc-gen-go: install-go
 	$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go
+install-tools: install-protoc-gen-go
+
+.PHONY: clean-install-protoc-gen-go
+clean-install-protoc-gen-go:
+	rm -f $(GOTOOLDIR)/protoc-gen-go
+clean: clean-install-protoc-gen-go
+
+##
+## Generate
+##
+
+# protoc
 
 .PHONY: gen-protofiles
 gen-protofiles: install-protoc install-protoc-gen-go install-protoc-gen-go-grpc protolint
@@ -343,18 +369,24 @@ clean-gen-protofiles:
 	rm -f $(PROTOC_PROTO_PATH)/*.pb.go
 clean: clean-gen-protofiles
 
+# go generate
+
+.PHONY: go-generate
+go-generate: install-go
+	$(GO) generate ./...
+
 ##
 ## Lint
 ##
 
 # lint
 
-.PHONY: lint-help
-lint-help:
+.PHONY: help-lint
+help-lint:
 	@echo 'lint: runs all linters'
 	@echo '  use LINT_GOVULNCHECK_DISABLE=1 to disable govulncheck (faster)'
 	@echo '  use PROTOLINT_ARGS to set `protolint lint` arguments (eg: -fix)'
-help: lint-help
+help: help-lint
 
 .PHONY: lint
 lint:
@@ -362,27 +394,21 @@ lint:
 # protolint
 
 .PHONY: protolint
-protolint: go
+protolint: install-go
 	$(PROTOLINT) lint $(PROTOLINT_ARGS) .
 lint: protolint
-
-# Generate
-
-.PHONY: go-generate
-go-generate: go
-	$(GO) generate ./...
 
 # go mod tidy
 
 .PHONY: go-mod-tidy
-go-mod-tidy: go go-generate gen-protofiles
+go-mod-tidy: install-go go-generate gen-protofiles
 	$(GO) mod tidy
 lint: go-mod-tidy
 
 # goimports
 
 .PHONY: goimports
-goimports: go go-mod-tidy
+goimports: install-go go-mod-tidy
 	$(GOIMPORTS) -w -local $(GOIMPORTS_LOCAL) $(GO_SOURCE_FILES)
 lint: goimports
 
@@ -390,7 +416,7 @@ lint: goimports
 
 ifneq ($(LINT_GOVULNCHECK_DISABLE),1)
 .PHONY: govulncheck
-govulncheck: go-generate go go-mod-tidy
+govulncheck: go-generate install-go go-mod-tidy
 	$(GOVULNCHECK) $(GO_MODULE)/...
 lint: govulncheck
 endif
@@ -398,7 +424,7 @@ endif
 # staticcheck
 
 .PHONY: staticcheck
-staticcheck: go go-mod-tidy go-generate goimports
+staticcheck: install-go go-mod-tidy go-generate goimports
 	$(STATICCHECK) $(GO_MODULE)/...
 lint: staticcheck
 
@@ -410,14 +436,14 @@ clean: clean-staticcheck
 # misspell
 
 .PHONY: misspell
-misspell: go go-mod-tidy go-generate
+misspell: install-go go-mod-tidy go-generate
 	$(MISSPELL) -error $(GO_SOURCE_FILES)
 lint: misspell
 
 # gocyclo
 
 .PHONY: gocyclo
-gocyclo: go go-generate go-mod-tidy
+gocyclo: install-go go-generate go-mod-tidy
 	$(GOCYCLO) -over $(GOCYCLO_OVER) -avg -ignore $(GOCYCLO_IGNORE_REGEX) .
 
 lint: gocyclo
@@ -425,7 +451,7 @@ lint: gocyclo
 # ineffassign
 
 .PHONY: ineffassign
-ineffassign: go go-generate go-mod-tidy
+ineffassign: install-go go-generate go-mod-tidy
 	$(INEFFASSIGN) ./...
 
 lint: ineffassign
@@ -433,22 +459,23 @@ lint: ineffassign
 # go vet
 
 .PHONY: go-vet
-go-vet: go go-mod-tidy go-generate
+go-vet: install-go go-mod-tidy go-generate
 	$(GO) vet ./...
 lint: go-vet
 
 # go-update
 .PHONY: go-update
-go-update: go
+go-update: install-go
 	set -e
 	set -o pipefail
 	$(GO) mod edit -go $$(curl -s https://go.dev/VERSION?m=text | head -n 1 | cut -c 3-)
+	$(MAKE) $(MFLAGS) install-go
 update-deps: go-update
 
 # go get -u
 
 .PHONY: go-get-u-t
-go-get-u-t: go go-mod-tidy
+go-get-u-t: install-go go-mod-tidy
 	$(GO) get -u ./...
 update-deps: go-get-u-t
 
@@ -458,8 +485,8 @@ update-deps: go-get-u-t
 
 # test
 
-.PHONY: test-help
-test-help:
+.PHONY: help-test
+help-test:
 	@echo 'test: runs all tests:'
 	@echo '  use GO_TEST_BUILD_FLAGS to set test build flags (see `go test build`)'
 	@echo '  use GO_TEST_FLAGS to set test flags (see `go help test`)'
@@ -467,14 +494,14 @@ test-help:
 	@echo '  use GO_TEST_BINARY_FLAGS_EXTRA to pass extra flags to the test binary (see `go help testflag`)'
 	@echo '  use GO_TEST_NO_COVER=1 to disable code coverage (faster)'
 	@echo '  use GO_TEST_BUILD_FLAGS_NO_RACE=1 to disable -race build flag (faster)'
-help: test-help
+help: help-test
 
 .PHONY: test
 
 # gotest
 
 .PHONY: gotest
-gotest: go go-generate gen-protofiles
+gotest: install-go go-generate gen-protofiles
 	$(GO_TEST) \
 		$(GO_BUILD_FLAGS_COMMON) \
 		$(call go_test_build_flags,$(GOOS)_$(GOARCH_NATIVE)) \
@@ -495,7 +522,7 @@ clean: clean-gotest
 
 ifneq ($(GO_TEST_NO_COVER),1)
 .PHONY: cover.html
-cover.html: go gotest
+cover.html: install-go gotest
 	$(GO) tool cover -html cover.txt -o cover.html
 test: cover.html
 
@@ -507,7 +534,7 @@ clean: clean-cover.html
 # cover.lcov
 
 .PHONY: cover.lcov
-cover.lcov: go gotest
+cover.lcov: install-go gotest
 	$(GCOV2LCOV) -infile cover.txt -outfile cover.lcov
 test: cover.lcov
 
@@ -520,7 +547,7 @@ clean: clean-cover.lcov
 
 ifeq ($(GOOS),linux)
 .PHONY: test-coverage
-test-coverage: go cover.txt
+test-coverage: install-go cover.txt
 	PERCENT=$$($(GO) tool cover -func cover.txt | awk '/^total:/{print $$NF}' | tr -d % | cut -d. -f1) && \
 		echo "Coverage: $$PERCENT%" && \
 		if [ $$PERCENT -lt $(GO_TEST_MIN_COVERAGE) ] ; then \
@@ -538,12 +565,12 @@ endif
 
 # help
 
-.PHONY: build-help
-build-help:
+.PHONY: help-build
+help-build:
 	@echo 'build: build everything'
 	@echo '  use GO_BUILD_FLAGS to add extra build flags (see `go help build`)'
 	@echo '  use GO_BUILD_AGENT_NATIVE_ONLY=1 to only build agent to native arch (faster)'
-help: build-help
+help: help-build
 
 # agent
 
@@ -593,7 +620,7 @@ go-vet: clean-agent
 # build
 
 .PHONY: build
-build: go go-generate build-agent gen-protofiles
+build: install-go go-generate build-agent gen-protofiles
 	$(GO) \
 		build \
 		-o resonance.$(GOOS).$(GOARCH) \
@@ -613,11 +640,11 @@ clean: clean-build
 ## ci
 ##
 
-.PHONY: ci-help
-ci-help:
+.PHONY: help-ci
+help-ci:
 	@echo 'ci: runs the whole build'
 	@echo 'ci-dev: similar to ci, but uses options that speed up the build, at the expense of minimal signal loss;'
-help: ci-help
+help: help-ci
 
 .PHONY: ci
 ci: lint test build
@@ -634,10 +661,10 @@ ci-dev:
 ## update
 ##
 
-.PHONY: update-deps-help
-update-deps-help:
+.PHONY: help-update-deps
+help-update-deps:
 	@echo 'update-deps: Update all dependencies'
-help: update-deps-help
+help: help-update-deps
 
 .PHONY: update-deps
 update-deps:
@@ -648,8 +675,8 @@ update-deps:
 
 ifeq ($(GOOS),linux)
 
-.PHONY: rrb-help
-rrb-help:
+.PHONY: help-rrb
+help-rrb:
 	@echo 'rrb: rerun build automatically on file changes'
 	@echo ' use RRB_DEBOUNCE to set debounce (default: $(RRB_DEBOUNCE))'
 	@echo ' use RRB_IGNORE_PATTERN to set ignore pattern (default: $(RRB_IGNORE_PATTERN))'
@@ -658,10 +685,10 @@ rrb-help:
 	@echo ' use RRB_MAKE_TARGET to set the make target (default: $(RRB_MAKE_TARGET))'
 	@echo ' use RRB_EXTRA_CMD to set a command to run after the build is successful (default: $(RRB_EXTRA_CMD))'
 	@echo 'rrb-dev: similar to rrb, but with RRB_MAKE_TARGET=ci-dev'
-help: rrb-help
+help: help-rrb
 
 .PHONY: rrb
-rrb: go
+rrb: install-go
 	$(RRB) \
 		--debounce $(RRB_DEBOUNCE) \
 		--ignore-pattern $(RRB_IGNORE_PATTERN) \
@@ -682,16 +709,16 @@ endif
 ## shell
 ##
 
-.PHONY: shell-help
-shell-help:
+.PHONY: help-shell
+help-shell:
 	@echo 'shell: starts a development shell'
-help: shell-help
+help: help-shell
 
 .PHONY: shell
-shell:
+shell: install-tools
 	@echo Make targets:
 	@$(MAKE) help MAKELEVEL=
-	@PATH=$(GOROOT)/bin:$(PATH) \
+	@PATH=$(GOBIN):$(GOTOOLDIR):$(PATH) \
 		GOOS=$(GOOS) \
 		GOARCH=$(GOARCH) \
 		GOROOT=$(GOROOT) \
