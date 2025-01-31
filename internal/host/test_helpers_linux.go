@@ -436,6 +436,52 @@ func testHost(t *testing.T, hst host.Host) {
 		})
 	})
 
+	t.Run("Symlink", func(t *testing.T) {
+		t.Run("Success", func(t *testing.T) {
+			outputBuffer.Reset()
+			tempDir := t.TempDir()
+			newname := filepath.Join(tempDir, "newname")
+			oldname := "foo/bar"
+			err := hst.Symlink(ctx, oldname, newname)
+			require.NoError(t, err)
+			readOldname, err := os.Readlink(newname)
+			require.NoError(t, err)
+			require.Equal(t, oldname, readOldname)
+		})
+		t.Run("path must be absolute", func(t *testing.T) {
+			outputBuffer.Reset()
+			newname := "relative/path"
+			oldname := "foo/bar"
+			err := hst.Symlink(ctx, oldname, newname)
+			require.ErrorContains(t, err, "path must be absolute")
+		})
+		t.Run("ErrPermission", func(t *testing.T) {
+			outputBuffer.Reset()
+			skipIfRoot(t)
+			newname := "/etc/foo"
+			oldname := "foo/bar"
+			err := hst.Symlink(ctx, oldname, newname)
+			require.ErrorIs(t, err, os.ErrPermission)
+		})
+		t.Run("ErrExist", func(t *testing.T) {
+			outputBuffer.Reset()
+			tempDir := t.TempDir()
+			newname := filepath.Join(tempDir, "newname")
+			oldname := "foo/bar"
+			err := hst.Symlink(ctx, oldname, newname)
+			require.NoError(t, err)
+			err = hst.Symlink(ctx, oldname, newname)
+			require.ErrorIs(t, err, os.ErrExist)
+		})
+		t.Run("ErrNotExist", func(t *testing.T) {
+			outputBuffer.Reset()
+			oldname := "foo/bar"
+			newname := "/bad/path"
+			err := hst.Symlink(ctx, oldname, newname)
+			require.ErrorIs(t, err, os.ErrNotExist)
+		})
+	})
+
 	t.Run("Readlink", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
 			outputBuffer.Reset()

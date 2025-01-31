@@ -15,14 +15,8 @@ type Host interface {
 	// Chown works similar to syscall.Chown.
 	Chown(ctx context.Context, name string, uid, gid uint32) error
 
-	// // Hostname works similar to os.Hostname.
+	// Hostname works similar to os.Hostname.
 	// Hostname() (ctx context.Context, name string, err error)
-
-	// // Lchown works similar to os.Lchown.
-	// Lchown(ctx context.Context, name string, uid, gid int) error
-
-	// // Link works similar to os.Link.
-	// Link(ctx context.Context, oldname, newname string) error
 
 	// Lookup works similar to os/user.Lookup in its pure Go version,
 	// that reads from /etc/passwd.
@@ -44,6 +38,9 @@ type Host interface {
 	// ReadFile works similar to os.ReadFile.
 	ReadFile(ctx context.Context, name string) ([]byte, error)
 
+	// Symlink works similar to syscall.Symlink.
+	Symlink(ctx context.Context, oldname, newname string) error
+
 	// Readlink works similar to os.Readlink.
 	Readlink(ctx context.Context, name string) (string, error)
 
@@ -52,9 +49,6 @@ type Host interface {
 
 	// Run starts the specified command and waits for it to complete.
 	Run(ctx context.Context, cmd Cmd) (WaitStatus, error)
-
-	// // Symlink works similar to os.Symlink.
-	// Symlink(ctx context.Context, oldname, newname string) error
 
 	// WriteFile works similar to os.WriteFile, but receives mode as is syscall.Chmod argument.
 	WriteFile(ctx context.Context, name string, data []byte, mode uint32) error

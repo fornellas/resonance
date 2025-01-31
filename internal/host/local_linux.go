@@ -3,9 +3,11 @@ package host
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"os/user"
+	"path"
 	"path/filepath"
 	"syscall"
 
@@ -141,6 +143,14 @@ func (l Local) ReadFile(ctx context.Context, name string) ([]byte, error) {
 	}
 
 	return os.ReadFile(name)
+}
+
+func (br Local) Symlink(ctx context.Context, oldname, newname string) error {
+	if !path.IsAbs(newname) {
+		return fmt.Errorf("path must be absolute: %#v", newname)
+	}
+
+	return syscall.Symlink(oldname, newname)
 }
 
 func (l Local) Readlink(ctx context.Context, name string) (string, error) {
