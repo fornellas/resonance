@@ -333,8 +333,10 @@ clean-install-protoc-gen-go:
 clean: clean-install-protoc-gen-go
 
 ##
-## Protobuf
+## Generate
 ##
+
+# protoc
 
 .PHONY: gen-protofiles
 gen-protofiles: install-protoc install-protoc-gen-go install-protoc-gen-go-grpc protolint
@@ -349,6 +351,12 @@ gen-protofiles: install-protoc install-protoc-gen-go install-protoc-gen-go-grpc 
 clean-gen-protofiles:
 	rm -f $(PROTOC_PROTO_PATH)/*.pb.go
 clean: clean-gen-protofiles
+
+# go generate
+
+.PHONY: go-generate
+go-generate: install-go
+	$(GO) generate ./...
 
 ##
 ## Lint
@@ -372,12 +380,6 @@ lint:
 protolint: install-go
 	$(PROTOLINT) lint $(PROTOLINT_ARGS) .
 lint: protolint
-
-# Generate
-
-.PHONY: go-generate
-go-generate: install-go
-	$(GO) generate ./...
 
 # go mod tidy
 
