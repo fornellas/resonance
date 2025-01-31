@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"os/user"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -570,6 +571,44 @@ func (br cmdHost) ReadFile(ctx context.Context, name string) ([]byte, error) {
 		)
 	}
 	return []byte(stdout), nil
+}
+
+func (br cmdHost) Symlink(ctx context.Context, oldname, newname string) error {
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("Symlink", "oldname", oldname, "newname", newname)
+
+	if !path.IsAbs(newname) {
+		return fmt.Errorf("path must be absolute: %#v", newname)
+	}
+
+	cmd := host.Cmd{
+		Path: "ln",
+		Args: []string{"-s", oldname, newname},
+	}
+
+	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	if err != nil {
+		return err
+	}
+
+	if !waitStatus.Success() {
+		if strings.Contains(stderr, "Permission denied") {
+			return os.ErrPermission
+		}
+		if strings.Contains(stderr, "No such file or directory") {
+			return os.ErrNotExist
+		}
+		if strings.Contains(stderr, "File exists") {
+			return os.ErrExist
+		}
+		return fmt.Errorf(
+			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
+		)
+	}
+
+	return nil
 }
 
 func (br cmdHost) Readlink(ctx context.Context, name string) (string, error) {
