@@ -269,6 +269,18 @@ RRB_EXTRA_CMD ?= true
 help:
 
 ##
+## Install Tools
+##
+
+.PHONY: help-install-tools
+help-install-tools:
+	@echo 'install-tools: installs all tool dependencies'
+help: help-install-tools
+
+.PHONY: install-tools
+install-tools:
+
+##
 ## Clean
 ##
 
@@ -294,6 +306,7 @@ install-go:
 		tar -zx -C $(GOROOT_PREFIX) && \
 		touch $(GOROOT_PREFIX)/go &&
 		mv $(GOROOT_PREFIX)/go $(GOROOT)
+install-tools: install-go
 
 .PHONY: clean-go
 clean-go:
@@ -316,6 +329,7 @@ install-protoc:
 	unzip -p $(CACHE_PATH)/protoc.zip bin/protoc > $(PROTOC_BIN_PATH)/protoc.tmp
 	chmod +x $(PROTOC_BIN_PATH)/protoc.tmp
 	mv $(PROTOC_BIN_PATH)/protoc.tmp $(PROTOC_BIN_PATH)/protoc
+install-tools: install-protoc
 
 .PHONY: clean-install-protoc
 clean-install-protoc:
@@ -326,10 +340,12 @@ clean: clean-install-protoc
 .PHONY: install-protoc-gen-go-grpc
 install-protoc-gen-go-grpc: install-go
 	$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc
+install-tools: install-protoc-gen-go-grpc
 
 .PHONY: install-protoc-gen-go
 install-protoc-gen-go: install-go
 	$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go
+install-tools: install-protoc-gen-go
 
 .PHONY: gen-protofiles
 gen-protofiles: install-protoc install-protoc-gen-go install-protoc-gen-go-grpc protolint
@@ -724,7 +740,7 @@ help-shell:
 help: help-shell
 
 .PHONY: shell
-shell:
+shell: install-tools
 	@echo Make targets:
 	@$(MAKE) help MAKELEVEL=
 	@PATH=$(GOROOT)/bin:$(PATH) \
