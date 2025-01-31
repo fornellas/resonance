@@ -55,9 +55,16 @@ func wrapHost(ctx context.Context, hst host.Host) (host.Host, error) {
 
 	}
 	if !optionsMap["disable-agent"] && (optionsMap["sudo"] || hst.Type() != "localhost") {
-		hst, err = ihost.NewHttpAgent(ctx, hst)
-		if err != nil {
-			return nil, err
+		if optionsMap["http"] {
+			hst, err = ihost.NewHttpAgent(ctx, hst)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			hst, err = ihost.NewGrpcAgent(ctx, hst)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -79,7 +86,8 @@ func addHostFlagsCommon(cmd *cobra.Command) {
 		&options, "target-options", "o", defaultDocker,
 		"Comma separated list of target options: \n"+
 			"	\"sudo\", to run as root via sudo; \n"+
-			"	\"disable-agent\", disable ephemeral agent usage (MUCH slower, only use for CPU architectures where there's no agent support)",
+			"	\"disable-agent\", disable ephemeral agent usage (MUCH slower, only use for CPU architectures where there's no agent support)\n"+
+			"  \"http\", use HTTP when talking to the ephemeral agent, default is gRPC",
 	)
 }
 
