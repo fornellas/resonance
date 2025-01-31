@@ -413,6 +413,33 @@ func (a AgentGrpcClient) ReadFile(ctx context.Context, name string) ([]byte, err
 	return fileData, nil
 }
 
+func (a AgentGrpcClient) Symlink(ctx context.Context, oldname, newname string) error {
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("Symlink", "oldname", oldname, "newname", newname)
+
+	_, err := a.hostServiceClient.Symlink(ctx, &proto.SymlinkRequest{
+		Oldname: oldname,
+		Newname: newname,
+	})
+
+	if err != nil {
+		if status, ok := status.FromError(err); ok {
+			switch status.Code() {
+			case codes.PermissionDenied:
+				return fs.ErrPermission
+			case codes.NotFound:
+				return fs.ErrNotExist
+			case codes.AlreadyExists:
+				return fs.ErrExist
+			}
+		}
+		return err
+	}
+
+	return nil
+}
+
 func (a AgentGrpcClient) Readlink(ctx context.Context, name string) (string, error) {
 	logger := log.MustLogger(ctx)
 

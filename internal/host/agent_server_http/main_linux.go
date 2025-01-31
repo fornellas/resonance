@@ -206,6 +206,10 @@ func PostFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 			if err := syscall.Chmod(name, file.Mode); err != nil {
 				internalServerError(w, err)
 			}
+		case api.Symlink:
+			if err := syscall.Symlink(file.Oldname, name); err != nil {
+				internalServerError(w, err)
+			}
 		default:
 			internalServerError(w, fmt.Errorf("invalid action: %d", file.Action))
 		}

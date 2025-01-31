@@ -15,13 +15,15 @@ const (
 	Chmod FileAction = iota
 	Chown
 	Mkdir
+	Symlink
 )
 
 type File struct {
-	Action FileAction
-	Mode   uint32
-	Uid    uint32
-	Gid    uint32
+	Action  FileAction
+	Mode    uint32
+	Uid     uint32
+	Gid     uint32
+	Oldname string
 }
 
 type Error struct {

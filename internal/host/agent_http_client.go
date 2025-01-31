@@ -409,6 +409,23 @@ func (a AgentHttpClient) ReadFile(ctx context.Context, name string) ([]byte, err
 	return contents, nil
 }
 
+func (a AgentHttpClient) Symlink(ctx context.Context, oldname, newname string) error {
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("MustLogger", "oldname", oldname, "newname", newname)
+
+	if !filepath.IsAbs(newname) {
+		return fmt.Errorf("path must be absolute: %s", newname)
+	}
+
+	_, err := a.post(fmt.Sprintf("/file%s", newname), api.File{
+		Action:  api.Symlink,
+		Oldname: oldname,
+	})
+
+	return err
+}
+
 func (a AgentHttpClient) Readlink(ctx context.Context, name string) (string, error) {
 	logger := log.MustLogger(ctx)
 

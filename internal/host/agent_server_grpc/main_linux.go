@@ -222,6 +222,14 @@ func (s *HostService) ReadFile(req *proto.ReadFileRequest, stream proto.HostServ
 	return nil
 }
 
+func (s *HostService) Symlink(ctx context.Context, req *proto.SymlinkRequest) (*proto.Empty, error) {
+	if !filepath.IsAbs(req.Newname) {
+		return nil, fmt.Errorf("path must be absolute: %s", req.Newname)
+	}
+
+	return nil, getGrpcError(syscall.Symlink(req.Oldname, req.Newname))
+}
+
 func (s *HostService) ReadLink(ctx context.Context, req *proto.ReadLinkRequest) (*proto.ReadLinkResponse, error) {
 	name := req.Name
 
@@ -294,7 +302,7 @@ func (s *HostService) Run(ctx context.Context, req *proto.RunRequest) (*proto.Ru
 func (s *HostService) WriteFile(ctx context.Context, req *proto.WriteFileRequest) (*proto.Empty, error) {
 	name := req.Name
 	if !filepath.IsAbs(req.Name) {
-		return nil, fmt.Errorf("filepath must be absolute: %s", name)
+		return nil, fmt.Errorf("path must be absolute: %s", name)
 	}
 
 	perm := fs.FileMode(req.Perm)
