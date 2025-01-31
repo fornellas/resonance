@@ -1,5 +1,9 @@
-check all uses of Host.Readfile and ensure it is closed
-store: see if possible to optimize to not load the full file
-host rename
-    cmd_run > base_host_cmd
-    all wrappers to ${foo}_wrapper (eg: sudo_wrapper)
+GetResourceId
+    review usage of resonance:"id" tag (we're not using it) and update code / docs
+Steps
+    is essentially the same as a Blueprint, merge it into a single Blueprint type
+Step
+    is a single/group resosurce with dependencies
+    could be called a node
+resource yaml
+    define & publish schema
