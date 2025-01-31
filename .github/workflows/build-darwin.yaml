@@ -101,3 +101,14 @@ jobs:
             exit 1
           fi
         shell: bash
+      # find $XDG_CACHE_HOME
+      - name: find $XDG_CACHE_HOME
+        run: |
+          FIND_XDG_CACHE_HOME="$(find "$XDG_CACHE_HOME" ! -type d)"
+          if [ -n "$FIND_XDG_CACHE_HOME" ] ; then
+            echo Error: make clean left files behind at $XDG_CACHE_HOME!
+            echo "find $XDG_CACHE_HOME ! -type d"
+            echo "$FIND_XDG_CACHE_HOME"
+            exit 1
+          fi
+        shell: bash
