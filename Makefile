@@ -321,6 +321,7 @@ update-deps: update-protoc
 
 .PHONY: clean-install-protoc
 clean-install-protoc:
+	rm -rf $(PROTOC_BIN_PATH)
 	rm -f $(CACHE_PATH)/protoc.zip
 	rm -f $(PROTOC_BIN_PATH)/protoc.tmp
 	rm -f $(PROTOC_BIN_PATH)/protoc
