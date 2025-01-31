@@ -184,7 +184,11 @@ GO_TEST_MIN_COVERAGE := 50
 
 # protobuf
 
-PROTOC_VERSION := 29.2
+SHELL_PROTOC_VERSION := cat .protoc_version
+PROTOC_VERSION := $(shell $(SHELL_PROTOC_VERSION))
+ifneq ($(.SHELLSTATUS),0)
+$(error $(SHELL_PROTOC_VERSION): $(PROTOC_VERSION))
+endif
 
 ifeq ($(UNAME_S),Linux)
 PROTOC_OS := linux
