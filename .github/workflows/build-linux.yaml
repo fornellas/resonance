@@ -50,7 +50,7 @@ jobs:
       - name: Update Deps
         if: ${{ inputs.update-deps == true }}
         run: |
-          ./build.sh update-deps
+          ./make.sh update-deps
       # Update Deps
       - name: Diff
         if: ${{ inputs.update-deps == true }}
@@ -60,7 +60,7 @@ jobs:
       # Build
       - name: Build
         run: |
-          ./build.sh ci
+          ./make.sh ci
         shell: bash
       # Git Status
       - name: git status
@@ -105,7 +105,7 @@ jobs:
           coverage-reporter-platform: ${{ inputs.GOARCH == '386' || inputs.GOARCH == 'amd64' && 'x86_64' || inputs.GOARCH == 'arm64' && 'arm64' }}
       # Clean
       - name: Clean
-        run: ./build.sh clean
+        run: ./make.sh clean
         shell: bash
       # Git ls-files --others
       - name: git ls-files --others

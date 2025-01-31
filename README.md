@@ -30,7 +30,7 @@ Getting started is _super easy_: just run these commands under Linux or MacOS:
 ```bash
 git clone git@github.com:fornellas/resonance.git
 cd resonance/
-./build.sh ci # runs linters, tests and build
+./make.sh ci # runs linters, tests and build
 ```
 
 That's it! The local build happens inside a [Docker](https://www.docker.com/), so it is easily reproducible on any machine.
@@ -42,7 +42,7 @@ If you're running an old Arm Mac (eg: M1), Docker is _very_ slow, you should con
 You can start a development shell, which gives you access to the whole build environemnt, including all build tools with the correct versions. Eg:
 
 ```shell
-./build.sh shell
+./make.sh shell
 make ci
 go get -u
 ```
@@ -90,7 +90,7 @@ And then start you code editor from the development shell (eg: for Sublime, do `
 The default build with `ci` reproduces the official build, but this may be too slow during development. You can use one of the `*-dev` targets to do a "dev build": bulid is a lot faster, at the expense of minimal signal loss:
 
 ```shell
-./build.sh ci-dev # or "make ci-dev"
+./make.sh ci-dev # or "make ci-dev"
 ```
 
 ### Automatic builds on Linux
@@ -100,7 +100,7 @@ The build system is integrated with [rrb](https://github.com/fornellas/rrb), whi
 First, start rrb:
 
 ```shell
-./build.sh rrb # or "make rrb"
+./make.sh rrb # or "make rrb"
 ```
 
 then just edit the files with your preferred editor. As soon as you save any file, the build will be automatically run, interrupting any ongoing build, so you always get a fresh signal.
