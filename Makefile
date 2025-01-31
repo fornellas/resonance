@@ -468,6 +468,7 @@ go-update: install-go
 	set -e
 	set -o pipefail
 	$(GO) mod edit -go $$(curl -s https://go.dev/VERSION?m=text | head -n 1 | cut -c 3-)
+	$(MAKE) $(MFLAGS) install-go
 update-deps: go-update
 
 # go get -u
