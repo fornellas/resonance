@@ -18,12 +18,16 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/fornellas/resonance/host"
-	"github.com/fornellas/resonance/internal/host/agent_server_grpc/proto"
-	aNet "github.com/fornellas/resonance/internal/host/agent_server_http/net"
+	"github.com/fornellas/resonance/internal/host/agent_server/proto"
 	"github.com/fornellas/resonance/internal/host/lib"
 )
 
-func getGrpcError(err error) error {
+type HostService struct {
+	proto.UnimplementedHostServiceServer
+	grpcServer *grpc.Server
+}
+
+func (s *HostService) getGrpcError(err error) error {
 	if errors.Is(err, fs.ErrPermission) {
 		return status.Error(codes.PermissionDenied, err.Error())
 	}
@@ -34,11 +38,6 @@ func getGrpcError(err error) error {
 		return status.Error(codes.NotFound, err.Error())
 	}
 	return err
-}
-
-type HostService struct {
-	proto.UnimplementedHostServiceServer
-	grpcServer *grpc.Server
 }
 
 func (s *HostService) Ping(ctx context.Context, req *proto.PingRequest) (*proto.PingResponse, error) {
@@ -115,7 +114,7 @@ func (s *HostService) Lstat(ctx context.Context, req *proto.LstatRequest) (*prot
 	var syscallStat_t syscall.Stat_t
 
 	if err := syscall.Lstat(name, &syscallStat_t); err != nil {
-		return nil, getGrpcError(err)
+		return nil, s.getGrpcError(err)
 	}
 	return &proto.LstatResponse{
 		Dev:     syscallStat_t.Dev,
@@ -152,7 +151,7 @@ func (s *HostService) ReadDir(ctx context.Context, req *proto.ReadDirRequest) (*
 
 	dirEnts, err := lib.ReadDir(ctx, name)
 	if err != nil {
-		return nil, getGrpcError(err)
+		return nil, s.getGrpcError(err)
 	}
 
 	protoDirEnts := make([]*proto.DirEnt, 0, len(dirEnts))
@@ -180,9 +179,9 @@ func (s *HostService) Mkdir(ctx context.Context, req *proto.MkdirRequest) (*prot
 	}
 
 	if err := syscall.Mkdir(name, mode); err != nil {
-		return nil, getGrpcError(err)
+		return nil, s.getGrpcError(err)
 	}
-	return nil, getGrpcError(syscall.Chmod(name, mode))
+	return nil, s.getGrpcError(syscall.Chmod(name, mode))
 }
 
 func (s *HostService) ReadFile(req *proto.ReadFileRequest, stream proto.HostService_ReadFileServer) error {
@@ -195,7 +194,7 @@ func (s *HostService) ReadFile(req *proto.ReadFileRequest, stream proto.HostServ
 	file, err := os.Open(name)
 
 	if err != nil {
-		return getGrpcError(err)
+		return s.getGrpcError(err)
 	}
 
 	defer file.Close()
@@ -208,14 +207,14 @@ func (s *HostService) ReadFile(req *proto.ReadFileRequest, stream proto.HostServ
 			if err == io.EOF {
 				break
 			}
-			return getGrpcError(err)
+			return s.getGrpcError(err)
 		}
 
 		err = stream.Send(&proto.ReadFileResponse{
 			Chunk: buf[:n],
 		})
 		if err != nil {
-			return getGrpcError(err)
+			return s.getGrpcError(err)
 		}
 	}
 
@@ -231,7 +230,7 @@ func (s *HostService) ReadLink(ctx context.Context, req *proto.ReadLinkRequest) 
 
 	destination, err := os.Readlink(name)
 	if err != nil {
-		return nil, getGrpcError(err)
+		return nil, s.getGrpcError(err)
 	}
 
 	return &proto.ReadLinkResponse{
@@ -247,7 +246,7 @@ func (s *HostService) Remove(ctx context.Context, req *proto.RemoveRequest) (*pr
 	}
 
 	if err := os.Remove(name); err != nil {
-		return nil, getGrpcError(err)
+		return nil, s.getGrpcError(err)
 	}
 
 	return nil, nil
@@ -277,7 +276,7 @@ func (s *HostService) Run(ctx context.Context, req *proto.RunRequest) (*proto.Ru
 
 	waitStatus, err := lib.Run(ctx, cmd)
 	if err != nil {
-		return nil, getGrpcError(err)
+		return nil, s.getGrpcError(err)
 	}
 
 	return &proto.RunResponse{
@@ -300,11 +299,11 @@ func (s *HostService) WriteFile(ctx context.Context, req *proto.WriteFileRequest
 	perm := fs.FileMode(req.Perm)
 	err := os.WriteFile(name, req.Data, perm)
 	if err != nil {
-		return nil, getGrpcError(err)
+		return nil, s.getGrpcError(err)
 	}
 
 	if err = syscall.Chmod(name, req.Perm); err != nil {
-		return nil, getGrpcError(err)
+		return nil, s.getGrpcError(err)
 	}
 
 	return nil, nil
@@ -321,12 +320,12 @@ func (s *HostService) Shutdown(ctx context.Context, _ *proto.Empty) (*proto.Empt
 }
 
 func main() {
-	ioConn := aNet.IOConn{
+	ioConn := lib.IOConn{
 		Reader: os.Stdin,
 		Writer: os.Stdout,
 	}
 
-	pipeListener := aNet.NewListener(ioConn)
+	pipeListener := lib.NewListener(ioConn)
 
 	grpcServer := grpc.NewServer()
 
