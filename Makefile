@@ -284,8 +284,8 @@ clean:
 ## Go
 ##
 
-.PHONY: go
-go:
+.PHONY: install-go
+install-go:
 	set -e
 	if [ -d $(GOROOT) ] ; then exit ; fi
 	rm -rf $(GOROOT_PREFIX)/go
@@ -324,11 +324,11 @@ clean-install-protoc:
 clean: clean-install-protoc
 
 .PHONY: install-protoc-gen-go-grpc
-install-protoc-gen-go-grpc: go
+install-protoc-gen-go-grpc: install-go
 	$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc
 
 .PHONY: install-protoc-gen-go
-install-protoc-gen-go: go
+install-protoc-gen-go: install-go
 	$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go
 
 .PHONY: gen-protofiles
@@ -364,27 +364,27 @@ lint:
 # protolint
 
 .PHONY: protolint
-protolint: go
+protolint: install-go
 	$(PROTOLINT) lint $(PROTOLINT_ARGS) .
 lint: protolint
 
 # Generate
 
 .PHONY: go-generate
-go-generate: go
+go-generate: install-go
 	$(GO) generate ./...
 
 # go mod tidy
 
 .PHONY: go-mod-tidy
-go-mod-tidy: go go-generate gen-protofiles
+go-mod-tidy: install-go go-generate gen-protofiles
 	$(GO) mod tidy
 lint: go-mod-tidy
 
 # goimports
 
 .PHONY: goimports
-goimports: go go-mod-tidy
+goimports: install-go go-mod-tidy
 	$(GOIMPORTS) -w -local $(GOIMPORTS_LOCAL) $(GO_SOURCE_FILES)
 lint: goimports
 
@@ -392,7 +392,7 @@ lint: goimports
 
 ifneq ($(LINT_GOVULNCHECK_DISABLE),1)
 .PHONY: govulncheck
-govulncheck: go-generate go go-mod-tidy
+govulncheck: go-generate install-go go-mod-tidy
 	$(GOVULNCHECK) $(GO_MODULE)/...
 lint: govulncheck
 endif
@@ -400,7 +400,7 @@ endif
 # staticcheck
 
 .PHONY: staticcheck
-staticcheck: go go-mod-tidy go-generate goimports
+staticcheck: install-go go-mod-tidy go-generate goimports
 	$(STATICCHECK) $(GO_MODULE)/...
 lint: staticcheck
 
@@ -412,14 +412,14 @@ clean: clean-staticcheck
 # misspell
 
 .PHONY: misspell
-misspell: go go-mod-tidy go-generate
+misspell: install-go go-mod-tidy go-generate
 	$(MISSPELL) -error $(GO_SOURCE_FILES)
 lint: misspell
 
 # gocyclo
 
 .PHONY: gocyclo
-gocyclo: go go-generate go-mod-tidy
+gocyclo: install-go go-generate go-mod-tidy
 	$(GOCYCLO) -over $(GOCYCLO_OVER) -avg -ignore $(GOCYCLO_IGNORE_REGEX) .
 
 lint: gocyclo
@@ -427,7 +427,7 @@ lint: gocyclo
 # ineffassign
 
 .PHONY: ineffassign
-ineffassign: go go-generate go-mod-tidy
+ineffassign: install-go go-generate go-mod-tidy
 	$(INEFFASSIGN) ./...
 
 lint: ineffassign
@@ -435,13 +435,13 @@ lint: ineffassign
 # go vet
 
 .PHONY: go-vet
-go-vet: go go-mod-tidy go-generate
+go-vet: install-go go-mod-tidy go-generate
 	$(GO) vet ./...
 lint: go-vet
 
 # go-update
 .PHONY: go-update
-go-update: go
+go-update: install-go
 	set -e
 	set -o pipefail
 	$(GO) mod edit -go $$(curl -s https://go.dev/VERSION?m=text | head -n 1 | cut -c 3-)
@@ -450,7 +450,7 @@ update-deps: go-update
 # go get -u
 
 .PHONY: go-get-u-t
-go-get-u-t: go go-mod-tidy
+go-get-u-t: install-go go-mod-tidy
 	$(GO) get -u ./...
 update-deps: go-get-u-t
 
@@ -476,7 +476,7 @@ help: help-test
 # gotest
 
 .PHONY: gotest
-gotest: go go-generate gen-protofiles
+gotest: install-go go-generate gen-protofiles
 	$(GO_TEST) \
 		$(GO_BUILD_FLAGS_COMMON) \
 		$(call go_test_build_flags,$(GOOS)_$(GOARCH_NATIVE)) \
@@ -497,7 +497,7 @@ clean: clean-gotest
 
 ifneq ($(GO_TEST_NO_COVER),1)
 .PHONY: cover.html
-cover.html: go gotest
+cover.html: install-go gotest
 	$(GO) tool cover -html cover.txt -o cover.html
 test: cover.html
 
@@ -509,7 +509,7 @@ clean: clean-cover.html
 # cover.lcov
 
 .PHONY: cover.lcov
-cover.lcov: go gotest
+cover.lcov: install-go gotest
 	$(GCOV2LCOV) -infile cover.txt -outfile cover.lcov
 test: cover.lcov
 
@@ -522,7 +522,7 @@ clean: clean-cover.lcov
 
 ifeq ($(GOOS),linux)
 .PHONY: test-coverage
-test-coverage: go cover.txt
+test-coverage: install-go cover.txt
 	PERCENT=$$($(GO) tool cover -func cover.txt | awk '/^total:/{print $$NF}' | tr -d % | cut -d. -f1) && \
 		echo "Coverage: $$PERCENT%" && \
 		if [ $$PERCENT -lt $(GO_TEST_MIN_COVERAGE) ] ; then \
@@ -629,7 +629,7 @@ go-vet: clean-agent
 # build
 
 .PHONY: build
-build: go go-generate build-agent gen-protofiles
+build: install-go go-generate build-agent gen-protofiles
 	$(GO) \
 		build \
 		-o resonance.$(GOOS).$(GOARCH) \
@@ -697,7 +697,7 @@ help-rrb:
 help: help-rrb
 
 .PHONY: rrb
-rrb: go
+rrb: install-go
 	$(RRB) \
 		--debounce $(RRB_DEBOUNCE) \
 		--ignore-pattern $(RRB_IGNORE_PATTERN) \
