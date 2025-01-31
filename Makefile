@@ -1,8 +1,10 @@
 help:
 
 ##
-## Make
+## Variables
 ##
+
+# Make
 
 SHELL := /bin/bash
 .ONESHELL:
@@ -14,9 +16,7 @@ ifeq ($(MAKE_BAD_VERSION),true)
   $(error Make version is below $(MAKE_REQUIRED_MAJOR_VERSION), please update it.)
 endif
 
-##
-## uname
-##
+# uname
 
 SHELL_UNAME_S := uname -s
 UNAME_S := $(shell $(SHELL_UNAME_S))
@@ -30,9 +30,7 @@ ifneq ($(.SHELLSTATUS),0)
 $(error $(SHELL_UNAME_M): $(UNAME_M))
 endif
 
-##
-## Cache
-##
+# Cache
 
 ifeq ($(UNAME_S),Linux)
 XDG_CACHE_HOME ?= $(HOME)/.cache
@@ -46,9 +44,7 @@ endif
 
 CACHE_PATH ?= $(XDG_CACHE_HOME)/resonance
 
-##
-## Go
-##
+# Go
 
 SHELL_GO_VERSION := cat go.mod | awk '/^go /{print $$2}'
 export GOVERSION := go$(shell $(SHELL_GO_VERSION))
@@ -89,9 +85,7 @@ export GOCACHE := $(CACHE_PATH)/GOCACHE
 
 export GOMODCACHE := $(CACHE_PATH)/GOMODCACHE
 
-##
-## Go source
-##
+# Go source
 
 SHELL_GO_MODULE := cat go.mod | awk '/^module /{print $$2}'
 export GO_MODULE := $(shell $(SHELL_GO_MODULE))
@@ -101,50 +95,36 @@ endif
 
 GO_SOURCE_FILES := $$(find $$PWD -name \*.go ! -path '$(CACHE_PATH)/*')
 
-##
-## goimports
-##
+# goimports
 
 GOIMPORTS := $(GO) run golang.org/x/tools/cmd/goimports
 GOIMPORTS_LOCAL := $(GO_MODULE)
 
-##
-## govulncheck
-##
+# govulncheck
 
 GOVULNCHECK := $(GO) run golang.org/x/vuln/cmd/govulncheck
 LINT_GOVULNCHECK_DISABLE :=
 
-##
-## staticcheck
-##
+# staticcheck
 
 STATICCHECK := $(GO) run honnef.co/go/tools/cmd/staticcheck
 export STATICCHECK_CACHE := $(CACHE_PATH)/staticcheck
 
-##
-## misspell
-##
+# misspell
 
 MISSPELL := $(GO) run github.com/client9/misspell/cmd/misspell
 
-##
-## gocyclo
-##
+# gocyclo
 
 GOCYCLO_IGNORE_REGEX := '.*\.pb\.go'
 GOCYCLO := $(GO) run github.com/fzipp/gocyclo/cmd/gocyclo
 GOCYCLO_OVER := 15
 
-##
-## ineffassign
-##
+# ineffassign
 
 INEFFASSIGN := $(GO) run github.com/gordonklaus/ineffassign
 
-##
-## go test
-##
+# go test
 
 GO_TEST := $(GO) run github.com/rakyll/gotest
 
@@ -200,9 +180,7 @@ GCOV2LCOV := $(GO) run github.com/jandelgado/gcov2lcov
 
 GO_TEST_MIN_COVERAGE := 50
 
-##
-## protobuf
-##
+# protobuf
 
 PROTOC_VERSION := 29.2
 
@@ -231,9 +209,7 @@ PROTOC_PROTO_PATH := ./internal/host/agent_server_grpc/proto
 PROTOLINT := $(GO) run github.com/yoheimuta/protolint/cmd/protolint
 PROTOLINT_ARGS :=
 
-##
-## go build
-##
+# go build
 
 GO_BUILD_FLAGS :=
 
@@ -249,9 +225,7 @@ endif
 
 GO_BUILD_MAX_AGENT_SIZE := 8000000
 
-##
-## rrb
-##
+# rrb
 
 RRB := $(GO) run github.com/fornellas/rrb
 RRB_DEBOUNCE ?= 500ms
@@ -269,18 +243,6 @@ RRB_EXTRA_CMD ?= true
 help:
 
 ##
-## Install Tools
-##
-
-.PHONY: help-install-tools
-help-install-tools:
-	@echo 'install-tools: installs all tool dependencies'
-help: help-install-tools
-
-.PHONY: install-tools
-install-tools:
-
-##
 ## Clean
 ##
 
@@ -293,8 +255,18 @@ help: help-clean
 clean:
 
 ##
-## Go
+## Install Tools
 ##
+
+.PHONY: help-install-tools
+help-install-tools:
+	@echo 'install-tools: installs all tool dependencies'
+help: help-install-tools
+
+.PHONY: install-tools
+install-tools:
+
+# Go
 
 .PHONY: install-go
 install-go:
