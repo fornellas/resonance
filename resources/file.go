@@ -3,10 +3,13 @@ package resources
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strconv"
+
+	"github.com/hashicorp/go-multierror"
 
 	"github.com/fornellas/resonance/host"
 )
@@ -57,7 +60,7 @@ func (f *File) Load(ctx context.Context, hst host.Host) error {
 	}
 
 	// Content
-	content, err := hst.ReadFile(ctx, string(f.Path))
+	fileReadCloser, err := hst.ReadFile(ctx, string(f.Path))
 	if err != nil {
 		if os.IsNotExist(err) {
 			f.Absent = true
@@ -65,7 +68,17 @@ func (f *File) Load(ctx context.Context, hst host.Host) error {
 		}
 		return err
 	}
-	f.Content = string(content)
+	contentBytes, err := io.ReadAll(fileReadCloser)
+	if err != nil {
+		if closeErr := fileReadCloser.Close(); closeErr != nil {
+			err = multierror.Append(err, closeErr)
+		}
+		return err
+	}
+	if err := fileReadCloser.Close(); err != nil {
+		return err
+	}
+	f.Content = string(contentBytes)
 
 	// FileInfo
 	stat_t, err := hst.Lstat(ctx, string(f.Path))

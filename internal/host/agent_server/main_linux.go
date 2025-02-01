@@ -215,7 +215,9 @@ func (s *HostService) Mkdir(ctx context.Context, req *proto.MkdirRequest) (*prot
 	return nil, s.getGrpcError(syscall.Chmod(name, mode))
 }
 
-func (s *HostService) ReadFile(req *proto.ReadFileRequest, stream proto.HostService_ReadFileServer) error {
+func (s *HostService) ReadFile(
+	req *proto.ReadFileRequest, stream proto.HostService_ReadFileServer,
+) error {
 	name := req.Name
 
 	if !filepath.IsAbs(name) {
