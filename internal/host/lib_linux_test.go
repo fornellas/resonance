@@ -395,17 +395,17 @@ func testHost(
 						require.True(t, fifoStat_t.Mode&syscall.S_IFMT == syscall.S_IFIFO)
 					})
 				})
-				t.Run("Mode bits", func(t *testing.T) {
-					for _, mode := range allModeBits {
-						err := syscall.Chmod(name, mode)
+				for _, modeBits := range allModeBits {
+					t.Run(fmt.Sprintf("mode=%#.12o", modeBits), func(t *testing.T) {
+						err := syscall.Chmod(name, modeBits)
 						require.NoError(t, err)
 
 						stat_t, err := hst.Lstat(ctx, name)
 						require.NoError(t, err)
 
-						require.Equal(t, mode, stat_t.Mode&07777)
-					}
-				})
+						require.Equal(t, modeBits, stat_t.Mode&07777)
+					})
+				}
 			})
 			t.Run("Uid", func(t *testing.T) {
 				require.Equal(t, expectedStat_t.Uid, stat_t.Uid)
@@ -530,16 +530,17 @@ func testHost(
 	})
 
 	t.Run("Mkdir", func(t *testing.T) {
-		t.Run("Success", func(t *testing.T) {
-			name := filepath.Join(t.TempDir(), "foo")
-			var fileMode uint32 = 1542
-			err := hst.Mkdir(ctx, name, fileMode)
-			require.NoError(t, err)
-			var stat_t syscall.Stat_t
-			require.NoError(t, syscall.Lstat(name, &stat_t))
-			require.True(t, stat_t.Mode&syscall.S_IFMT == syscall.S_IFDIR)
-			require.Equal(t, fileMode, stat_t.Mode&07777)
-		})
+		for _, fileMode := range allModeBits {
+			t.Run(fmt.Sprintf("Success mode=%#.12o", fileMode), func(t *testing.T) {
+				name := filepath.Join(t.TempDir(), "foo")
+				err := hst.Mkdir(ctx, name, fileMode)
+				require.NoError(t, err)
+				var stat_t syscall.Stat_t
+				require.NoError(t, syscall.Lstat(name, &stat_t))
+				require.True(t, stat_t.Mode&syscall.S_IFMT == syscall.S_IFDIR)
+				require.Equal(t, fileMode, stat_t.Mode&07777)
+			})
+		}
 		t.Run("path must be absolute", func(t *testing.T) {
 			err := hst.Mkdir(ctx, "foo/bar", 0750)
 			require.ErrorContains(t, err, "path must be absolute")
@@ -743,26 +744,34 @@ func testHost(
 		})
 		t.Run("Mode bits", func(t *testing.T) {
 			for _, modeBits := range allModeBits {
-				testMknod(t, fmt.Sprintf("mode bits %#o", modeBits), syscall.S_IFREG, modeBits, 0)
+				testMknod(t, fmt.Sprintf("mode bits %#.12o", modeBits), syscall.S_IFREG, modeBits, 0)
 			}
 		})
 	})
 
 	t.Run("WriteFile", func(t *testing.T) {
-		t.Run("Success", func(t *testing.T) {
-			name := filepath.Join(t.TempDir(), "foo")
-			dataBytes := []byte("foo")
-			data := bytes.NewReader(dataBytes)
-			var fileMode uint32 = 01607
-			err := hst.WriteFile(ctx, name, data, fileMode)
-			require.NoError(t, err)
-			readDataBytes, err := os.ReadFile(name)
-			require.NoError(t, err)
-			require.Equal(t, dataBytes, readDataBytes)
-			var stat_t syscall.Stat_t
-			require.NoError(t, syscall.Lstat(name, &stat_t))
-			require.Equal(t, fileMode, stat_t.Mode&07777)
-		})
+		for _, modeBits := range allModeBits {
+			t.Run(fmt.Sprintf("Success mode=%#.12o", modeBits), func(t *testing.T) {
+				name := filepath.Join(t.TempDir(), "foo")
+				dataBytes := []byte("foo")
+				data := bytes.NewReader(dataBytes)
+
+				err := hst.WriteFile(ctx, name, data, modeBits)
+				require.NoError(t, err)
+
+				readDataBytes, err := os.ReadFile(name)
+				if (modeBits & syscall.S_IRUSR) != 0 {
+					require.NoError(t, err)
+					require.Equal(t, dataBytes, readDataBytes)
+				} else {
+					require.ErrorIs(t, err, os.ErrPermission)
+				}
+
+				var stat_t syscall.Stat_t
+				require.NoError(t, syscall.Lstat(name, &stat_t))
+				require.Equal(t, modeBits, stat_t.Mode&07777)
+			})
+		}
 
 		t.Run("path must be absolute", func(t *testing.T) {
 			err := hst.WriteFile(ctx, "foo/bar", bytes.NewReader([]byte{}), 0600)
