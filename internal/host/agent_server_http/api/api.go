@@ -16,6 +16,7 @@ const (
 	Chown
 	Mkdir
 	Symlink
+	Mknod
 )
 
 type File struct {
@@ -24,6 +25,7 @@ type File struct {
 	Uid     uint32
 	Gid     uint32
 	Oldname string
+	Dev     uint64
 }
 
 type Error struct {

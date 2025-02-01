@@ -223,6 +223,10 @@ func PostFileFn() func(http.ResponseWriter, *http.Request) {
 			if err := syscall.Symlink(file.Oldname, name); err != nil {
 				internalServerError(w, err)
 			}
+		case api.Mknod:
+			if err := syscall.Mknod(name, file.Mode, int(file.Dev)); err != nil {
+				internalServerError(w, err)
+			}
 		default:
 			internalServerError(w, fmt.Errorf("invalid action: %d", file.Action))
 		}

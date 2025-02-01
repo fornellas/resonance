@@ -493,6 +493,31 @@ func (a AgentGrpcClient) Remove(ctx context.Context, name string) error {
 	return nil
 }
 
+func (a AgentGrpcClient) Mknod(ctx context.Context, pathName string, mode uint32, dev uint64) error {
+	logger := log.MustLogger(ctx)
+	logger.Debug("Mknod", "pathName", pathName, "mode", mode, "dev", dev)
+
+	_, err := a.hostServiceClient.Mknod(ctx, &proto.MknodRequest{
+		PathName: pathName,
+		Mode:     mode,
+		Dev:      dev,
+	})
+	if err != nil {
+		if status, ok := status.FromError(err); ok {
+			switch status.Code() {
+			case codes.PermissionDenied:
+				return fs.ErrPermission
+			case codes.NotFound:
+				return fs.ErrNotExist
+			case codes.AlreadyExists:
+				return fs.ErrExist
+			}
+		}
+		return err
+	}
+	return nil
+}
+
 func (a AgentGrpcClient) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Run", "cmd", cmd)

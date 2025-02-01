@@ -850,6 +850,7 @@ func (br cmdHost) Remove(ctx context.Context, name string) error {
 	return nil
 }
 
+// FIXME change this to stream the file contents
 func (br cmdHost) WriteFile(ctx context.Context, name string, data []byte, mode uint32) error {
 	logger := log.MustLogger(ctx)
 

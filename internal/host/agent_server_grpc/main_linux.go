@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -308,6 +309,14 @@ func (s *HostService) Remove(ctx context.Context, req *proto.RemoveRequest) (*pr
 	}
 
 	return nil, nil
+}
+
+func (s *HostService) Mknod(ctx context.Context, req *proto.MknodRequest) (*proto.Empty, error) {
+	if !filepath.IsAbs(req.PathName) {
+		return nil, fmt.Errorf("path must be absolute: %s", req.PathName)
+	}
+
+	return nil, getGrpcError(syscall.Mknod(req.PathName, req.Mode, int(req.Dev)))
 }
 
 func (s *HostService) Run(ctx context.Context, req *proto.RunRequest) (*proto.RunResponse, error) {

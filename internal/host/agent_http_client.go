@@ -550,6 +550,24 @@ func (a AgentHttpClient) Remove(ctx context.Context, name string) error {
 	return nil
 }
 
+func (a AgentHttpClient) Mknod(ctx context.Context, pathName string, mode uint32, dev uint64) error {
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("Mknod", "path", pathName, "mode", mode, "dev", dev)
+
+	if !filepath.IsAbs(pathName) {
+		return fmt.Errorf("path must be absolute: %s", pathName)
+	}
+
+	_, err := a.post(fmt.Sprintf("/file%s", pathName), api.File{
+		Action: api.Mknod,
+		Mode:   mode,
+		Dev:    dev,
+	})
+
+	return err
+}
+
 func (a AgentHttpClient) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	logger := log.MustLogger(ctx)
 

@@ -54,6 +54,9 @@ type Host interface {
 	// Remove works similar to os.Remove.
 	Remove(ctx context.Context, name string) error
 
+	// Mknod works similar to syscall.Mknod
+	Mknod(ctx context.Context, pathName string, mode uint32, dev uint64) error
+
 	// Run starts the specified command and waits for it to complete.
 	Run(ctx context.Context, cmd Cmd) (WaitStatus, error)
 
