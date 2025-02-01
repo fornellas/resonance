@@ -255,6 +255,30 @@ func (a *AgentClient) spawn(ctx context.Context) error {
 	return nil
 }
 
+func (a *AgentClient) Geteuid(ctx context.Context) (uint64, error) {
+	logger := log.MustLogger(ctx)
+	logger.Debug("Geteuid")
+
+	getuidResponse, err := a.hostServiceClient.Geteuid(ctx, &proto.Empty{})
+	if err != nil {
+		return 0, err
+	}
+
+	return getuidResponse.Uid, nil
+}
+
+func (a *AgentClient) Getegid(ctx context.Context) (uint64, error) {
+	logger := log.MustLogger(ctx)
+	logger.Debug("Getegid")
+
+	getgidResponse, err := a.hostServiceClient.Getegid(ctx, &proto.Empty{})
+	if err != nil {
+		return 0, err
+	}
+
+	return getgidResponse.Gid, nil
+}
+
 func (a AgentClient) Chmod(ctx context.Context, name string, mode uint32) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Chmod", "name", name, "mode", mode)

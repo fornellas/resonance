@@ -6,6 +6,8 @@ option go_package = "github.com/fornellas/resonance/internal/host/agent_server/p
 
 service HostService {
   rpc Ping(PingRequest) returns (PingResponse) {}
+  rpc Geteuid(Empty) returns (GeteuidResponse) {}
+  rpc Getegid(Empty) returns (GetegidResponse) {}
   rpc Chmod(ChmodRequest) returns (ChmodResponse) {}
   rpc Chown(ChownRequest) returns (ChownResponse) {}
   rpc Lookup(LookupRequest) returns (LookupResponse) {}
@@ -27,6 +29,14 @@ message PingRequest {
 
 message PingResponse {
   string message = 1;
+}
+
+message GeteuidResponse {
+  uint64 uid = 1;
+}
+
+message GetegidResponse {
+  uint64 gid = 1;
 }
 
 message ChmodRequest {
