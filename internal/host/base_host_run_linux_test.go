@@ -110,7 +110,7 @@ func (h BaseHostNoCallsTest) Run(ctx context.Context, cmd host.Cmd) (host.WaitSt
 	return host.WaitStatus{}, err
 }
 
-func (h BaseHostNoCallsTest) WriteFile(ctx context.Context, name string, data []byte, mode uint32) error {
+func (h BaseHostNoCallsTest) WriteFile(ctx context.Context, name string, data io.Reader, mode uint32) error {
 	err := errors.New("unexpected call received: WriteFile")
 	h.T.Fatal(err)
 	return err

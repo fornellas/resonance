@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"gopkg.in/yaml.v3"
 
@@ -210,18 +211,41 @@ func (s *HostStore) getBlueprintPath(name string) string {
 }
 
 func (s *HostStore) saveYaml(ctx context.Context, obj any, path string) error {
-	blueprintBytes, err := yaml.Marshal(obj)
-	if err != nil {
-		panic(fmt.Sprintf("bug: failed to serialize blueprint: %s", err.Error()))
-	}
-
 	dir := filepath.Dir(path)
 
 	if err := host.MkdirAll(ctx, s.Host, dir, 0700); err != nil {
 		return err
 	}
 
-	return s.Host.WriteFile(ctx, path, blueprintBytes, 0600)
+	var wg sync.WaitGroup
+
+	pipeReader, pipeWriter, err := os.Pipe()
+	if err != nil {
+		return err
+	}
+
+	wg.Add(1)
+	var encodeErr error
+	var pipeWriterCloseErr error
+	go func() {
+		defer wg.Done()
+		defer func() {
+			pipeWriterCloseErr = pipeWriter.Close()
+		}()
+		encoder := yaml.NewEncoder(pipeWriter)
+		encodeErr = encoder.Encode(obj)
+	}()
+
+	wg.Add(1)
+	var writeFileErr error
+	go func() {
+		defer wg.Done()
+		writeFileErr = s.Host.WriteFile(ctx, path, pipeReader, 0600)
+	}()
+
+	wg.Wait()
+
+	return errors.Join(encodeErr, pipeWriterCloseErr, writeFileErr)
 }
 
 func (s *HostStore) SaveLastBlueprint(ctx context.Context, blueprint *blueprintPkg.Blueprint) error {

@@ -211,7 +211,7 @@ func (h Local) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	return lib.Run(ctx, cmd)
 }
 
-func (h Local) WriteFile(ctx context.Context, name string, data []byte, mode uint32) error {
+func (h Local) WriteFile(ctx context.Context, name string, data io.Reader, mode uint32) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("WriteFile", "name", name, "data", data, "mode", mode)
 
@@ -223,10 +223,17 @@ func (h Local) WriteFile(ctx context.Context, name string, data []byte, mode uin
 		}
 	}
 
-	if err := os.WriteFile(name, data, fs.FileMode(mode)); err != nil {
+	file, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(mode))
+	if err != nil {
 		return err
 	}
-	return syscall.Chmod(name, mode)
+
+	_, err = io.Copy(file, data)
+	if err != nil {
+		return errors.Join(err, file.Close())
+	}
+
+	return errors.Join(syscall.Chmod(name, mode), file.Close())
 }
 
 func (h Local) String() string {
