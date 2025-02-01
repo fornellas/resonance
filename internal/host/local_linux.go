@@ -3,6 +3,7 @@ package host
 import (
 	"context"
 	"errors"
+	"io"
 	"io/fs"
 	"os"
 	"os/user"
@@ -143,7 +144,7 @@ func (l Local) Mkdir(ctx context.Context, name string, mode uint32) error {
 	return syscall.Chmod(name, mode)
 }
 
-func (l Local) ReadFile(ctx context.Context, name string) ([]byte, error) {
+func (l Local) ReadFile(ctx context.Context, name string) (io.ReadCloser, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("ReadFile", "name", name)
 
@@ -155,7 +156,11 @@ func (l Local) ReadFile(ctx context.Context, name string) ([]byte, error) {
 		}
 	}
 
-	return os.ReadFile(name)
+	f, err := os.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	return f, nil
 }
 
 func (br Local) Symlink(ctx context.Context, oldname, newname string) error {

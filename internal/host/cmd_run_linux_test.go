@@ -3,6 +3,7 @@ package host
 import (
 	"context"
 	"errors"
+	"io"
 	"os/user"
 	"testing"
 
@@ -70,7 +71,7 @@ func (h cmdHostOnly) Mkdir(ctx context.Context, name string, mode uint32) error 
 	return err
 }
 
-func (h cmdHostOnly) ReadFile(ctx context.Context, name string) ([]byte, error) {
+func (h cmdHostOnly) ReadFile(ctx context.Context, name string) (io.ReadCloser, error) {
 	err := errors.New("unexpected call received: ReadFile")
 	h.T.Fatal(err)
 	return nil, err

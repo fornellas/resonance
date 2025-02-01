@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os/user"
 )
 
@@ -42,7 +43,7 @@ type Host interface {
 	Mkdir(ctx context.Context, name string, mode uint32) error
 
 	// ReadFile works similar to os.ReadFile.
-	ReadFile(ctx context.Context, name string) ([]byte, error)
+	ReadFile(ctx context.Context, name string) (io.ReadCloser, error)
 
 	// Symlink works similar to syscall.Symlink.
 	Symlink(ctx context.Context, oldname, newname string) error

@@ -30,6 +30,62 @@ import (
 
 var ErrAgentUnsupportedOsArch = fmt.Errorf("OS and architecture not supported")
 
+func getGrpcError(err error) error {
+	if status, ok := status.FromError(err); ok {
+		switch status.Code() {
+		case codes.PermissionDenied:
+			return os.ErrPermission
+		case codes.NotFound:
+			return os.ErrNotExist
+		case codes.AlreadyExists:
+			return fs.ErrExist
+		}
+	}
+	return err
+}
+
+type AgentClientReadFileReadCloser struct {
+	Stream     grpc.ServerStreamingClient[proto.ReadFileResponse]
+	CancelFunc context.CancelFunc
+	Data       []byte
+}
+
+func (r *AgentClientReadFileReadCloser) Read(p []byte) (int, error) {
+	if len(r.Data) > 0 {
+		n := copy(p, r.Data)
+		if n < len(r.Data) {
+			r.Data = r.Data[n:]
+		} else {
+			r.Data = nil
+		}
+		return n, nil
+	}
+
+	readFileResponse, err := r.Stream.Recv()
+	if err != nil {
+		if err == io.EOF {
+			return 0, err
+		}
+		return 0, getGrpcError(err)
+	}
+
+	n := copy(p, readFileResponse.Chunk)
+	if n < len(readFileResponse.Chunk) {
+		r.Data = readFileResponse.Chunk[n:]
+	} else {
+		r.Data = nil
+	}
+
+	return n, nil
+}
+
+func (r *AgentClientReadFileReadCloser) Close() error {
+	r.CancelFunc()
+	return nil
+}
+
+var AgentGrpcBinGz = map[string][]byte{}
+
 type WriterLogger struct {
 	Logger *slog.Logger
 }
@@ -279,7 +335,7 @@ func (a *AgentClient) Getegid(ctx context.Context) (uint64, error) {
 	return getgidResponse.Gid, nil
 }
 
-func (a AgentClient) Chmod(ctx context.Context, name string, mode uint32) error {
+func (a *AgentClient) Chmod(ctx context.Context, name string, mode uint32) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Chmod", "name", name, "mode", mode)
 
@@ -301,7 +357,7 @@ func (a AgentClient) Chmod(ctx context.Context, name string, mode uint32) error 
 	return nil
 }
 
-func (a AgentClient) Chown(ctx context.Context, name string, uid, gid uint32) error {
+func (a *AgentClient) Chown(ctx context.Context, name string, uid, gid uint32) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Chown", "name", name, "uid", uid, "gid", gid)
 
@@ -324,7 +380,7 @@ func (a AgentClient) Chown(ctx context.Context, name string, uid, gid uint32) er
 	return nil
 }
 
-func (a AgentClient) Lookup(ctx context.Context, username string) (*user.User, error) {
+func (a *AgentClient) Lookup(ctx context.Context, username string) (*user.User, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Lookup", "username", username)
@@ -349,7 +405,7 @@ func (a AgentClient) Lookup(ctx context.Context, username string) (*user.User, e
 	}, nil
 }
 
-func (a AgentClient) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
+func (a *AgentClient) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("LookupGroup", "group", name)
@@ -371,7 +427,7 @@ func (a AgentClient) LookupGroup(ctx context.Context, name string) (*user.Group,
 	}, nil
 }
 
-func (a AgentClient) Lstat(ctx context.Context, name string) (*host.Stat_t, error) {
+func (a *AgentClient) Lstat(ctx context.Context, name string) (*host.Stat_t, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Lstat", "name", name)
@@ -380,15 +436,7 @@ func (a AgentClient) Lstat(ctx context.Context, name string) (*host.Stat_t, erro
 		Name: name,
 	})
 	if err != nil {
-		if status, ok := status.FromError(err); ok {
-			switch status.Code() {
-			case codes.PermissionDenied:
-				return nil, fs.ErrPermission
-			case codes.NotFound:
-				return nil, fs.ErrNotExist
-			}
-		}
-		return nil, err
+		return nil, getGrpcError(err)
 	}
 
 	stat_t := host.Stat_t{
@@ -419,7 +467,7 @@ func (a AgentClient) Lstat(ctx context.Context, name string) (*host.Stat_t, erro
 	return &stat_t, nil
 }
 
-func (a AgentClient) ReadDir(ctx context.Context, name string) ([]host.DirEnt, error) {
+func (a *AgentClient) ReadDir(ctx context.Context, name string) ([]host.DirEnt, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("ReadDir", "name", name)
@@ -427,17 +475,8 @@ func (a AgentClient) ReadDir(ctx context.Context, name string) ([]host.DirEnt, e
 	resp, err := a.hostServiceClient.ReadDir(ctx, &proto.ReadDirRequest{
 		Name: name,
 	})
-
 	if err != nil {
-		if status, ok := status.FromError(err); ok {
-			switch status.Code() {
-			case codes.PermissionDenied:
-				return nil, fs.ErrPermission
-			case codes.NotFound:
-				return nil, fs.ErrNotExist
-			}
-		}
-		return nil, err
+		return nil, getGrpcError(err)
 	}
 
 	dirEnts := []host.DirEnt{}
@@ -452,7 +491,7 @@ func (a AgentClient) ReadDir(ctx context.Context, name string) ([]host.DirEnt, e
 	return dirEnts, nil
 }
 
-func (a AgentClient) Mkdir(ctx context.Context, name string, mode uint32) error {
+func (a *AgentClient) Mkdir(ctx context.Context, name string, mode uint32) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Mkdir", "name", name)
@@ -461,72 +500,43 @@ func (a AgentClient) Mkdir(ctx context.Context, name string, mode uint32) error 
 		Name: name,
 		Mode: mode,
 	})
-
 	if err != nil {
-		if status, ok := status.FromError(err); ok {
-			switch status.Code() {
-			case codes.PermissionDenied:
-				return fs.ErrPermission
-			case codes.NotFound:
-				return fs.ErrNotExist
-			case codes.AlreadyExists:
-				return fs.ErrExist
-			}
-		}
-		return err
+		return getGrpcError(err)
 	}
 
 	return nil
 }
 
-func (a AgentClient) ReadFile(ctx context.Context, name string) ([]byte, error) {
+func (a *AgentClient) ReadFile(ctx context.Context, name string) (io.ReadCloser, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("ReadFile", "name", name)
 
-	stream, err := a.hostServiceClient.ReadFile(ctx, &proto.ReadFileRequest{
-		Name: name,
-	})
+	ctx, cancelFunc := context.WithCancel(ctx)
 
+	stream, err := a.hostServiceClient.ReadFile(ctx, &proto.ReadFileRequest{Name: name})
 	if err != nil {
-		if status, ok := status.FromError(err); ok {
-			switch status.Code() {
-			case codes.PermissionDenied:
-				return nil, os.ErrPermission
-			case codes.NotFound:
-				return nil, os.ErrNotExist
-			}
-		}
-		return nil, err
+		cancelFunc()
+		return nil, getGrpcError(err)
 	}
 
-	var fileData []byte
-
-	for {
-		resp, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			if status, ok := status.FromError(err); ok {
-				switch status.Code() {
-				case codes.PermissionDenied:
-					return nil, os.ErrPermission
-				case codes.NotFound:
-					return nil, os.ErrNotExist
-				}
-			}
-			return nil, err
-
-		}
-
-		fileData = append(fileData, resp.Chunk...)
+	// ReadFile will succeeds to create the stream before the server function is called.
+	// Because of this, we require to read the first element of the stream here, as it
+	// enables to catch the various errors we're expected to return.
+	readFileResponse, err := stream.Recv()
+	if err != nil {
+		cancelFunc()
+		return nil, getGrpcError(err)
 	}
 
-	return fileData, nil
+	return &AgentClientReadFileReadCloser{
+		Stream:     stream,
+		CancelFunc: cancelFunc,
+		Data:       readFileResponse.Chunk,
+	}, nil
 }
 
-func (a AgentClient) Symlink(ctx context.Context, oldname, newname string) error {
+func (a *AgentClient) Symlink(ctx context.Context, oldname, newname string) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Symlink", "oldname", oldname, "newname", newname)
@@ -537,23 +547,13 @@ func (a AgentClient) Symlink(ctx context.Context, oldname, newname string) error
 	})
 
 	if err != nil {
-		if status, ok := status.FromError(err); ok {
-			switch status.Code() {
-			case codes.PermissionDenied:
-				return fs.ErrPermission
-			case codes.NotFound:
-				return fs.ErrNotExist
-			case codes.AlreadyExists:
-				return fs.ErrExist
-			}
-		}
-		return err
+		return getGrpcError(err)
 	}
 
 	return nil
 }
 
-func (a AgentClient) Readlink(ctx context.Context, name string) (string, error) {
+func (a *AgentClient) Readlink(ctx context.Context, name string) (string, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Readlink", "name", name)
@@ -563,21 +563,13 @@ func (a AgentClient) Readlink(ctx context.Context, name string) (string, error) 
 	})
 
 	if err != nil {
-		if status, ok := status.FromError(err); ok {
-			switch status.Code() {
-			case codes.PermissionDenied:
-				return "", os.ErrPermission
-			case codes.NotFound:
-				return "", os.ErrNotExist
-			}
-		}
-		return "", err
+		return "", getGrpcError(err)
 	}
 
 	return resp.Destination, nil
 }
 
-func (a AgentClient) Remove(ctx context.Context, name string) error {
+func (a *AgentClient) Remove(ctx context.Context, name string) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Remove", "name", name)
@@ -585,23 +577,14 @@ func (a AgentClient) Remove(ctx context.Context, name string) error {
 	_, err := a.hostServiceClient.Remove(ctx, &proto.RemoveRequest{
 		Name: name,
 	})
-
 	if err != nil {
-		if status, ok := status.FromError(err); ok {
-			switch status.Code() {
-			case codes.PermissionDenied:
-				return fs.ErrPermission
-			case codes.NotFound:
-				return fs.ErrNotExist
-			}
-		}
-		return err
+		return getGrpcError(err)
 	}
 
 	return nil
 }
 
-func (a AgentClient) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
+func (a *AgentClient) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Run", "cmd", cmd)
 
@@ -647,7 +630,7 @@ func (a AgentClient) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, er
 	}, nil
 }
 
-func (a AgentClient) WriteFile(ctx context.Context, name string, data []byte, perm uint32) error {
+func (a *AgentClient) WriteFile(ctx context.Context, name string, data []byte, perm uint32) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("WriteFile", "name", name, "data", data, "perm", perm)
@@ -659,25 +642,17 @@ func (a AgentClient) WriteFile(ctx context.Context, name string, data []byte, pe
 	})
 
 	if err != nil {
-		if status, ok := status.FromError(err); ok {
-			switch status.Code() {
-			case codes.PermissionDenied:
-				return fs.ErrPermission
-			case codes.NotFound:
-				return fs.ErrNotExist
-			}
-		}
-		return err
+		return getGrpcError(err)
 	}
 
 	return nil
 }
 
-func (a AgentClient) String() string {
+func (a *AgentClient) String() string {
 	return a.Host.String()
 }
 
-func (a AgentClient) Type() string {
+func (a *AgentClient) Type() string {
 	return a.Host.Type()
 }
 
