@@ -491,7 +491,7 @@ func (br cmdHost) ReadDir(ctx context.Context, name string) ([]host.DirEnt, erro
 
 	if !filepath.IsAbs(name) {
 		return nil, &fs.PathError{
-			Op:   "Lstat",
+			Op:   "ReadDir",
 			Path: name,
 			Err:  errors.New("path must be absolute"),
 		}
@@ -637,7 +637,11 @@ func (br cmdHost) Symlink(ctx context.Context, oldname, newname string) error {
 	logger.Debug("Symlink", "oldname", oldname, "newname", newname)
 
 	if !path.IsAbs(newname) {
-		return fmt.Errorf("path must be absolute: %#v", newname)
+		return &fs.PathError{
+			Op:   "Symlink",
+			Path: newname,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 
 	cmd := host.Cmd{

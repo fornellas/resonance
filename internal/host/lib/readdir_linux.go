@@ -15,7 +15,7 @@ import (
 func ReadDir(ctx context.Context, name string) ([]host.DirEnt, error) {
 	if !filepath.IsAbs(name) {
 		return nil, &fs.PathError{
-			Op:   "Lstat",
+			Op:   "ReadDir",
 			Path: name,
 			Err:  errors.New("path must be absolute"),
 		}
