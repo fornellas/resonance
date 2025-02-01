@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/user"
@@ -14,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/fornellas/resonance/host"
@@ -429,9 +431,12 @@ func testHost(t *testing.T, hst host.Host) {
 			data := []byte("foo")
 			err := os.WriteFile(name, data, os.FileMode(0600))
 			require.NoError(t, err)
-			readData, err := hst.ReadFile(ctx, name)
+			fileReadCloser, err := hst.ReadFile(ctx, name)
 			require.NoError(t, err)
-			require.Equal(t, data, readData)
+			readData, err := io.ReadAll(fileReadCloser)
+			assert.NoError(t, err)
+			assert.Equal(t, data, readData)
+			assert.NoError(t, fileReadCloser.Close())
 		})
 		t.Run("path must be absolute", func(t *testing.T) {
 			outputBuffer.Reset()

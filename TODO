@@ -1,0 +1,5 @@
+check all uses of Host.Readfile and ensure it is closed
+store: see if possible to optimize to not load the full file
+host rename
+    cmd_run > base_host_cmd
+    all wrappers to ${foo}_wrapper (eg: sudo_wrapper)

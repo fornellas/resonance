@@ -16,11 +16,73 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
+
 	"al.essio.dev/pkg/shellescape"
 
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
 )
+
+type cmdHostReadFileRunRet struct {
+	WaitStatus     host.WaitStatus
+	WaitStatusErr  error
+	StdoutCloseErr error
+	StderrBuffer   bytes.Buffer
+}
+
+type cmdHostReadFileReadCloser struct {
+	Data     []byte
+	Cmd      *host.Cmd
+	Stdout   io.ReadCloser
+	RunRetCh chan *cmdHostReadFileRunRet
+}
+
+func (c *cmdHostReadFileReadCloser) Read(p []byte) (n int, err error) {
+	if len(c.Data) > 0 {
+		n := copy(p, c.Data)
+		if n < len(c.Data) {
+			c.Data = c.Data[n:]
+		} else {
+			c.Data = nil
+		}
+		return n, nil
+	}
+	n, err = c.Stdout.Read(p)
+	return n, err
+}
+
+func (c *cmdHostReadFileReadCloser) Close() error {
+	var err error
+
+	if closeErr := c.Stdout.Close(); closeErr != nil {
+		err = multierror.Append(err, closeErr)
+	}
+
+	runRet := <-c.RunRetCh
+	if runRet.WaitStatusErr != nil {
+		err = multierror.Append(err, runRet.WaitStatusErr)
+	} else {
+		if !runRet.WaitStatus.Success() {
+			if strings.Contains(runRet.StderrBuffer.String(), "Permission denied") {
+				err = multierror.Append(err, os.ErrPermission)
+			} else if strings.Contains(runRet.StderrBuffer.String(), "No such file or directory") {
+				err = multierror.Append(err, os.ErrNotExist)
+			} else {
+				err = multierror.Append(err, fmt.Errorf(
+					"failed to run %s: %s\nstderr:\n%s",
+					c.Cmd, runRet.WaitStatus.String(), runRet.StderrBuffer.String(),
+				))
+			}
+		}
+	}
+
+	if runRet.StdoutCloseErr != nil {
+		err = multierror.Append(err, runRet.StdoutCloseErr)
+	}
+
+	return err
+}
 
 // This partially implements host.Host interface, with the exception of the following functions:
 // Run, String and Close. Full implementtations of the host.Host interface can embed this struct,
@@ -595,7 +657,7 @@ func (br cmdHost) Mkdir(ctx context.Context, name string, mode uint32) error {
 	return br.Chmod(ctx, name, mode)
 }
 
-func (br cmdHost) ReadFile(ctx context.Context, name string) ([]byte, error) {
+func (br cmdHost) ReadFile(ctx context.Context, name string) (io.ReadCloser, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("ReadFile", "name", name)
@@ -608,27 +670,46 @@ func (br cmdHost) ReadFile(ctx context.Context, name string) ([]byte, error) {
 		}
 	}
 
+	stdoutReader, stdoutWriter := io.Pipe()
+	stderrBuffer := bytes.Buffer{}
 	cmd := host.Cmd{
-		Path: "cat",
-		Args: []string{name},
+		Path:   "cat",
+		Args:   []string{name},
+		Stdout: stdoutWriter,
+		Stderr: &stderrBuffer,
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+
+	runRetCh := make(chan *cmdHostReadFileRunRet)
+
+	readCloser := &cmdHostReadFileReadCloser{
+		Cmd:      &cmd,
+		Stdout:   stdoutReader,
+		RunRetCh: runRetCh,
+	}
+
+	go func() {
+		waitStatus, waitStatusErr := br.Host.Run(ctx, cmd)
+		closeErr := stdoutWriter.Close()
+		runRetCh <- &cmdHostReadFileRunRet{
+			WaitStatus:     waitStatus,
+			WaitStatusErr:  waitStatusErr,
+			StdoutCloseErr: closeErr,
+			StderrBuffer:   stderrBuffer,
+		}
+	}()
+
+	buff := make([]byte, 8192)
+	n, err := stdoutReader.Read(buff)
 	if err != nil {
+		if readCloserErr := readCloser.Close(); readCloserErr != nil {
+			err = multierror.Append(err, readCloserErr)
+		}
 		return nil, err
 	}
-	if !waitStatus.Success() {
-		if strings.Contains(stderr, "Permission denied") {
-			return nil, os.ErrPermission
-		}
-		if strings.Contains(stderr, "No such file or directory") {
-			return nil, os.ErrNotExist
-		}
-		return nil, fmt.Errorf(
-			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus.String(), stdout, stderr,
-		)
-	}
-	return []byte(stdout), nil
+
+	readCloser.Data = buff[:n]
+
+	return readCloser, nil
 }
 
 func (br cmdHost) Symlink(ctx context.Context, oldname, newname string) error {

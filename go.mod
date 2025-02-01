@@ -11,6 +11,7 @@ require (
 	github.com/gliderlabs/ssh v0.3.5
 	github.com/gordonklaus/ineffassign v0.1.0
 	github.com/gorilla/mux v1.8.1
+	github.com/hashicorp/go-multierror v1.1.1
 	github.com/jandelgado/gcov2lcov v1.1.1
 	github.com/kylelemons/godebug v1.1.0
 	github.com/rakyll/gotest v0.0.6
@@ -42,6 +43,7 @@ require (
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/gertd/go-pluralize v0.2.1 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
+	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-hclog v1.6.3 // indirect
 	github.com/hashicorp/go-plugin v1.6.3 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect

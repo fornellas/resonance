@@ -10,6 +10,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/hashicorp/go-multierror"
+
 	"github.com/fornellas/resonance/host"
 	blueprintPkg "github.com/fornellas/resonance/internal/blueprint"
 	resourcesPkg "github.com/fornellas/resonance/resources"
@@ -81,6 +83,29 @@ func (s *HostStore) getOriginalResourcePath(resource resourcesPkg.Resource) stri
 	return fmt.Sprintf("%s.yaml", filepath.Join(s.originalResourcesPath, hash))
 }
 
+func (s *HostStore) loadResourceStore(ctx context.Context, path string) (resourceStoreSchema, error) {
+	resourceStoreReadCloser, err := s.Host.ReadFile(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+
+	yamlDecoder := yaml.NewDecoder(resourceStoreReadCloser)
+	yamlDecoder.KnownFields(true)
+
+	resourceStore := resourceStoreSchema{}
+	err = yamlDecoder.Decode(&resourceStore)
+	if err != nil {
+		if closeErr := resourceStoreReadCloser.Close(); closeErr != nil {
+			err = multierror.Append(err, closeErr)
+		}
+		return nil, err
+	}
+	if closeErr := resourceStoreReadCloser.Close(); closeErr != nil {
+		return nil, err
+	}
+	return resourceStore, nil
+}
+
 func (s *HostStore) SaveOriginalResource(ctx context.Context, resource resourcesPkg.Resource) error {
 	path := s.getOriginalResourcePath(resource)
 
@@ -91,13 +116,7 @@ func (s *HostStore) SaveOriginalResource(ctx context.Context, resource resources
 
 	var resourceStore resourceStoreSchema
 	if hasFile {
-		resourceStoreBytes, err := s.Host.ReadFile(ctx, path)
-		if err != nil {
-			return err
-		}
-
-		resourceStore = resourceStoreSchema{}
-		err = yaml.Unmarshal(resourceStoreBytes, &resourceStore)
+		resourceStore, err = s.loadResourceStore(ctx, path)
 		if err != nil {
 			return err
 		}
@@ -127,12 +146,7 @@ func (s *HostStore) HasOriginalResource(ctx context.Context, resource resourcesP
 		return false, nil
 	}
 
-	resourceStoreBytes, err := s.Host.ReadFile(ctx, path)
-	if err != nil {
-		return false, err
-	}
-	resourceStore := resourceStoreSchema{}
-	err = yaml.Unmarshal(resourceStoreBytes, &resourceStore)
+	resourceStore, err := s.loadResourceStore(ctx, path)
 	if err != nil {
 		return false, err
 	}
@@ -149,13 +163,7 @@ func (s *HostStore) HasOriginalResource(ctx context.Context, resource resourcesP
 func (s *HostStore) LoadOriginalResource(ctx context.Context, resource resourcesPkg.Resource) (resourcesPkg.Resource, error) {
 	path := s.getOriginalResourcePath(resource)
 
-	resourceStoreBytes, err := s.Host.ReadFile(ctx, path)
-	if err != nil {
-		return nil, err
-	}
-
-	resourceStore := resourceStoreSchema{}
-	err = yaml.Unmarshal(resourceStoreBytes, &resourceStore)
+	resourceStore, err := s.loadResourceStore(ctx, path)
 	if err != nil {
 		return nil, err
 	}
@@ -183,13 +191,7 @@ func (s *HostStore) DeleteOriginalResource(ctx context.Context, resource resourc
 
 	var resourceStore resourceStoreSchema
 	if hasFile {
-		resourceStoreBytes, err := s.Host.ReadFile(ctx, path)
-		if err != nil {
-			return err
-		}
-
-		resourceStore = resourceStoreSchema{}
-		err = yaml.Unmarshal(resourceStoreBytes, &resourceStore)
+		resourceStore, err := s.loadResourceStore(ctx, path)
 		if err != nil {
 			return err
 		}
@@ -233,7 +235,7 @@ func (s *HostStore) SaveLastBlueprint(ctx context.Context, blueprint *blueprintP
 func (s *HostStore) loadBlueprint(ctx context.Context, name string) (*blueprintPkg.Blueprint, error) {
 	path := s.getBlueprintPath(name)
 
-	blueprintBytes, err := s.Host.ReadFile(ctx, path)
+	blueprintReadCloser, err := s.Host.ReadFile(ctx, path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, nil
@@ -241,12 +243,20 @@ func (s *HostStore) loadBlueprint(ctx context.Context, name string) (*blueprintP
 		return nil, err
 	}
 
+	yamlDecoder := yaml.NewDecoder(blueprintReadCloser)
+	yamlDecoder.KnownFields(true)
+
 	blueprint := &blueprintPkg.Blueprint{}
-	err = yaml.Unmarshal(blueprintBytes, blueprint)
+	err = yamlDecoder.Decode(blueprint)
 	if err != nil {
+		if closeErr := blueprintReadCloser.Close(); closeErr != nil {
+			err = multierror.Append(err, closeErr)
+		}
 		return nil, err
 	}
-
+	if closeErr := blueprintReadCloser.Close(); closeErr != nil {
+		return nil, err
+	}
 	return blueprint, nil
 }
 

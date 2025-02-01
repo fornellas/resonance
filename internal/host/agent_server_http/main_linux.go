@@ -95,16 +95,18 @@ func PutFileFn() func(http.ResponseWriter, *http.Request) {
 		}
 		mode := uint32(modeInt)
 
-		body, err := io.ReadAll(r.Body)
+		file, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, fs.FileMode(mode))
 		if err != nil {
 			internalServerError(w, err)
 			return
 		}
+		defer file.Close()
 
-		if err := os.WriteFile(name, body, fs.FileMode(mode)); err != nil {
+		if _, err := io.Copy(file, r.Body); err != nil {
 			internalServerError(w, err)
 			return
 		}
+
 		if err := syscall.Chmod(name, mode); err != nil {
 			internalServerError(w, err)
 			return

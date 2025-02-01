@@ -25,6 +25,60 @@ import (
 	"github.com/fornellas/resonance/log"
 )
 
+func getGrpcError(err error) error {
+	if status, ok := status.FromError(err); ok {
+		switch status.Code() {
+		case codes.PermissionDenied:
+			return os.ErrPermission
+		case codes.NotFound:
+			return os.ErrNotExist
+		case codes.AlreadyExists:
+			return fs.ErrExist
+		}
+	}
+	return err
+}
+
+type agentGrpcClientReadFileReadCloser struct {
+	Stream     grpc.ServerStreamingClient[proto.ReadFileResponse]
+	CancelFunc context.CancelFunc
+	Data       []byte
+}
+
+func (r *agentGrpcClientReadFileReadCloser) Read(p []byte) (int, error) {
+	if len(r.Data) > 0 {
+		n := copy(p, r.Data)
+		if n < len(r.Data) {
+			r.Data = r.Data[n:]
+		} else {
+			r.Data = nil
+		}
+		return n, nil
+	}
+
+	readFileResponse, err := r.Stream.Recv()
+	if err != nil {
+		if err == io.EOF {
+			return 0, err
+		}
+		return 0, getGrpcError(err)
+	}
+
+	n := copy(p, readFileResponse.Chunk)
+	if n < len(readFileResponse.Chunk) {
+		r.Data = readFileResponse.Chunk[n:]
+	} else {
+		r.Data = nil
+	}
+
+	return n, nil
+}
+
+func (r *agentGrpcClientReadFileReadCloser) Close() error {
+	r.CancelFunc()
+	return nil
+}
+
 var AgentGrpcBinGz = map[string][]byte{}
 
 // AgentGrpcClient interacts with a given Host using an agent that's copied and ran at the
@@ -291,15 +345,7 @@ func (a AgentGrpcClient) Lstat(ctx context.Context, name string) (*host.Stat_t, 
 		Name: name,
 	})
 	if err != nil {
-		if status, ok := status.FromError(err); ok {
-			switch status.Code() {
-			case codes.PermissionDenied:
-				return nil, fs.ErrPermission
-			case codes.NotFound:
-				return nil, fs.ErrNotExist
-			}
-		}
-		return nil, err
+		return nil, getGrpcError(err)
 	}
 
 	stat_t := host.Stat_t{
@@ -338,17 +384,8 @@ func (a AgentGrpcClient) ReadDir(ctx context.Context, name string) ([]host.DirEn
 	resp, err := a.hostServiceClient.ReadDir(ctx, &proto.ReadDirRequest{
 		Name: name,
 	})
-
 	if err != nil {
-		if status, ok := status.FromError(err); ok {
-			switch status.Code() {
-			case codes.PermissionDenied:
-				return nil, fs.ErrPermission
-			case codes.NotFound:
-				return nil, fs.ErrNotExist
-			}
-		}
-		return nil, err
+		return nil, getGrpcError(err)
 	}
 
 	dirEnts := []host.DirEnt{}
@@ -372,69 +409,40 @@ func (a AgentGrpcClient) Mkdir(ctx context.Context, name string, mode uint32) er
 		Name: name,
 		Mode: mode,
 	})
-
 	if err != nil {
-		if status, ok := status.FromError(err); ok {
-			switch status.Code() {
-			case codes.PermissionDenied:
-				return fs.ErrPermission
-			case codes.NotFound:
-				return fs.ErrNotExist
-			case codes.AlreadyExists:
-				return fs.ErrExist
-			}
-		}
-		return err
+		return getGrpcError(err)
 	}
 
 	return nil
 }
 
-func (a AgentGrpcClient) ReadFile(ctx context.Context, name string) ([]byte, error) {
+func (a AgentGrpcClient) ReadFile(ctx context.Context, name string) (io.ReadCloser, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("ReadFile", "name", name)
 
-	stream, err := a.hostServiceClient.ReadFile(ctx, &proto.ReadFileRequest{
-		Name: name,
-	})
+	ctx, cancelFunc := context.WithCancel(ctx)
 
+	stream, err := a.hostServiceClient.ReadFile(ctx, &proto.ReadFileRequest{Name: name})
 	if err != nil {
-		if status, ok := status.FromError(err); ok {
-			switch status.Code() {
-			case codes.PermissionDenied:
-				return nil, os.ErrPermission
-			case codes.NotFound:
-				return nil, os.ErrNotExist
-			}
-		}
-		return nil, err
+		cancelFunc()
+		return nil, getGrpcError(err)
 	}
 
-	var fileData []byte
-
-	for {
-		resp, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			if status, ok := status.FromError(err); ok {
-				switch status.Code() {
-				case codes.PermissionDenied:
-					return nil, os.ErrPermission
-				case codes.NotFound:
-					return nil, os.ErrNotExist
-				}
-			}
-			return nil, err
-
-		}
-
-		fileData = append(fileData, resp.Chunk...)
+	// ReadFile will succeeds to create the stream before the server function is called.
+	// Because of this, we require to read the first element of the stream here, as it
+	// enables to catch the various errors we're expected to return.
+	readFileResponse, err := stream.Recv()
+	if err != nil {
+		cancelFunc()
+		return nil, getGrpcError(err)
 	}
 
-	return fileData, nil
+	return &agentGrpcClientReadFileReadCloser{
+		Stream:     stream,
+		CancelFunc: cancelFunc,
+		Data:       readFileResponse.Chunk,
+	}, nil
 }
 
 func (a AgentGrpcClient) Symlink(ctx context.Context, oldname, newname string) error {
@@ -448,17 +456,7 @@ func (a AgentGrpcClient) Symlink(ctx context.Context, oldname, newname string) e
 	})
 
 	if err != nil {
-		if status, ok := status.FromError(err); ok {
-			switch status.Code() {
-			case codes.PermissionDenied:
-				return fs.ErrPermission
-			case codes.NotFound:
-				return fs.ErrNotExist
-			case codes.AlreadyExists:
-				return fs.ErrExist
-			}
-		}
-		return err
+		return getGrpcError(err)
 	}
 
 	return nil
@@ -474,15 +472,7 @@ func (a AgentGrpcClient) Readlink(ctx context.Context, name string) (string, err
 	})
 
 	if err != nil {
-		if status, ok := status.FromError(err); ok {
-			switch status.Code() {
-			case codes.PermissionDenied:
-				return "", os.ErrPermission
-			case codes.NotFound:
-				return "", os.ErrNotExist
-			}
-		}
-		return "", err
+		return "", getGrpcError(err)
 	}
 
 	return resp.Destination, nil
@@ -496,17 +486,8 @@ func (a AgentGrpcClient) Remove(ctx context.Context, name string) error {
 	_, err := a.hostServiceClient.Remove(ctx, &proto.RemoveRequest{
 		Name: name,
 	})
-
 	if err != nil {
-		if status, ok := status.FromError(err); ok {
-			switch status.Code() {
-			case codes.PermissionDenied:
-				return fs.ErrPermission
-			case codes.NotFound:
-				return fs.ErrNotExist
-			}
-		}
-		return err
+		return getGrpcError(err)
 	}
 
 	return nil
@@ -570,15 +551,7 @@ func (a AgentGrpcClient) WriteFile(ctx context.Context, name string, data []byte
 	})
 
 	if err != nil {
-		if status, ok := status.FromError(err); ok {
-			switch status.Code() {
-			case codes.PermissionDenied:
-				return fs.ErrPermission
-			case codes.NotFound:
-				return fs.ErrNotExist
-			}
-		}
-		return err
+		return getGrpcError(err)
 	}
 
 	return nil

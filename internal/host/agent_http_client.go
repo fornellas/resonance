@@ -440,7 +440,7 @@ func (a AgentHttpClient) ReadDir(ctx context.Context, name string) ([]host.DirEn
 	return dirEnts, nil
 }
 
-func (a AgentHttpClient) ReadFile(ctx context.Context, name string) ([]byte, error) {
+func (a AgentHttpClient) ReadFile(ctx context.Context, name string) (io.ReadCloser, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("ReadFile", "name", name)
@@ -458,12 +458,7 @@ func (a AgentHttpClient) ReadFile(ctx context.Context, name string) ([]byte, err
 		return nil, err
 	}
 
-	contents, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	return contents, nil
+	return resp.Body, nil
 }
 
 func (a AgentHttpClient) Symlink(ctx context.Context, oldname, newname string) error {
