@@ -790,6 +790,10 @@ func (br cmdHost) Readlink(ctx context.Context, name string) (string, error) {
 	return stdout, nil
 }
 
+func (br cmdHost) Mknod(ctx context.Context, pathName string, mode uint32, dev uint64) error {
+	panic("TODO cmdHost.Mknod")
+}
+
 func (br cmdHost) rmdir(ctx context.Context, name string) error {
 	cmd := host.Cmd{
 		Path: "rmdir",

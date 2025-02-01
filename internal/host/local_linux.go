@@ -3,6 +3,7 @@ package host
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -203,6 +204,14 @@ func (l Local) Remove(ctx context.Context, name string) error {
 	}
 
 	return os.Remove(name)
+}
+
+func (l Local) Mknod(ctx context.Context, pathName string, mode uint32, dev uint64) error {
+	if !path.IsAbs(pathName) {
+		return fmt.Errorf("path must be absolute: %#v", pathName)
+	}
+
+	return syscall.Mknod(pathName, mode, int(dev))
 }
 
 func (l Local) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {

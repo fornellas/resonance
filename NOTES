@@ -1,0 +1,17 @@
+mknod
+    pathname
+    mode
+        bitwise OR of
+            file mode
+                mode bits from inode(7)
+                    07777 mask
+            type of node
+                S_IFSOCK
+                S_IFREG
+                S_IFBLK
+                S_IFCHR
+                S_IFIFO
+        affected by umask
+    dev
+        for type S_IFCHR or S_IFBLK
+            specifies major and minor; see makedev(3)

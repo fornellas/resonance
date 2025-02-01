@@ -95,6 +95,12 @@ func (h cmdHostOnly) Remove(ctx context.Context, name string) error {
 	return err
 }
 
+func (h cmdHostOnly) Mknod(ctx context.Context, pathName string, mode uint32, dev uint64) error {
+	err := errors.New("unexpected call received: Mknod")
+	h.T.Fatal(err)
+	return err
+}
+
 func (h cmdHostOnly) WriteFile(ctx context.Context, name string, data []byte, mode uint32) error {
 	err := errors.New("unexpected call received: WriteFile")
 	h.T.Fatal(err)

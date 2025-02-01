@@ -582,6 +582,10 @@ func testHost(t *testing.T, hst host.Host) {
 		})
 	})
 
+	t.Run("Mknod", func(t *testing.T) {
+		// TODO break down test cases
+	})
+
 	t.Run("Run", func(t *testing.T) {
 		t.Run("Args, output and failure", func(t *testing.T) {
 			outputBuffer.Reset()
