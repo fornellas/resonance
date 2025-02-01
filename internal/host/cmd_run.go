@@ -31,6 +31,64 @@ type cmdHost struct {
 	Host host.Host
 }
 
+func (br cmdHost) Geteuid(ctx context.Context) (uint64, error) {
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("Geteuid")
+
+	cmd := host.Cmd{
+		Path: "id",
+		Args: []string{"-u"},
+	}
+	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	if err != nil {
+		return 0, err
+	}
+	if !waitStatus.Success() {
+		return 0, fmt.Errorf(
+			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
+		)
+	}
+
+	var uid uint64
+	uid, err = strconv.ParseUint(strings.TrimSuffix(stdout, "\n"), 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse uid: %w", err)
+	}
+
+	return uid, nil
+}
+
+func (br cmdHost) Getegid(ctx context.Context) (uint64, error) {
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("Getegid")
+
+	cmd := host.Cmd{
+		Path: "id",
+		Args: []string{"-g"},
+	}
+	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	if err != nil {
+		return 0, err
+	}
+	if !waitStatus.Success() {
+		return 0, fmt.Errorf(
+			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
+		)
+	}
+
+	var gid uint64
+	gid, err = strconv.ParseUint(strings.TrimSuffix(stdout, "\n"), 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse gid: %w", err)
+	}
+
+	return gid, nil
+}
+
 func (br cmdHost) Chmod(ctx context.Context, name string, mode uint32) error {
 	logger := log.MustLogger(ctx)
 

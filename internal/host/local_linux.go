@@ -19,6 +19,20 @@ import (
 // Local interacts with the local machine running the code.
 type Local struct{}
 
+func (l Local) Geteuid(ctx context.Context) (uint64, error) {
+	logger := log.MustLogger(ctx)
+	logger.Debug("Geteuid")
+
+	return uint64(syscall.Geteuid()), nil
+}
+
+func (l Local) Getegid(ctx context.Context) (uint64, error) {
+	logger := log.MustLogger(ctx)
+	logger.Debug("Getegid")
+
+	return uint64(syscall.Getegid()), nil
+}
+
 func (l Local) Chmod(ctx context.Context, name string, mode uint32) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Chmod", "name", name, "mode", mode)

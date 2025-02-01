@@ -44,6 +44,18 @@ func (s *HostService) Ping(ctx context.Context, req *proto.PingRequest) (*proto.
 	return &proto.PingResponse{Message: "Pong"}, nil
 }
 
+func (s *HostService) Geteuid(ctx context.Context, _ *proto.Empty) (*proto.GeteuidResponse, error) {
+	return &proto.GeteuidResponse{
+		Uid: uint64(syscall.Geteuid()),
+	}, nil
+}
+
+func (s *HostService) Getegid(ctx context.Context, _ *proto.Empty) (*proto.GetegidResponse, error) {
+	return &proto.GetegidResponse{
+		Gid: uint64(syscall.Getegid()),
+	}, nil
+}
+
 func (s *HostService) Chmod(ctx context.Context, req *proto.ChmodRequest) (*proto.ChmodResponse, error) {
 	name := req.Name
 	mode := req.Mode
