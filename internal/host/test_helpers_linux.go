@@ -387,6 +387,7 @@ func testHost(t *testing.T, hst host.Host) {
 
 	t.Run("Mkdir", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
+			// FIXME test umask effect: should we ignore umask?
 			outputBuffer.Reset()
 			name := filepath.Join(t.TempDir(), "foo")
 			var fileMode uint32 = 1542
@@ -714,6 +715,7 @@ func testHost(t *testing.T, hst host.Host) {
 
 	t.Run("WriteFile", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
+			// FIXME test umask effect: should we ignore umask?
 			outputBuffer.Reset()
 			name := filepath.Join(t.TempDir(), "foo")
 			data := []byte("foo")
