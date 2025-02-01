@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -62,7 +61,11 @@ func (s *HostService) Chmod(ctx context.Context, req *proto.ChmodRequest) (*prot
 	mode := req.Mode
 
 	if !filepath.IsAbs(name) {
-		return nil, fmt.Errorf("path must be absolute: %s", name)
+		return nil, &fs.PathError{
+			Op:   "Chmod",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 
 	if err := syscall.Chmod(name, mode); err != nil {
@@ -78,7 +81,11 @@ func (s *HostService) Chown(ctx context.Context, req *proto.ChownRequest) (*prot
 	gid := int(req.Gid)
 
 	if !filepath.IsAbs(name) {
-		return nil, fmt.Errorf("path must be absolute: %s", name)
+		return nil, &fs.PathError{
+			Op:   "Chown",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 
 	if err := syscall.Chown(name, uid, gid); err != nil {
@@ -121,7 +128,11 @@ func (s *HostService) Lstat(ctx context.Context, req *proto.LstatRequest) (*prot
 	name := req.Name
 
 	if !filepath.IsAbs(name) {
-		return nil, fmt.Errorf("path must be absolute: %s", name)
+		return nil, &fs.PathError{
+			Op:   "Lstat",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 
 	var syscallStat_t syscall.Stat_t
@@ -159,7 +170,11 @@ func (s *HostService) ReadDir(ctx context.Context, req *proto.ReadDirRequest) (*
 	name := req.Name
 
 	if !filepath.IsAbs(name) {
-		return nil, fmt.Errorf("path must be absolute: %s", name)
+		return nil, &fs.PathError{
+			Op:   "ReadDir",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 
 	dirEnts, err := lib.ReadDir(ctx, name)
@@ -188,7 +203,11 @@ func (s *HostService) Mkdir(ctx context.Context, req *proto.MkdirRequest) (*prot
 	mode := req.Mode
 
 	if !filepath.IsAbs(name) {
-		return nil, fmt.Errorf("path must be absolute: %s", name)
+		return nil, &fs.PathError{
+			Op:   "Mkdir",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 
 	if err := syscall.Mkdir(name, mode); err != nil {
@@ -201,7 +220,11 @@ func (s *HostService) ReadFile(req *proto.ReadFileRequest, stream proto.HostServ
 	name := req.Name
 
 	if !filepath.IsAbs(name) {
-		return fmt.Errorf("path must be absolute: %s", name)
+		return &fs.PathError{
+			Op:   "ReadFile",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 
 	file, err := os.Open(name)
@@ -236,7 +259,11 @@ func (s *HostService) ReadFile(req *proto.ReadFileRequest, stream proto.HostServ
 
 func (s *HostService) Symlink(ctx context.Context, req *proto.SymlinkRequest) (*proto.Empty, error) {
 	if !filepath.IsAbs(req.Newname) {
-		return nil, fmt.Errorf("path must be absolute: %s", req.Newname)
+		return nil, &fs.PathError{
+			Op:   "Symlink",
+			Path: req.Newname,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 
 	return nil, getGrpcError(syscall.Symlink(req.Oldname, req.Newname))
@@ -246,7 +273,11 @@ func (s *HostService) ReadLink(ctx context.Context, req *proto.ReadLinkRequest) 
 	name := req.Name
 
 	if !filepath.IsAbs(name) {
-		return nil, fmt.Errorf("path must be absolute: %s", name)
+		return nil, &fs.PathError{
+			Op:   "ReadLink",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 
 	destination, err := os.Readlink(name)
@@ -263,7 +294,11 @@ func (s *HostService) Remove(ctx context.Context, req *proto.RemoveRequest) (*pr
 	name := req.Name
 
 	if !filepath.IsAbs(name) {
-		return nil, fmt.Errorf("path must be absolute: %s", name)
+		return nil, &fs.PathError{
+			Op:   "Remove",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 
 	if err := os.Remove(name); err != nil {
@@ -314,7 +349,11 @@ func (s *HostService) Run(ctx context.Context, req *proto.RunRequest) (*proto.Ru
 func (s *HostService) WriteFile(ctx context.Context, req *proto.WriteFileRequest) (*proto.Empty, error) {
 	name := req.Name
 	if !filepath.IsAbs(req.Name) {
-		return nil, fmt.Errorf("path must be absolute: %s", name)
+		return nil, &fs.PathError{
+			Op:   "WriteFile",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 
 	perm := fs.FileMode(req.Perm)

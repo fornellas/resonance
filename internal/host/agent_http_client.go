@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
 	"os"
@@ -316,7 +317,11 @@ func (a AgentHttpClient) Chmod(ctx context.Context, name string, mode uint32) er
 	logger.Debug("Chmod", "name", name, "mode", mode)
 
 	if !filepath.IsAbs(name) {
-		return fmt.Errorf("path must be absolute: %s", name)
+		return &fs.PathError{
+			Op:   "Chmod",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 
 	_, err := a.post(fmt.Sprintf("/file%s", name), api.File{
@@ -333,7 +338,11 @@ func (a AgentHttpClient) Chown(ctx context.Context, name string, uid, gid uint32
 	logger.Debug("Chown", "name", name, "uid", uid, "gid", gid)
 
 	if !filepath.IsAbs(name) {
-		return fmt.Errorf("path must be absolute: %s", name)
+		return &fs.PathError{
+			Op:   "Chown",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 
 	_, err := a.post(fmt.Sprintf("/file%s", name), api.File{
@@ -385,7 +394,11 @@ func (a AgentHttpClient) Lstat(ctx context.Context, name string) (*host.Stat_t, 
 	logger.Debug("Lstat", "name", name)
 
 	if !filepath.IsAbs(name) {
-		return nil, fmt.Errorf("path must be absolute: %s", name)
+		return nil, &fs.PathError{
+			Op:   "Lstat",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 
 	resp, err := a.get(fmt.Sprintf("/file%s?lstat=true", name))
@@ -407,7 +420,11 @@ func (a AgentHttpClient) ReadDir(ctx context.Context, name string) ([]host.DirEn
 	logger.Debug("ReadDir", "name", name)
 
 	if !filepath.IsAbs(name) {
-		return nil, fmt.Errorf("path must be absolute: %s", name)
+		return nil, &fs.PathError{
+			Op:   "ReadDir",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 
 	resp, err := a.get(fmt.Sprintf("/file%s?read_dir=true", name))
@@ -429,7 +446,11 @@ func (a AgentHttpClient) ReadFile(ctx context.Context, name string) ([]byte, err
 	logger.Debug("ReadFile", "name", name)
 
 	if !filepath.IsAbs(name) {
-		return nil, fmt.Errorf("path must be absolute: %s", name)
+		return nil, &fs.PathError{
+			Op:   "ReadFile",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 
 	resp, err := a.get(fmt.Sprintf("/file%s", name))
@@ -448,10 +469,14 @@ func (a AgentHttpClient) ReadFile(ctx context.Context, name string) ([]byte, err
 func (a AgentHttpClient) Symlink(ctx context.Context, oldname, newname string) error {
 	logger := log.MustLogger(ctx)
 
-	logger.Debug("MustLogger", "oldname", oldname, "newname", newname)
+	logger.Debug("Symlink", "oldname", oldname, "newname", newname)
 
 	if !filepath.IsAbs(newname) {
-		return fmt.Errorf("path must be absolute: %s", newname)
+		return &fs.PathError{
+			Op:   "Symlink",
+			Path: newname,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 
 	_, err := a.post(fmt.Sprintf("/file%s", newname), api.File{
@@ -468,7 +493,11 @@ func (a AgentHttpClient) Readlink(ctx context.Context, name string) (string, err
 	logger.Debug("Readlink", "name", name)
 
 	if !filepath.IsAbs(name) {
-		return "", fmt.Errorf("path must be absolute: %s", name)
+		return "", &fs.PathError{
+			Op:   "Readlink",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 
 	resp, err := a.get(fmt.Sprintf("/file%s?readlink=true", name))
@@ -490,7 +519,11 @@ func (a AgentHttpClient) Mkdir(ctx context.Context, name string, mode uint32) er
 	logger.Debug("Mkdir", "name", name)
 
 	if !filepath.IsAbs(name) {
-		return fmt.Errorf("path must be absolute: %s", name)
+		return &fs.PathError{
+			Op:   "Mkdir",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 
 	_, err := a.post(fmt.Sprintf("/file%s", name), api.File{
@@ -507,7 +540,11 @@ func (a AgentHttpClient) Remove(ctx context.Context, name string) error {
 	logger.Debug("Remove", "name", name)
 
 	if !filepath.IsAbs(name) {
-		return fmt.Errorf("path must be absolute: %s", name)
+		return &fs.PathError{
+			Op:   "Remove",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 
 	_, err := a.delete(fmt.Sprintf("/file%s", name))
@@ -583,7 +620,11 @@ func (a AgentHttpClient) WriteFile(ctx context.Context, name string, data []byte
 	logger.Debug("WriteFile", "name", name, "data", data, "mode", mode)
 
 	if !filepath.IsAbs(name) {
-		return fmt.Errorf("path must be absolute: %s", name)
+		return &fs.PathError{
+			Op:   "WriteFile",
+			Path: name,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 
 	_, err := a.put(fmt.Sprintf("/file%s?mode=%d", name, mode), bytes.NewReader(data))
