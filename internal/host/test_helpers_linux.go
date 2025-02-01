@@ -49,6 +49,20 @@ func testHost(t *testing.T, hst host.Host) {
 
 	var outputBuffer bytes.Buffer
 
+	t.Run("Getuid", func(t *testing.T) {
+		outputBuffer.Reset()
+		uid, err := hst.Geteuid(ctx)
+		require.NoError(t, err)
+		require.Equal(t, uint64(syscall.Getuid()), uid)
+	})
+
+	t.Run("Getgid", func(t *testing.T) {
+		outputBuffer.Reset()
+		gid, err := hst.Getegid(ctx)
+		require.NoError(t, err)
+		require.Equal(t, uint64(syscall.Getgid()), gid)
+	})
+
 	t.Run("Chmod", func(t *testing.T) {
 		name := filepath.Join(t.TempDir(), "foo")
 		file, err := os.Create(name)

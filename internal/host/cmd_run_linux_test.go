@@ -16,6 +16,18 @@ type cmdHostOnly struct {
 	Host host.Host
 }
 
+func (h cmdHostOnly) Geteuid(ctx context.Context) (uint64, error) {
+	err := errors.New("unexpected call received: Geteuid")
+	h.T.Fatal(err)
+	return 0, err
+}
+
+func (h cmdHostOnly) Getegid(ctx context.Context) (uint64, error) {
+	err := errors.New("unexpected call received: Getegid")
+	h.T.Fatal(err)
+	return 0, err
+}
+
 func (h cmdHostOnly) Chmod(ctx context.Context, name string, mode uint32) error {
 	err := errors.New("unexpected call received: Chmod")
 	h.T.Fatal(err)

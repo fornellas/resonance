@@ -274,6 +274,42 @@ func (a AgentHttpClient) put(path string, body io.Reader) (*http.Response, error
 	return resp, nil
 }
 
+func (a AgentHttpClient) Geteuid(ctx context.Context) (uint64, error) {
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("Geteuid")
+
+	resp, err := a.get("/uid")
+	if err != nil {
+		return 0, err
+	}
+
+	var uid uint64
+	if err := a.unmarshalResponse(resp, &uid); err != nil {
+		return 0, err
+	}
+
+	return uid, nil
+}
+
+func (a AgentHttpClient) Getegid(ctx context.Context) (uint64, error) {
+	logger := log.MustLogger(ctx)
+
+	logger.Debug("Getegid")
+
+	resp, err := a.get("/gid")
+	if err != nil {
+		return 0, err
+	}
+
+	var gid uint64
+	if err := a.unmarshalResponse(resp, &gid); err != nil {
+		return 0, err
+	}
+
+	return gid, nil
+}
+
 func (a AgentHttpClient) Chmod(ctx context.Context, name string, mode uint32) error {
 	logger := log.MustLogger(ctx)
 

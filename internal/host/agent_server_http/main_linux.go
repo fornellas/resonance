@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -60,7 +59,19 @@ func internalServerError(w http.ResponseWriter, err error) {
 	marshalResponse(w, &apiErr)
 }
 
-func PutFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+func GetuidFn() func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		marshalResponse(w, uint64(syscall.Getuid()))
+	}
+}
+
+func GetgidFn() func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		marshalResponse(w, uint64(syscall.Getgid()))
+	}
+}
+
+func PutFileFn() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name, ok := mux.Vars(r)["name"]
 		if !ok {
@@ -101,7 +112,7 @@ func PutFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-func GetFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+func GetFileFn() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name, ok := mux.Vars(r)["name"]
 		if !ok {
@@ -142,7 +153,7 @@ func GetFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 			})
 			return
 		} else if readDir, ok := r.URL.Query()["read_dir"]; ok && len(readDir) == 1 && readDir[0] == "true" {
-			dirEnts, err := lib.ReadDir(ctx, name)
+			dirEnts, err := lib.ReadDir(r.Context(), name)
 			if err != nil {
 				internalServerError(w, err)
 				return
@@ -168,7 +179,7 @@ func GetFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-func PostFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+func PostFileFn() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name, ok := mux.Vars(r)["name"]
 		if !ok {
@@ -216,7 +227,7 @@ func PostFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-func DeleteFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+func DeleteFileFn() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name, ok := mux.Vars(r)["name"]
 		if !ok {
@@ -230,7 +241,7 @@ func DeleteFileFn(ctx context.Context) func(http.ResponseWriter, *http.Request) 
 	}
 }
 
-func GetGroupFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+func GetGroupFn() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name, ok := mux.Vars(r)["name"]
 		if !ok {
@@ -251,7 +262,7 @@ func GetPing(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Pong")
 }
 
-func GetUserFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+func GetUserFn() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		username, ok := mux.Vars(r)["username"]
 		if !ok {
@@ -268,7 +279,7 @@ func GetUserFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-func PostRunFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+func PostRunFn() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
 		decoder.DisallowUnknownFields()
@@ -305,7 +316,7 @@ func PostRunFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 			Stderr: stderrBuff,
 		}
 
-		waitStatus, err := lib.Run(ctx, cmd)
+		waitStatus, err := lib.Run(r.Context(), cmd)
 		if err != nil {
 			internalServerError(w, err)
 			return
@@ -327,7 +338,7 @@ func PostRunFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-func PostShutdownFn(ctx context.Context) func(http.ResponseWriter, *http.Request) {
+func PostShutdownFn() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		go func() {
 			time.Sleep(1 * time.Second)
@@ -339,37 +350,45 @@ func PostShutdownFn(ctx context.Context) func(http.ResponseWriter, *http.Request
 func main() {
 	os.Remove(os.Args[0])
 
-	ctx := context.Background()
-
 	router := mux.NewRouter()
+
+	router.
+		Methods("GET").
+		Path("/uid").
+		HandlerFunc(GetuidFn())
+
+	router.
+		Methods("GET").
+		Path("/gid").
+		HandlerFunc(GetgidFn())
 
 	router.
 		Methods("PUT").
 		Path("/file/{name:.*}").
-		HandlerFunc(PutFileFn(ctx))
+		HandlerFunc(PutFileFn())
 	router.
 		Methods("GET").
 		Path("/file/{name:.*}").
-		HandlerFunc(GetFileFn(ctx))
+		HandlerFunc(GetFileFn())
 	router.
 		Methods("POST").
 		Path("/file/{name:.*}").
 		Headers("Content-Type", "application/json").
-		HandlerFunc(PostFileFn(ctx))
+		HandlerFunc(PostFileFn())
 	router.
 		Methods("DELETE").
 		Path("/file/{name:.*}").
-		HandlerFunc(DeleteFileFn(ctx))
+		HandlerFunc(DeleteFileFn())
 
 	router.
 		Methods("GET").
 		Path("/group/{name}").
-		HandlerFunc(GetGroupFn(ctx))
+		HandlerFunc(GetGroupFn())
 
 	router.
 		Methods("GET").
 		Path("/user/{username}").
-		HandlerFunc(GetUserFn(ctx))
+		HandlerFunc(GetUserFn())
 
 	router.
 		Methods("GET").
@@ -380,12 +399,12 @@ func main() {
 		Methods("POST").
 		Path("/run").
 		Headers("Content-Type", "application/json").
-		HandlerFunc(PostRunFn(ctx))
+		HandlerFunc(PostRunFn())
 
 	router.
 		Methods("POST").
 		Path("/shutdown").
-		HandlerFunc(PostShutdownFn(ctx))
+		HandlerFunc(PostShutdownFn())
 
 	server := &http2.Server{}
 
