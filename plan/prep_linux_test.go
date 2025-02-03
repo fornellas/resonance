@@ -11,6 +11,7 @@ import (
 
 	blueprintPkg "github.com/fornellas/resonance/blueprint"
 	hostPkg "github.com/fornellas/resonance/host"
+	"github.com/fornellas/resonance/host/types"
 
 	"github.com/fornellas/resonance/log"
 
@@ -24,14 +25,19 @@ func TestCreateAndStoreTargetBlueprint(t *testing.T) {
 
 	host := hostPkg.Local{}
 
+	regularFile := "foo"
+	user := "root"
+
 	targetResources := resouresPkg.Resources{
 		&resouresPkg.File{
-			Path: "/bin",
-			User: "root",
+			Path:        "/bin",
+			RegularFile: &regularFile,
+			User:        &user,
 		},
 		&resouresPkg.File{
-			Path: "/lib",
-			User: "root",
+			Path:        "/lib",
+			RegularFile: &regularFile,
+			User:        &user,
 		},
 	}
 
@@ -44,12 +50,16 @@ func TestCreateAndStoreTargetBlueprint(t *testing.T) {
 
 	require.Equal(t, resouresPkg.Resources{
 		&resouresPkg.File{
-			Path: "/bin",
-			Uid:  0,
+			Path:        "/bin",
+			RegularFile: &regularFile,
+			Uid:         new(uint32),
+			Gid:         new(uint32),
 		},
 		&resouresPkg.File{
-			Path: "/lib",
-			Uid:  0,
+			Path:        "/lib",
+			RegularFile: &regularFile,
+			Uid:         new(uint32),
+			Gid:         new(uint32),
 		},
 	}, targetBlueprint.Resources())
 }
@@ -65,12 +75,12 @@ func TestSaveOriginalResourcesState(t *testing.T) {
 
 	filePath := filepath.Join(t.TempDir(), "foo")
 	fileContent := "foo"
-	var fileMode uint32 = 0644
+	var fileMode types.FileMode = 0644
 	err := host.WriteFile(ctx, filePath, bytes.NewReader([]byte("foo")), fileMode)
 	require.NoError(t, err)
 	fileResource := &resouresPkg.File{
-		Path:    filePath,
-		Content: fileContent,
+		Path:        filePath,
+		RegularFile: &fileContent,
 	}
 
 	targetBlueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, resouresPkg.Resources{
@@ -85,13 +95,15 @@ func TestSaveOriginalResourcesState(t *testing.T) {
 		Path: filePath,
 	})
 	require.NoError(t, err)
+	uid := uint32(os.Getuid())
+	gid := uint32(os.Getgid())
 	require.Equal(t,
 		&resouresPkg.File{
-			Path:    filePath,
-			Content: fileContent,
-			Mode:    fileMode,
-			Uid:     uint32(os.Getuid()),
-			Gid:     uint32(os.Getgid()),
+			Path:        filePath,
+			RegularFile: &fileContent,
+			Mode:        &fileMode,
+			Uid:         &uid,
+			Gid:         &gid,
 		},
 		resource,
 	)
@@ -108,12 +120,12 @@ func TestLoadOrCreateAndSaveLastBlueprintWithValidation(t *testing.T) {
 
 	filePath := filepath.Join(t.TempDir(), "foo")
 	fileContent := "foo"
-	var fileMode uint32 = 0644
+	var fileMode types.FileMode = 0644
 	err := host.WriteFile(ctx, filePath, bytes.NewReader([]byte("foo")), fileMode)
 	require.NoError(t, err)
 	fileResource := &resouresPkg.File{
-		Path:    filePath,
-		Content: fileContent,
+		Path:        filePath,
+		RegularFile: &fileContent,
 	}
 
 	targetBlueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, resouresPkg.Resources{

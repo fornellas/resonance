@@ -34,7 +34,7 @@ func (h Local) Getegid(ctx context.Context) (uint64, error) {
 	return uint64(syscall.Getegid()), nil
 }
 
-func (h Local) Chmod(ctx context.Context, name string, mode uint32) error {
+func (h Local) Chmod(ctx context.Context, name string, mode types.FileMode) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Chmod", "name", name, "mode", mode)
 
@@ -46,7 +46,7 @@ func (h Local) Chmod(ctx context.Context, name string, mode uint32) error {
 		}
 	}
 
-	return syscall.Chmod(name, mode)
+	return syscall.Chmod(name, uint32(mode))
 }
 
 func (h Local) Lchown(ctx context.Context, name string, uid, gid uint32) error {
@@ -127,7 +127,7 @@ func (h Local) ReadDir(ctx context.Context, name string) (<-chan types.DirEntRes
 	return lib.LocalReadDir(ctx, name)
 }
 
-func (h Local) Mkdir(ctx context.Context, name string, mode uint32) error {
+func (h Local) Mkdir(ctx context.Context, name string, mode types.FileMode) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Mkdir", "name", name, "mode", mode)
 
@@ -139,10 +139,10 @@ func (h Local) Mkdir(ctx context.Context, name string, mode uint32) error {
 		}
 	}
 
-	if err := syscall.Mkdir(name, mode); err != nil {
+	if err := syscall.Mkdir(name, uint32(mode)); err != nil {
 		return err
 	}
-	return syscall.Chmod(name, mode)
+	return syscall.Chmod(name, uint32(mode))
 }
 
 func (h Local) ReadFile(ctx context.Context, name string) (io.ReadCloser, error) {
@@ -206,7 +206,7 @@ func (h Local) Remove(ctx context.Context, name string) error {
 	return os.Remove(name)
 }
 
-func (h Local) Mknod(ctx context.Context, pathName string, mode uint32, dev uint64) error {
+func (h Local) Mknod(ctx context.Context, pathName string, mode types.FileMode, dev types.FileDevice) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Mknod", "pathName", pathName, "mode", mode, "dev", dev)
 
@@ -214,15 +214,15 @@ func (h Local) Mknod(ctx context.Context, pathName string, mode uint32, dev uint
 		return fmt.Errorf("path must be absolute: %#v", pathName)
 	}
 
-	if dev != uint64(int(dev)) {
+	if dev != types.FileDevice(int(dev)) {
 		return fmt.Errorf("dev value is too big: %#v", dev)
 	}
 
-	if err := syscall.Mknod(pathName, mode, int(dev)); err != nil {
+	if err := syscall.Mknod(pathName, uint32(mode), int(dev)); err != nil {
 		return err
 	}
 
-	return syscall.Chmod(pathName, mode&07777)
+	return syscall.Chmod(pathName, uint32(mode)&07777)
 }
 
 func (h Local) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
@@ -231,7 +231,7 @@ func (h Local) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error)
 	return lib.LocalRun(ctx, cmd)
 }
 
-func (h Local) WriteFile(ctx context.Context, name string, data io.Reader, mode uint32) error {
+func (h Local) WriteFile(ctx context.Context, name string, data io.Reader, mode types.FileMode) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("WriteFile", "name", name, "data", data, "mode", mode)
 
@@ -253,7 +253,7 @@ func (h Local) WriteFile(ctx context.Context, name string, data io.Reader, mode 
 		return errors.Join(err, file.Close())
 	}
 
-	return errors.Join(syscall.Chmod(name, mode), file.Close())
+	return errors.Join(syscall.Chmod(name, uint32(mode)), file.Close())
 }
 
 func (h Local) String() string {

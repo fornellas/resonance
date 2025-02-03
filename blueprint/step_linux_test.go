@@ -8,6 +8,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	hostPkg "github.com/fornellas/resonance/host"
+	"github.com/fornellas/resonance/host/types"
 	"github.com/fornellas/resonance/log"
 	resourcesPkg "github.com/fornellas/resonance/resources"
 )
@@ -24,22 +25,23 @@ func TestStepMisc(t *testing.T) {
 		yaml           string
 	}
 
+	var mode types.FileMode = 0644
 	testCases := []testCase{
 		{
 			name:         "SingleResource",
 			resourceType: "File",
 			singleResource: &resourcesPkg.File{
 				Path: "/tmp/foo",
-				Mode: 0644,
+				Mode: &mode,
 			},
 			string: "File:/tmp/foo",
 			detailedString: `File:
   path: /tmp/foo
-  mode: 420`,
+  mode: "0644"`,
 			yaml: `single_resource_type: File
 single_resource:
     path: /tmp/foo
-    mode: 420
+    mode: "0644"
 `,
 		},
 		{
@@ -117,14 +119,20 @@ func TestStepResolve(t *testing.T) {
 	ctx = log.WithTestLogger(ctx)
 	localhost := hostPkg.Local{}
 
+	fileContent := "foo"
+	user := "root"
 	step := NewSingleResourceStep(&resourcesPkg.File{
-		Path: "/bin",
-		User: "root",
+		Path:        "/bin",
+		RegularFile: &fileContent,
+		User:        &user,
 	})
 	step.Resolve(ctx, localhost)
 	require.Equal(t,
 		&resourcesPkg.File{
-			Path: "/bin",
+			Path:        "/bin",
+			RegularFile: &fileContent,
+			Uid:         new(uint32),
+			Gid:         new(uint32),
 		},
 		step.Resources()[0],
 	)

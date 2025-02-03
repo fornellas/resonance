@@ -7,19 +7,24 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
+
+	"github.com/fornellas/resonance/host/types"
 )
 
 func TestValidateResource(t *testing.T) {
+	regularFile := "foo"
 	type testCase struct {
 		name          string
 		resource      Resource
 		errorContains string
 	}
+	var mode types.FileMode = 0644
 	for _, tc := range []testCase{
 		{
 			name: "valid",
 			resource: &File{
-				Path: "/tmp/foo",
+				Path:        "/tmp/foo",
+				RegularFile: &regularFile,
 			},
 		},
 		{
@@ -32,14 +37,15 @@ func TestValidateResource(t *testing.T) {
 			resource: &File{
 				Path:   "/tmp/foo",
 				Absent: true,
-				Mode:   0644,
+				Mode:   &mode,
 			},
 			errorContains: "resource has absent set to true, but other fields are set",
 		},
 		{
 			name: "invalid state",
 			resource: &File{
-				Path: "foo",
+				Path:        "foo",
+				RegularFile: &regularFile,
 			},
 			errorContains: "'path' must be absolute",
 		},
@@ -61,11 +67,12 @@ func TestGetResourceId(t *testing.T) {
 		Id       string
 	}
 
+	var mode types.FileMode = 0644
 	for _, tc := range []TestCase{
 		{
 			Resource: &File{
 				Path: "/tmp/foo",
-				Mode: 0644,
+				Mode: &mode,
 			},
 			Id: "/tmp/foo",
 		},
@@ -101,10 +108,12 @@ func TestHashResource(t *testing.T) {
 	_, err := hex.DecodeString(hash)
 	require.NoError(t, err)
 
+	uid := uint32(33)
+	gid := uint32(33)
 	require.Equal(
 		t,
 		HashResource(&File{Path: "/foo"}),
-		HashResource(&File{Path: "/foo", Uid: 33, Gid: 33}),
+		HashResource(&File{Path: "/foo", Uid: &uid, Gid: &gid}),
 	)
 
 	require.NotEqual(
@@ -145,11 +154,12 @@ func TestNewResourceWithSameId(t *testing.T) {
 		ResourceCopyWithOnlyId Resource
 	}
 
+	var mode types.FileMode = 0644
 	for _, tc := range []TestCase{
 		{
 			Resource: &File{
 				Path: "/tmp/foo",
-				Mode: 0644,
+				Mode: &mode,
 			},
 			ResourceCopyWithOnlyId: &File{
 				Path: "/tmp/foo",
@@ -199,14 +209,14 @@ func TestSatisfies(t *testing.T) {
 			Path: "foo",
 		},
 	))
-
+	var mode types.FileMode = 0644
 	require.False(t, Satisfies(
 		&File{
 			Path: "foo",
 		},
 		&File{
 			Path: "foo",
-			Mode: 0644,
+			Mode: &mode,
 		},
 	))
 
@@ -244,9 +254,11 @@ func TestSatisfies(t *testing.T) {
 }
 
 func TestResourceMap(t *testing.T) {
+	var fileMode types.FileMode = 0644
+
 	file := &File{
 		Path: "/foo",
-		Mode: 0644,
+		Mode: &fileMode,
 	}
 	aptPackage := &APTPackage{
 		Package: "bash",
@@ -254,11 +266,12 @@ func TestResourceMap(t *testing.T) {
 	}
 	resourceMap := NewResourceMap(Resources{file, aptPackage})
 
+	var dirMode types.FileMode = 0777
 	require.True(t, reflect.DeepEqual(
 		file,
 		resourceMap.GetResourceWithSameTypeId(&File{
 			Path: "/foo",
-			Mode: 0777,
+			Mode: &dirMode,
 		}),
 	))
 
@@ -272,10 +285,11 @@ func TestResourceMap(t *testing.T) {
 }
 
 func TestGetResourcesYaml(t *testing.T) {
+	var mode types.FileMode = 0644
 	testResources := Resources{
 		&File{
 			Path: "/tmp/foo",
-			Mode: 0644,
+			Mode: &mode,
 		},
 		&APTPackage{
 			Package: "foo",
@@ -284,7 +298,7 @@ func TestGetResourcesYaml(t *testing.T) {
 
 	testResourcesYamlStr := `- File:
     path: /tmp/foo
-    mode: 420
+    mode: "0644"
 - APTPackage:
     package: foo`
 
@@ -292,10 +306,11 @@ func TestGetResourcesYaml(t *testing.T) {
 }
 
 func TestResourcesYAML(t *testing.T) {
+	var mode types.FileMode = 0644
 	testResources := Resources{
 		&File{
 			Path: "/tmp/foo",
-			Mode: 0644,
+			Mode: &mode,
 		},
 		&APTPackage{
 			Package: "foo",
@@ -304,7 +319,7 @@ func TestResourcesYAML(t *testing.T) {
 
 	testResourcesYamlStr := `- File:
     path: /tmp/foo
-    mode: 420
+    mode: "0644"
 - APTPackage:
     package: foo
 `
@@ -325,6 +340,7 @@ func TestResourcesYAML(t *testing.T) {
 }
 
 func TestNewResourcesWithSameIds(t *testing.T) {
+	var mode types.FileMode = 0644
 	require.Equal(
 		t,
 		Resources{
@@ -339,7 +355,7 @@ func TestNewResourcesWithSameIds(t *testing.T) {
 			Resources{
 				&File{
 					Path: "/tmp/foo",
-					Mode: 0644,
+					Mode: &mode,
 				},
 				&APTPackage{
 					Package: "foo",
