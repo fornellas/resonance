@@ -2,93 +2,45 @@ package resources
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
-	"gopkg.in/yaml.v3"
-
 	"github.com/fornellas/resonance/log"
 )
 
-func LoadFile(ctx context.Context, path string) (Resources, error) {
-	_, _ = log.MustContextLoggerWithSection(ctx, "📝 Loading resources from file", "path", path)
-
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load resource file: %w", err)
-	}
-	defer f.Close()
-
-	decoder := yaml.NewDecoder(f)
-	decoder.KnownFields(true)
-
-	resources := Resources{}
-
-	for {
-		type ResourcesYaml []yaml.Node
-
-		resourcesYaml := ResourcesYaml{}
-		if err := decoder.Decode(&resourcesYaml); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return nil, fmt.Errorf("failed to load resource file: %s: %w", path, err)
-		}
-
-		for _, resourceMapNode := range resourcesYaml {
-			resourceMap := map[string]yaml.Node{}
-			resourceMapNode.KnownFields(true)
-			if err := resourceMapNode.Decode(resourceMap); err != nil {
-				return nil, fmt.Errorf("failed to load resource file: %s:%d: %s", path, resourceMapNode.Line, err.Error())
-			}
-			if len(resourceMap) != 1 {
-				return nil, fmt.Errorf("failed to load resource file: %s:%d: mapping must have a single key with the resource type", path, resourceMapNode.Line)
-			}
-
-			var resource Resource = nil
-			for typeName, resourceNode := range resourceMap {
-				if resource != nil {
-					panic("bug: resource is not nil")
-				}
-				resource = GetResourceByTypeName(typeName)
-				if resource == nil {
-					return nil, fmt.Errorf("failed to load resource file: %s:%d: invalid resource type %#v; valid types: %s", path, resourceMapNode.Line, typeName, strings.Join(GetResourceTypeNames(), ", "))
-				}
-
-				resourceNode.KnownFields(true)
-				if err := resourceNode.Decode(resource); err != nil {
-					return nil, fmt.Errorf("failed to load resource file: %s:%d: %s", path, resourceMapNode.Line, err.Error())
-				}
-
-				if err := ValidateResource(resource); err != nil {
-					return nil, fmt.Errorf("failed to load resource file: %s:%d: %s", path, resourceMapNode.Line, err.Error())
-				}
-			}
-			if resource == nil {
-				panic("bug: resource is nil")
-			}
-
-			resources = append(resources, resource)
-		}
-	}
-
-	if len(resources) == 0 {
-		return nil, fmt.Errorf("failed to load resource file: no resources found")
-	}
-
-	return resources, nil
+type StateDefinition struct {
+	File *FileState
+	// AptPackage *AptPackageState
 }
 
-func LoadDir(ctx context.Context, dir string) (Resources, error) {
+func (s *StateDefinition) State() (State, error) {
+	states := []State{}
+	if s.File != nil {
+		states = append(states, s.File)
+	}
+	// if s.AptPackage != nil {
+	// 	states = append(states, s.AptPackage)
+	// }
+	switch len(states) {
+	case 0:
+		return nil, fmt.Errorf("no state defined")
+	case 1:
+		return states[0], nil
+	default:
+		return nil, fmt.Errorf("only one state can be defined")
+	}
+}
+
+type StatesDefinition []StateDefinition
+
+func LoadStatesDefinitionFromDir(ctx context.Context, dir string) ([]*StatesDefinition, error) {
 	ctx, logger := log.MustContextLoggerWithSection(ctx, "🗃️ Loading resources from directory", "dir", dir)
 
-	resources := Resources{}
+	stateDefinitions := []*StatesDefinition{}
 
 	paths := []string{}
 	if err := filepath.Walk(dir, func(path string, fileInfo fs.FileInfo, err error) error {
@@ -115,35 +67,47 @@ func LoadDir(ctx context.Context, dir string) (Resources, error) {
 		if err != nil {
 			return nil, err
 		}
-		resources = append(resources, fileResources...)
+		stateDefinitions = append(stateDefinitions, fileResources...)
 	}
 
-	if err := resources.Validate(); err != nil {
-		return resources, err
+	if err := stateDefinitions.Validate(); err != nil {
+		return stateDefinitions, err
 	}
 
-	return resources, nil
+	return stateDefinitions, nil
 }
 
-// Load Resources from path, which can be either a file or a directory.
-func LoadPath(ctx context.Context, path string) (Resources, error) {
-	var resources Resources
+func LoadStatesDefinitionFromPath(ctx context.Context, path string) ([]*StatesDefinition, error) {
+	var stateDefinitions []*StatesDefinition
 
 	fileInfo, err := os.Stat(path)
 	if err != nil {
 		return nil, err
 	}
 	if fileInfo.IsDir() {
-		resources, err = LoadDir(ctx, path)
+		stateDefinitions, err = LoadStatesDefinitionFromDir(ctx, path)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		resources, err = LoadFile(ctx, path)
+		stateDefinitions, err = LoadStatesDefinitionFromFile(ctx, path)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return resources, nil
+	// TODO ensure unique name for each state type
+	return stateDefinitions, nil
+}
+
+func (s StatesDefinition) States() ([]State, error) {
+	states := make([]State, len(s))
+	for i, stateSchema := range s {
+		var err error
+		states[i], err = stateSchema.State()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return states, nil
 }

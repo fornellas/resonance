@@ -13,8 +13,8 @@ import (
 	"github.com/fornellas/resonance/host/types"
 )
 
-// APTPackage manages APT packages.
-type APTPackage struct {
+// AptPackageState manages APT packages.
+type AptPackageState struct {
 	// The name of the package
 	Package string `yaml:"package"`
 	// Whether to remove the package
@@ -26,70 +26,60 @@ type APTPackage struct {
 // https://www.debian.org/doc/debian-policy/ch-controlfields.html#package
 var validAptPackageNameRegexp = regexp.MustCompile(`^[a-z0-9][a-z0-9+\-.]{1,}$`)
 
-func (a *APTPackage) Validate() error {
+func (s *AptPackageState) Validate() error {
 	// Package
-	if !validAptPackageNameRegexp.MatchString(string(a.Package)) {
-		return fmt.Errorf("`package` must match regexp %s: %s", validAptPackageNameRegexp, a.Version)
+	if !validAptPackageNameRegexp.MatchString(string(s.Package)) {
+		return fmt.Errorf("`package` must match regexp %s: %s", validAptPackageNameRegexp, s.Version)
 	}
 
 	// Version
 	// https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
-	if strings.HasSuffix(a.Version, "+") {
-		return fmt.Errorf("`version` can't end in +: %s", a.Version)
+	if strings.HasSuffix(s.Version, "+") {
+		return fmt.Errorf("`version` can't end in +: %s", s.Version)
 	}
-	if strings.HasSuffix(a.Version, "-") {
-		return fmt.Errorf("`version` can't end in -: %s", a.Version)
+	if strings.HasSuffix(s.Version, "-") {
+		return fmt.Errorf("`version` can't end in -: %s", s.Version)
 	}
 
 	return nil
 }
 
-func (a *APTPackage) Satisfies(resource Resource) bool {
-	b, ok := resource.(*APTPackage)
-	if !ok {
-		panic("bug: not APTPackage")
-	}
+func (s *AptPackageState) Satisfies(b *AptPackageState) bool {
 
-	if a.Version != "" && b.Version == "" {
+	if s.Version != "" && b.Version == "" {
 		bCopy := *b
 		b = &bCopy
-		b.Version = a.Version
+		b.Version = s.Version
 	}
 
-	return reflect.DeepEqual(a, b)
+	return reflect.DeepEqual(s, b)
 }
 
-type APTPackages struct{}
+type AptPackageProvisioner struct {
+	Host types.Host
+}
+
+func NewAptPackageProvisioner(host types.Host) (*AptPackageProvisioner, error) {
+	return &AptPackageProvisioner{
+		Host: host,
+	}, nil
+}
 
 var aptCachePackageRegexp = regexp.MustCompile(`^(.+):$`)
 var aptCachePackageInstalledRegexp = regexp.MustCompile(`^  Installed: (.+)$`)
 var aptCachePackageCandidateRegexp = regexp.MustCompile(`^  Candidate: (.+)$`)
 var aptCacheUnableToLocateRegexp = regexp.MustCompile(`^N: Unable to locate package (.+)$`)
 
-func (a *APTPackages) getAptPackages(resources Resources) []*APTPackage {
-	aptPackages := make([]*APTPackage, len(resources))
-	for i, resurce := range resources {
-		aptPackage, ok := resurce.(*APTPackage)
-		if !ok {
-			panic("bug: Resource is not a APTPackage")
-		}
-		aptPackages[i] = aptPackage
-	}
-	return aptPackages
-}
-
-func (a *APTPackages) Load(ctx context.Context, hst types.Host, resources Resources) error {
-	aptPackages := a.getAptPackages(resources)
-
+func (p *AptPackageProvisioner) Load(ctx context.Context, targetStates []*AptPackageState) error {
 	hostCmd := types.Cmd{
 		Path: "apt-cache",
 		Args: []string{"policy"},
 	}
-	for _, aptPackage := range aptPackages {
-		hostCmd.Args = append(hostCmd.Args, string(aptPackage.Package))
+	for _, targetState := range targetStates {
+		hostCmd.Args = append(hostCmd.Args, string(targetState.Package))
 	}
 
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, hostCmd)
+	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, p.Host, hostCmd)
 	if err != nil {
 		return err
 	}
@@ -129,7 +119,7 @@ func (a *APTPackages) Load(ctx context.Context, hst types.Host, resources Resour
 		}
 	}
 
-	for _, aptPackage := range aptPackages {
+	for _, aptPackage := range targetStates {
 		installedVersion, ok := pkgInstalledMap[string(aptPackage.Package)]
 		if !ok {
 			return fmt.Errorf(
@@ -148,16 +138,10 @@ func (a *APTPackages) Load(ctx context.Context, hst types.Host, resources Resour
 	return nil
 }
 
-func (a *APTPackages) Resolve(ctx context.Context, hst types.Host, resources Resources) error {
-	return nil
-}
-
-func (a *APTPackages) Apply(ctx context.Context, hst types.Host, resources Resources) error {
-	aptPackages := a.getAptPackages(resources)
-
+func (p *AptPackageProvisioner) Apply(ctx context.Context, targetStates []*AptPackageState) error {
 	// Package arguments
-	pkgArgs := make([]string, len(aptPackages))
-	for i, aptPackage := range aptPackages {
+	pkgArgs := make([]string, len(targetStates))
+	for i, aptPackage := range targetStates {
 		var pkgArg string
 		if aptPackage.Absent {
 			pkgArg = fmt.Sprintf("%s-", aptPackage.Package)
@@ -172,7 +156,7 @@ func (a *APTPackages) Apply(ctx context.Context, hst types.Host, resources Resou
 		Path: "apt-get",
 		Args: append([]string{"--yes", "install"}, pkgArgs...),
 	}
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, p.Host, cmd)
 	if err != nil {
 		return fmt.Errorf("failed to run '%s': %s", cmd, err)
 	}
@@ -184,11 +168,4 @@ func (a *APTPackages) Apply(ctx context.Context, hst types.Host, resources Resou
 	}
 
 	return nil
-}
-
-func init() {
-	RegisterGroupResource(
-		reflect.TypeOf((*APTPackage)(nil)).Elem(),
-		reflect.TypeOf((*APTPackages)(nil)).Elem(),
-	)
 }
