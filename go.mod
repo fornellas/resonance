@@ -15,10 +15,10 @@ require (
 	github.com/kylelemons/godebug v1.1.0
 	github.com/rakyll/gotest v0.0.6
 	github.com/spf13/cobra v1.8.1
-	github.com/spf13/pflag v1.0.5
+	github.com/spf13/pflag v1.0.6
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.10.0
-	github.com/yoheimuta/protolint v0.52.0
+	github.com/yoheimuta/protolint v0.53.0
 	go.uber.org/multierr v1.11.0
 	golang.org/x/crypto v0.32.0
 	golang.org/x/net v0.34.0
@@ -64,15 +64,15 @@ require (
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/williammartin/subreaper v0.0.0-20181101193406-731d9ece6883 // indirect
-	github.com/yoheimuta/go-protoparser/v4 v4.13.0 // indirect
-	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8 // indirect
-	golang.org/x/exp/typeparams v0.0.0-20250106191152-7588d65b2ba8 // indirect
+	github.com/yoheimuta/go-protoparser/v4 v4.14.0 // indirect
+	golang.org/x/exp v0.0.0-20250128182459-e0ece0dbea4c // indirect
+	golang.org/x/exp/typeparams v0.0.0-20250128182459-e0ece0dbea4c // indirect
 	golang.org/x/mod v0.22.0 // indirect
 	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/sys v0.29.0 // indirect
 	golang.org/x/telemetry v0.0.0-20250117155846-04cd7bae618c // indirect
 	golang.org/x/text v0.21.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250124145028-65684f501c47 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250127172529-29210b9bc287 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
