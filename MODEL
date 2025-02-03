@@ -1,0 +1,64 @@
+resources
+    Resource
+        Validate() error
+    Satisfiable
+        Satisfies(resource Resource) bool
+    SingleResource
+       	Load(context.Context, host.Host) error
+    	Resolve(context.Context, host.Host) error
+    	Apply(context.Context, host.Host) error
+    GroupResource
+    	Load(context.Context, host.Host, Resources) error
+    	Resolve(context.Context, host.Host, Resources) error
+    	Apply(context.Context, host.Host, Resources) error
+    Resources []Resource
+internal/blueprint
+    Blueprint
+        Steps
+    Steps []*Step
+    Step
+    	singleResource resourcesPkg.SingleResource
+    	groupResource  resourcesPkg.GroupResource
+    	groupResources resourcesPkg.Resources
+    	requiredBy     Steps
+internal/plan
+    Plan []*Action
+        crafted from
+            target blueprint
+            last blueprint
+            original resource state
+    Action
+        ResourceType string
+    	ResourceDiffs []*ResourceDiff
+    	ApplyResources resourcesPkg.Resources
+
+Apply
+    iResouresPkg.LoadPath("resources.yaml")
+        => targetResources []Resource
+    planPkg.PrepAndPlan(ctx, host, store, targetResources)
+        planPkg.CreateTargetBlueprint(ctx, host, targetResources)
+            blueprintPkg.NewBlueprintFromResources(ctx, targetResources)
+                blueprintPkg.NewSteps(targetResources)
+                    => steps []Step
+                => targetBlueprint Blueprint{Steps: steps}
+            targetBlueprint.Resolve(ctx, host)
+            => targetBlueprint Blueprint
+        planPkg.SaveOriginalResourcesState(ctx, host, store, targetBlueprint)
+            TODO
+        lastBlueprint := LoadOrCreateAndSaveLastBlueprintWithValidation(
+		  ctx, host, store, targetBlueprint,
+		)
+		  => lastBlueprint Blueprint
+    	NewPlan(
+    		ctx,
+    		targetBlueprint,
+    		lastBlueprint,
+    		store.LoadOriginalResource,
+    	)
+            => Plan
+        => plan, targetBlueprint, lastBlueprint
+    if !store.HasTargetBlueprint(ctx)
+        store.SaveTargetBlueprint(ctx, targetBlueprint)
+    plan.Apply(ctx, host)
+
+    TODO
