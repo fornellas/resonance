@@ -19,11 +19,11 @@ import (
 	"github.com/fornellas/resonance/log"
 )
 
-// stdinSudo prevents stdin from being read, before we can detect output
+// StdinSudo prevents stdin from being read, before we can detect output
 // from sudo on stdout. This is required because os/exec and ssh buffer stdin
 // before there's any read, meaning we can't intercept the sudo prompt
 // reliably
-type stdinSudo struct {
+type StdinSudo struct {
 	Unlock   chan struct{}
 	SendPass chan string
 	Reader   io.Reader
@@ -31,15 +31,15 @@ type stdinSudo struct {
 	unlocked bool
 }
 
-func (sis *stdinSudo) Read(p []byte) (int, error) {
-	sis.mutex.Lock()
-	defer sis.mutex.Unlock()
+func (r *StdinSudo) Read(p []byte) (int, error) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 
-	if !sis.unlocked {
+	if !r.unlocked {
 		select {
-		case <-sis.Unlock:
-			sis.unlocked = true
-		case password := <-sis.SendPass:
+		case <-r.Unlock:
+			r.unlocked = true
+		case password := <-r.SendPass:
 			passwordBytes := []byte(fmt.Sprintf("%s\n", password))
 			if len(passwordBytes) > len(p) {
 				return 0, fmt.Errorf(
@@ -51,13 +51,13 @@ func (sis *stdinSudo) Read(p []byte) (int, error) {
 		}
 	}
 
-	return sis.Reader.Read(p)
+	return r.Reader.Read(p)
 }
 
-// stderrSudo waits for either write:
+// StderrSudo waits for either write:
 // - sudo prompt: asks for password, caches it, and send to stdin.
 // - sudo ok: unlocks stdin.
-type stderrSudo struct {
+type StderrSudo struct {
 	Unlock          chan struct{}
 	SendPass        chan string
 	Prompt          []byte
@@ -69,16 +69,16 @@ type stderrSudo struct {
 	passwordAttempt *string
 }
 
-func (ses *stderrSudo) Write(p []byte) (int, error) {
-	ses.mutex.Lock()
-	defer ses.mutex.Unlock()
+func (w *StderrSudo) Write(p []byte) (int, error) {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
 
 	var extraLen int
 
-	if !ses.unlocked {
-		if bytes.Contains(p, ses.Prompt) {
+	if !w.unlocked {
+		if bytes.Contains(p, w.Prompt) {
 			var password string
-			if *ses.Password == nil {
+			if *w.Password == nil {
 				state, err := term.MakeRaw(int(os.Stdin.Fd()))
 				if err != nil {
 					return 0, err
@@ -93,44 +93,44 @@ func (ses *stderrSudo) Write(p []byte) (int, error) {
 				}
 				fmt.Printf("\n\r")
 				password = string(passwordBytes)
-				ses.passwordAttempt = &password
+				w.passwordAttempt = &password
 			} else {
-				password = **ses.Password
+				password = **w.Password
 			}
-			ses.SendPass <- password
-			extraLen = len(ses.Prompt)
-			p = bytes.ReplaceAll(p, ses.Prompt, []byte{})
-		} else if bytes.Contains(p, ses.SudoOk) {
-			if ses.passwordAttempt != nil {
-				*ses.Password = ses.passwordAttempt
+			w.SendPass <- password
+			extraLen = len(w.Prompt)
+			p = bytes.ReplaceAll(p, w.Prompt, []byte{})
+		} else if bytes.Contains(p, w.SudoOk) {
+			if w.passwordAttempt != nil {
+				*w.Password = w.passwordAttempt
 			}
-			ses.Unlock <- struct{}{}
-			ses.unlocked = true
-			extraLen = len(ses.SudoOk)
-			p = bytes.ReplaceAll(p, ses.SudoOk, []byte{})
+			w.Unlock <- struct{}{}
+			w.unlocked = true
+			extraLen = len(w.SudoOk)
+			p = bytes.ReplaceAll(p, w.SudoOk, []byte{})
 		}
 	}
 
-	len, err := ses.Writer.Write(p)
+	len, err := w.Writer.Write(p)
 	return len + extraLen, err
 }
 
-// Sudo implements Host interface by having all methods rely on an underlying Host.Run, and
+// SudoWrapper implements Host interface by having all methods rely on an underlying Host.Run, and
 // preceding all commands with sudo.
-type Sudo struct {
-	cmdHost
+type SudoWrapper struct {
+	BaseHostRun
 	Host     host.Host
 	Password *string
 	envPath  string
 }
 
-func NewSudo(ctx context.Context, hst host.Host) (*Sudo, error) {
+func NewSudoWrapper(ctx context.Context, hst host.Host) (*SudoWrapper, error) {
 	ctx, _ = log.MustContextLoggerSection(ctx, "⚡ Sudo")
 
-	sudoHost := Sudo{
+	sudoHost := SudoWrapper{
 		Host: hst,
 	}
-	sudoHost.cmdHost.Host = &sudoHost
+	sudoHost.BaseHostRun.Host = &sudoHost
 
 	cmd := host.Cmd{
 		Path: "true",
@@ -150,7 +150,7 @@ func NewSudo(ctx context.Context, hst host.Host) (*Sudo, error) {
 	return &sudoHost, nil
 }
 
-func getRandomString() string {
+func (h *SudoWrapper) getRandomString() string {
 	bytes := make([]byte, 32)
 	_, err := rand.Read(bytes)
 	if err != nil {
@@ -160,9 +160,9 @@ func getRandomString() string {
 	return hex.EncodeToString(hash[:])
 }
 
-func (s *Sudo) runEnv(ctx context.Context, cmd host.Cmd, ignoreCmdEnv bool) (host.WaitStatus, error) {
-	prompt := fmt.Sprintf("sudo password (%s)", getRandomString())
-	sudoOk := fmt.Sprintf("sudo ok (%s)", getRandomString())
+func (h *SudoWrapper) runEnv(ctx context.Context, cmd host.Cmd, ignoreCmdEnv bool) (host.WaitStatus, error) {
+	prompt := fmt.Sprintf("sudo password (%s)", h.getRandomString())
+	sudoOk := fmt.Sprintf("sudo ok (%s)", h.getRandomString())
 
 	shellCmdArgs := []string{shellescape.Quote(cmd.Path)}
 	for _, arg := range cmd.Args {
@@ -179,8 +179,8 @@ func (s *Sudo) runEnv(ctx context.Context, cmd host.Cmd, ignoreCmdEnv bool) (hos
 	if !ignoreCmdEnv {
 		if len(cmd.Env) == 0 {
 			cmd.Env = []string{"LANG=en_US.UTF-8"}
-			if s.envPath != "" {
-				cmd.Env = append(cmd.Env, s.envPath)
+			if h.envPath != "" {
+				cmd.Env = append(cmd.Env, h.envPath)
 			}
 		}
 		envStrs := []string{}
@@ -217,7 +217,7 @@ func (s *Sudo) runEnv(ctx context.Context, cmd host.Cmd, ignoreCmdEnv bool) (hos
 	} else {
 		stdin = &bytes.Buffer{}
 	}
-	cmd.Stdin = &stdinSudo{
+	cmd.Stdin = &StdinSudo{
 		Unlock:   unlockStdin,
 		SendPass: sendPassStdin,
 		Reader:   stdin,
@@ -229,35 +229,35 @@ func (s *Sudo) runEnv(ctx context.Context, cmd host.Cmd, ignoreCmdEnv bool) (hos
 	} else {
 		stderr = io.Discard
 	}
-	cmd.Stderr = &stderrSudo{
+	cmd.Stderr = &StderrSudo{
 		Unlock:   unlockStdin,
 		SendPass: sendPassStdin,
 		Prompt:   []byte(prompt),
 		SudoOk:   []byte(sudoOk),
 		Writer:   stderr,
-		Password: &s.Password,
+		Password: &h.Password,
 	}
 
-	return s.Host.Run(ctx, cmd)
+	return h.Host.Run(ctx, cmd)
 }
 
-func (s *Sudo) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
-	return s.runEnv(ctx, cmd, false)
+func (h *SudoWrapper) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
+	return h.runEnv(ctx, cmd, false)
 }
 
-func (s Sudo) String() string {
-	return s.Host.String()
+func (h SudoWrapper) String() string {
+	return h.Host.String()
 }
 
-func (s Sudo) Type() string {
-	return s.Host.Type()
+func (h SudoWrapper) Type() string {
+	return h.Host.Type()
 }
 
-func (s Sudo) Close(ctx context.Context) error {
-	return s.Host.Close(ctx)
+func (h SudoWrapper) Close(ctx context.Context) error {
+	return h.Host.Close(ctx)
 }
 
-func (s *Sudo) setEnvPath(ctx context.Context) error {
+func (h *SudoWrapper) setEnvPath(ctx context.Context) error {
 	stdoutBuffer := bytes.Buffer{}
 	stderrBuffer := bytes.Buffer{}
 	cmd := host.Cmd{
@@ -265,7 +265,7 @@ func (s *Sudo) setEnvPath(ctx context.Context) error {
 		Stdout: &stdoutBuffer,
 		Stderr: &stderrBuffer,
 	}
-	waitStatus, err := s.runEnv(ctx, cmd, true)
+	waitStatus, err := h.runEnv(ctx, cmd, true)
 	if err != nil {
 		return err
 	}
@@ -277,7 +277,7 @@ func (s *Sudo) setEnvPath(ctx context.Context) error {
 	}
 	for _, value := range strings.Split(stdoutBuffer.String(), "\n") {
 		if strings.HasPrefix(value, "PATH=") {
-			s.envPath = value
+			h.envPath = value
 			break
 		}
 	}

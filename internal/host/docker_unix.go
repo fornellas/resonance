@@ -14,7 +14,7 @@ import (
 
 // Docker uses docker exec to target a running container.
 type Docker struct {
-	cmdHost
+	BaseHostRun
 	// User/group and image in the format "[<name|uid>[:<group|gid>]@]<image>" (eg: root@ubuntu)
 	ConnectionString string
 }
@@ -23,11 +23,11 @@ func NewDocker(ctx context.Context, connection string) (Docker, error) {
 	dockerHst := Docker{
 		ConnectionString: connection,
 	}
-	dockerHst.cmdHost.Host = &dockerHst
+	dockerHst.BaseHostRun.Host = &dockerHst
 	return dockerHst, nil
 }
 
-func (d Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
+func (h Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Run", "cmd", cmd)
 
@@ -53,7 +53,7 @@ func (d Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) 
 		args = append(args, "--interactive")
 	}
 
-	parts := strings.Split(d.ConnectionString, "@")
+	parts := strings.Split(h.ConnectionString, "@")
 
 	var dockerConnectionUser, dockerConnectionContainer string
 	switch len(parts) {
@@ -64,7 +64,7 @@ func (d Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) 
 		dockerConnectionUser = parts[0]
 		dockerConnectionContainer = parts[1]
 	default:
-		return host.WaitStatus{}, fmt.Errorf("invalid connection string format: %s", d.ConnectionString)
+		return host.WaitStatus{}, fmt.Errorf("invalid connection string format: %s", h.ConnectionString)
 	}
 
 	args = append(args, []string{"--user", dockerConnectionUser}...)
@@ -95,14 +95,14 @@ func (d Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) 
 	return waitStatus, nil
 }
 
-func (d Docker) String() string {
-	return d.ConnectionString
+func (h Docker) String() string {
+	return h.ConnectionString
 }
 
-func (d Docker) Type() string {
+func (h Docker) Type() string {
 	return "docker"
 }
 
-func (d Docker) Close(ctx context.Context) error {
+func (h Docker) Close(ctx context.Context) error {
 	return nil
 }

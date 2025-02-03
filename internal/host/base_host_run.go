@@ -22,42 +22,188 @@ import (
 	"github.com/fornellas/resonance/log"
 )
 
-type CmdHostReadFileRunRet struct {
+type statField struct {
+	format string
+	fn     func(string, *host.Stat_t) error
+}
+
+func NewStatField(format string, fn func(value string, stat_t *host.Stat_t) error) statField {
+	return statField{format: format, fn: fn}
+}
+
+var statTimeFormat = "2006-01-02 15:04:05.999999999 -0700"
+
+var statFields = []statField{
+	// device number in decimal (st_dev)
+	NewStatField("%d", func(value string, stat_t *host.Stat_t) error {
+		var err error
+		stat_t.Dev, err = strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("unable to parse dev: %s", value)
+		}
+		return nil
+	}),
+	// inode number
+	NewStatField("%i", func(value string, stat_t *host.Stat_t) error {
+		var err error
+		stat_t.Ino, err = strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("unable to parse ino: %s", value)
+		}
+		return nil
+	}),
+	// number of hard links
+	NewStatField("%h", func(value string, stat_t *host.Stat_t) error {
+		var err error
+		stat_t.Nlink, err = strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("unable to parse nlink: %s", value)
+		}
+		return nil
+	}),
+	// raw mode in hex
+	NewStatField("%f", func(value string, stat_t *host.Stat_t) error {
+		mode64, err := strconv.ParseUint(value, 16, 32)
+		if err != nil {
+			return fmt.Errorf("unable to parse mode: %s", value)
+		}
+		stat_t.Mode = uint32(mode64)
+		return nil
+	}),
+	// user ID of owner
+	NewStatField("%u", func(value string, stat_t *host.Stat_t) error {
+		uid64, err := strconv.ParseUint(value, 10, 32)
+		if err != nil {
+			return fmt.Errorf("unable to parse uid: %s", value)
+		}
+		stat_t.Uid = uint32(uid64)
+		return nil
+	}),
+	// group ID of owner
+	NewStatField("%g", func(value string, stat_t *host.Stat_t) error {
+		gid64, err := strconv.ParseUint(value, 10, 32)
+		if err != nil {
+			return fmt.Errorf("unable to parse gid: %s", value)
+		}
+		stat_t.Gid = uint32(gid64)
+		return nil
+	}),
+	// device type in decimal (st_rdev)
+	NewStatField("%r", func(value string, stat_t *host.Stat_t) error {
+		if value == "?" {
+			return nil
+		}
+		var err error
+		stat_t.Rdev, err = strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("unable to parse rdev: %s", value)
+		}
+		return nil
+	}),
+	// total size, in bytes
+	NewStatField("%s", func(value string, stat_t *host.Stat_t) error {
+		var err error
+		stat_t.Size, err = strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("unable to parse size: %s", value)
+		}
+		return nil
+	}),
+	// the size in bytes of each block reported by %b
+	NewStatField("%B", func(value string, stat_t *host.Stat_t) error {
+		var err error
+		stat_t.Blksize, err = strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("unable to parse blksize: %s", value)
+		}
+		return nil
+	}),
+	// number of blocks allocated (see %B)
+	NewStatField("%b", func(value string, stat_t *host.Stat_t) error {
+		var err error
+		stat_t.Blocks, err = strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("unable to parse blocks: %s", value)
+		}
+		return nil
+	}),
+	// time of last access, human-readable
+	NewStatField("%x", func(value string, stat_t *host.Stat_t) error {
+		var err error
+		atimTime, err := time.Parse(statTimeFormat, value)
+		if err != nil {
+			return fmt.Errorf("unable to parse atim: %s: %w", value, err)
+		}
+		stat_t.Atim = host.Timespec{
+			Sec:  atimTime.Unix(),
+			Nsec: atimTime.UnixNano() % 1e9,
+		}
+		return nil
+	}),
+	// time of last data modification, human-readable
+	NewStatField("%y", func(value string, stat_t *host.Stat_t) error {
+		var err error
+		mtimTime, err := time.Parse(statTimeFormat, value)
+		if err != nil {
+			return fmt.Errorf("unable to parse mtim: %s: %w", value, err)
+		}
+		stat_t.Mtim = host.Timespec{
+			Sec:  mtimTime.Unix(),
+			Nsec: mtimTime.UnixNano() % 1e9,
+		}
+		return nil
+	}),
+	// time of last status change, human-readable
+	NewStatField("%z", func(value string, stat_t *host.Stat_t) error {
+		var err error
+		ctimTime, err := time.Parse(statTimeFormat, value)
+		if err != nil {
+			return fmt.Errorf("unable to parse ctim: %s: %w", value, err)
+		}
+		stat_t.Ctim = host.Timespec{
+			Sec:  ctimTime.Unix(),
+			Nsec: ctimTime.UnixNano() % 1e9,
+		}
+		return nil
+	}),
+}
+
+type baseHostRunReadFileRunRet struct {
 	WaitStatus     host.WaitStatus
 	WaitStatusErr  error
 	StdoutCloseErr error
 	StderrBuffer   bytes.Buffer
 }
 
-type CmdHostReadFileReadCloser struct {
+type baseHostRunReadFileReadCloser struct {
 	Data     []byte
 	Cmd      *host.Cmd
 	Stdout   io.ReadCloser
-	RunRetCh chan *CmdHostReadFileRunRet
+	RunRetCh chan *baseHostRunReadFileRunRet
 }
 
-func (c *CmdHostReadFileReadCloser) Read(p []byte) (n int, err error) {
-	if len(c.Data) > 0 {
-		n := copy(p, c.Data)
-		if n < len(c.Data) {
-			c.Data = c.Data[n:]
+func (rc *baseHostRunReadFileReadCloser) Read(p []byte) (n int, err error) {
+	if len(rc.Data) > 0 {
+		n := copy(p, rc.Data)
+		if n < len(rc.Data) {
+			rc.Data = rc.Data[n:]
 		} else {
-			c.Data = nil
+			rc.Data = nil
 		}
 		return n, nil
 	}
-	n, err = c.Stdout.Read(p)
+	n, err = rc.Stdout.Read(p)
 	return n, err
 }
 
-func (c *CmdHostReadFileReadCloser) Close() error {
+func (rc *baseHostRunReadFileReadCloser) Close() error {
 	var err error
 
-	if closeErr := c.Stdout.Close(); closeErr != nil {
+	if closeErr := rc.Stdout.Close(); closeErr != nil {
 		err = errors.Join(err, closeErr)
 	}
 
-	runRet := <-c.RunRetCh
+	runRet := <-rc.RunRetCh
 	if runRet.WaitStatusErr != nil {
 		err = errors.Join(err, runRet.WaitStatusErr)
 	} else {
@@ -69,7 +215,7 @@ func (c *CmdHostReadFileReadCloser) Close() error {
 			} else {
 				err = errors.Join(err, fmt.Errorf(
 					"failed to run %s: %s\nstderr:\n%s",
-					c.Cmd, runRet.WaitStatus.String(), runRet.StderrBuffer.String(),
+					rc.Cmd, runRet.WaitStatus.String(), runRet.StderrBuffer.String(),
 				))
 			}
 		}
@@ -87,11 +233,11 @@ func (c *CmdHostReadFileReadCloser) Close() error {
 // and just implement the remaining methods.
 // The use case for this is for share code across host.Host implementations that solely rely
 // on spawning commands via Run.
-type cmdHost struct {
+type BaseHostRun struct {
 	Host host.Host
 }
 
-func (br cmdHost) Geteuid(ctx context.Context) (uint64, error) {
+func (h BaseHostRun) Geteuid(ctx context.Context) (uint64, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Geteuid")
@@ -100,7 +246,7 @@ func (br cmdHost) Geteuid(ctx context.Context) (uint64, error) {
 		Path: "id",
 		Args: []string{"-u"},
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, h.Host, cmd)
 	if err != nil {
 		return 0, err
 	}
@@ -120,7 +266,7 @@ func (br cmdHost) Geteuid(ctx context.Context) (uint64, error) {
 	return uid, nil
 }
 
-func (br cmdHost) Getegid(ctx context.Context) (uint64, error) {
+func (h BaseHostRun) Getegid(ctx context.Context) (uint64, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Getegid")
@@ -129,7 +275,7 @@ func (br cmdHost) Getegid(ctx context.Context) (uint64, error) {
 		Path: "id",
 		Args: []string{"-g"},
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, h.Host, cmd)
 	if err != nil {
 		return 0, err
 	}
@@ -149,7 +295,7 @@ func (br cmdHost) Getegid(ctx context.Context) (uint64, error) {
 	return gid, nil
 }
 
-func (br cmdHost) Chmod(ctx context.Context, name string, mode uint32) error {
+func (h BaseHostRun) Chmod(ctx context.Context, name string, mode uint32) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Chmod", "name", name, "mode", mode)
@@ -166,7 +312,7 @@ func (br cmdHost) Chmod(ctx context.Context, name string, mode uint32) error {
 		Path: "chmod",
 		Args: []string{fmt.Sprintf("%o", mode), name},
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, h.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -188,7 +334,7 @@ func (br cmdHost) Chmod(ctx context.Context, name string, mode uint32) error {
 	)
 }
 
-func (br cmdHost) Chown(ctx context.Context, name string, uid, gid uint32) error {
+func (h BaseHostRun) Chown(ctx context.Context, name string, uid, gid uint32) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Chown", "name", name, "uid", uid, "gid", gid)
@@ -205,7 +351,7 @@ func (br cmdHost) Chown(ctx context.Context, name string, uid, gid uint32) error
 		Path: "chown",
 		Args: []string{fmt.Sprintf("%d.%d", uid, gid), name},
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, h.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -227,7 +373,7 @@ func (br cmdHost) Chown(ctx context.Context, name string, uid, gid uint32) error
 	)
 }
 
-func (br cmdHost) Lookup(ctx context.Context, username string) (*user.User, error) {
+func (h BaseHostRun) Lookup(ctx context.Context, username string) (*user.User, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Lookup", "username", username)
@@ -236,7 +382,7 @@ func (br cmdHost) Lookup(ctx context.Context, username string) (*user.User, erro
 		Path: "cat",
 		Args: []string{"/etc/passwd"},
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, h.Host, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -275,7 +421,7 @@ func (br cmdHost) Lookup(ctx context.Context, username string) (*user.User, erro
 	return nil, user.UnknownUserError(username)
 }
 
-func (br cmdHost) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
+func (h BaseHostRun) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("LookupGroup", "name", name)
@@ -284,7 +430,7 @@ func (br cmdHost) LookupGroup(ctx context.Context, name string) (*user.Group, er
 		Path: "cat",
 		Args: []string{"/etc/group"},
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, h.Host, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -317,153 +463,7 @@ func (br cmdHost) LookupGroup(ctx context.Context, name string) (*user.Group, er
 	return nil, user.UnknownGroupError(name)
 }
 
-type statField struct {
-	format string
-	fn     func(string, *host.Stat_t) error
-}
-
-func newStatField(format string, fn func(value string, stat_t *host.Stat_t) error) statField {
-	return statField{format: format, fn: fn}
-}
-
-var statTimeFormat = "2006-01-02 15:04:05.999999999 -0700"
-
-var statFields = []statField{
-	// device number in decimal (st_dev)
-	newStatField("%d", func(value string, stat_t *host.Stat_t) error {
-		var err error
-		stat_t.Dev, err = strconv.ParseUint(value, 10, 64)
-		if err != nil {
-			return fmt.Errorf("unable to parse dev: %s", value)
-		}
-		return nil
-	}),
-	// inode number
-	newStatField("%i", func(value string, stat_t *host.Stat_t) error {
-		var err error
-		stat_t.Ino, err = strconv.ParseUint(value, 10, 64)
-		if err != nil {
-			return fmt.Errorf("unable to parse ino: %s", value)
-		}
-		return nil
-	}),
-	// number of hard links
-	newStatField("%h", func(value string, stat_t *host.Stat_t) error {
-		var err error
-		stat_t.Nlink, err = strconv.ParseUint(value, 10, 64)
-		if err != nil {
-			return fmt.Errorf("unable to parse nlink: %s", value)
-		}
-		return nil
-	}),
-	// raw mode in hex
-	newStatField("%f", func(value string, stat_t *host.Stat_t) error {
-		mode64, err := strconv.ParseUint(value, 16, 32)
-		if err != nil {
-			return fmt.Errorf("unable to parse mode: %s", value)
-		}
-		stat_t.Mode = uint32(mode64)
-		return nil
-	}),
-	// user ID of owner
-	newStatField("%u", func(value string, stat_t *host.Stat_t) error {
-		uid64, err := strconv.ParseUint(value, 10, 32)
-		if err != nil {
-			return fmt.Errorf("unable to parse uid: %s", value)
-		}
-		stat_t.Uid = uint32(uid64)
-		return nil
-	}),
-	// group ID of owner
-	newStatField("%g", func(value string, stat_t *host.Stat_t) error {
-		gid64, err := strconv.ParseUint(value, 10, 32)
-		if err != nil {
-			return fmt.Errorf("unable to parse gid: %s", value)
-		}
-		stat_t.Gid = uint32(gid64)
-		return nil
-	}),
-	// device type in decimal (st_rdev)
-	newStatField("%r", func(value string, stat_t *host.Stat_t) error {
-		if value == "?" {
-			return nil
-		}
-		var err error
-		stat_t.Rdev, err = strconv.ParseUint(value, 10, 64)
-		if err != nil {
-			return fmt.Errorf("unable to parse rdev: %s", value)
-		}
-		return nil
-	}),
-	// total size, in bytes
-	newStatField("%s", func(value string, stat_t *host.Stat_t) error {
-		var err error
-		stat_t.Size, err = strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			return fmt.Errorf("unable to parse size: %s", value)
-		}
-		return nil
-	}),
-	// the size in bytes of each block reported by %b
-	newStatField("%B", func(value string, stat_t *host.Stat_t) error {
-		var err error
-		stat_t.Blksize, err = strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			return fmt.Errorf("unable to parse blksize: %s", value)
-		}
-		return nil
-	}),
-	// number of blocks allocated (see %B)
-	newStatField("%b", func(value string, stat_t *host.Stat_t) error {
-		var err error
-		stat_t.Blocks, err = strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			return fmt.Errorf("unable to parse blocks: %s", value)
-		}
-		return nil
-	}),
-	// time of last access, human-readable
-	newStatField("%x", func(value string, stat_t *host.Stat_t) error {
-		var err error
-		atimTime, err := time.Parse(statTimeFormat, value)
-		if err != nil {
-			return fmt.Errorf("unable to parse atim: %s: %w", value, err)
-		}
-		stat_t.Atim = host.Timespec{
-			Sec:  atimTime.Unix(),
-			Nsec: atimTime.UnixNano() % 1e9,
-		}
-		return nil
-	}),
-	// time of last data modification, human-readable
-	newStatField("%y", func(value string, stat_t *host.Stat_t) error {
-		var err error
-		mtimTime, err := time.Parse(statTimeFormat, value)
-		if err != nil {
-			return fmt.Errorf("unable to parse mtim: %s: %w", value, err)
-		}
-		stat_t.Mtim = host.Timespec{
-			Sec:  mtimTime.Unix(),
-			Nsec: mtimTime.UnixNano() % 1e9,
-		}
-		return nil
-	}),
-	// time of last status change, human-readable
-	newStatField("%z", func(value string, stat_t *host.Stat_t) error {
-		var err error
-		ctimTime, err := time.Parse(statTimeFormat, value)
-		if err != nil {
-			return fmt.Errorf("unable to parse ctim: %s: %w", value, err)
-		}
-		stat_t.Ctim = host.Timespec{
-			Sec:  ctimTime.Unix(),
-			Nsec: ctimTime.UnixNano() % 1e9,
-		}
-		return nil
-	}),
-}
-
-func (br cmdHost) Lstat(ctx context.Context, name string) (*host.Stat_t, error) {
+func (h BaseHostRun) Lstat(ctx context.Context, name string) (*host.Stat_t, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Lstat", "name", name)
@@ -491,7 +491,7 @@ func (br cmdHost) Lstat(ctx context.Context, name string) (*host.Stat_t, error) 
 			name,
 		},
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, h.Host, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -524,7 +524,7 @@ func (br cmdHost) Lstat(ctx context.Context, name string) (*host.Stat_t, error) 
 	return &stat_t, nil
 }
 
-func getFindFileType(fileType rune) (uint8, error) {
+func (h BaseHostRun) getFindFileType(fileType rune) (uint8, error) {
 	switch fileType {
 	case 's':
 		return syscall.DT_SOCK, nil
@@ -545,7 +545,7 @@ func getFindFileType(fileType rune) (uint8, error) {
 	}
 }
 
-func (br cmdHost) ReadDir(ctx context.Context, name string) ([]host.DirEnt, error) {
+func (h BaseHostRun) ReadDir(ctx context.Context, name string) ([]host.DirEnt, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("ReadDir", "name", name)
 
@@ -563,7 +563,7 @@ func (br cmdHost) ReadDir(ctx context.Context, name string) ([]host.DirEnt, erro
 		Path: "find",
 		Args: []string{name, "-maxdepth", "1", "-printf", "%i %y %p\\0"},
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, h.Host, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -604,7 +604,7 @@ func (br cmdHost) ReadDir(ctx context.Context, name string) ([]host.DirEnt, erro
 
 		dirEnt.Name = filepath.Base(dirEnt.Name)
 
-		dirEnt.Type, err = getFindFileType(fileType)
+		dirEnt.Type, err = h.getFindFileType(fileType)
 		if err != nil {
 			return nil, err
 		}
@@ -615,7 +615,7 @@ func (br cmdHost) ReadDir(ctx context.Context, name string) ([]host.DirEnt, erro
 	return dirEnts, nil
 }
 
-func (br cmdHost) Mkdir(ctx context.Context, name string, mode uint32) error {
+func (h BaseHostRun) Mkdir(ctx context.Context, name string, mode uint32) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Mkdir", "name", name, "mode", mode)
@@ -632,7 +632,7 @@ func (br cmdHost) Mkdir(ctx context.Context, name string, mode uint32) error {
 		Path: "mkdir",
 		Args: []string{name},
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, h.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -652,10 +652,10 @@ func (br cmdHost) Mkdir(ctx context.Context, name string, mode uint32) error {
 		)
 	}
 
-	return br.Chmod(ctx, name, mode)
+	return h.Chmod(ctx, name, mode)
 }
 
-func (br cmdHost) ReadFile(ctx context.Context, name string) (io.ReadCloser, error) {
+func (h BaseHostRun) ReadFile(ctx context.Context, name string) (io.ReadCloser, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("ReadFile", "name", name)
@@ -677,12 +677,12 @@ func (br cmdHost) ReadFile(ctx context.Context, name string) (io.ReadCloser, err
 		Stderr: &stderrBuffer,
 	}
 
-	runRetCh := make(chan *CmdHostReadFileRunRet)
+	runRetCh := make(chan *baseHostRunReadFileRunRet)
 
 	go func() {
-		waitStatus, waitStatusErr := br.Host.Run(ctx, cmd)
+		waitStatus, waitStatusErr := h.Host.Run(ctx, cmd)
 		closeErr := stdoutWriter.Close()
-		runRetCh <- &CmdHostReadFileRunRet{
+		runRetCh <- &baseHostRunReadFileRunRet{
 			WaitStatus:     waitStatus,
 			WaitStatusErr:  waitStatusErr,
 			StdoutCloseErr: closeErr,
@@ -690,7 +690,7 @@ func (br cmdHost) ReadFile(ctx context.Context, name string) (io.ReadCloser, err
 		}
 	}()
 
-	readCloser := &CmdHostReadFileReadCloser{
+	readCloser := &baseHostRunReadFileReadCloser{
 		Cmd:      &cmd,
 		Stdout:   stdoutReader,
 		RunRetCh: runRetCh,
@@ -712,7 +712,7 @@ func (br cmdHost) ReadFile(ctx context.Context, name string) (io.ReadCloser, err
 	return readCloser, nil
 }
 
-func (br cmdHost) Symlink(ctx context.Context, oldname, newname string) error {
+func (h BaseHostRun) Symlink(ctx context.Context, oldname, newname string) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Symlink", "oldname", oldname, "newname", newname)
@@ -730,7 +730,7 @@ func (br cmdHost) Symlink(ctx context.Context, oldname, newname string) error {
 		Args: []string{"-s", oldname, newname},
 	}
 
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, h.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -754,7 +754,7 @@ func (br cmdHost) Symlink(ctx context.Context, oldname, newname string) error {
 	return nil
 }
 
-func (br cmdHost) Readlink(ctx context.Context, name string) (string, error) {
+func (h BaseHostRun) Readlink(ctx context.Context, name string) (string, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Readlink", "name", name)
@@ -771,7 +771,7 @@ func (br cmdHost) Readlink(ctx context.Context, name string) (string, error) {
 		Path: "readlink",
 		Args: []string{"-vn", name},
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, h.Host, cmd)
 	if err != nil {
 		return "", err
 	}
@@ -790,12 +790,12 @@ func (br cmdHost) Readlink(ctx context.Context, name string) (string, error) {
 	return stdout, nil
 }
 
-func (br cmdHost) rmdir(ctx context.Context, name string) error {
+func (h BaseHostRun) rmdir(ctx context.Context, name string) error {
 	cmd := host.Cmd{
 		Path: "rmdir",
 		Args: []string{name},
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, h.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -811,7 +811,7 @@ func (br cmdHost) rmdir(ctx context.Context, name string) error {
 	return nil
 }
 
-func (br cmdHost) Remove(ctx context.Context, name string) error {
+func (h BaseHostRun) Remove(ctx context.Context, name string) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Remove", "name", name)
@@ -828,13 +828,13 @@ func (br cmdHost) Remove(ctx context.Context, name string) error {
 		Path: "rm",
 		Args: []string{name},
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, h.Host, cmd)
 	if err != nil {
 		return err
 	}
 	if !waitStatus.Success() {
 		if strings.Contains(stderr, "Is a directory") {
-			return br.rmdir(ctx, name)
+			return h.rmdir(ctx, name)
 		}
 		if strings.Contains(stderr, "Permission denied") {
 			return os.ErrPermission
@@ -850,7 +850,7 @@ func (br cmdHost) Remove(ctx context.Context, name string) error {
 	return nil
 }
 
-func (br cmdHost) WriteFile(ctx context.Context, name string, data []byte, mode uint32) error {
+func (h BaseHostRun) WriteFile(ctx context.Context, name string, data []byte, mode uint32) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("WriteFile", "name", name, "data", data, "mode", mode)
@@ -868,7 +868,7 @@ func (br cmdHost) WriteFile(ctx context.Context, name string, data []byte, mode 
 		Args:  []string{"-c", fmt.Sprintf("cat > %s", shellescape.Quote(name))},
 		Stdin: bytes.NewReader(data),
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, br.Host, cmd)
+	waitStatus, stdout, stderr, err := host.Run(ctx, h.Host, cmd)
 	if err != nil {
 		return err
 	}
@@ -888,5 +888,5 @@ func (br cmdHost) WriteFile(ctx context.Context, name string, data []byte, mode 
 		)
 	}
 
-	return br.Chmod(ctx, name, mode)
+	return h.Chmod(ctx, name, mode)
 }

@@ -35,7 +35,7 @@ func wrapHost(ctx context.Context, hst host.Host) (host.Host, error) {
 
 	if sudo {
 		var err error
-		hst, err = ihost.NewSudo(ctx, hst)
+		hst, err = ihost.NewSudoWrapper(ctx, hst)
 		if err != nil {
 			return nil, err
 		}
@@ -43,7 +43,7 @@ func wrapHost(ctx context.Context, hst host.Host) (host.Host, error) {
 
 	if sudo || hst.Type() != "localhost" {
 		var err error
-		hst, err = ihost.NewAgentClient(ctx, hst)
+		hst, err = ihost.NewAgentClientWrapper(ctx, hst)
 		if err != nil {
 			if errors.Is(err, ihost.ErrAgentUnsupportedOsArch) {
 				logger.Warn(
