@@ -1,13 +1,12 @@
 package lib
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"os"
 	"time"
-
-	"go.uber.org/multierr"
 )
 
 // Addr implements net.Addr for io.ReadCloser / io.WriteCloser.
@@ -41,7 +40,7 @@ func (c IOConn) Write(b []byte) (int, error) {
 }
 
 func (c IOConn) Close() error {
-	return multierr.Combine(
+	return errors.Join(
 		c.Reader.Close(),
 		c.Writer.Close(),
 	)

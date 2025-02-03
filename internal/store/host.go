@@ -9,8 +9,6 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/hashicorp/go-multierror"
-
 	"github.com/fornellas/resonance/host"
 	blueprintPkg "github.com/fornellas/resonance/internal/blueprint"
 	resourcesPkg "github.com/fornellas/resonance/resources"
@@ -95,7 +93,7 @@ func (s *HostStore) loadResourceStore(ctx context.Context, path string) (resourc
 	err = yamlDecoder.Decode(&resourceStore)
 	if err != nil {
 		if closeErr := resourceStoreReadCloser.Close(); closeErr != nil {
-			err = multierror.Append(err, closeErr)
+			err = errors.Join(err, closeErr)
 		}
 		return nil, err
 	}
@@ -249,7 +247,7 @@ func (s *HostStore) loadBlueprint(ctx context.Context, name string) (*blueprintP
 	err = yamlDecoder.Decode(blueprint)
 	if err != nil {
 		if closeErr := blueprintReadCloser.Close(); closeErr != nil {
-			err = multierror.Append(err, closeErr)
+			err = errors.Join(err, closeErr)
 		}
 		return nil, err
 	}
