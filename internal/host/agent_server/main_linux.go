@@ -1,15 +1,16 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"os/signal"
 	"os/user"
 	"path/filepath"
+	"sync"
 	"syscall"
 
 	"google.golang.org/grpc"
@@ -309,42 +310,177 @@ func (s *HostService) Remove(ctx context.Context, req *proto.RemoveRequest) (*pr
 	return nil, nil
 }
 
-func (s *HostService) Run(ctx context.Context, req *proto.RunRequest) (*proto.RunResponse, error) {
-	var stdin io.Reader
-	if req.Stdin != nil {
-		stdin = bytes.NewReader(req.Stdin)
+func (s *HostService) runStdinCopier(
+	stream grpc.BidiStreamingServer[proto.RunRequest, proto.RunResponse],
+	stdinWriter io.Writer,
+) error {
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return s.getGrpcError(err)
+		}
+		stdinChunk, ok := req.Data.(*proto.RunRequest_StdinChunk)
+		if !ok {
+			panic(fmt.Sprintf("bug: unexpected request data: %#v", req.Data))
+		}
+		if _, err := stdinWriter.Write(stdinChunk.StdinChunk); err != nil {
+			return s.getGrpcError(err)
+		}
 	}
+	return nil
+}
 
-	var stdout []byte
-	stdoutBuff := bytes.NewBuffer(stdout)
-
-	var stderr []byte
-	stderrBuff := bytes.NewBuffer(stderr)
-
-	cmd := host.Cmd{
-		Path:   req.Path,
-		Args:   req.Args,
-		Env:    req.EnvVars,
-		Dir:    req.Dir,
-		Stdin:  stdin,
-		Stdout: stdoutBuff,
-		Stderr: stderrBuff,
-	}
-
-	waitStatus, err := lib.Run(ctx, cmd)
+func (s *HostService) runReaderCopier(
+	stream grpc.BidiStreamingServer[proto.RunRequest, proto.RunResponse],
+	wg *sync.WaitGroup,
+	streamErr *error,
+	getRunResponse func([]byte) *proto.RunResponse,
+) (
+	writeCloser io.WriteCloser,
+	err error,
+) {
+	var reader io.Reader
+	reader, writeCloser, err = os.Pipe()
 	if err != nil {
 		return nil, s.getGrpcError(err)
 	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		buffer := make([]byte, 8196)
+		for {
+			n, err := reader.Read(buffer)
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				*streamErr = s.getGrpcError(err)
+			}
 
-	return &proto.RunResponse{
-		Waitstatus: &proto.WaitStatus{
-			Exitcode: int64(waitStatus.ExitCode),
-			Exited:   waitStatus.Exited,
-			Signal:   waitStatus.Signal,
+			if err = stream.Send(getRunResponse(buffer[:n])); err != nil {
+				*streamErr = s.getGrpcError(err)
+			}
+		}
+	}()
+	return writeCloser, nil
+}
+
+func (s *HostService) Run(stream grpc.BidiStreamingServer[proto.RunRequest, proto.RunResponse]) error {
+	req, runErr := stream.Recv()
+	if runErr != nil {
+		return s.getGrpcError(runErr)
+	}
+	data, ok := req.Data.(*proto.RunRequest_Cmd)
+	if !ok {
+		panic(fmt.Errorf("bug: unexpected request data: %#v", req.Data))
+	}
+
+	var stdinReader io.ReadCloser
+	var stdinErr error
+	if data.Cmd.Stdin {
+		var stdinWriter io.Writer
+		stdinReader, stdinWriter, runErr = os.Pipe()
+		if runErr != nil {
+			return s.getGrpcError(runErr)
+		}
+		go func() {
+			stdinErr = s.runStdinCopier(stream, stdinWriter)
+		}()
+	}
+
+	var wg sync.WaitGroup
+
+	var stdoutWriter io.WriteCloser
+	var stdoutErr error
+	if data.Cmd.Stdout {
+		stdoutWriter, runErr = s.runReaderCopier(stream, &wg, &stdoutErr, func(buffer []byte) *proto.RunResponse {
+			return &proto.RunResponse{
+				Data: &proto.RunResponse_StdoutChunk{
+					StdoutChunk: buffer,
+				},
+			}
+		})
+		if runErr != nil {
+			return runErr
+		}
+	}
+
+	var stderrWriter io.WriteCloser
+	var stderrErr error
+	if data.Cmd.Stderr {
+		stderrWriter, runErr = s.runReaderCopier(stream, &wg, &stderrErr, func(buffer []byte) *proto.RunResponse {
+			return &proto.RunResponse{
+				Data: &proto.RunResponse_StderrChunk{
+					StderrChunk: buffer,
+				},
+			}
+		})
+		if runErr != nil {
+			return runErr
+		}
+	}
+
+	cmd := host.Cmd{
+		Path:   data.Cmd.Path,
+		Args:   data.Cmd.Args,
+		Env:    data.Cmd.EnvVars,
+		Dir:    data.Cmd.Dir,
+		Stdin:  stdinReader,
+		Stdout: stdoutWriter,
+		Stderr: stderrWriter,
+	}
+	waitStatus, runErr := lib.Run(stream.Context(), cmd)
+	if runErr != nil {
+		runErr = s.getGrpcError(runErr)
+	}
+
+	var stdinCloseErr error
+	if data.Cmd.Stdin {
+		stdinCloseErr = stdinReader.Close()
+	}
+
+	var stdoutCloseErr error
+	if data.Cmd.Stdout {
+		stdoutCloseErr = stdoutWriter.Close()
+	}
+
+	var stderrCloseErr error
+	if data.Cmd.Stderr {
+		stderrCloseErr = stderrWriter.Close()
+	}
+
+	wg.Wait()
+
+	err := errors.Join(
+		runErr,
+		stdinErr,
+		stdoutErr,
+		stderrErr,
+		stdinCloseErr,
+		stdoutCloseErr,
+		stderrCloseErr,
+	)
+	if err != nil {
+		return err
+	}
+
+	err = stream.Send(&proto.RunResponse{
+		Data: &proto.RunResponse_Waitstatus{
+			Waitstatus: &proto.WaitStatus{
+				Exitcode: int64(waitStatus.ExitCode),
+				Exited:   waitStatus.Exited,
+				Signal:   waitStatus.Signal,
+			},
 		},
-		Stdout: stdoutBuff.Bytes(),
-		Stderr: stderrBuff.Bytes(),
-	}, nil
+	})
+	if err != nil {
+		return s.getGrpcError(err)
+	}
+
+	return nil
 }
 
 func (s *HostService) WriteFile(
