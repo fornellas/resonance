@@ -16,7 +16,6 @@ import (
 	"strings"
 
 	"al.essio.dev/pkg/shellescape"
-	"go.uber.org/multierr"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -290,7 +289,7 @@ func (a *AgentClient) spawn(ctx context.Context) error {
 		if !waitStatus.Success() {
 			waitStatusErr = errors.New(waitStatus.String())
 		}
-		a.spawnErrCh <- multierr.Combine(
+		a.spawnErrCh <- errors.Join(
 			runErr,
 			waitStatusErr,
 		)
@@ -300,7 +299,7 @@ func (a *AgentClient) spawn(ctx context.Context) error {
 	resp, err := a.hostServiceClient.Ping(ctx, &proto.PingRequest{})
 
 	if err != nil {
-		return multierr.Combine(err, a.Close(ctx))
+		return errors.Join(err, a.Close(ctx))
 	}
 
 	if resp.Message != "Pong" {
@@ -669,7 +668,7 @@ func (a *AgentClient) Close(ctx context.Context) error {
 
 	hostCloseErr := a.Host.Close(ctx)
 
-	return multierr.Combine(
+	return errors.Join(
 		shutdownErr,
 		grpcClientConnErr,
 		spawnErr,

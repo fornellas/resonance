@@ -2,14 +2,13 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strconv"
-
-	"github.com/hashicorp/go-multierror"
 
 	"github.com/fornellas/resonance/host"
 )
@@ -71,7 +70,7 @@ func (f *File) Load(ctx context.Context, hst host.Host) error {
 	contentBytes, err := io.ReadAll(fileReadCloser)
 	if err != nil {
 		if closeErr := fileReadCloser.Close(); closeErr != nil {
-			err = multierror.Append(err, closeErr)
+			err = errors.Join(err, closeErr)
 		}
 		return err
 	}
