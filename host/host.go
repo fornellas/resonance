@@ -5,7 +5,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"os/user"
+	"path/filepath"
+	"syscall"
 )
 
 // Host defines an interface for interacting with a Linux host
@@ -87,4 +90,34 @@ func Run(ctx context.Context, hst Host, cmd Cmd) (WaitStatus, string, string, er
 
 	waitStatus, err := hst.Run(ctx, cmd)
 	return waitStatus, stdoutBuffer.String(), stderrBuffer.String(), err
+}
+
+// MkdirAll wraps Host.Mkdir and behavess similar to os.MkdirAll.
+func MkdirAll(ctx context.Context, hst Host, name string, mode uint32) error {
+	stat_t, err := hst.Lstat(ctx, name)
+	if err == nil {
+		if stat_t.Mode&syscall.S_IFMT == syscall.S_IFDIR {
+			return nil
+		}
+		return &fs.PathError{
+			Op:   "MkdirAll",
+			Path: name,
+			Err:  syscall.ENOTDIR,
+		}
+	}
+
+	name = filepath.Clean(name)
+	parent := filepath.Dir(name)
+
+	if parent != name {
+		if err := MkdirAll(ctx, hst, parent, mode); err != nil {
+			return err
+		}
+	}
+
+	if err := hst.Mkdir(ctx, name, mode); err != nil {
+		return err
+	}
+
+	return nil
 }
