@@ -1,0 +1,9 @@
+GetResourceId
+    review usage of resonance:"id" tag (we're not using it) and update code / docs
+Steps
+    is essentially the same as a Blueprint, merge it into a single Blueprint type
+Step
+    is a single/group resosurce with dependencies
+    could be called a node
+resource yaml
+    define & publish schema
