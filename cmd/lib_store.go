@@ -72,17 +72,18 @@ func AddStoreFlags(cmd *cobra.Command) {
 }
 
 func GetStore(hst types.Host) storePkg.Store {
-	store := getStoreArch(hst)
-	if hst != nil {
-		return store
-	}
+	panic("TODO")
+	// store := getStoreArch(hst)
+	// if hst != nil {
+	// 	return store
+	// }
 
-	switch storeValue.String() {
-	case "target":
-		return storePkg.NewHostStore(hst, storeTargetPath)
-	default:
-		panic("bug: unexpected store value")
-	}
+	// switch storeValue.String() {
+	// case "target":
+	// 	return storePkg.NewHostStore(hst, storeTargetPath)
+	// default:
+	// 	panic("bug: unexpected store value")
+	// }
 }
 
 func init() {
