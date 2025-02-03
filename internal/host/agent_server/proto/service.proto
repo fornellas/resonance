@@ -20,6 +20,7 @@ service HostService {
   rpc ReadLink(ReadLinkRequest) returns (ReadLinkResponse) {}
   rpc Remove(RemoveRequest) returns (Empty) {}
   rpc Run(stream RunRequest) returns (stream RunResponse) {}
+  rpc Mknod(MknodRequest) returns (Empty) {}
   rpc WriteFile(stream WriteFileRequest) returns (Empty) {}
   rpc Shutdown(Empty) returns (Empty) {}
 }
@@ -149,6 +150,12 @@ message ReadLinkResponse {
 
 message RemoveRequest {
   string name = 1;
+}
+
+message MknodRequest {
+  string path = 1;
+  uint32 mode = 2;
+  uint64 dev = 3;
 }
 
 message Cmd {

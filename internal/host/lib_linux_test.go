@@ -15,16 +15,22 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/fornellas/resonance/host"
 )
 
-func skipIfRoot(t *testing.T) {
+func isRoot(t *testing.T) bool {
 	u, err := user.Current()
 	require.NoError(t, err)
-	if u.Uid == "0" {
+	return u.Uid == "0"
+}
+
+func skipIfRoot(t *testing.T) {
+	if isRoot(t) {
 		t.SkipNow()
 	}
 }
@@ -42,6 +48,21 @@ func getBlockDevicePath(t *testing.T) string {
 	}
 	t.SkipNow()
 	return ""
+}
+
+var allModeBits = []uint32{
+	syscall.S_ISUID, // 04000 set-user-ID bit
+	syscall.S_ISGID, // 02000 set-group-ID bit
+	syscall.S_ISVTX, // 01000 sticky bit
+	syscall.S_IRUSR, // 00400 owner has read permission
+	syscall.S_IWUSR, // 00200 owner has write permission
+	syscall.S_IXUSR, // 00100 owner has execute permission
+	syscall.S_IRGRP, // 00040 group has read permission
+	syscall.S_IWGRP, // 00020 group has write permission
+	syscall.S_IXGRP, // 00010 group has execute permission
+	syscall.S_IROTH, // 00004 others have read permission
+	syscall.S_IWOTH, // 00002 others have write permission
+	syscall.S_IXOTH, // 00001 others have execute permission
 }
 
 func testBaseHost(
@@ -375,25 +396,7 @@ func testHost(
 					})
 				})
 				t.Run("Mode bits", func(t *testing.T) {
-					for _, mode := range []uint32{
-						// Mode  bits
-						syscall.S_ISUID, // 04000 set-user-ID bit
-						syscall.S_ISGID, // 02000 set-group-ID bit
-						syscall.S_ISVTX, // 01000 sticky bit
-						// Mode permission bits
-						syscall.S_IRWXU, // 00700 owner has read, write, and execute permission
-						syscall.S_IRUSR, // 00400 owner has read permission
-						syscall.S_IWUSR, // 00200 owner has write permission
-						syscall.S_IXUSR, // 00100 owner has execute permission
-						syscall.S_IRWXG, // 00070 group has read, write, and execute permission
-						syscall.S_IRGRP, // 00040 group has read permission
-						syscall.S_IWGRP, // 00020 group has write permission
-						syscall.S_IXGRP, // 00010 group has execute permission
-						syscall.S_IRWXO, // 00007 others (not in group) have read, write, and execute permission
-						syscall.S_IROTH, // 00004 others have read permission
-						syscall.S_IWOTH, // 00002 others have write permission
-						syscall.S_IXOTH, // 00001 others have execute permission
-					} {
+					for _, mode := range allModeBits {
 						err := syscall.Chmod(name, mode)
 						require.NoError(t, err)
 
@@ -451,6 +454,7 @@ func testHost(
 			require.ErrorContains(t, err, "path must be absolute")
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
+			skipIfRoot(t)
 			_, err := hst.Lstat(ctx, "/etc/ssl/private/foo")
 			require.ErrorIs(t, err, os.ErrPermission)
 		})
@@ -515,6 +519,7 @@ func testHost(
 			require.ErrorContains(t, err, "path must be absolute")
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
+			skipIfRoot(t)
 			_, err := hst.ReadDir(ctx, "/etc/ssl/private/foo")
 			require.ErrorIs(t, err, os.ErrPermission)
 		})
@@ -580,6 +585,7 @@ func testHost(
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			fileReadCloser, err := hst.ReadFile(ctx, "/etc/shadow")
+			skipIfRoot(t)
 			require.ErrorIs(t, err, os.ErrPermission)
 			if err == nil {
 				require.NoError(t, fileReadCloser.Close())
@@ -698,6 +704,50 @@ func testHost(
 		})
 	})
 
+	t.Run("Mknod", func(t *testing.T) {
+		testMknod := func(t *testing.T, name string, fileType, modeBits uint32, dev uint64) {
+			t.Run(name, func(t *testing.T) {
+				path := filepath.Join(t.TempDir(), name)
+				var fileTypeBits uint32 = fileType
+				var mode uint32 = fileTypeBits | modeBits
+
+				var isDevice bool
+				switch fileType & syscall.S_IFMT {
+				case syscall.S_IFBLK, syscall.S_IFCHR:
+					isDevice = true
+				}
+
+				err := hst.Mknod(ctx, path, mode, dev)
+				if isDevice && !isRoot(t) {
+					require.ErrorIs(t, err, os.ErrPermission)
+					return
+				}
+				require.NoError(t, err)
+
+				var stat_t syscall.Stat_t
+				err = syscall.Stat(path, &stat_t)
+				require.NoError(t, err)
+				require.Equal(t, fileTypeBits, stat_t.Mode&syscall.S_IFMT)
+				require.Equal(t, modeBits, stat_t.Mode&07777)
+				if isDevice {
+					require.Equal(t, dev, stat_t.Rdev)
+				}
+			})
+		}
+		t.Run("File type", func(t *testing.T) {
+			testMknod(t, "socket", syscall.S_IFSOCK, 0644, 0)
+			testMknod(t, "regular file", syscall.S_IFREG, 0644, 0)
+			testMknod(t, "block device", syscall.S_IFBLK, 0644, unix.Mkdev(132, 4123))
+			testMknod(t, "character device", syscall.S_IFCHR, 0644, unix.Mkdev(3421, 7623))
+			testMknod(t, "FIFO", syscall.S_IFIFO, 0644, 0)
+		})
+		t.Run("Mode bits", func(t *testing.T) {
+			for _, modeBits := range allModeBits {
+				testMknod(t, fmt.Sprintf("mode bits %#o", modeBits), syscall.S_IFREG, modeBits, 0)
+			}
+		})
+	})
+
 	t.Run("WriteFile", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
 			name := filepath.Join(t.TempDir(), "foo")
@@ -713,6 +763,7 @@ func testHost(
 			require.NoError(t, syscall.Lstat(name, &stat_t))
 			require.Equal(t, fileMode, stat_t.Mode&07777)
 		})
+
 		t.Run("path must be absolute", func(t *testing.T) {
 			err := hst.WriteFile(ctx, "foo/bar", bytes.NewReader([]byte{}), 0600)
 			require.ErrorContains(t, err, "path must be absolute")

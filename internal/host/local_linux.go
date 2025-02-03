@@ -3,6 +3,7 @@ package host
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -203,6 +204,25 @@ func (h Local) Remove(ctx context.Context, name string) error {
 	}
 
 	return os.Remove(name)
+}
+
+func (h Local) Mknod(ctx context.Context, pathName string, mode uint32, dev uint64) error {
+	logger := log.MustLogger(ctx)
+	logger.Debug("Mknod", "pathName", pathName, "mode", mode, "dev", dev)
+
+	if !path.IsAbs(pathName) {
+		return fmt.Errorf("path must be absolute: %#v", pathName)
+	}
+
+	if dev != uint64(int(dev)) {
+		return fmt.Errorf("dev value is too big: %#v", dev)
+	}
+
+	if err := syscall.Mknod(pathName, mode, int(dev)); err != nil {
+		return err
+	}
+
+	return syscall.Chmod(pathName, mode&07777)
 }
 
 func (h Local) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {

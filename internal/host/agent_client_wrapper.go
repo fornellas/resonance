@@ -610,6 +610,30 @@ func (h *AgentClientWrapper) Remove(ctx context.Context, name string) error {
 
 	return nil
 }
+func (h *AgentClientWrapper) Mknod(ctx context.Context, pathName string, mode uint32, dev uint64) error {
+	logger := log.MustLogger(ctx)
+	logger.Debug("Mknod", "pathName", pathName, "mode", mode, "dev", dev)
+
+	_, err := h.hostServiceClient.Mknod(ctx, &proto.MknodRequest{
+		Path: pathName,
+		Mode: mode,
+		Dev:  dev,
+	})
+	if err != nil {
+		if status, ok := status.FromError(err); ok {
+			switch status.Code() {
+			case codes.PermissionDenied:
+				return fs.ErrPermission
+			case codes.NotFound:
+				return fs.ErrNotExist
+			case codes.AlreadyExists:
+				return fs.ErrExist
+			}
+		}
+		return err
+	}
+	return nil
+}
 
 func (h *AgentClientWrapper) runStdinCopier(
 	stdinReader io.Reader,

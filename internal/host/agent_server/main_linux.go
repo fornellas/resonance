@@ -310,6 +310,22 @@ func (s *HostService) Remove(ctx context.Context, req *proto.RemoveRequest) (*pr
 	return nil, nil
 }
 
+func (s *HostService) Mknod(ctx context.Context, req *proto.MknodRequest) (*proto.Empty, error) {
+	if !filepath.IsAbs(req.Path) {
+		return nil, fmt.Errorf("path must be absolute: %s", req.Path)
+	}
+
+	if req.Dev != uint64(int(req.Dev)) {
+		return nil, fmt.Errorf("dev value is too big: %#v", req.Dev)
+	}
+
+	if err := syscall.Mknod(req.Path, req.Mode, int(req.Dev)); err != nil {
+		return nil, s.getGrpcError(err)
+	}
+
+	return nil, s.getGrpcError(syscall.Chmod(req.Path, req.Mode&07777))
+}
+
 func (s *HostService) runStdinCopier(
 	stream grpc.BidiStreamingServer[proto.RunRequest, proto.RunResponse],
 	stdinWriter io.Writer,
