@@ -11,8 +11,25 @@ import (
 	"syscall"
 )
 
-// Host defines an interface for interacting with a Linux host
+// BaseHost defines a minimalist interface for interfacing with a Linux host.
+type BaseHost interface {
+	// Run starts the specified command and waits for it to complete.
+	Run(ctx context.Context, cmd Cmd) (WaitStatus, error)
+
+	// A string representation of the host which uniquely identifies it, eg, its FQDN.
+	String() string
+
+	// String representation for the type of connection is used. eg: ssh, localhost, docker
+	Type() string
+
+	// Close any pending connections (if applicable).
+	Close(ctx context.Context) error
+}
+
+// Host defines a complete interface for interacting with a Linux host
 type Host interface {
+	BaseHost
+
 	// Geteuid works similar to syscall.Geteuid
 	Geteuid(ctx context.Context) (uint64, error)
 
@@ -57,25 +74,13 @@ type Host interface {
 	// Remove works similar to os.Remove.
 	Remove(ctx context.Context, name string) error
 
-	// Run starts the specified command and waits for it to complete.
-	Run(ctx context.Context, cmd Cmd) (WaitStatus, error)
-
 	// WriteFile works similar to os.WriteFile, but receives mode as is syscall.Chmod argument.
 	WriteFile(ctx context.Context, name string, data io.Reader, mode uint32) error
-
-	// A string representation of the host which uniquely identifies it, eg, its FQDN.
-	String() string
-
-	// String representation for the type of connection is used. eg: ssh, localhost, docker
-	Type() string
-
-	// Close any pending connections (if applicable).
-	Close(ctx context.Context) error
 }
 
 // Run starts the specified command and waits for it to complete.
 // Returns WaitStatus, stdout and stderr.
-func Run(ctx context.Context, hst Host, cmd Cmd) (WaitStatus, string, string, error) {
+func Run(ctx context.Context, hst BaseHost, cmd Cmd) (WaitStatus, string, string, error) {
 	if cmd.Stdout != nil {
 		panic(fmt.Errorf("can not set Cmd.Stdout: %s", cmd))
 	}

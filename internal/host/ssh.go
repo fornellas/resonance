@@ -26,7 +26,6 @@ import (
 
 // Ssh interacts with a remote machine connecting to it via SSH protocol.
 type Ssh struct {
-	BaseHostRun
 	Hostname string
 	client   *ssh.Client
 	envPath  string
@@ -263,7 +262,6 @@ func NewSsh(
 		Hostname: host,
 		client:   client,
 	}
-	sshHost.BaseHostRun.Host = sshHost
 
 	if err := sshHost.setEnvPath(ctx); err != nil {
 		return Ssh{}, err

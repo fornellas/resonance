@@ -14,7 +14,6 @@ import (
 
 // Docker uses docker exec to target a running container.
 type Docker struct {
-	BaseHostRun
 	// User/group and image in the format "[<name|uid>[:<group|gid>]@]<image>" (eg: root@ubuntu)
 	ConnectionString string
 }
@@ -23,7 +22,6 @@ func NewDocker(ctx context.Context, connection string) (Docker, error) {
 	dockerHst := Docker{
 		ConnectionString: connection,
 	}
-	dockerHst.BaseHostRun.Host = &dockerHst
 	return dockerHst, nil
 }
 

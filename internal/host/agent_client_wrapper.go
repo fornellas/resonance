@@ -103,17 +103,17 @@ func (wl WriterLogger) Write(b []byte) (int, error) {
 
 var AgentBinGz = map[string][]byte{}
 
-// AgentClientWrapper interacts with a given Host using an agent that's copied and ran at the
-// host.
+// AgentClientWrapper wraps a host.BaseHost and provides a full host.Host implementation with the
+// use of an ephemeral agent.
 type AgentClientWrapper struct {
-	Host              host.Host
+	BaseHost          host.BaseHost
 	path              string
 	grpcClientConn    *grpc.ClientConn
 	hostServiceClient proto.HostServiceClient
 	spawnErrCh        chan error
 }
 
-func getTmpFile(ctx context.Context, hst host.Host, template string) (string, error) {
+func getTmpFile(ctx context.Context, hst host.BaseHost, template string) (string, error) {
 	cmd := host.Cmd{
 		Path: "mktemp",
 		Args: []string{"-t", fmt.Sprintf("%s.XXXXXXXX", template)},
@@ -129,6 +129,25 @@ func getTmpFile(ctx context.Context, hst host.Host, template string) (string, er
 		)
 	}
 	return strings.TrimRight(stdout, "\n"), nil
+}
+
+func chmod(ctx context.Context, baseHost host.BaseHost, name string, mode uint32) error {
+	cmd := host.Cmd{
+		Path: "chmod",
+		Args: []string{fmt.Sprintf("%o", mode), name},
+	}
+	waitStatus, stdout, stderr, err := host.Run(ctx, baseHost, cmd)
+	if err != nil {
+		return err
+	}
+	if waitStatus.Success() {
+		return nil
+	}
+
+	return fmt.Errorf(
+		"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+		cmd, waitStatus.String(), stdout, stderr,
+	)
 }
 
 func getGoArch(machine string) (string, error) {
@@ -163,7 +182,7 @@ func getGoArch(machine string) (string, error) {
 	return "", fmt.Errorf("machine %#v not supported by agent", machine)
 }
 
-func getAgentBinGz(ctx context.Context, hst host.Host) ([]byte, error) {
+func getAgentBinGz(ctx context.Context, hst host.BaseHost) ([]byte, error) {
 	cmd := host.Cmd{
 		Path: "uname",
 		Args: []string{"-m"},
@@ -191,7 +210,7 @@ func getAgentBinGz(ctx context.Context, hst host.Host) ([]byte, error) {
 	return agentBinGz, nil
 }
 
-func copyReader(ctx context.Context, hst host.Host, reader io.Reader, path string) error {
+func copyReader(ctx context.Context, hst host.BaseHost, reader io.Reader, path string) error {
 	cmd := host.Cmd{
 		Path:  "sh",
 		Args:  []string{"-c", fmt.Sprintf("cat > %s", shellescape.Quote(path))},
@@ -210,19 +229,19 @@ func copyReader(ctx context.Context, hst host.Host, reader io.Reader, path strin
 	return nil
 }
 
-func NewAgentClientWrapper(ctx context.Context, hst host.Host) (*AgentClientWrapper, error) {
+func NewAgentClientWrapper(ctx context.Context, baseHost host.BaseHost) (*AgentClientWrapper, error) {
 	ctx, _ = log.MustContextLoggerSection(ctx, "🐈 Agent")
 
-	agentPath, err := getTmpFile(ctx, hst, "resonance_agent")
+	agentPath, err := getTmpFile(ctx, baseHost, "resonance_agent")
 	if err != nil {
 		return nil, err
 	}
 
-	if err := hst.Chmod(ctx, agentPath, 0755); err != nil {
+	if err := chmod(ctx, baseHost, agentPath, 0755); err != nil {
 		return nil, err
 	}
 
-	agentBinGz, err := getAgentBinGz(ctx, hst)
+	agentBinGz, err := getAgentBinGz(ctx, baseHost)
 	if err != nil {
 		return nil, err
 	}
@@ -232,12 +251,12 @@ func NewAgentClientWrapper(ctx context.Context, hst host.Host) (*AgentClientWrap
 		return nil, err
 	}
 
-	if err := copyReader(ctx, hst, agentReader, agentPath); err != nil {
+	if err := copyReader(ctx, baseHost, agentReader, agentPath); err != nil {
 		return nil, err
 	}
 
 	agent := AgentClientWrapper{
-		Host:       hst,
+		BaseHost:   baseHost,
 		path:       agentPath,
 		spawnErrCh: make(chan error),
 	}
@@ -278,7 +297,7 @@ func (h *AgentClientWrapper) spawn(ctx context.Context) error {
 	}
 
 	go func() {
-		waitStatus, runErr := h.Host.Run(ctx, host.Cmd{
+		waitStatus, runErr := h.BaseHost.Run(ctx, host.Cmd{
 			Path:   h.path,
 			Stdin:  stdinReader,
 			Stdout: stdoutWriter,
@@ -777,11 +796,11 @@ func (h *AgentClientWrapper) WriteFile(ctx context.Context, name string, data io
 }
 
 func (h *AgentClientWrapper) String() string {
-	return h.Host.String()
+	return h.BaseHost.String()
 }
 
 func (h *AgentClientWrapper) Type() string {
-	return h.Host.Type()
+	return h.BaseHost.Type()
 }
 
 func (h *AgentClientWrapper) Close(ctx context.Context) error {
@@ -795,7 +814,7 @@ func (h *AgentClientWrapper) Close(ctx context.Context) error {
 
 	grpcClientConnErr := h.grpcClientConn.Close()
 
-	hostCloseErr := h.Host.Close(ctx)
+	hostCloseErr := h.BaseHost.Close(ctx)
 
 	return errors.Join(
 		shutdownErr,

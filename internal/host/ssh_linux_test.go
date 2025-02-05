@@ -66,6 +66,9 @@ func getSshHandler(t *testing.T, username string) func(session ssh.Session) {
 }
 
 func TestSsh(t *testing.T) {
+	ctx := context.Background()
+	ctx = log.WithTestLogger(ctx)
+
 	listener, err := net.Listen("tcp4", "localhost:")
 	require.NoError(t, err)
 	addrChunks := strings.Split(listener.Addr().String(), ":")
@@ -88,15 +91,12 @@ func TestSsh(t *testing.T) {
 	go server.Serve(listener)
 	defer func() { server.Close() }()
 
-	ctx := context.Background()
-	ctx = log.WithTestLogger(ctx)
-
-	host, err := NewSshAuthority(ctx, fmt.Sprintf(
+	baseHost, err := NewSshAuthority(ctx, fmt.Sprintf(
 		"%s;fingerprint=%s@localhost:%d",
 		username, serverFingerprint, port,
 	))
 	require.NoError(t, err)
-	defer func() { require.NoError(t, host.Close(ctx)) }()
+	defer func() { require.NoError(t, baseHost.Close(ctx)) }()
 
-	testHost(t, host)
+	testBaseHost(t, ctx, baseHost, "localhost", "ssh")
 }
