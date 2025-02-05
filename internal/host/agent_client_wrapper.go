@@ -494,28 +494,49 @@ func (h *AgentClientWrapper) Lstat(ctx context.Context, name string) (*host.Stat
 	return &stat_t, nil
 }
 
-func (h *AgentClientWrapper) ReadDir(ctx context.Context, name string) ([]host.DirEnt, error) {
+func (h *AgentClientWrapper) ReadDir(ctx context.Context, name string) (<-chan host.DirEntResult, func()) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("ReadDir", "name", name)
 
-	resp, err := h.hostServiceClient.ReadDir(ctx, &proto.ReadDirRequest{
-		Name: name,
-	})
-	if err != nil {
-		return nil, getGrpcError(err)
-	}
+	ctx, cancel := context.WithCancel(ctx)
 
-	dirEnts := []host.DirEnt{}
-	for _, protoDirEnt := range resp.Entries {
-		dirEnts = append(dirEnts, host.DirEnt{
-			Name: protoDirEnt.Name,
-			Type: uint8(protoDirEnt.Type),
-			Ino:  protoDirEnt.Ino,
+	dirEntResultCh := make(chan host.DirEntResult, 100)
+
+	go func() {
+		stream, err := h.hostServiceClient.ReadDir(ctx, &proto.ReadDirRequest{
+			Name: name,
 		})
-	}
+		if err != nil {
+			dirEntResultCh <- host.DirEntResult{Error: err}
+			close(dirEntResultCh)
+			return
+		}
 
-	return dirEnts, nil
+		for {
+			dirEnt, err := stream.Recv()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				dirEntResultCh <- host.DirEntResult{Error: getGrpcError(err)}
+				close(dirEntResultCh)
+				return
+			}
+
+			dirEntResultCh <- host.DirEntResult{
+				DirEnt: host.DirEnt{
+					Ino:  dirEnt.Ino,
+					Type: uint8(dirEnt.Type),
+					Name: dirEnt.Name,
+				},
+			}
+		}
+
+		close(dirEntResultCh)
+	}()
+
+	return dirEntResultCh, cancel
 }
 
 func (h *AgentClientWrapper) Mkdir(ctx context.Context, name string, mode uint32) error {

@@ -120,7 +120,7 @@ func (h Local) Lstat(ctx context.Context, name string) (*host.Stat_t, error) {
 	}, nil
 }
 
-func (h Local) ReadDir(ctx context.Context, name string) ([]host.DirEnt, error) {
+func (h Local) ReadDir(ctx context.Context, name string) (<-chan host.DirEntResult, func()) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("ReadDir", "name", name)
 

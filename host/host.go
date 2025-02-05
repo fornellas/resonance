@@ -57,7 +57,7 @@ type Host interface {
 	Lstat(ctx context.Context, name string) (*Stat_t, error)
 
 	// ReadDir reads the named directory, returning all its DirEnt.
-	ReadDir(ctx context.Context, name string) ([]DirEnt, error)
+	ReadDir(ctx context.Context, name string) (dirEntResultCh <-chan DirEntResult, cancel func())
 
 	// Mkdir works similar to syscall.Mkdir, but ignoring umask.
 	Mkdir(ctx context.Context, name string, mode uint32) error

@@ -13,7 +13,7 @@ service HostService {
   rpc Lookup(LookupRequest) returns (LookupResponse) {}
   rpc LookupGroup(LookupGroupRequest) returns (LookupGroupResponse) {}
   rpc Lstat(LstatRequest) returns (LstatResponse) {}
-  rpc ReadDir(ReadDirRequest) returns (ReadDirResponse) {}
+  rpc ReadDir(ReadDirRequest) returns (stream DirEnt) {}
   rpc Mkdir(MkdirRequest) returns (Empty) {}
   rpc ReadFile(ReadFileRequest) returns (stream ReadFileResponse) {}
   rpc Symlink(SymlinkRequest) returns (Empty) {}
@@ -113,10 +113,6 @@ message DirEnt {
   uint64 ino = 1;
   int32 type = 2;
   string name = 3;
-}
-
-message ReadDirResponse {
-  repeated DirEnt entries = 1;
 }
 
 message Empty {

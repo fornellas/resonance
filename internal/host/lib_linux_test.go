@@ -501,11 +501,13 @@ func testHost(
 			require.NoError(t, syscall.Mkfifo(filepath.Join(dirPath, "FIFO"), 0644))
 			expectedTypeMap["FIFO"] = syscall.DT_FIFO
 
-			dirEnts, err := hst.ReadDir(ctx, dirPath)
-			require.NoError(t, err)
+			dirEntResultCh, cancel := hst.ReadDir(ctx, dirPath)
+			defer cancel()
 
 			inodeMap := map[uint64]bool{}
-			for _, dirEnt := range dirEnts {
+			for dirEntResult := range dirEntResultCh {
+				require.NoError(t, dirEntResult.Error)
+				dirEnt := dirEntResult.DirEnt
 				require.NotContains(t, inodeMap, dirEnt.Ino)
 				inodeMap[dirEnt.Ino] = true
 				require.Contains(t, expectedTypeMap, dirEnt.Name)
@@ -515,17 +517,23 @@ func testHost(
 			require.Empty(t, expectedTypeMap)
 		})
 		t.Run("path must be absolute", func(t *testing.T) {
-			_, err := hst.ReadDir(ctx, "foo")
-			require.ErrorContains(t, err, "path must be absolute")
+			dirEntResultCh, cancel := hst.ReadDir(ctx, "foo")
+			defer cancel()
+			direntResult := <-dirEntResultCh
+			require.ErrorContains(t, direntResult.Error, "path must be absolute")
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			skipIfRoot(t)
-			_, err := hst.ReadDir(ctx, "/etc/ssl/private/foo")
-			require.ErrorIs(t, err, os.ErrPermission)
+			dirEntResultCh, cancel := hst.ReadDir(ctx, "/etc/ssl/private/foo")
+			defer cancel()
+			direntResult := <-dirEntResultCh
+			require.ErrorIs(t, direntResult.Error, os.ErrPermission)
 		})
 		t.Run("ErrNotExist", func(t *testing.T) {
-			_, err := hst.ReadDir(ctx, "/non-existent")
-			require.ErrorIs(t, err, os.ErrNotExist)
+			dirEntResultCh, cancel := hst.ReadDir(ctx, "/non-existent")
+			defer cancel()
+			direntResult := <-dirEntResultCh
+			require.ErrorIs(t, direntResult.Error, os.ErrNotExist)
 		})
 	})
 
