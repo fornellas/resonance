@@ -387,6 +387,67 @@ func (s *HostService) runReaderCopier(
 	return writeCloser, nil
 }
 
+func (s *HostService) runStartStreamGoroutines(
+	cmd *proto.Cmd,
+	stream grpc.BidiStreamingServer[proto.RunRequest, proto.RunResponse],
+	stdinErr *error,
+	stdoutErr *error,
+	stderrErr *error,
+) (
+	stdinReader io.ReadCloser,
+	stdoutWriter io.WriteCloser,
+	stderrWriter io.WriteCloser,
+	wg *sync.WaitGroup,
+	err error,
+) {
+	wg = &sync.WaitGroup{}
+
+	if cmd.Stdin {
+		var stdinWriter io.Writer
+		stdinReader, stdinWriter, err = os.Pipe()
+		if err != nil {
+			return nil, nil, nil, wg, s.getGrpcError(err)
+		}
+		go func() {
+			*stdinErr = s.runStdinCopier(stream, stdinWriter)
+		}()
+	}
+
+	if cmd.Stdout {
+		stdoutWriter, err = s.runReaderCopier(
+			stream, wg, stdoutErr,
+			func(buffer []byte) *proto.RunResponse {
+				return &proto.RunResponse{
+					Data: &proto.RunResponse_StdoutChunk{
+						StdoutChunk: buffer,
+					},
+				}
+			},
+		)
+		if err != nil {
+			return nil, nil, nil, wg, err
+		}
+	}
+
+	if cmd.Stderr {
+		stderrWriter, err = s.runReaderCopier(
+			stream, wg, stderrErr,
+			func(buffer []byte) *proto.RunResponse {
+				return &proto.RunResponse{
+					Data: &proto.RunResponse_StderrChunk{
+						StderrChunk: buffer,
+					},
+				}
+			},
+		)
+		if err != nil {
+			return nil, nil, nil, wg, err
+		}
+	}
+
+	return stdinReader, stdoutWriter, stderrWriter, wg, nil
+}
+
 func (s *HostService) Run(stream grpc.BidiStreamingServer[proto.RunRequest, proto.RunResponse]) error {
 	req, runErr := stream.Recv()
 	if runErr != nil {
@@ -397,49 +458,19 @@ func (s *HostService) Run(stream grpc.BidiStreamingServer[proto.RunRequest, prot
 		panic(fmt.Errorf("bug: unexpected request data: %#v", req.Data))
 	}
 
-	var stdinReader io.ReadCloser
 	var stdinErr error
-	if data.Cmd.Stdin {
-		var stdinWriter io.Writer
-		stdinReader, stdinWriter, runErr = os.Pipe()
-		if runErr != nil {
-			return s.getGrpcError(runErr)
-		}
-		go func() {
-			stdinErr = s.runStdinCopier(stream, stdinWriter)
-		}()
-	}
-
-	var wg sync.WaitGroup
-
-	var stdoutWriter io.WriteCloser
 	var stdoutErr error
-	if data.Cmd.Stdout {
-		stdoutWriter, runErr = s.runReaderCopier(stream, &wg, &stdoutErr, func(buffer []byte) *proto.RunResponse {
-			return &proto.RunResponse{
-				Data: &proto.RunResponse_StdoutChunk{
-					StdoutChunk: buffer,
-				},
-			}
-		})
-		if runErr != nil {
-			return runErr
-		}
+	var stderrErr error
+
+	stdinReader, stdoutWriter, stderrWriter, wg, err := s.runStartStreamGoroutines(
+		data.Cmd, stream, &stdinErr, &stdoutErr, &stderrErr,
+	)
+	if err != nil {
+		return err
 	}
 
-	var stderrWriter io.WriteCloser
-	var stderrErr error
-	if data.Cmd.Stderr {
-		stderrWriter, runErr = s.runReaderCopier(stream, &wg, &stderrErr, func(buffer []byte) *proto.RunResponse {
-			return &proto.RunResponse{
-				Data: &proto.RunResponse_StderrChunk{
-					StderrChunk: buffer,
-				},
-			}
-		})
-		if runErr != nil {
-			return runErr
-		}
+	if len(data.Cmd.EnvVars) == 0 {
+		data.Cmd.EnvVars = host.DefaultEnv
 	}
 
 	cmd := host.Cmd{
@@ -473,7 +504,7 @@ func (s *HostService) Run(stream grpc.BidiStreamingServer[proto.RunRequest, prot
 
 	wg.Wait()
 
-	err := errors.Join(
+	err = errors.Join(
 		runErr,
 		stdinErr,
 		stdoutErr,

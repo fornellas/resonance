@@ -2,11 +2,15 @@ package host
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"os"
+	"io/fs"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
+
+	"al.essio.dev/pkg/shellescape"
 
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/log"
@@ -29,30 +33,7 @@ func (h Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) 
 	logger := log.MustLogger(ctx)
 	logger.Debug("Run", "cmd", cmd)
 
-	if cmd.Dir == "" {
-		cmd.Dir = "/tmp"
-	}
-
-	if len(cmd.Env) == 0 {
-		cmd.Env = []string{"LANG=en_US.UTF-8"}
-		for _, value := range os.Environ() {
-			if strings.HasPrefix(value, "PATH=") {
-				cmd.Env = append(cmd.Env, value)
-				break
-			}
-		}
-	}
-
-	args := []string{"exec"}
-	for _, value := range cmd.Env {
-		args = append(args, []string{"--env", value}...)
-	}
-	if cmd.Stdin != nil {
-		args = append(args, "--interactive")
-	}
-
 	parts := strings.Split(h.ConnectionString, "@")
-
 	var dockerConnectionUser, dockerConnectionContainer string
 	switch len(parts) {
 	case 1:
@@ -65,11 +46,40 @@ func (h Docker) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) 
 		return host.WaitStatus{}, fmt.Errorf("invalid connection string format: %s", h.ConnectionString)
 	}
 
+	if cmd.Dir == "" {
+		cmd.Dir = "/tmp"
+	}
+	if !filepath.IsAbs(cmd.Dir) {
+		return host.WaitStatus{}, &fs.PathError{
+			Op:   "Run",
+			Path: cmd.Dir,
+			Err:  errors.New("path must be absolute"),
+		}
+	}
+
+	if len(cmd.Env) == 0 {
+		cmd.Env = host.DefaultEnv
+	}
+
+	args := []string{"exec"}
+	if cmd.Stdin != nil {
+		args = append(args, "--interactive")
+	}
 	args = append(args, []string{"--user", dockerConnectionUser}...)
 	args = append(args, []string{"--workdir", cmd.Dir}...)
 	args = append(args, dockerConnectionContainer)
-	args = append(args, cmd.Path)
-	args = append(args, cmd.Args...)
+
+	cmdStr := []string{
+		"env", "-i",
+	}
+	for _, env := range cmd.Env {
+		cmdStr = append(cmdStr, shellescape.Quote(env))
+	}
+	cmdStr = append(cmdStr, shellescape.Quote(cmd.Path))
+	for _, arg := range cmd.Args {
+		cmdStr = append(cmdStr, shellescape.Quote(arg))
+	}
+	args = append(args, "sh", "-c", strings.Join(cmdStr, " "))
 
 	execCmd := exec.CommandContext(ctx, "docker", args...)
 	execCmd.Stdin = cmd.Stdin
