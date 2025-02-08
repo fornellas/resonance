@@ -1,7 +1,6 @@
 package host
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -28,7 +27,6 @@ import (
 type Ssh struct {
 	Hostname string
 	client   *ssh.Client
-	envPath  string
 }
 
 func sshGetSigners(ctx context.Context) ([]ssh.Signer, error) {
@@ -263,10 +261,6 @@ func NewSsh(
 		client:   client,
 	}
 
-	if err := sshHost.setEnvPath(ctx); err != nil {
-		return Ssh{}, err
-	}
-
 	return sshHost, nil
 }
 
@@ -315,7 +309,7 @@ func NewSshAuthority(ctx context.Context, authority string) (Ssh, error) {
 	return NewSsh(ctx, user, fingerprint, host, port, DefaultSshTCPConnectTimeout)
 }
 
-func (h Ssh) runEnv(ctx context.Context, cmd host.Cmd, ignoreCmdEnv bool) (host.WaitStatus, error) {
+func (h Ssh) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Run", "cmd", cmd)
 
@@ -347,26 +341,17 @@ func (h Ssh) runEnv(ctx context.Context, cmd host.Cmd, ignoreCmdEnv bool) (host.
 	}
 
 	var args []string
-	if !ignoreCmdEnv {
-		if len(cmd.Env) == 0 {
-			cmd.Env = []string{"LANG=en_US.UTF-8"}
-			if h.envPath != "" {
-				cmd.Env = append(cmd.Env, h.envPath)
-			}
-		}
-		envStrs := []string{}
-		for _, nameValue := range cmd.Env {
-			envStrs = append(envStrs, shellescape.Quote(nameValue))
-		}
-		envStr := strings.Join(envStrs, " ")
-		args = []string{"sh", "-c", fmt.Sprintf(
-			"cd %s && exec env --ignore-environment %s %s", shellescape.Quote(cmd.Dir), envStr, shellCmdStr,
-		)}
-	} else {
-		args = []string{"sh", "-c", fmt.Sprintf(
-			"cd %s && exec env %s", shellescape.Quote(cmd.Dir), shellCmdStr,
-		)}
+	if len(cmd.Env) == 0 {
+		cmd.Env = host.DefaultEnv
 	}
+	envStrs := []string{}
+	for _, nameValue := range cmd.Env {
+		envStrs = append(envStrs, shellescape.Quote(nameValue))
+	}
+	envStr := strings.Join(envStrs, " ")
+	args = []string{"sh", "-c", fmt.Sprintf(
+		"cd %s && exec env --ignore-environment %s %s", shellescape.Quote(cmd.Dir), envStr, shellCmdStr,
+	)}
 
 	var cmdStrBdr strings.Builder
 	fmt.Fprintf(&cmdStrBdr, "%s", shellescape.Quote(args[0]))
@@ -396,37 +381,6 @@ func (h Ssh) runEnv(ctx context.Context, cmd host.Cmd, ignoreCmdEnv bool) (host.
 		Exited:   exited,
 		Signal:   signal,
 	}, nil
-}
-
-func (h Ssh) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
-	return h.runEnv(ctx, cmd, false)
-}
-
-func (h *Ssh) setEnvPath(ctx context.Context) error {
-	stdoutBuffer := bytes.Buffer{}
-	stderrBuffer := bytes.Buffer{}
-	cmd := host.Cmd{
-		Path:   "env",
-		Stdout: &stdoutBuffer,
-		Stderr: &stderrBuffer,
-	}
-	waitStatus, err := h.runEnv(ctx, cmd, true)
-	if err != nil {
-		return err
-	}
-	if !waitStatus.Success() {
-		return fmt.Errorf(
-			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus.String(), stdoutBuffer.String(), stderrBuffer.String(),
-		)
-	}
-	for _, value := range strings.Split(stdoutBuffer.String(), "\n") {
-		if strings.HasPrefix(value, "PATH=") {
-			h.envPath = value
-			break
-		}
-	}
-	return nil
 }
 
 func (h Ssh) String() string {

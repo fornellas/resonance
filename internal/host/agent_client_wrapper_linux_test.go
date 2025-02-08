@@ -18,5 +18,6 @@ func TestAgentClientWrapper(t *testing.T) {
 	defer func() { require.NoError(t, host.Close(ctx)) }()
 	require.NoError(t, err)
 
-	testHost(t, ctx, host, baseHost.String(), baseHost.Type())
+	tempDir := t.TempDir()
+	testHost(t, ctx, tempDir, host, baseHost.String(), baseHost.Type())
 }
