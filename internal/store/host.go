@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -220,7 +219,7 @@ func (s *HostStore) saveYaml(ctx context.Context, obj any, path string) error {
 
 	dir := filepath.Dir(path)
 
-	if err := os.MkdirAll(dir, fs.FileMode(0700)); err != nil {
+	if err := host.MkdirAll(ctx, s.Host, dir, 0700); err != nil {
 		return err
 	}
 
