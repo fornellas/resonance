@@ -74,7 +74,10 @@ type Host interface {
 	// Remove works similar to os.Remove.
 	Remove(ctx context.Context, name string) error
 
-	// WriteFile works similar to os.WriteFile, but receives mode as is syscall.Chmod argument.
+	// Mknod works similar to syscall.Mknod, but ignoring umask.
+	Mknod(ctx context.Context, path string, mode uint32, dev uint64) error
+
+	// WriteFile works similar to os.WriteFile, but receives mode bits (see inode(7)) and ignores umask.
 	WriteFile(ctx context.Context, name string, data io.Reader, mode uint32) error
 }
 
