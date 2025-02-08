@@ -3,7 +3,6 @@ package host
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io/fs"
 	"os"
 	"os/user"
@@ -161,7 +160,11 @@ func (l Local) ReadFile(ctx context.Context, name string) ([]byte, error) {
 
 func (br Local) Symlink(ctx context.Context, oldname, newname string) error {
 	if !path.IsAbs(newname) {
-		return fmt.Errorf("path must be absolute: %#v", newname)
+		return &fs.PathError{
+			Op:   "Symlink",
+			Path: newname,
+			Err:  errors.New("path must be absolute"),
+		}
 	}
 
 	return syscall.Symlink(oldname, newname)
