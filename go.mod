@@ -10,7 +10,6 @@ require (
 	github.com/fzipp/gocyclo v0.6.0
 	github.com/gliderlabs/ssh v0.3.5
 	github.com/gordonklaus/ineffassign v0.1.0
-	github.com/gorilla/mux v1.8.1
 	github.com/jandelgado/gcov2lcov v1.1.1
 	github.com/kylelemons/godebug v1.1.0
 	github.com/rakyll/gotest v0.0.6
@@ -21,7 +20,6 @@ require (
 	github.com/yoheimuta/protolint v0.53.0
 	go.uber.org/multierr v1.11.0
 	golang.org/x/crypto v0.32.0
-	golang.org/x/net v0.34.0
 	golang.org/x/term v0.28.0
 	golang.org/x/tools v0.29.0
 	golang.org/x/vuln v1.1.4
@@ -68,6 +66,7 @@ require (
 	golang.org/x/exp v0.0.0-20250128182459-e0ece0dbea4c // indirect
 	golang.org/x/exp/typeparams v0.0.0-20250128182459-e0ece0dbea4c // indirect
 	golang.org/x/mod v0.22.0 // indirect
+	golang.org/x/net v0.34.0 // indirect
 	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/sys v0.29.0 // indirect
 	golang.org/x/telemetry v0.0.0-20250117155846-04cd7bae618c // indirect

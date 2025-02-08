@@ -226,7 +226,7 @@ PROTOC_BIN_PATH := $(CACHE_PATH)/protoc/$(PROTOC_VERSION)/$(PROTOC_OS)-$(PROTOC_
 PATH := $(PROTOC_BIN_PATH):$(PATH)
 
 PROTOC := $(PROTOC_BIN_PATH)/protoc
-PROTOC_PROTO_PATH := ./internal/host/agent_server_grpc/proto
+PROTOC_PROTO_PATH := ./internal/host/agent_server/proto
 
 PROTOLINT := $(GO) run github.com/yoheimuta/protolint/cmd/protolint
 PROTOLINT_ARGS :=
@@ -255,7 +255,7 @@ GO_BUILD_MAX_AGENT_SIZE := 8000000
 
 RRB := $(GO) run github.com/fornellas/rrb
 RRB_DEBOUNCE ?= 500ms
-RRB_IGNORE_PATTERN ?= 'internal/host/agent_server_http_linux_*_gz.go,internal/host/agent_server_grpc_linux_*_gz.go,internal/host/agent_server_grpc/proto/*.pb.go'
+RRB_IGNORE_PATTERN ?= 'internal/host/agent_server_linux_*_gz.go,internal/host/agent_server/proto/*.pb.go'
 RRB_LOG_LEVEL ?= info
 RRB_PATTERN ?= '**/*.go,**/*.proto,Makefile'
 RRB_MAKE_TARGET ?= ci
@@ -482,7 +482,7 @@ gotest: go go-generate gen-protofiles
 		$(GO_TEST_PACKAGES) \
 		$(GO_TEST_BINARY_FLAGS) \
 		$(GO_TEST_BINARY_FLAGS_EXTRA)
-gotest: build-agent-native
+gotest: build-agent-$(GOARCH_NATIVE)
 test: gotest
 
 .PHONY: clean-gotest
@@ -545,71 +545,37 @@ build-help:
 	@echo '  use GO_BUILD_AGENT_NATIVE_ONLY=1 to only build agent to native arch (faster)'
 help: build-help
 
-# agent http
+# agent
 
-.PHONY: build-agent-http-%
-build-agent-http-%: go-generate
+.PHONY: build-agent-%
+build-agent-%: go-generate gen-protofiles
 	set -e
 	GOARCH=$* GOOS=linux $(GO) \
 		build \
-		-o internal/host/agent_server_http/agent_server_http_linux_$* \
+		-o internal/host/agent_server/agent_server_linux_$* \
 		$(GO_BUILD_FLAGS_COMMON) \
 		$(GO_BUILD_FLAGS) \
-		./internal/host/agent_server_http/
-	gzip < internal/host/agent_server_http/agent_server_http_linux_$* > internal/host/agent_server_http/agent_server_http_linux_$*.gz
-	if ! size=$$(stat -f %z internal/host/agent_server_http/agent_server_http_linux_$*.gz  2>/dev/null) ; then size=$$(stat --printf=%s internal/host/agent_server_http/agent_server_http_linux_$*.gz) ; fi
+		./internal/host/agent_server/
+	gzip < internal/host/agent_server/agent_server_linux_$* > internal/host/agent_server/agent_server_linux_$*.gz
+	if ! size=$$(stat -f %z internal/host/agent_server/agent_server_linux_$*.gz  2>/dev/null) ; then size=$$(stat --printf=%s internal/host/agent_server/agent_server_linux_$*.gz) ; fi
 	[ "$$size" -gt $(GO_BUILD_MAX_AGENT_SIZE) ] && { echo "Compressed agent size exceeds $(GO_BUILD_MAX_AGENT_SIZE) bytes" ; exit 1 ; }
-	cat << EOF > internal/host/agent_server_http_linux_$*_gz.go
+	cat << EOF > internal/host/agent_server_linux_$*_gz.go
 	package host
 	import _ "embed"
-	//go:embed agent_server_http/agent_server_http_linux_$*.gz
-	var agent_server_http_linux_$* []byte
+	//go:embed agent_server/agent_server_linux_$*.gz
+	var agent_server_linux_$* []byte
 	func init() {
-		AgentHttpBinGz["linux.$*"] = agent_server_http_linux_$*
+		AgentBinGz["linux.$*"] = agent_server_linux_$*
 	}
 	EOF
-build-agent: $(foreach GOARCH,$(GO_BUILD_AGENT_GOARCHS),build-agent-http-$(GOARCH))
-build-agent-native: build-agent-http-$(GOARCH_NATIVE)
+build-agent: $(foreach GOARCH,$(GO_BUILD_AGENT_GOARCHS),build-agent-$(GOARCH))
 
-.PHONY: clean-build-agent-http-%
-clean-build-agent-http-%:
-	rm -f internal/host/agent_server_http/agent_server_http_linux_$*
-	rm -f internal/host/agent_server_http/agent_server_http_linux_$*.gz
-	rm -f internal/host/agent_server_http_linux_$*_gz.go
-clean-agent: $(foreach GOARCH,$(GO_BUILD_AGENT_GOARCHS),clean-build-agent-http-$(GOARCH))
-
-# agent grpc
-
-.PHONY: build-agent-grpc-%
-build-agent-grpc-%: go-generate gen-protofiles
-	set -e
-	GOARCH=$* GOOS=linux $(GO) \
-		build \
-		-o internal/host/agent_server_grpc/agent_server_grpc_linux_$* \
-		$(GO_BUILD_FLAGS_COMMON) \
-		$(GO_BUILD_FLAGS) \
-		./internal/host/agent_server_grpc/
-	gzip < internal/host/agent_server_grpc/agent_server_grpc_linux_$* > internal/host/agent_server_grpc/agent_server_grpc_linux_$*.gz
-	if ! size=$$(stat -f %z internal/host/agent_server_grpc/agent_server_grpc_linux_$*.gz  2>/dev/null) ; then size=$$(stat --printf=%s internal/host/agent_server_grpc/agent_server_grpc_linux_$*.gz) ; fi
-	[ "$$size" -gt $(GO_BUILD_MAX_AGENT_SIZE) ] && { echo "Compressed agent size exceeds $(GO_BUILD_MAX_AGENT_SIZE) bytes" ; exit 1 ; }
-	cat << EOF > internal/host/agent_server_grpc_linux_$*_gz.go
-	package host
-	import _ "embed"
-	//go:embed agent_server_grpc/agent_server_grpc_linux_$*.gz
-	var agent_server_grpc_linux_$* []byte
-	func init() {
-		AgentGrpcBinGz["linux.$*"] = agent_server_grpc_linux_$*
-	}
-	EOF
-build-agent: $(foreach GOARCH,$(GO_BUILD_AGENT_GOARCHS),build-agent-grpc-$(GOARCH))
-build-agent-native: build-agent-grpc-$(GOARCH_NATIVE)
-
-.PHONY: clean-build-agent-grpc-%
-clean-build-agent-grpc-%:
-	rm -f internal/host/agent_server_grpc/agent_server_grpc_linux_$*
-	rm -f internal/host/agent_server_grpc/agent_server_grpc_linux_$*.gz
-	rm -f internal/host/agent_server_grpc_linux_$*_gz.go
-clean-agent: $(foreach GOARCH,$(GO_BUILD_AGENT_GOARCHS),clean-build-agent-grpc-$(GOARCH))
+.PHONY: clean-build-agent-%
+clean-build-agent-%:
+	rm -f internal/host/agent_server/agent_server_linux_$*
+	rm -f internal/host/agent_server/agent_server_linux_$*.gz
+	rm -f internal/host/agent_server_linux_$*_gz.go
+clean-agent: $(foreach GOARCH,$(GO_BUILD_AGENT_GOARCHS),clean-build-agent-$(GOARCH))
 
 # clean agent
 
