@@ -668,7 +668,11 @@ func (h BaseHostRun) ReadFile(ctx context.Context, name string) (io.ReadCloser, 
 		}
 	}
 
-	stdoutReader, stdoutWriter := io.Pipe()
+	stdoutReader, stdoutWriter, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+
 	stderrBuffer := bytes.Buffer{}
 	cmd := host.Cmd{
 		Path:   "cat",
@@ -850,7 +854,7 @@ func (h BaseHostRun) Remove(ctx context.Context, name string) error {
 	return nil
 }
 
-func (h BaseHostRun) WriteFile(ctx context.Context, name string, data []byte, mode uint32) error {
+func (h BaseHostRun) WriteFile(ctx context.Context, name string, data io.Reader, mode uint32) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("WriteFile", "name", name, "data", data, "mode", mode)
@@ -866,7 +870,7 @@ func (h BaseHostRun) WriteFile(ctx context.Context, name string, data []byte, mo
 	cmd := host.Cmd{
 		Path:  "sh",
 		Args:  []string{"-c", fmt.Sprintf("cat > %s", shellescape.Quote(name))},
-		Stdin: bytes.NewReader(data),
+		Stdin: data,
 	}
 	waitStatus, stdout, stderr, err := host.Run(ctx, h.Host, cmd)
 	if err != nil {

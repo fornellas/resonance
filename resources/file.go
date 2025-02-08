@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -138,7 +139,7 @@ func (f *File) Apply(ctx context.Context, hst host.Host) error {
 	}
 
 	// Content
-	if err := hst.WriteFile(ctx, string(f.Path), []byte(f.Content), f.Mode); err != nil {
+	if err := hst.WriteFile(ctx, string(f.Path), bytes.NewReader([]byte(f.Content)), f.Mode); err != nil {
 		return err
 	}
 

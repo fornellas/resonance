@@ -347,27 +347,78 @@ func (s *HostService) Run(ctx context.Context, req *proto.RunRequest) (*proto.Ru
 	}, nil
 }
 
-func (s *HostService) WriteFile(ctx context.Context, req *proto.WriteFileRequest) (*proto.Empty, error) {
-	name := req.Name
-	if !filepath.IsAbs(req.Name) {
-		return nil, &fs.PathError{
+func (s *HostService) WriteFile(
+	stream grpc.ClientStreamingServer[proto.WriteFileRequest, proto.Empty],
+) error {
+	req, err := stream.Recv()
+	if err != nil {
+		return err
+	}
+
+	writeFileRequest_Metadata, ok := req.Data.(*proto.WriteFileRequest_Metadata)
+	if !ok {
+		return status.Errorf(codes.InvalidArgument, "first message must be 'metadata'")
+	}
+	metadata := writeFileRequest_Metadata.Metadata
+
+	if !filepath.IsAbs(metadata.Name) {
+		return &fs.PathError{
 			Op:   "WriteFile",
-			Path: name,
+			Path: metadata.Name,
 			Err:  errors.New("path must be absolute"),
 		}
 	}
 
-	perm := fs.FileMode(req.Perm)
-	err := os.WriteFile(name, req.Data, perm)
+	file, err := os.OpenFile(
+		metadata.Name,
+		os.O_WRONLY|os.O_CREATE|os.O_TRUNC,
+		os.FileMode(metadata.Perm),
+	)
 	if err != nil {
-		return nil, s.getGrpcError(err)
+		return s.getGrpcError(err)
 	}
 
-	if err = syscall.Chmod(name, req.Perm); err != nil {
-		return nil, s.getGrpcError(err)
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return errors.Join(
+				s.getGrpcError(err),
+				s.getGrpcError(file.Close()),
+			)
+		}
+
+		chunk, ok := req.Data.(*proto.WriteFileRequest_Chunk)
+		if !ok {
+			return errors.Join(
+				status.Errorf(codes.InvalidArgument, "second message onwards must be 'chunk'"),
+				s.getGrpcError(file.Close()),
+			)
+		}
+
+		if _, err := file.Write(chunk.Chunk); err != nil {
+			return errors.Join(
+				s.getGrpcError(err),
+				s.getGrpcError(file.Close()),
+			)
+		}
 	}
 
-	return nil, nil
+	if err := file.Close(); err != nil {
+		return s.getGrpcError(err)
+	}
+
+	if err = syscall.Chmod(metadata.Name, metadata.Perm); err != nil {
+		return s.getGrpcError(err)
+	}
+
+	if err := stream.SendAndClose(&proto.Empty{}); err != nil {
+		return s.getGrpcError(err)
+	}
+
+	return nil
 }
 
 func (s *HostService) Shutdown(ctx context.Context, _ *proto.Empty) (*proto.Empty, error) {

@@ -637,22 +637,64 @@ func (h *AgentClientWrapper) Run(ctx context.Context, cmd host.Cmd) (host.WaitSt
 	}, nil
 }
 
-func (h *AgentClientWrapper) WriteFile(ctx context.Context, name string, data []byte, perm uint32) error {
+func (h *AgentClientWrapper) WriteFile(ctx context.Context, name string, data io.Reader, perm uint32) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("WriteFile", "name", name, "data", data, "perm", perm)
 
-	_, err := h.hostServiceClient.WriteFile(ctx, &proto.WriteFileRequest{
-		Name: name,
-		Data: data,
-		Perm: perm,
-	})
-
+	stream, err := h.hostServiceClient.WriteFile(ctx)
 	if err != nil {
 		return getGrpcError(err)
 	}
 
-	return nil
+	err = stream.Send(
+		&proto.WriteFileRequest{
+			Data: &proto.WriteFileRequest_Metadata{
+				Metadata: &proto.FileMetadata{
+					Name: name,
+					Perm: perm,
+				},
+			},
+		},
+	)
+	if err != nil {
+		_, closeAndRecvErr := stream.CloseAndRecv()
+		return errors.Join(
+			getGrpcError(err),
+			closeAndRecvErr,
+		)
+	}
+
+	var sendErr error
+	buffer := make([]byte, 1024)
+	for {
+		n, err := data.Read(buffer)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			sendErr = getGrpcError(err)
+			break
+		}
+
+		err = stream.Send(
+			&proto.WriteFileRequest{
+				Data: &proto.WriteFileRequest_Chunk{
+					Chunk: buffer[:n],
+				},
+			},
+		)
+		if err != nil {
+			sendErr = getGrpcError(err)
+			break
+		}
+	}
+
+	_, closeAndRecvErr := stream.CloseAndRecv()
+	return errors.Join(
+		sendErr,
+		getGrpcError(closeAndRecvErr),
+	)
 }
 
 func (h *AgentClientWrapper) String() string {

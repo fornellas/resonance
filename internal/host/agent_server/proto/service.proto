@@ -20,7 +20,7 @@ service HostService {
   rpc ReadLink(ReadLinkRequest) returns (ReadLinkResponse) {}
   rpc Remove(RemoveRequest) returns (Empty) {}
   rpc Run(RunRequest) returns (RunResponse) {}
-  rpc WriteFile(WriteFileRequest) returns (Empty) {}
+  rpc WriteFile(stream WriteFileRequest) returns (Empty) {}
   rpc Shutdown(Empty) returns (Empty) {}
 }
 
@@ -171,8 +171,14 @@ message RunResponse {
   bytes stderr = 3;
 }
 
-message WriteFileRequest {
+message FileMetadata {
   string name = 1;
-  bytes data = 2;
   uint32 perm = 3;
+}
+
+message WriteFileRequest {
+  oneof data {
+    FileMetadata metadata = 1;
+    bytes chunk = 2;
+  }
 }

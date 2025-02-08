@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -65,7 +66,7 @@ func TestSaveOriginalResourcesState(t *testing.T) {
 	filePath := filepath.Join(t.TempDir(), "foo")
 	fileContent := "foo"
 	var fileMode uint32 = 0644
-	err := host.WriteFile(ctx, filePath, []byte("foo"), fileMode)
+	err := host.WriteFile(ctx, filePath, bytes.NewReader([]byte("foo")), fileMode)
 	require.NoError(t, err)
 	fileResource := &resouresPkg.File{
 		Path:    filePath,
@@ -108,7 +109,7 @@ func TestLoadOrCreateAndSaveLastBlueprintWithValidation(t *testing.T) {
 	filePath := filepath.Join(t.TempDir(), "foo")
 	fileContent := "foo"
 	var fileMode uint32 = 0644
-	err := host.WriteFile(ctx, filePath, []byte("foo"), fileMode)
+	err := host.WriteFile(ctx, filePath, bytes.NewReader([]byte("foo")), fileMode)
 	require.NoError(t, err)
 	fileResource := &resouresPkg.File{
 		Path:    filePath,
