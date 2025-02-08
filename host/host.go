@@ -59,7 +59,7 @@ type Host interface {
 	// ReadDir reads the named directory, returning all its DirEnt.
 	ReadDir(ctx context.Context, name string) ([]DirEnt, error)
 
-	// Mkdir works similar to syscall.Mkdir, but no umask is applied.
+	// Mkdir works similar to syscall.Mkdir, but ignoring umask.
 	Mkdir(ctx context.Context, name string, mode uint32) error
 
 	// ReadFile works similar to os.ReadFile.
