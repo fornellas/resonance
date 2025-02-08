@@ -285,13 +285,21 @@ func (h *AgentClientWrapper) spawn(ctx context.Context) error {
 				Logger: logger,
 			},
 		})
+
 		var waitStatusErr error
 		if !waitStatus.Success() {
 			waitStatusErr = errors.New(waitStatus.String())
 		}
+
+		stdinReaderErr := stdinReader.Close()
+
+		stdoutWriterErr := stdoutWriter.Close()
+
 		h.spawnErrCh <- errors.Join(
 			runErr,
 			waitStatusErr,
+			stdinReaderErr,
+			stdoutWriterErr,
 		)
 	}()
 
