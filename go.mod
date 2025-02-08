@@ -12,7 +12,6 @@ require (
 	github.com/fzipp/gocyclo v0.6.0
 	github.com/gliderlabs/ssh v0.3.8
 	github.com/gordonklaus/ineffassign v0.1.0
-	github.com/hashicorp/go-multierror v1.1.1
 	github.com/jandelgado/gcov2lcov v1.1.1
 	github.com/kylelemons/godebug v1.1.0
 	github.com/rakyll/gotest v0.0.6
@@ -21,7 +20,6 @@ require (
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.10.0
 	github.com/yoheimuta/protolint v0.53.0
-	go.uber.org/multierr v1.11.0
 	golang.org/x/crypto v0.32.0
 	golang.org/x/term v0.28.0
 	golang.org/x/tools v0.29.0
@@ -43,7 +41,6 @@ require (
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/gertd/go-pluralize v0.2.1 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-hclog v1.6.3 // indirect
 	github.com/hashicorp/go-plugin v1.6.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
@@ -68,6 +65,7 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/williammartin/subreaper v0.0.0-20181101193406-731d9ece6883 // indirect
 	github.com/yoheimuta/go-protoparser/v4 v4.14.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa // indirect
 	golang.org/x/exp/typeparams v0.0.0-20231108232855-2478ac86f678 // indirect
 	golang.org/x/mod v0.22.0 // indirect
