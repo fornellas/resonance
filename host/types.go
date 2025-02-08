@@ -140,3 +140,8 @@ func (d *DirEnt) IsRegularFile() bool {
 func (d *DirEnt) IsUnixDomainSocket() bool {
 	return d.Type == syscall.DT_SOCK
 }
+
+type DirEntResult struct {
+	DirEnt DirEnt
+	Error  error
+}

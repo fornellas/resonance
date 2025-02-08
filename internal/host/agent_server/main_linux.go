@@ -166,36 +166,39 @@ func (s *HostService) Lstat(ctx context.Context, req *proto.LstatRequest) (*prot
 	}, nil
 }
 
-func (s *HostService) ReadDir(ctx context.Context, req *proto.ReadDirRequest) (*proto.ReadDirResponse, error) {
+func (s *HostService) ReadDir(
+	req *proto.ReadDirRequest,
+	stream grpc.ServerStreamingServer[proto.DirEnt],
+) error {
 	name := req.Name
 
 	if !filepath.IsAbs(name) {
-		return nil, &fs.PathError{
+		return &fs.PathError{
 			Op:   "ReadDir",
 			Path: name,
 			Err:  errors.New("path must be absolute"),
 		}
 	}
 
-	dirEnts, err := lib.ReadDir(ctx, name)
-	if err != nil {
-		return nil, s.getGrpcError(err)
-	}
+	dirEntResultCh, cancel := lib.ReadDir(stream.Context(), name)
+	defer cancel()
 
-	protoDirEnts := make([]*proto.DirEnt, 0, len(dirEnts))
-
-	for _, dirEnt := range dirEnts {
-		protoDirEnt := &proto.DirEnt{
-			Name: dirEnt.Name,
-			Type: int32(dirEnt.Type),
-			Ino:  dirEnt.Ino,
+	for dirEntResult := range dirEntResultCh {
+		if dirEntResult.Error != nil {
+			return s.getGrpcError(dirEntResult.Error)
 		}
-		protoDirEnts = append(protoDirEnts, protoDirEnt)
+
+		err := stream.Send(&proto.DirEnt{
+			Name: dirEntResult.DirEnt.Name,
+			Type: int32(dirEntResult.DirEnt.Type),
+			Ino:  dirEntResult.DirEnt.Ino,
+		})
+		if err != nil {
+			return s.getGrpcError(err)
+		}
 	}
 
-	return &proto.ReadDirResponse{
-		Entries: protoDirEnts,
-	}, nil
+	return nil
 }
 
 func (s *HostService) Mkdir(ctx context.Context, req *proto.MkdirRequest) (*proto.Empty, error) {
