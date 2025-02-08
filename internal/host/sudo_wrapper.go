@@ -115,27 +115,24 @@ func (w *StderrSudo) Write(p []byte) (int, error) {
 	return len + extraLen, err
 }
 
-// SudoWrapper implements Host interface by having all methods rely on an underlying Host.Run, and
-// preceding all commands with sudo.
+// SudoWrapper wraps another host.BaseHost and runs all commands with sudo.
 type SudoWrapper struct {
-	BaseHostRun
-	Host     host.Host
+	BaseHost host.BaseHost
 	Password *string
 	envPath  string
 }
 
-func NewSudoWrapper(ctx context.Context, hst host.Host) (*SudoWrapper, error) {
+func NewSudoWrapper(ctx context.Context, hst host.BaseHost) (*SudoWrapper, error) {
 	ctx, _ = log.MustContextLoggerSection(ctx, "⚡ Sudo")
 
-	sudoHost := SudoWrapper{
-		Host: hst,
+	sudoWrapper := SudoWrapper{
+		BaseHost: hst,
 	}
-	sudoHost.BaseHostRun.Host = &sudoHost
 
 	cmd := host.Cmd{
 		Path: "true",
 	}
-	waitStatus, err := sudoHost.Run(ctx, cmd)
+	waitStatus, err := sudoWrapper.Run(ctx, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -143,11 +140,11 @@ func NewSudoWrapper(ctx context.Context, hst host.Host) (*SudoWrapper, error) {
 		return nil, fmt.Errorf("failed to run %s: %s", cmd, waitStatus.String())
 	}
 
-	if err := sudoHost.setEnvPath(ctx); err != nil {
+	if err := sudoWrapper.setEnvPath(ctx); err != nil {
 		return nil, err
 	}
 
-	return &sudoHost, nil
+	return &sudoWrapper, nil
 }
 
 func (h *SudoWrapper) getRandomString() string {
@@ -238,7 +235,7 @@ func (h *SudoWrapper) runEnv(ctx context.Context, cmd host.Cmd, ignoreCmdEnv boo
 		Password: &h.Password,
 	}
 
-	return h.Host.Run(ctx, cmd)
+	return h.BaseHost.Run(ctx, cmd)
 }
 
 func (h *SudoWrapper) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
@@ -246,15 +243,15 @@ func (h *SudoWrapper) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, e
 }
 
 func (h SudoWrapper) String() string {
-	return h.Host.String()
+	return h.BaseHost.String()
 }
 
 func (h SudoWrapper) Type() string {
-	return h.Host.Type()
+	return h.BaseHost.Type()
 }
 
 func (h SudoWrapper) Close(ctx context.Context) error {
-	return h.Host.Close(ctx)
+	return h.BaseHost.Close(ctx)
 }
 
 func (h *SudoWrapper) setEnvPath(ctx context.Context) error {

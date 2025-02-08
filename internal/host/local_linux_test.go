@@ -5,11 +5,16 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/fornellas/resonance/log"
 )
 
 func TestLocal(t *testing.T) {
-	host := Local{}
 	ctx := context.Background()
+	ctx = log.WithTestLogger(ctx)
+
+	host := Local{}
 	defer func() { require.NoError(t, host.Close(ctx)) }()
-	testHost(t, host)
+
+	testHost(t, ctx, host, "localhost", "localhost")
 }

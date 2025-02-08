@@ -1,16 +1,12 @@
 package main
 
 import (
-	"context"
-	"errors"
 	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/fornellas/resonance/host"
-	ihost "github.com/fornellas/resonance/internal/host"
 	storePkg "github.com/fornellas/resonance/internal/store"
-	"github.com/fornellas/resonance/log"
 )
 
 // This is to be used in place of os.Exit() to aid writing test assertions on exit code.
@@ -29,35 +25,6 @@ var storeValue = NewStoreValue()
 
 var storeHostTargetPath string
 var defaultStoreHostTargetPath = "/var/lib/resonance"
-
-func wrapHost(ctx context.Context, hst host.Host) (host.Host, error) {
-	logger := log.MustLogger(ctx)
-
-	if sudo {
-		var err error
-		hst, err = ihost.NewSudoWrapper(ctx, hst)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if sudo || hst.Type() != "localhost" {
-		var err error
-		hst, err = ihost.NewAgentClientWrapper(ctx, hst)
-		if err != nil {
-			if errors.Is(err, ihost.ErrAgentUnsupportedOsArch) {
-				logger.Warn(
-					"Agent has no support for target, expect things to run *really* slow",
-					"err", err,
-				)
-			} else {
-				return nil, err
-			}
-		}
-	}
-
-	return hst, nil
-}
 
 func addHostFlagsCommon(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(

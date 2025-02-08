@@ -12,9 +12,8 @@ import (
 )
 
 type HostLocalRunSudoOnlyTest struct {
-	BaseHostNoCallsTest
-	T    *testing.T
-	Host host.Host
+	T        *testing.T
+	BaseHost host.BaseHost
 }
 
 func (h HostLocalRunSudoOnlyTest) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
@@ -37,17 +36,27 @@ func (h HostLocalRunSudoOnlyTest) Run(ctx context.Context, cmd host.Cmd) (host.W
 	}
 	cmd.Path = cmd.Args[cmdIdx]
 	cmd.Args = cmd.Args[cmdIdx+1:]
-	return h.Host.Run(ctx, cmd)
+	return h.BaseHost.Run(ctx, cmd)
+}
+
+func (h HostLocalRunSudoOnlyTest) String() string {
+	return h.BaseHost.String()
+}
+
+func (h HostLocalRunSudoOnlyTest) Type() string {
+	return h.BaseHost.Type()
+}
+
+func (h HostLocalRunSudoOnlyTest) Close(ctx context.Context) error {
+	return h.BaseHost.Close(ctx)
 }
 
 func NewHostLocalRunSudoOnlyTest(t *testing.T) HostLocalRunSudoOnlyTest {
 	localHost := Local{}
 	host := HostLocalRunSudoOnlyTest{
-		T:    t,
-		Host: localHost,
+		T:        t,
+		BaseHost: localHost,
 	}
-	host.BaseHostNoCallsTest.T = t
-	host.BaseHostNoCallsTest.Host = localHost
 	return host
 }
 
@@ -55,8 +64,11 @@ func TestSudo(t *testing.T) {
 	ctx := context.Background()
 	ctx = log.WithTestLogger(ctx)
 
-	host, err := NewSudoWrapper(ctx, NewHostLocalRunSudoOnlyTest(t))
+	wrappedBaseHost := NewHostLocalRunSudoOnlyTest(t)
+
+	baseHost, err := NewSudoWrapper(ctx, wrappedBaseHost)
 	require.NoError(t, err)
-	defer func() { require.NoError(t, host.Close(ctx)) }()
-	testHost(t, host)
+	defer func() { require.NoError(t, baseHost.Close(ctx)) }()
+
+	testBaseHost(t, ctx, baseHost, wrappedBaseHost.String(), wrappedBaseHost.Type())
 }

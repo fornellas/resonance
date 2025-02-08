@@ -13,8 +13,10 @@ func TestAgentClientWrapper(t *testing.T) {
 	ctx := context.Background()
 	ctx = log.WithTestLogger(ctx)
 
-	host, err := NewAgentClientWrapper(ctx, Local{})
+	baseHost := Local{}
+	host, err := NewAgentClientWrapper(ctx, baseHost)
 	defer func() { require.NoError(t, host.Close(ctx)) }()
 	require.NoError(t, err)
-	testHost(t, host)
+
+	testHost(t, ctx, host, baseHost.String(), baseHost.Type())
 }

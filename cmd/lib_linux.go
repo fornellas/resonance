@@ -18,18 +18,22 @@ var storeHostLocalhostPath string
 var defaultStoreHostLocalhostPath = "state/"
 
 func GetHost(ctx context.Context) (host.Host, error) {
-	var hst host.Host
+	var baseHost host.BaseHost
 	var err error
 
 	if localhost {
-		hst = ihost.Local{}
+		if sudo {
+			baseHost = ihost.Local{}
+		} else {
+			return ihost.Local{}, nil
+		}
 	} else if ssh != "" {
-		hst, err = ihost.NewSshAuthority(ctx, ssh)
+		baseHost, err = ihost.NewSshAuthority(ctx, ssh)
 		if err != nil {
 			return nil, err
 		}
 	} else if docker != "" {
-		hst, err = ihost.NewDocker(ctx, docker)
+		baseHost, err = ihost.NewDocker(ctx, docker)
 		if err != nil {
 			return nil, err
 		}
@@ -37,7 +41,20 @@ func GetHost(ctx context.Context) (host.Host, error) {
 		return nil, errors.New("no target host specified: must pass either --target-localhost, --target-ssh or --target-docker")
 	}
 
-	return wrapHost(ctx, hst)
+	if sudo {
+		var err error
+		baseHost, err = ihost.NewSudoWrapper(ctx, baseHost)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	hst, err := ihost.NewAgentClientWrapper(ctx, baseHost)
+	if err != nil {
+		return nil, err
+	}
+
+	return hst, nil
 }
 
 func AddHostFlags(cmd *cobra.Command) {
