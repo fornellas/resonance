@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/user"
@@ -14,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/fornellas/resonance/host"
@@ -429,24 +431,36 @@ func testHost(t *testing.T, hst host.Host) {
 			data := []byte("foo")
 			err := os.WriteFile(name, data, os.FileMode(0600))
 			require.NoError(t, err)
-			readData, err := hst.ReadFile(ctx, name)
+			fileReadCloser, err := hst.ReadFile(ctx, name)
 			require.NoError(t, err)
-			require.Equal(t, data, readData)
+			readData, err := io.ReadAll(fileReadCloser)
+			assert.NoError(t, err)
+			assert.Equal(t, data, readData)
+			require.NoError(t, fileReadCloser.Close())
 		})
 		t.Run("path must be absolute", func(t *testing.T) {
 			outputBuffer.Reset()
-			_, err := hst.ReadFile(ctx, "foo/bar")
+			fileReadCloser, err := hst.ReadFile(ctx, "foo/bar")
 			require.ErrorContains(t, err, "path must be absolute")
+			if err == nil {
+				require.NoError(t, fileReadCloser.Close())
+			}
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			outputBuffer.Reset()
-			_, err := hst.ReadFile(ctx, "/etc/shadow")
+			fileReadCloser, err := hst.ReadFile(ctx, "/etc/shadow")
 			require.ErrorIs(t, err, os.ErrPermission)
+			if err == nil {
+				require.NoError(t, fileReadCloser.Close())
+			}
 		})
 		t.Run("ErrNotExist", func(t *testing.T) {
 			outputBuffer.Reset()
-			_, err := hst.ReadFile(ctx, "/non-existent")
+			fileReadCloser, err := hst.ReadFile(ctx, "/non-existent")
 			require.ErrorIs(t, err, os.ErrNotExist)
+			if err == nil {
+				require.NoError(t, fileReadCloser.Close())
+			}
 		})
 	})
 
