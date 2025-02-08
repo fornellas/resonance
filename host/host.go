@@ -9,6 +9,12 @@ import (
 
 // Host defines an interface for interacting with a Linux host
 type Host interface {
+	// Geteuid works similar to syscall.Geteuid
+	Geteuid(ctx context.Context) (uint64, error)
+
+	// Getegid works similar to syscall.Getegid
+	Getegid(ctx context.Context) (uint64, error)
+
 	// Chmod works similar to syscall.Chmod.
 	Chmod(ctx context.Context, name string, mode uint32) error
 
