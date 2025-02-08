@@ -14,6 +14,7 @@ service HostService {
   rpc ReadDir(ReadDirRequest) returns (ReadDirResponse) {}
   rpc Mkdir(MkdirRequest) returns (Empty) {}
   rpc ReadFile(ReadFileRequest) returns (stream ReadFileResponse) {}
+  rpc Symlink(SymlinkRequest) returns (Empty) {}
   rpc ReadLink(ReadLinkRequest) returns (ReadLinkResponse) {}
   rpc Remove(RemoveRequest) returns (Empty) {}
   rpc Run(RunRequest) returns (RunResponse) {}
@@ -121,6 +122,11 @@ message ReadFileRequest {
 
 message ReadFileResponse {
   bytes chunk = 1;
+}
+
+message SymlinkRequest {
+  string oldname = 1;
+  string newname = 2;
 }
 
 message ReadLinkRequest {
