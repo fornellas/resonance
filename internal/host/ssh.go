@@ -26,68 +26,10 @@ import (
 
 // Ssh interacts with a remote machine connecting to it via SSH protocol.
 type Ssh struct {
-	cmdHost
+	BaseHostRun
 	Hostname string
 	client   *ssh.Client
 	envPath  string
-}
-
-func sshKeyboardInteractiveChallenge(
-	name, instruction string,
-	questions []string,
-	echos []bool,
-) ([]string, error) {
-	answers := make([]string, len(questions))
-	var err error
-
-	if name != "" {
-		fmt.Printf("Name: %s\n", name)
-	}
-	if instruction != "" {
-		fmt.Printf("Instruction: %s\n", instruction)
-	}
-
-	for i, question := range questions {
-		if echos[i] {
-			fmt.Printf("%s: ", question)
-			_, _ = fmt.Scan(&answers[i])
-		} else {
-			state, err := term.MakeRaw(int(os.Stdin.Fd()))
-			if err != nil {
-				return nil, err
-			}
-			defer term.Restore(int(os.Stdin.Fd()), state)
-
-			var answerBytes []byte
-			fmt.Printf("%s", question)
-			answerBytes, err = (term.ReadPassword(int(os.Stdin.Fd())))
-			if err != nil {
-				return nil, err
-			}
-			fmt.Printf("\n\r")
-			answers[i] = string(answerBytes)
-		}
-	}
-
-	return answers, err
-}
-
-func sshGetPasswordCallbackPromptFn() func() (secret string, err error) {
-	return func() (secret string, err error) {
-		state, err := term.MakeRaw(int(os.Stdin.Fd()))
-		if err != nil {
-			return "", err
-		}
-		defer term.Restore(int(os.Stdin.Fd()), state)
-
-		fmt.Printf("Password: ")
-		password, err := term.ReadPassword(int(os.Stdin.Fd()))
-		if err != nil {
-			return "", err
-		}
-		fmt.Print("\n\r")
-		return string(password), nil
-	}
 }
 
 func sshGetSigners(ctx context.Context) ([]ssh.Signer, error) {
@@ -217,6 +159,64 @@ func sshGetHostKeyCallback(ctx context.Context, fingerprint string) (ssh.HostKey
 	return hostKeyCallback, nil
 }
 
+func sshGetPasswordCallbackPromptFn() func() (secret string, err error) {
+	return func() (secret string, err error) {
+		state, err := term.MakeRaw(int(os.Stdin.Fd()))
+		if err != nil {
+			return "", err
+		}
+		defer term.Restore(int(os.Stdin.Fd()), state)
+
+		fmt.Printf("Password: ")
+		password, err := term.ReadPassword(int(os.Stdin.Fd()))
+		if err != nil {
+			return "", err
+		}
+		fmt.Print("\n\r")
+		return string(password), nil
+	}
+}
+
+func sshKeyboardInteractiveChallenge(
+	name, instruction string,
+	questions []string,
+	echos []bool,
+) ([]string, error) {
+	answers := make([]string, len(questions))
+	var err error
+
+	if name != "" {
+		fmt.Printf("Name: %s\n", name)
+	}
+	if instruction != "" {
+		fmt.Printf("Instruction: %s\n", instruction)
+	}
+
+	for i, question := range questions {
+		if echos[i] {
+			fmt.Printf("%s: ", question)
+			_, _ = fmt.Scan(&answers[i])
+		} else {
+			state, err := term.MakeRaw(int(os.Stdin.Fd()))
+			if err != nil {
+				return nil, err
+			}
+			defer term.Restore(int(os.Stdin.Fd()), state)
+
+			var answerBytes []byte
+			fmt.Printf("%s", question)
+			answerBytes, err = (term.ReadPassword(int(os.Stdin.Fd())))
+			if err != nil {
+				return nil, err
+			}
+			fmt.Printf("\n\r")
+			answers[i] = string(answerBytes)
+		}
+	}
+
+	return answers, err
+}
+
 func NewSsh(
 	ctx context.Context,
 	user,
@@ -263,7 +263,7 @@ func NewSsh(
 		Hostname: host,
 		client:   client,
 	}
-	sshHost.cmdHost.Host = sshHost
+	sshHost.BaseHostRun.Host = sshHost
 
 	if err := sshHost.setEnvPath(ctx); err != nil {
 		return Ssh{}, err
@@ -317,11 +317,11 @@ func NewSshAuthority(ctx context.Context, authority string) (Ssh, error) {
 	return NewSsh(ctx, user, fingerprint, host, port, DefaultSshTCPConnectTimeout)
 }
 
-func (s Ssh) runEnv(ctx context.Context, cmd host.Cmd, ignoreCmdEnv bool) (host.WaitStatus, error) {
+func (h Ssh) runEnv(ctx context.Context, cmd host.Cmd, ignoreCmdEnv bool) (host.WaitStatus, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Run", "cmd", cmd)
 
-	session, err := s.client.NewSession()
+	session, err := h.client.NewSession()
 	if err != nil {
 		return host.WaitStatus{}, fmt.Errorf("failed to create session: %w", err)
 	}
@@ -352,8 +352,8 @@ func (s Ssh) runEnv(ctx context.Context, cmd host.Cmd, ignoreCmdEnv bool) (host.
 	if !ignoreCmdEnv {
 		if len(cmd.Env) == 0 {
 			cmd.Env = []string{"LANG=en_US.UTF-8"}
-			if s.envPath != "" {
-				cmd.Env = append(cmd.Env, s.envPath)
+			if h.envPath != "" {
+				cmd.Env = append(cmd.Env, h.envPath)
 			}
 		}
 		envStrs := []string{}
@@ -400,11 +400,11 @@ func (s Ssh) runEnv(ctx context.Context, cmd host.Cmd, ignoreCmdEnv bool) (host.
 	}, nil
 }
 
-func (s Ssh) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
-	return s.runEnv(ctx, cmd, false)
+func (h Ssh) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
+	return h.runEnv(ctx, cmd, false)
 }
 
-func (s *Ssh) setEnvPath(ctx context.Context) error {
+func (h *Ssh) setEnvPath(ctx context.Context) error {
 	stdoutBuffer := bytes.Buffer{}
 	stderrBuffer := bytes.Buffer{}
 	cmd := host.Cmd{
@@ -412,7 +412,7 @@ func (s *Ssh) setEnvPath(ctx context.Context) error {
 		Stdout: &stdoutBuffer,
 		Stderr: &stderrBuffer,
 	}
-	waitStatus, err := s.runEnv(ctx, cmd, true)
+	waitStatus, err := h.runEnv(ctx, cmd, true)
 	if err != nil {
 		return err
 	}
@@ -424,21 +424,21 @@ func (s *Ssh) setEnvPath(ctx context.Context) error {
 	}
 	for _, value := range strings.Split(stdoutBuffer.String(), "\n") {
 		if strings.HasPrefix(value, "PATH=") {
-			s.envPath = value
+			h.envPath = value
 			break
 		}
 	}
 	return nil
 }
 
-func (s Ssh) String() string {
-	return s.Hostname
+func (h Ssh) String() string {
+	return h.Hostname
 }
 
-func (s Ssh) Type() string {
+func (h Ssh) Type() string {
 	return "ssh"
 }
 
-func (s Ssh) Close(ctx context.Context) error {
-	return s.client.Close()
+func (h Ssh) Close(ctx context.Context) error {
+	return h.client.Close()
 }

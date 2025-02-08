@@ -43,24 +43,24 @@ func getGrpcError(err error) error {
 	return err
 }
 
-type AgentClientReadFileReadCloser struct {
+type AgentClientWrapperReadFileReadCloser struct {
 	Stream     grpc.ServerStreamingClient[proto.ReadFileResponse]
 	CancelFunc context.CancelFunc
 	Data       []byte
 }
 
-func (r *AgentClientReadFileReadCloser) Read(p []byte) (int, error) {
-	if len(r.Data) > 0 {
-		n := copy(p, r.Data)
-		if n < len(r.Data) {
-			r.Data = r.Data[n:]
+func (rc *AgentClientWrapperReadFileReadCloser) Read(p []byte) (int, error) {
+	if len(rc.Data) > 0 {
+		n := copy(p, rc.Data)
+		if n < len(rc.Data) {
+			rc.Data = rc.Data[n:]
 		} else {
-			r.Data = nil
+			rc.Data = nil
 		}
 		return n, nil
 	}
 
-	readFileResponse, err := r.Stream.Recv()
+	readFileResponse, err := rc.Stream.Recv()
 	if err != nil {
 		if err == io.EOF {
 			return 0, err
@@ -70,16 +70,16 @@ func (r *AgentClientReadFileReadCloser) Read(p []byte) (int, error) {
 
 	n := copy(p, readFileResponse.Chunk)
 	if n < len(readFileResponse.Chunk) {
-		r.Data = readFileResponse.Chunk[n:]
+		rc.Data = readFileResponse.Chunk[n:]
 	} else {
-		r.Data = nil
+		rc.Data = nil
 	}
 
 	return n, nil
 }
 
-func (r *AgentClientReadFileReadCloser) Close() error {
-	r.CancelFunc()
+func (rc *AgentClientWrapperReadFileReadCloser) Close() error {
+	rc.CancelFunc()
 	return nil
 }
 
@@ -102,9 +102,9 @@ func (wl WriterLogger) Write(b []byte) (int, error) {
 
 var AgentBinGz = map[string][]byte{}
 
-// AgentClient interacts with a given Host using an agent that's copied and ran at the
+// AgentClientWrapper interacts with a given Host using an agent that's copied and ran at the
 // host.
-type AgentClient struct {
+type AgentClientWrapper struct {
 	Host              host.Host
 	path              string
 	grpcClientConn    *grpc.ClientConn
@@ -209,7 +209,7 @@ func copyReader(ctx context.Context, hst host.Host, reader io.Reader, path strin
 	return nil
 }
 
-func NewAgentClient(ctx context.Context, hst host.Host) (*AgentClient, error) {
+func NewAgentClientWrapper(ctx context.Context, hst host.Host) (*AgentClientWrapper, error) {
 	ctx, _ = log.MustContextLoggerSection(ctx, "🐈 Agent")
 
 	agentPath, err := getTmpFile(ctx, hst, "resonance_agent")
@@ -235,7 +235,7 @@ func NewAgentClient(ctx context.Context, hst host.Host) (*AgentClient, error) {
 		return nil, err
 	}
 
-	agent := AgentClient{
+	agent := AgentClientWrapper{
 		Host:       hst,
 		path:       agentPath,
 		spawnErrCh: make(chan error),
@@ -248,7 +248,7 @@ func NewAgentClient(ctx context.Context, hst host.Host) (*AgentClient, error) {
 	return &agent, nil
 }
 
-func (a *AgentClient) spawn(ctx context.Context) error {
+func (h *AgentClientWrapper) spawn(ctx context.Context) error {
 	logger := log.MustLogger(ctx)
 
 	stdinReader, stdinWriter, err := os.Pipe()
@@ -262,7 +262,7 @@ func (a *AgentClient) spawn(ctx context.Context) error {
 	}
 
 	// We just pass "127.0.0.1" to avoid issues with dns resolution, this value is not used
-	a.grpcClientConn, err = grpc.NewClient(
+	h.grpcClientConn, err = grpc.NewClient(
 		"127.0.0.1",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
@@ -277,8 +277,8 @@ func (a *AgentClient) spawn(ctx context.Context) error {
 	}
 
 	go func() {
-		waitStatus, runErr := a.Host.Run(ctx, host.Cmd{
-			Path:   a.path,
+		waitStatus, runErr := h.Host.Run(ctx, host.Cmd{
+			Path:   h.path,
 			Stdin:  stdinReader,
 			Stdout: stdoutWriter,
 			Stderr: WriterLogger{
@@ -289,32 +289,32 @@ func (a *AgentClient) spawn(ctx context.Context) error {
 		if !waitStatus.Success() {
 			waitStatusErr = errors.New(waitStatus.String())
 		}
-		a.spawnErrCh <- errors.Join(
+		h.spawnErrCh <- errors.Join(
 			runErr,
 			waitStatusErr,
 		)
 	}()
 
-	a.hostServiceClient = proto.NewHostServiceClient(a.grpcClientConn)
-	resp, err := a.hostServiceClient.Ping(ctx, &proto.PingRequest{})
+	h.hostServiceClient = proto.NewHostServiceClient(h.grpcClientConn)
+	resp, err := h.hostServiceClient.Ping(ctx, &proto.PingRequest{})
 
 	if err != nil {
-		return errors.Join(err, a.Close(ctx))
+		return errors.Join(err, h.Close(ctx))
 	}
 
 	if resp.Message != "Pong" {
-		defer a.Close(ctx)
+		defer h.Close(ctx)
 		return fmt.Errorf("unexpected response from agent: %s", resp.Message)
 	}
 
 	return nil
 }
 
-func (a *AgentClient) Geteuid(ctx context.Context) (uint64, error) {
+func (h *AgentClientWrapper) Geteuid(ctx context.Context) (uint64, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Geteuid")
 
-	getuidResponse, err := a.hostServiceClient.Geteuid(ctx, &proto.Empty{})
+	getuidResponse, err := h.hostServiceClient.Geteuid(ctx, &proto.Empty{})
 	if err != nil {
 		return 0, err
 	}
@@ -322,11 +322,11 @@ func (a *AgentClient) Geteuid(ctx context.Context) (uint64, error) {
 	return getuidResponse.Uid, nil
 }
 
-func (a *AgentClient) Getegid(ctx context.Context) (uint64, error) {
+func (h *AgentClientWrapper) Getegid(ctx context.Context) (uint64, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Getegid")
 
-	getgidResponse, err := a.hostServiceClient.Getegid(ctx, &proto.Empty{})
+	getgidResponse, err := h.hostServiceClient.Getegid(ctx, &proto.Empty{})
 	if err != nil {
 		return 0, err
 	}
@@ -334,11 +334,11 @@ func (a *AgentClient) Getegid(ctx context.Context) (uint64, error) {
 	return getgidResponse.Gid, nil
 }
 
-func (a *AgentClient) Chmod(ctx context.Context, name string, mode uint32) error {
+func (h *AgentClientWrapper) Chmod(ctx context.Context, name string, mode uint32) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Chmod", "name", name, "mode", mode)
 
-	_, err := a.hostServiceClient.Chmod(ctx, &proto.ChmodRequest{
+	_, err := h.hostServiceClient.Chmod(ctx, &proto.ChmodRequest{
 		Name: name,
 		Mode: mode,
 	})
@@ -356,11 +356,11 @@ func (a *AgentClient) Chmod(ctx context.Context, name string, mode uint32) error
 	return nil
 }
 
-func (a *AgentClient) Chown(ctx context.Context, name string, uid, gid uint32) error {
+func (h *AgentClientWrapper) Chown(ctx context.Context, name string, uid, gid uint32) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Chown", "name", name, "uid", uid, "gid", gid)
 
-	_, err := a.hostServiceClient.Chown(ctx, &proto.ChownRequest{
+	_, err := h.hostServiceClient.Chown(ctx, &proto.ChownRequest{
 		Name: name,
 		Uid:  int64(uid),
 		Gid:  int64(gid),
@@ -379,12 +379,12 @@ func (a *AgentClient) Chown(ctx context.Context, name string, uid, gid uint32) e
 	return nil
 }
 
-func (a *AgentClient) Lookup(ctx context.Context, username string) (*user.User, error) {
+func (h *AgentClientWrapper) Lookup(ctx context.Context, username string) (*user.User, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Lookup", "username", username)
 
-	resp, err := a.hostServiceClient.Lookup(ctx, &proto.LookupRequest{
+	resp, err := h.hostServiceClient.Lookup(ctx, &proto.LookupRequest{
 		Username: username,
 	})
 
@@ -404,12 +404,12 @@ func (a *AgentClient) Lookup(ctx context.Context, username string) (*user.User, 
 	}, nil
 }
 
-func (a *AgentClient) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
+func (h *AgentClientWrapper) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("LookupGroup", "group", name)
 
-	resp, err := a.hostServiceClient.LookupGroup(ctx, &proto.LookupGroupRequest{
+	resp, err := h.hostServiceClient.LookupGroup(ctx, &proto.LookupGroupRequest{
 		Name: name,
 	})
 
@@ -426,12 +426,12 @@ func (a *AgentClient) LookupGroup(ctx context.Context, name string) (*user.Group
 	}, nil
 }
 
-func (a *AgentClient) Lstat(ctx context.Context, name string) (*host.Stat_t, error) {
+func (h *AgentClientWrapper) Lstat(ctx context.Context, name string) (*host.Stat_t, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Lstat", "name", name)
 
-	resp, err := a.hostServiceClient.Lstat(ctx, &proto.LstatRequest{
+	resp, err := h.hostServiceClient.Lstat(ctx, &proto.LstatRequest{
 		Name: name,
 	})
 	if err != nil {
@@ -466,12 +466,12 @@ func (a *AgentClient) Lstat(ctx context.Context, name string) (*host.Stat_t, err
 	return &stat_t, nil
 }
 
-func (a *AgentClient) ReadDir(ctx context.Context, name string) ([]host.DirEnt, error) {
+func (h *AgentClientWrapper) ReadDir(ctx context.Context, name string) ([]host.DirEnt, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("ReadDir", "name", name)
 
-	resp, err := a.hostServiceClient.ReadDir(ctx, &proto.ReadDirRequest{
+	resp, err := h.hostServiceClient.ReadDir(ctx, &proto.ReadDirRequest{
 		Name: name,
 	})
 	if err != nil {
@@ -490,12 +490,12 @@ func (a *AgentClient) ReadDir(ctx context.Context, name string) ([]host.DirEnt, 
 	return dirEnts, nil
 }
 
-func (a *AgentClient) Mkdir(ctx context.Context, name string, mode uint32) error {
+func (h *AgentClientWrapper) Mkdir(ctx context.Context, name string, mode uint32) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Mkdir", "name", name)
 
-	_, err := a.hostServiceClient.Mkdir(ctx, &proto.MkdirRequest{
+	_, err := h.hostServiceClient.Mkdir(ctx, &proto.MkdirRequest{
 		Name: name,
 		Mode: mode,
 	})
@@ -506,14 +506,14 @@ func (a *AgentClient) Mkdir(ctx context.Context, name string, mode uint32) error
 	return nil
 }
 
-func (a *AgentClient) ReadFile(ctx context.Context, name string) (io.ReadCloser, error) {
+func (h *AgentClientWrapper) ReadFile(ctx context.Context, name string) (io.ReadCloser, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("ReadFile", "name", name)
 
 	ctx, cancelFunc := context.WithCancel(ctx)
 
-	stream, err := a.hostServiceClient.ReadFile(ctx, &proto.ReadFileRequest{Name: name})
+	stream, err := h.hostServiceClient.ReadFile(ctx, &proto.ReadFileRequest{Name: name})
 	if err != nil {
 		cancelFunc()
 		return nil, getGrpcError(err)
@@ -528,19 +528,19 @@ func (a *AgentClient) ReadFile(ctx context.Context, name string) (io.ReadCloser,
 		return nil, getGrpcError(err)
 	}
 
-	return &AgentClientReadFileReadCloser{
+	return &AgentClientWrapperReadFileReadCloser{
 		Stream:     stream,
 		CancelFunc: cancelFunc,
 		Data:       readFileResponse.Chunk,
 	}, nil
 }
 
-func (a *AgentClient) Symlink(ctx context.Context, oldname, newname string) error {
+func (h *AgentClientWrapper) Symlink(ctx context.Context, oldname, newname string) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Symlink", "oldname", oldname, "newname", newname)
 
-	_, err := a.hostServiceClient.Symlink(ctx, &proto.SymlinkRequest{
+	_, err := h.hostServiceClient.Symlink(ctx, &proto.SymlinkRequest{
 		Oldname: oldname,
 		Newname: newname,
 	})
@@ -552,12 +552,12 @@ func (a *AgentClient) Symlink(ctx context.Context, oldname, newname string) erro
 	return nil
 }
 
-func (a *AgentClient) Readlink(ctx context.Context, name string) (string, error) {
+func (h *AgentClientWrapper) Readlink(ctx context.Context, name string) (string, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Readlink", "name", name)
 
-	resp, err := a.hostServiceClient.ReadLink(ctx, &proto.ReadLinkRequest{
+	resp, err := h.hostServiceClient.ReadLink(ctx, &proto.ReadLinkRequest{
 		Name: name,
 	})
 
@@ -568,12 +568,12 @@ func (a *AgentClient) Readlink(ctx context.Context, name string) (string, error)
 	return resp.Destination, nil
 }
 
-func (a *AgentClient) Remove(ctx context.Context, name string) error {
+func (h *AgentClientWrapper) Remove(ctx context.Context, name string) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Remove", "name", name)
 
-	_, err := a.hostServiceClient.Remove(ctx, &proto.RemoveRequest{
+	_, err := h.hostServiceClient.Remove(ctx, &proto.RemoveRequest{
 		Name: name,
 	})
 	if err != nil {
@@ -583,7 +583,7 @@ func (a *AgentClient) Remove(ctx context.Context, name string) error {
 	return nil
 }
 
-func (a *AgentClient) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
+func (h *AgentClientWrapper) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Run", "cmd", cmd)
 
@@ -596,7 +596,7 @@ func (a *AgentClient) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, e
 		}
 	}
 
-	resp, err := a.hostServiceClient.Run(ctx, &proto.RunRequest{
+	resp, err := h.hostServiceClient.Run(ctx, &proto.RunRequest{
 		Path:    cmd.Path,
 		Args:    cmd.Args,
 		EnvVars: cmd.Env,
@@ -629,12 +629,12 @@ func (a *AgentClient) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, e
 	}, nil
 }
 
-func (a *AgentClient) WriteFile(ctx context.Context, name string, data []byte, perm uint32) error {
+func (h *AgentClientWrapper) WriteFile(ctx context.Context, name string, data []byte, perm uint32) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("WriteFile", "name", name, "data", data, "perm", perm)
 
-	_, err := a.hostServiceClient.WriteFile(ctx, &proto.WriteFileRequest{
+	_, err := h.hostServiceClient.WriteFile(ctx, &proto.WriteFileRequest{
 		Name: name,
 		Data: data,
 		Perm: perm,
@@ -647,26 +647,26 @@ func (a *AgentClient) WriteFile(ctx context.Context, name string, data []byte, p
 	return nil
 }
 
-func (a *AgentClient) String() string {
-	return a.Host.String()
+func (h *AgentClientWrapper) String() string {
+	return h.Host.String()
 }
 
-func (a *AgentClient) Type() string {
-	return a.Host.Type()
+func (h *AgentClientWrapper) Type() string {
+	return h.Host.Type()
 }
 
-func (a *AgentClient) Close(ctx context.Context) error {
+func (h *AgentClientWrapper) Close(ctx context.Context) error {
 
-	_, shutdownErr := a.hostServiceClient.Shutdown(ctx, &proto.Empty{})
+	_, shutdownErr := h.hostServiceClient.Shutdown(ctx, &proto.Empty{})
 
 	var spawnErr error
 	if shutdownErr == nil {
-		spawnErr = <-a.spawnErrCh
+		spawnErr = <-h.spawnErrCh
 	}
 
-	grpcClientConnErr := a.grpcClientConn.Close()
+	grpcClientConnErr := h.grpcClientConn.Close()
 
-	hostCloseErr := a.Host.Close(ctx)
+	hostCloseErr := h.Host.Close(ctx)
 
 	return errors.Join(
 		shutdownErr,

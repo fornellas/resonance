@@ -19,21 +19,21 @@ import (
 // Local interacts with the local machine running the code.
 type Local struct{}
 
-func (l Local) Geteuid(ctx context.Context) (uint64, error) {
+func (h Local) Geteuid(ctx context.Context) (uint64, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Geteuid")
 
 	return uint64(syscall.Geteuid()), nil
 }
 
-func (l Local) Getegid(ctx context.Context) (uint64, error) {
+func (h Local) Getegid(ctx context.Context) (uint64, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Getegid")
 
 	return uint64(syscall.Getegid()), nil
 }
 
-func (l Local) Chmod(ctx context.Context, name string, mode uint32) error {
+func (h Local) Chmod(ctx context.Context, name string, mode uint32) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Chmod", "name", name, "mode", mode)
 
@@ -48,7 +48,7 @@ func (l Local) Chmod(ctx context.Context, name string, mode uint32) error {
 	return syscall.Chmod(name, mode)
 }
 
-func (l Local) Chown(ctx context.Context, name string, uid, gid uint32) error {
+func (h Local) Chown(ctx context.Context, name string, uid, gid uint32) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Chown", "name", name, "uid", uid, "gid", gid)
 
@@ -63,19 +63,19 @@ func (l Local) Chown(ctx context.Context, name string, uid, gid uint32) error {
 	return syscall.Chown(name, int(uid), int(gid))
 }
 
-func (l Local) Lookup(ctx context.Context, username string) (*user.User, error) {
+func (h Local) Lookup(ctx context.Context, username string) (*user.User, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Lookup", "username", username)
 	return user.Lookup(username)
 }
 
-func (l Local) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
+func (h Local) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("LookupGroup", "name", name)
 	return user.LookupGroup(name)
 }
 
-func (l Local) Lstat(ctx context.Context, name string) (*host.Stat_t, error) {
+func (h Local) Lstat(ctx context.Context, name string) (*host.Stat_t, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Lstat", "name", name)
 
@@ -119,14 +119,14 @@ func (l Local) Lstat(ctx context.Context, name string) (*host.Stat_t, error) {
 	}, nil
 }
 
-func (l Local) ReadDir(ctx context.Context, name string) ([]host.DirEnt, error) {
+func (h Local) ReadDir(ctx context.Context, name string) ([]host.DirEnt, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("ReadDir", "name", name)
 
 	return lib.ReadDir(ctx, name)
 }
 
-func (l Local) Mkdir(ctx context.Context, name string, mode uint32) error {
+func (h Local) Mkdir(ctx context.Context, name string, mode uint32) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Mkdir", "name", name, "mode", mode)
 
@@ -144,7 +144,7 @@ func (l Local) Mkdir(ctx context.Context, name string, mode uint32) error {
 	return syscall.Chmod(name, mode)
 }
 
-func (l Local) ReadFile(ctx context.Context, name string) (io.ReadCloser, error) {
+func (h Local) ReadFile(ctx context.Context, name string) (io.ReadCloser, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("ReadFile", "name", name)
 
@@ -163,7 +163,7 @@ func (l Local) ReadFile(ctx context.Context, name string) (io.ReadCloser, error)
 	return f, nil
 }
 
-func (br Local) Symlink(ctx context.Context, oldname, newname string) error {
+func (h Local) Symlink(ctx context.Context, oldname, newname string) error {
 	if !path.IsAbs(newname) {
 		return &fs.PathError{
 			Op:   "Symlink",
@@ -175,7 +175,7 @@ func (br Local) Symlink(ctx context.Context, oldname, newname string) error {
 	return syscall.Symlink(oldname, newname)
 }
 
-func (l Local) Readlink(ctx context.Context, name string) (string, error) {
+func (h Local) Readlink(ctx context.Context, name string) (string, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Readlink", "name", name)
 
@@ -190,7 +190,7 @@ func (l Local) Readlink(ctx context.Context, name string) (string, error) {
 	return os.Readlink(name)
 }
 
-func (l Local) Remove(ctx context.Context, name string) error {
+func (h Local) Remove(ctx context.Context, name string) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Remove", "name", name)
 
@@ -205,13 +205,13 @@ func (l Local) Remove(ctx context.Context, name string) error {
 	return os.Remove(name)
 }
 
-func (l Local) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
+func (h Local) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Run", "cmd", cmd)
 	return lib.Run(ctx, cmd)
 }
 
-func (l Local) WriteFile(ctx context.Context, name string, data []byte, mode uint32) error {
+func (h Local) WriteFile(ctx context.Context, name string, data []byte, mode uint32) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("WriteFile", "name", name, "data", data, "mode", mode)
 
@@ -229,14 +229,14 @@ func (l Local) WriteFile(ctx context.Context, name string, data []byte, mode uin
 	return syscall.Chmod(name, mode)
 }
 
-func (l Local) String() string {
+func (h Local) String() string {
 	return "localhost"
 }
 
-func (l Local) Type() string {
+func (h Local) Type() string {
 	return "localhost"
 }
 
-func (l Local) Close(ctx context.Context) error {
+func (h Local) Close(ctx context.Context) error {
 	return nil
 }
