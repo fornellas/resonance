@@ -50,7 +50,7 @@ jobs:
       - name: Update Deps
         if: ${{ inputs.update-deps == true }}
         run: |
-          ./build.sh update-deps
+          ./make.sh update-deps
       # Update Deps
       - name: Diff
         if: ${{ inputs.update-deps == true }}
@@ -60,7 +60,7 @@ jobs:
       # Build
       - name: Build
         run: |
-          ./build.sh ci
+          ./make.sh ci
         shell: bash
       # Git Status
       - name: git status
@@ -105,16 +105,27 @@ jobs:
           coverage-reporter-platform: ${{ inputs.GOARCH == '386' || inputs.GOARCH == 'amd64' && 'x86_64' || inputs.GOARCH == 'arm64' && 'arm64' }}
       # Clean
       - name: Clean
-        run: ./build.sh clean
+        run: ./make.sh clean
         shell: bash
       # Git ls-files --others
       - name: git ls-files --others
         run: |
           GIT_LS_FILES_OTHERS="$(git ls-files --others)"
           if [ -n "$GIT_LS_FILES_OTHERS" ] ; then
-            echo Error: Build clean left files behind!
+            echo Error: make clean left files behind!
             echo git ls-files --others
             echo "$GIT_LS_FILES_OTHERS"
+            exit 1
+          fi
+        shell: bash
+      # find $XDG_CACHE_HOME
+      - name: find $XDG_CACHE_HOME
+        run: |
+          FIND_XDG_CACHE_HOME="$(find "$XDG_CACHE_HOME" ! -type d)"
+          if [ -n "$FIND_XDG_CACHE_HOME" ] ; then
+            echo Error: make clean left files behind at $XDG_CACHE_HOME!
+            echo "find $XDG_CACHE_HOME ! -type d"
+            echo "$FIND_XDG_CACHE_HOME"
             exit 1
           fi
         shell: bash
