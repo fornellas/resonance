@@ -19,7 +19,7 @@ service HostService {
   rpc Symlink(SymlinkRequest) returns (Empty) {}
   rpc ReadLink(ReadLinkRequest) returns (ReadLinkResponse) {}
   rpc Remove(RemoveRequest) returns (Empty) {}
-  rpc Run(RunRequest) returns (RunResponse) {}
+  rpc Run(stream RunRequest) returns (stream RunResponse) {}
   rpc WriteFile(stream WriteFileRequest) returns (Empty) {}
   rpc Shutdown(Empty) returns (Empty) {}
 }
@@ -151,12 +151,21 @@ message RemoveRequest {
   string name = 1;
 }
 
-message RunRequest {
+message Cmd {
   string path = 1;
   repeated string args = 2;
   repeated string env_vars = 3;
   string dir = 4;
-  bytes stdin = 5;
+  bool stdin = 5;
+  bool stdout = 6;
+  bool stderr = 7;
+}
+
+message RunRequest {
+  oneof data {
+    Cmd cmd = 1;
+    bytes stdin_chunk = 2;
+  }
 }
 
 message WaitStatus {
@@ -166,9 +175,11 @@ message WaitStatus {
 }
 
 message RunResponse {
-  WaitStatus waitstatus = 1;
-  bytes stdout = 2;
-  bytes stderr = 3;
+  oneof data {
+    WaitStatus waitstatus = 1;
+    bytes stdout_chunk = 2;
+    bytes stderr_chunk = 3;
+  }
 }
 
 message FileMetadata {

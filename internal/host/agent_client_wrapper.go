@@ -14,6 +14,7 @@ import (
 	"os/user"
 	"regexp"
 	"strings"
+	"sync"
 
 	"al.essio.dev/pkg/shellescape"
 	"google.golang.org/grpc"
@@ -591,50 +592,128 @@ func (h *AgentClientWrapper) Remove(ctx context.Context, name string) error {
 	return nil
 }
 
+func (h *AgentClientWrapper) runStdinCopier(
+	stdinReader io.Reader,
+	stream grpc.BidiStreamingClient[proto.RunRequest, proto.RunResponse],
+) error {
+	buffer := make([]byte, 8196)
+	for {
+		n, err := stdinReader.Read(buffer)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return getGrpcError(err)
+		}
+
+		err = stream.Send(
+			&proto.RunRequest{
+				Data: &proto.RunRequest_StdinChunk{
+					StdinChunk: buffer[:n],
+				},
+			},
+		)
+		if err != nil {
+			return getGrpcError(err)
+		}
+	}
+	return nil
+}
+
 func (h *AgentClientWrapper) Run(ctx context.Context, cmd host.Cmd) (host.WaitStatus, error) {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Run", "cmd", cmd)
 
-	var stdin []byte
+	stream, err := h.hostServiceClient.Run(ctx)
+	if err != nil {
+		return host.WaitStatus{}, getGrpcError(err)
+	}
+
+	err = stream.Send(
+		&proto.RunRequest{
+			Data: &proto.RunRequest_Cmd{
+				Cmd: &proto.Cmd{
+					Path:    cmd.Path,
+					Args:    cmd.Args,
+					EnvVars: cmd.Env,
+					Dir:     cmd.Dir,
+					Stdin:   cmd.Stdin != nil,
+					Stdout:  cmd.Stdout != nil,
+					Stderr:  cmd.Stderr != nil,
+				},
+			},
+		},
+	)
+	if err != nil {
+		return host.WaitStatus{}, errors.Join(
+			getGrpcError(err),
+			stream.CloseSend(),
+		)
+	}
+
+	var wg sync.WaitGroup
+
+	var stdinErr error
 	if cmd.Stdin != nil {
-		var err error
-		stdin, err = io.ReadAll(cmd.Stdin)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			stdinErr = h.runStdinCopier(cmd.Stdin, stream)
+		}()
+	}
+
+	var waitStatus host.WaitStatus
+	var recvError error
+	for {
+		resp, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
 		if err != nil {
-			return host.WaitStatus{}, err
+			recvError = getGrpcError(err)
+			break
+		}
+
+		if respData, ok := resp.Data.(*proto.RunResponse_Waitstatus); ok {
+			waitStatus.ExitCode = int(respData.Waitstatus.Exitcode)
+			waitStatus.Exited = respData.Waitstatus.Exited
+			waitStatus.Signal = respData.Waitstatus.Signal
+			break
+		} else if respData, ok := resp.Data.(*proto.RunResponse_StdoutChunk); ok {
+			if cmd.Stdout == nil {
+				panic("bug: received stdout chunk for nil stdout")
+			}
+			if _, err := cmd.Stdout.Write(respData.StdoutChunk); err != nil {
+				recvError = getGrpcError(err)
+				break
+			}
+		} else if respData, ok := resp.Data.(*proto.RunResponse_StderrChunk); ok {
+			if cmd.Stderr == nil {
+				panic("bug: received stderr chunk for nil stderr")
+			}
+			if _, err := cmd.Stderr.Write(respData.StderrChunk); err != nil {
+				recvError = getGrpcError(err)
+				break
+			}
+		} else {
+			panic(fmt.Errorf("bug: unexpected response data: %#v", resp.Data))
 		}
 	}
 
-	resp, err := h.hostServiceClient.Run(ctx, &proto.RunRequest{
-		Path:    cmd.Path,
-		Args:    cmd.Args,
-		EnvVars: cmd.Env,
-		Dir:     cmd.Dir,
-		Stdin:   stdin,
-	})
+	closeSendErr := stream.CloseSend()
 
+	wg.Wait()
+
+	err = errors.Join(
+		stdinErr,
+		recvError,
+		closeSendErr,
+	)
 	if err != nil {
 		return host.WaitStatus{}, err
 	}
 
-	if cmd.Stdout != nil {
-		_, err := io.Copy(cmd.Stdout, bytes.NewReader(resp.Stdout))
-		if err != nil {
-			return host.WaitStatus{}, err
-		}
-	}
-
-	if cmd.Stderr != nil {
-		_, err := io.Copy(cmd.Stderr, bytes.NewReader(resp.Stderr))
-		if err != nil {
-			return host.WaitStatus{}, err
-		}
-	}
-
-	return host.WaitStatus{
-		ExitCode: int(resp.Waitstatus.Exitcode),
-		Exited:   resp.Waitstatus.Exited,
-		Signal:   resp.Waitstatus.Signal,
-	}, nil
+	return waitStatus, nil
 }
 
 func (h *AgentClientWrapper) WriteFile(ctx context.Context, name string, data io.Reader, perm uint32) error {
