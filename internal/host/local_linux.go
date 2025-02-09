@@ -49,9 +49,9 @@ func (h Local) Chmod(ctx context.Context, name string, mode uint32) error {
 	return syscall.Chmod(name, mode)
 }
 
-func (h Local) Chown(ctx context.Context, name string, uid, gid uint32) error {
+func (h Local) Lchown(ctx context.Context, name string, uid, gid uint32) error {
 	logger := log.MustLogger(ctx)
-	logger.Debug("Chown", "name", name, "uid", uid, "gid", gid)
+	logger.Debug("Lchown", "name", name, "uid", uid, "gid", gid)
 
 	if !filepath.IsAbs(name) {
 		return &fs.PathError{
@@ -61,7 +61,7 @@ func (h Local) Chown(ctx context.Context, name string, uid, gid uint32) error {
 		}
 	}
 
-	return syscall.Chown(name, int(uid), int(gid))
+	return syscall.Lchown(name, int(uid), int(gid))
 }
 
 func (h Local) Lookup(ctx context.Context, username string) (*user.User, error) {

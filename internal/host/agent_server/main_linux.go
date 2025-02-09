@@ -75,24 +75,24 @@ func (s *HostService) Chmod(ctx context.Context, req *proto.ChmodRequest) (*prot
 	return &proto.ChmodResponse{Status: "chmod successful"}, nil
 }
 
-func (s *HostService) Chown(ctx context.Context, req *proto.ChownRequest) (*proto.ChownResponse, error) {
+func (s *HostService) Lchown(ctx context.Context, req *proto.LchownRequest) (*proto.LchownResponse, error) {
 	name := req.Name
 	uid := int(req.Uid)
 	gid := int(req.Gid)
 
 	if !filepath.IsAbs(name) {
 		return nil, &fs.PathError{
-			Op:   "Chown",
+			Op:   "Lchown",
 			Path: name,
 			Err:  errors.New("path must be absolute"),
 		}
 	}
 
-	if err := syscall.Chown(name, uid, gid); err != nil {
+	if err := syscall.Lchown(name, uid, gid); err != nil {
 		return nil, err
 	}
 
-	return &proto.ChownResponse{Status: "chown successful"}, nil
+	return &proto.LchownResponse{Status: "lchown successful"}, nil
 }
 
 func (s *HostService) Lookup(ctx context.Context, req *proto.LookupRequest) (*proto.LookupResponse, error) {

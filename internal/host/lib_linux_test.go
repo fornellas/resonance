@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"syscall"
 	"testing"
@@ -63,6 +64,7 @@ var allModeBits = []uint32{
 	syscall.S_IXOTH, // 00001 others have execute permission
 }
 
+//gocyclo:ignore
 func testHost(
 	t *testing.T,
 	ctx context.Context,
@@ -116,31 +118,51 @@ func testHost(
 		})
 	})
 
-	t.Run("Chown", func(t *testing.T) {
-		dir, err := os.MkdirTemp(tmpDir, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
+	t.Run("Lchown", func(t *testing.T) {
+		prefix := t.TempDir()
+		regularFilePath := filepath.Join(prefix, "foo")
+		file, err := os.Create(regularFilePath)
 		require.NoError(t, err)
-		name := filepath.Join(dir, "foo")
-		file, err := os.Create(name)
+		require.NoError(t, file.Close())
+		fileInfo, err := os.Lstat(regularFilePath)
 		require.NoError(t, err)
-		file.Close()
+		regularFileStat_t := fileInfo.Sys().(*syscall.Stat_t)
 		t.Run("Success", func(t *testing.T) {
-			fileInfo, err := os.Lstat(name)
-			require.NoError(t, err)
-			stat_t := fileInfo.Sys().(*syscall.Stat_t)
-			err = hst.Chown(ctx, name, stat_t.Uid, stat_t.Gid)
-			require.NoError(t, err)
+			if isRoot(t) {
+				symlinkPatht := filepath.Join(prefix, "symlink")
+				require.NoError(t, os.Symlink(regularFilePath, symlinkPatht))
+
+				var uid uint32 = 2341
+				var gid uint32 = 2341
+				require.NoError(t, hst.Lchown(ctx, symlinkPatht, uid, gid))
+
+				fileInfo, err := os.Lstat(regularFilePath)
+				require.NoError(t, err)
+				symlinkStat_t := fileInfo.Sys().(*syscall.Stat_t)
+
+				require.True(t, reflect.DeepEqual(symlinkStat_t, regularFileStat_t))
+
+				fileInfo, err = os.Lstat(symlinkPatht)
+				require.NoError(t, err)
+				newSymlinkStat_t := fileInfo.Sys().(*syscall.Stat_t)
+				require.Equal(t, uid, newSymlinkStat_t.Uid)
+				require.Equal(t, gid, newSymlinkStat_t.Gid)
+			} else {
+				err = hst.Lchown(ctx, regularFilePath, regularFileStat_t.Uid, regularFileStat_t.Gid)
+				require.NoError(t, err)
+			}
 		})
 		t.Run("path must be absolute", func(t *testing.T) {
-			err = hst.Chown(ctx, "foo/bar", 0, 0)
+			err = hst.Lchown(ctx, "foo/bar", 0, 0)
 			require.ErrorContains(t, err, "path must be absolute")
 		})
 		t.Run("ErrPermission", func(t *testing.T) {
 			skipIfRoot(t)
-			err = hst.Chown(ctx, name, 0, 0)
+			err = hst.Lchown(ctx, regularFilePath, 0, 0)
 			require.ErrorIs(t, err, os.ErrPermission)
 		})
 		t.Run("ErrNotExist", func(t *testing.T) {
-			err = hst.Chown(ctx, "/non-existent", 0, 0)
+			err = hst.Lchown(ctx, "/non-existent", 0, 0)
 			require.ErrorIs(t, err, os.ErrNotExist)
 		})
 	})
@@ -638,7 +660,7 @@ func testHost(
 				require.NoError(t, err)
 
 				readDataBytes, err := os.ReadFile(name)
-				if (modeBits & syscall.S_IRUSR) != 0 {
+				if (modeBits&syscall.S_IRUSR) != 0 || isRoot(t) {
 					require.NoError(t, err)
 					require.Equal(t, dataBytes, readDataBytes)
 				} else {
