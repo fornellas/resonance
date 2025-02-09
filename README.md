@@ -93,6 +93,18 @@ The default build with `ci` reproduces the official build, but this may be too s
 ./make.sh ci-dev # or "make ci-dev"
 ```
 
+### Enable debugging symbols
+
+By default, both the embedded agents and final binaries are built without debugging symbols by use of extra `go build` flags.
+
+During development, it can be useful to have debugging symbols enabled. This can be accomplished by:
+
+```shell
+make ci GO_BUILD_FLAGS='' GO_BUILD_MAX_AGENT_SIZE=10000000
+```
+
+PS: tests _do_ run with debugging symbols.
+
 ### Automatic builds on Linux
 
 The build system is integrated with [rrb](https://github.com/fornellas/rrb), which enables the build to run automatically as you edit the files.
