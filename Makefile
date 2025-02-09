@@ -217,7 +217,7 @@ PROTOLINT_ARGS :=
 
 # go build
 
-GO_BUILD_FLAGS :=
+GO_BUILD_FLAGS := -trimpath -ldflags "-s -w"
 
 # osusergo have Lookup and LookupGroup to use pure Go implementation to enable
 # management of local users
@@ -229,7 +229,7 @@ else
 GO_BUILD_AGENT_GOARCHS := $(GOARCH)
 endif
 
-GO_BUILD_MAX_AGENT_SIZE := 8000000
+GO_BUILD_MAX_AGENT_SIZE := 4000000
 
 # rrb
 
