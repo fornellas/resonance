@@ -9,7 +9,7 @@ service HostService {
   rpc Geteuid(Empty) returns (GeteuidResponse) {}
   rpc Getegid(Empty) returns (GetegidResponse) {}
   rpc Chmod(ChmodRequest) returns (ChmodResponse) {}
-  rpc Chown(ChownRequest) returns (ChownResponse) {}
+  rpc Lchown(LchownRequest) returns (LchownResponse) {}
   rpc Lookup(LookupRequest) returns (LookupResponse) {}
   rpc LookupGroup(LookupGroupRequest) returns (LookupGroupResponse) {}
   rpc Lstat(LstatRequest) returns (LstatResponse) {}
@@ -49,13 +49,13 @@ message ChmodResponse {
   string status = 1;
 }
 
-message ChownRequest {
+message LchownRequest {
   string name = 1;
   int64  uid = 2;
   int64  gid = 3;
 }
 
-message ChownResponse {
+message LchownResponse {
   string status = 1;
 }
 

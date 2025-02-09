@@ -384,11 +384,11 @@ func (h *AgentClientWrapper) Chmod(ctx context.Context, name string, mode uint32
 	return nil
 }
 
-func (h *AgentClientWrapper) Chown(ctx context.Context, name string, uid, gid uint32) error {
+func (h *AgentClientWrapper) Lchown(ctx context.Context, name string, uid, gid uint32) error {
 	logger := log.MustLogger(ctx)
-	logger.Debug("Chown", "name", name, "uid", uid, "gid", gid)
+	logger.Debug("Lchown", "name", name, "uid", uid, "gid", gid)
 
-	_, err := h.hostServiceClient.Chown(ctx, &proto.ChownRequest{
+	_, err := h.hostServiceClient.Lchown(ctx, &proto.LchownRequest{
 		Name: name,
 		Uid:  int64(uid),
 		Gid:  int64(gid),
