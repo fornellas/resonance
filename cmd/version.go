@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fornellas/resonance/internal"
+	"github.com/fornellas/resonance"
 )
 
 var VersionCmd = &cobra.Command{
@@ -13,7 +13,7 @@ var VersionCmd = &cobra.Command{
 	Short: "Prints the program version.",
 	Args:  cobra.ExactArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("%s\n", internal.Version)
+		fmt.Printf("%s\n", resonance.Version)
 	},
 }
 

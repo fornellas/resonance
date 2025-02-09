@@ -1,0 +1,190 @@
+syntax = "proto3";
+
+package resonance;
+
+option go_package = "github.com/fornellas/resonance/host/agent_server/proto";
+
+service HostService {
+  rpc Ping(PingRequest) returns (PingResponse) {}
+  rpc Geteuid(Empty) returns (GeteuidResponse) {}
+  rpc Getegid(Empty) returns (GetegidResponse) {}
+  rpc Chmod(ChmodRequest) returns (Empty) {}
+  rpc Lchown(LchownRequest) returns (Empty) {}
+  rpc Lookup(LookupRequest) returns (LookupResponse) {}
+  rpc LookupGroup(LookupGroupRequest) returns (LookupGroupResponse) {}
+  rpc Lstat(LstatRequest) returns (LstatResponse) {}
+  rpc ReadDir(ReadDirRequest) returns (stream DirEnt) {}
+  rpc Mkdir(MkdirRequest) returns (Empty) {}
+  rpc ReadFile(ReadFileRequest) returns (stream ReadFileResponse) {}
+  rpc Symlink(SymlinkRequest) returns (Empty) {}
+  rpc ReadLink(ReadLinkRequest) returns (ReadLinkResponse) {}
+  rpc Remove(RemoveRequest) returns (Empty) {}
+  rpc Run(stream RunRequest) returns (stream RunResponse) {}
+  rpc Mknod(MknodRequest) returns (Empty) {}
+  rpc WriteFile(stream WriteFileRequest) returns (Empty) {}
+  rpc Shutdown(Empty) returns (Empty) {}
+}
+
+message PingRequest {
+}
+
+message PingResponse {
+  string message = 1;
+}
+
+message GeteuidResponse {
+  uint64 uid = 1;
+}
+
+message GetegidResponse {
+  uint64 gid = 1;
+}
+
+message ChmodRequest {
+  string name = 1;
+  uint32  mode = 2;
+}
+
+message LchownRequest {
+  string name = 1;
+  int64  uid = 2;
+  int64  gid = 3;
+}
+
+message LookupRequest {
+  string username = 1;
+}
+
+message LookupResponse {
+  string name  = 1;
+  string uid  = 2;
+  string gid = 3;
+  string username = 4;
+  string homedir = 5;
+}
+
+message LookupGroupRequest {
+  string name = 1;
+}
+
+message LookupGroupResponse {
+  string name  = 1;
+  string gid = 2;
+}
+
+message LstatRequest {
+  string name = 1;
+}
+
+message Timespec {
+  int64 sec = 1;
+  int64 nsec = 2;
+}
+
+message LstatResponse {
+  uint64 dev = 1;
+  uint64 ino = 2;
+  uint64 nlink = 3;
+  uint32 mode = 4;
+  uint32 uid = 5;
+  uint32 gid = 6;
+  uint64 rdev = 7;
+  int64 size = 8;
+  int64 blksize = 9;
+  int64 blocks = 10;
+  Timespec atim = 11;
+  Timespec mtim = 12;
+  Timespec ctim = 13;
+}
+
+message ReadDirRequest {
+  string name = 1;
+}
+
+message DirEnt {
+  uint64 ino = 1;
+  int32 type = 2;
+  string name = 3;
+}
+
+message Empty {
+}
+
+message MkdirRequest {
+  string name = 1;
+  uint32 mode = 2;
+}
+
+message ReadFileRequest {
+  string name = 1;
+}
+
+message ReadFileResponse {
+  bytes chunk = 1;
+}
+
+message SymlinkRequest {
+  string oldname = 1;
+  string newname = 2;
+}
+
+message ReadLinkRequest {
+  string name = 1;
+}
+
+message ReadLinkResponse {
+  string destination = 1;
+}
+
+message RemoveRequest {
+  string name = 1;
+}
+
+message MknodRequest {
+  string path = 1;
+  uint32 mode = 2;
+  uint64 dev = 3;
+}
+
+message Cmd {
+  string path = 1;
+  repeated string args = 2;
+  repeated string env_vars = 3;
+  string dir = 4;
+  bool stdin = 5;
+  bool stdout = 6;
+  bool stderr = 7;
+}
+
+message RunRequest {
+  oneof data {
+    Cmd cmd = 1;
+    bytes stdin_chunk = 2;
+  }
+}
+
+message WaitStatus {
+  int64 exitcode = 1;
+  bool exited = 2;
+  string signal = 3;
+}
+
+message RunResponse {
+  oneof data {
+    WaitStatus waitstatus = 1;
+    bytes stdout_chunk = 2;
+    bytes stderr_chunk = 3;
+  }
+}
+
+message FileMetadata {
+  string name = 1;
+  uint32 perm = 3;
+}
+
+message WriteFileRequest {
+  oneof data {
+    FileMetadata metadata = 1;
+    bytes chunk = 2;
+  }
+}

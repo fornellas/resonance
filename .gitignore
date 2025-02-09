@@ -1,10 +1,10 @@
 /cover.html
 /cover.lcov
 /cover.txt
-/internal/.git-toplevel
-/internal/.version
-/internal/host/agent_server_linux_*_gz.go
-/internal/host/agent_server/agent_server_linux_*
-/internal/host/agent_server/agent_server_linux_*.gz
-/internal/host/agent_server/proto/*.pb.go
+/.git-toplevel
+/.version
+/host/agent_server_linux_*_gz.go
+/host/agent_server/agent_server_linux_*
+/host/agent_server/agent_server_linux_*.gz
+/host/agent_server/proto/*.pb.go
 /resonance.*.*

@@ -3,9 +3,9 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	blueprintPkg "github.com/fornellas/resonance/internal/blueprint"
-	iResouresPkg "github.com/fornellas/resonance/internal/resources"
+	blueprintPkg "github.com/fornellas/resonance/blueprint"
 	"github.com/fornellas/resonance/log"
+	resourcesPkg "github.com/fornellas/resonance/resources"
 )
 
 var ValidateCmd = &cobra.Command{
@@ -29,7 +29,7 @@ var ValidateCmd = &cobra.Command{
 
 		logger.Info("🔍 Validating", "path", path, "target", hst)
 
-		resources, err := iResouresPkg.LoadPath(ctx, path)
+		resources, err := resourcesPkg.LoadPath(ctx, path)
 		if err != nil {
 			logger.Error(err.Error())
 			Exit(1)

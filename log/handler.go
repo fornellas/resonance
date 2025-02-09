@@ -16,7 +16,7 @@ import (
 
 	"github.com/fatih/color"
 
-	"github.com/fornellas/resonance/internal"
+	"github.com/fornellas/resonance"
 )
 
 // This interface extends slog.Handler to enable logging with indentation.
@@ -160,7 +160,7 @@ func (h *ConsoleHandler) Handle(ctx context.Context, record slog.Record) error {
 		line = ""
 		frame, _ := runtime.CallersFrames([]uintptr{record.PC}).Next()
 		color := color.New(color.FgMagenta, color.Faint)
-		line += color.Sprintf("  %s:%d", strings.TrimPrefix(frame.File, internal.GitTopLevel), frame.Line)
+		line += color.Sprintf("  %s:%d", strings.TrimPrefix(frame.File, resonance.GitTopLevel), frame.Line)
 		if len(frame.Function) > 0 {
 			line += color.Sprintf(" (%s)", frame.Function)
 		}

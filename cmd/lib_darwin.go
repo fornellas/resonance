@@ -7,22 +7,22 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fornellas/resonance/host"
-	ihost "github.com/fornellas/resonance/internal/host"
-	storePkg "github.com/fornellas/resonance/internal/store"
+	hostPkg "github.com/fornellas/resonance/host"
+	"github.com/fornellas/resonance/host/types"
+	storePkg "github.com/fornellas/resonance/store"
 )
 
-func GetHost(ctx context.Context) (host.Host, error) {
-	var baseHost host.BaseHost
+func GetHost(ctx context.Context) (types.Host, error) {
+	var baseHost types.BaseHost
 	var err error
 
 	if ssh != "" {
-		baseHost, err = ihost.NewSshAuthority(ctx, ssh)
+		baseHost, err = hostPkg.NewSshAuthority(ctx, ssh)
 		if err != nil {
 			return nil, err
 		}
 	} else if docker != "" {
-		baseHost, err = ihost.NewDocker(ctx, docker)
+		baseHost, err = hostPkg.NewDocker(ctx, docker)
 		if err != nil {
 			return nil, err
 		}
@@ -32,13 +32,13 @@ func GetHost(ctx context.Context) (host.Host, error) {
 
 	if sudo {
 		var err error
-		baseHost, err = ihost.NewSudoWrapper(ctx, baseHost)
+		baseHost, err = hostPkg.NewSudoWrapper(ctx, baseHost)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	hst, err := ihost.NewAgentClientWrapper(ctx, baseHost)
+	hst, err := hostPkg.NewAgentClientWrapper(ctx, baseHost)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func AddStoreFlags(cmd *cobra.Command) {
 	addStoreFlagsCommon(cmd)
 }
 
-func GetStore(hst host.Host) storePkg.Store {
+func GetStore(hst types.Host) storePkg.Store {
 	store := getStoreCommon(hst)
 	if store == nil {
 		panic("bug: invalid store")
