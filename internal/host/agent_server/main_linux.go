@@ -56,7 +56,7 @@ func (s *HostService) Getegid(ctx context.Context, _ *proto.Empty) (*proto.Geteg
 	}, nil
 }
 
-func (s *HostService) Chmod(ctx context.Context, req *proto.ChmodRequest) (*proto.ChmodResponse, error) {
+func (s *HostService) Chmod(ctx context.Context, req *proto.ChmodRequest) (*proto.Empty, error) {
 	name := req.Name
 	mode := req.Mode
 
@@ -72,10 +72,10 @@ func (s *HostService) Chmod(ctx context.Context, req *proto.ChmodRequest) (*prot
 		return nil, err
 	}
 
-	return &proto.ChmodResponse{Status: "chmod successful"}, nil
+	return &proto.Empty{}, nil
 }
 
-func (s *HostService) Lchown(ctx context.Context, req *proto.LchownRequest) (*proto.LchownResponse, error) {
+func (s *HostService) Lchown(ctx context.Context, req *proto.LchownRequest) (*proto.Empty, error) {
 	name := req.Name
 	uid := int(req.Uid)
 	gid := int(req.Gid)
@@ -92,7 +92,7 @@ func (s *HostService) Lchown(ctx context.Context, req *proto.LchownRequest) (*pr
 		return nil, err
 	}
 
-	return &proto.LchownResponse{Status: "lchown successful"}, nil
+	return &proto.Empty{}, nil
 }
 
 func (s *HostService) Lookup(ctx context.Context, req *proto.LookupRequest) (*proto.LookupResponse, error) {

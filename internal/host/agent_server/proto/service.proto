@@ -8,8 +8,8 @@ service HostService {
   rpc Ping(PingRequest) returns (PingResponse) {}
   rpc Geteuid(Empty) returns (GeteuidResponse) {}
   rpc Getegid(Empty) returns (GetegidResponse) {}
-  rpc Chmod(ChmodRequest) returns (ChmodResponse) {}
-  rpc Lchown(LchownRequest) returns (LchownResponse) {}
+  rpc Chmod(ChmodRequest) returns (Empty) {}
+  rpc Lchown(LchownRequest) returns (Empty) {}
   rpc Lookup(LookupRequest) returns (LookupResponse) {}
   rpc LookupGroup(LookupGroupRequest) returns (LookupGroupResponse) {}
   rpc Lstat(LstatRequest) returns (LstatResponse) {}
@@ -45,18 +45,10 @@ message ChmodRequest {
   uint32  mode = 2;
 }
 
-message ChmodResponse {
-  string status = 1;
-}
-
 message LchownRequest {
   string name = 1;
   int64  uid = 2;
   int64  gid = 3;
-}
-
-message LchownResponse {
-  string status = 1;
 }
 
 message LookupRequest {
