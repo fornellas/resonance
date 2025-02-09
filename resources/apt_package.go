@@ -9,7 +9,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/fornellas/resonance/host"
+	"github.com/fornellas/resonance/host/lib"
+	"github.com/fornellas/resonance/host/types"
 )
 
 // APTPackage manages APT packages.
@@ -77,10 +78,10 @@ func (a *APTPackages) getAptPackages(resources Resources) []*APTPackage {
 	return aptPackages
 }
 
-func (a *APTPackages) Load(ctx context.Context, hst host.Host, resources Resources) error {
+func (a *APTPackages) Load(ctx context.Context, hst types.Host, resources Resources) error {
 	aptPackages := a.getAptPackages(resources)
 
-	hostCmd := host.Cmd{
+	hostCmd := types.Cmd{
 		Path: "apt-cache",
 		Args: []string{"policy"},
 	}
@@ -88,7 +89,7 @@ func (a *APTPackages) Load(ctx context.Context, hst host.Host, resources Resourc
 		hostCmd.Args = append(hostCmd.Args, string(aptPackage.Package))
 	}
 
-	waitStatus, stdout, stderr, err := host.Run(ctx, hst, hostCmd)
+	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, hostCmd)
 	if err != nil {
 		return err
 	}
@@ -147,11 +148,11 @@ func (a *APTPackages) Load(ctx context.Context, hst host.Host, resources Resourc
 	return nil
 }
 
-func (a *APTPackages) Resolve(ctx context.Context, hst host.Host, resources Resources) error {
+func (a *APTPackages) Resolve(ctx context.Context, hst types.Host, resources Resources) error {
 	return nil
 }
 
-func (a *APTPackages) Apply(ctx context.Context, hst host.Host, resources Resources) error {
+func (a *APTPackages) Apply(ctx context.Context, hst types.Host, resources Resources) error {
 	aptPackages := a.getAptPackages(resources)
 
 	// Package arguments
@@ -167,11 +168,11 @@ func (a *APTPackages) Apply(ctx context.Context, hst host.Host, resources Resour
 	}
 
 	// Run apt
-	cmd := host.Cmd{
+	cmd := types.Cmd{
 		Path: "apt-get",
 		Args: append([]string{"--yes", "install"}, pkgArgs...),
 	}
-	waitStatus, stdout, stderr, err := host.Run(ctx, hst, cmd)
+	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
 	if err != nil {
 		return fmt.Errorf("failed to run '%s': %s", cmd, err)
 	}

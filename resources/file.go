@@ -11,7 +11,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/fornellas/resonance/host"
+	"github.com/fornellas/resonance/host/types"
 )
 
 // File manages files
@@ -54,7 +54,7 @@ func (f *File) Validate() error {
 	return nil
 }
 
-func (f *File) Load(ctx context.Context, hst host.Host) error {
+func (f *File) Load(ctx context.Context, hst types.Host) error {
 	*f = File{
 		Path: f.Path,
 	}
@@ -98,7 +98,7 @@ func (f *File) Load(ctx context.Context, hst host.Host) error {
 	return nil
 }
 
-func (f *File) Resolve(ctx context.Context, hst host.Host) error {
+func (f *File) Resolve(ctx context.Context, hst types.Host) error {
 	if f.User != "" {
 		usr, err := hst.Lookup(ctx, f.User)
 		if err != nil {
@@ -128,7 +128,7 @@ func (f *File) Resolve(ctx context.Context, hst host.Host) error {
 	return nil
 }
 
-func (f *File) Apply(ctx context.Context, hst host.Host) error {
+func (f *File) Apply(ctx context.Context, hst types.Host) error {
 	// Remove
 	if f.Absent {
 		err := hst.Remove(ctx, string(f.Path))

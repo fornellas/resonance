@@ -3,10 +3,9 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	planPkg "github.com/fornellas/resonance/internal/plan"
-	iResouresPkg "github.com/fornellas/resonance/internal/resources"
 	"github.com/fornellas/resonance/log"
-	resouresPkg "github.com/fornellas/resonance/resources"
+	planPkg "github.com/fornellas/resonance/plan"
+	resourcesPkg "github.com/fornellas/resonance/resources"
 )
 
 var PlanCmd = &cobra.Command{
@@ -34,18 +33,18 @@ var PlanCmd = &cobra.Command{
 		store := GetStore(host)
 
 		// Load Target Resources
-		var targetResources resouresPkg.Resources
+		var targetResources resourcesPkg.Resources
 		{
 			var err error
 			ctx, _ := log.MustContextLoggerSection(ctx, "📂 Loading target resources")
-			targetResources, err = iResouresPkg.LoadPath(ctx, path)
+			targetResources, err = resourcesPkg.LoadPath(ctx, path)
 			if err != nil {
 				logger.Error(err.Error())
 				Exit(1)
 			}
 			_, logger := log.MustContextLoggerSection(ctx, "📚 All loaded resources")
 			for _, resource := range targetResources {
-				logger.Info(resouresPkg.GetResourceTypeName(resource), "yaml", resouresPkg.GetResourceYaml(resource))
+				logger.Info(resourcesPkg.GetResourceTypeName(resource), "yaml", resourcesPkg.GetResourceYaml(resource))
 			}
 		}
 

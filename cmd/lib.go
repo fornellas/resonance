@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fornellas/resonance/host"
-	storePkg "github.com/fornellas/resonance/internal/store"
+	"github.com/fornellas/resonance/host/types"
+	storePkg "github.com/fornellas/resonance/store"
 )
 
 // This is to be used in place of os.Exit() to aid writing test assertions on exit code.
@@ -53,7 +53,7 @@ func addStoreFlagsCommon(cmd *cobra.Command) {
 	)
 }
 
-func getStoreCommon(hst host.Host) storePkg.Store {
+func getStoreCommon(hst types.Host) storePkg.Store {
 	var storePath string
 	switch storeValue.String() {
 	case "target":

@@ -13,8 +13,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/fornellas/resonance/host"
-	"github.com/fornellas/resonance/internal/diff"
+	"github.com/fornellas/resonance/diff"
+	"github.com/fornellas/resonance/host/types"
 )
 
 // Resource defines a single resource state.
@@ -432,13 +432,13 @@ func GetResourcesYaml(resources Resources) string {
 type SingleResource interface {
 	Resource
 	// Load the full current state of the resource from given Host.
-	Load(context.Context, host.Host) error
+	Load(context.Context, types.Host) error
 	// Resolve the state with information that may be required from the host. This must not change
 	// the semantics of the state.
 	// Eg: for a file, the state defines a username, which must be transformed to a UID.
-	Resolve(context.Context, host.Host) error
+	Resolve(context.Context, types.Host) error
 	// Apply state of the resource to given Host.
-	Apply(context.Context, host.Host) error
+	Apply(context.Context, types.Host) error
 }
 
 // Register a new SingleResource type.
@@ -468,13 +468,13 @@ func GetSingleResourceByTypeName(name string) SingleResource {
 // type. Eg: APT packages may conflict with each other, so they must be configured altogether.
 type GroupResource interface {
 	// Load the full current state of all resources from given Host.
-	Load(context.Context, host.Host, Resources) error
+	Load(context.Context, types.Host, Resources) error
 	// Resolve the state with information that may be required from the host. This must not change
 	// the semantics of the state.
 	// Eg: for a file, the state defines a username, which must be transformed to a UID.
-	Resolve(context.Context, host.Host, Resources) error
+	Resolve(context.Context, types.Host, Resources) error
 	// Apply state of all given resources to Host.
-	Apply(context.Context, host.Host, Resources) error
+	Apply(context.Context, types.Host, Resources) error
 }
 
 var groupResourceMap = map[string]reflect.Type{}

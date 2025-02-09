@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/fornellas/resonance/host"
-	"github.com/fornellas/resonance/internal"
-	storePkg "github.com/fornellas/resonance/internal/store"
+	"github.com/fornellas/resonance"
+	"github.com/fornellas/resonance/host/types"
 	"github.com/fornellas/resonance/log"
+	storePkg "github.com/fornellas/resonance/store"
 )
 
 type LogLevelValue slog.Level
@@ -67,7 +67,7 @@ var logHandlerNameFnMap = map[string]func(io.Writer, LogHandlerValueOptions) slo
 			ReplaceAttr: func(groups []string, attr slog.Attr) slog.Attr {
 				if len(groups) == 0 && attr.Key == slog.SourceKey {
 					attr.Value = slog.AnyValue(
-						strings.Replace(attr.Value.String(), " "+internal.GitTopLevel, " ", 1),
+						strings.Replace(attr.Value.String(), " "+resonance.GitTopLevel, " ", 1),
 					)
 				}
 				return attr
@@ -152,6 +152,6 @@ func (s *StoreValue) Type() string {
 	return fmt.Sprintf("[%s]", strings.Join(names, "|"))
 }
 
-func (s *StoreValue) GetStore(hst host.Host, path string) storePkg.Store {
+func (s *StoreValue) GetStore(hst types.Host, path string) storePkg.Store {
 	return storePkg.NewHostStore(hst, path)
 }
