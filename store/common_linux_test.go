@@ -14,11 +14,13 @@ import (
 )
 
 func getTestBlueprint(t *testing.T, ctx context.Context) *blueprintPkg.Blueprint {
+	uid := uint32(123)
+	gid := uint32(456)
 	resources := resourcesPkg.Resources{
 		&resourcesPkg.File{
 			Path: "/tmp/foo",
-			Uid:  123,
-			Gid:  456,
+			Uid:  &uid,
+			Gid:  &gid,
 		},
 		&resourcesPkg.APTPackage{
 			Package: "foo",
@@ -44,11 +46,13 @@ func testStore(t *testing.T, store Store) {
 	}
 
 	t.Run("OriginalResource", func(t *testing.T) {
+		uid := uint32(123)
+		gid := uint32(456)
 		resources := resourcesPkg.Resources{
 			&resourcesPkg.File{
 				Path: "/tmp/foo",
-				Uid:  123,
-				Gid:  456,
+				Uid:  &uid,
+				Gid:  &gid,
 			},
 			&resourcesPkg.APTPackage{
 				Package: "foo",

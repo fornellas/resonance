@@ -37,7 +37,7 @@ type Host interface {
 	Getegid(ctx context.Context) (uint64, error)
 
 	// Chmod works similar to syscall.Chmod.
-	Chmod(ctx context.Context, name string, mode uint32) error
+	Chmod(ctx context.Context, name string, mode FileMode) error
 
 	// Lchown works similar to syscall.Lchown.
 	Lchown(ctx context.Context, name string, uid, gid uint32) error
@@ -60,7 +60,7 @@ type Host interface {
 	ReadDir(ctx context.Context, name string) (dirEntResultCh <-chan DirEntResult, cancel func())
 
 	// Mkdir works similar to syscall.Mkdir, but ignoring umask.
-	Mkdir(ctx context.Context, name string, mode uint32) error
+	Mkdir(ctx context.Context, name string, mode FileMode) error
 
 	// ReadFile works similar to os.ReadFile.
 	ReadFile(ctx context.Context, name string) (io.ReadCloser, error)
@@ -75,10 +75,10 @@ type Host interface {
 	Remove(ctx context.Context, name string) error
 
 	// Mknod works similar to syscall.Mknod, but ignoring umask.
-	Mknod(ctx context.Context, path string, mode uint32, dev uint64) error
+	Mknod(ctx context.Context, path string, mode FileMode, dev FileDevice) error
 
 	// WriteFile works similar to os.WriteFile, but receives mode bits (see inode(7)) and ignores umask.
-	WriteFile(ctx context.Context, name string, data io.Reader, mode uint32) error
+	WriteFile(ctx context.Context, name string, data io.Reader, mode FileMode) error
 }
 
 // Run starts the specified command and waits for it to complete.
@@ -101,7 +101,7 @@ func Run(ctx context.Context, hst BaseHost, cmd Cmd) (WaitStatus, string, string
 }
 
 // MkdirAll wraps Host.Mkdir and behavess similar to os.MkdirAll.
-func MkdirAll(ctx context.Context, hst Host, name string, mode uint32) error {
+func MkdirAll(ctx context.Context, hst Host, name string, mode FileMode) error {
 	stat_t, err := hst.Lstat(ctx, name)
 	if err == nil {
 		if stat_t.Mode&syscall.S_IFMT == syscall.S_IFDIR {

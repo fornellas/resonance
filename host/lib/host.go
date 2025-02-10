@@ -35,7 +35,7 @@ func SimpleRun(ctx context.Context, hst types.BaseHost, cmd types.Cmd) (types.Wa
 }
 
 // MkdirAll wraps Host.Mkdir and behavess similar to os.MkdirAll.
-func MkdirAll(ctx context.Context, hst types.Host, name string, mode uint32) error {
+func MkdirAll(ctx context.Context, hst types.Host, name string, mode types.FileMode) error {
 	stat_t, err := hst.Lstat(ctx, name)
 	if err == nil {
 		if stat_t.Mode&syscall.S_IFMT == syscall.S_IFDIR {

@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/fornellas/resonance/host/types"
 	resouresPkg "github.com/fornellas/resonance/resources"
 )
 
@@ -12,10 +13,14 @@ func TestValidate(t *testing.T) {
 	resourcesDir := tempDir
 	resourcesFile := filepath.Join(tempDir, "resources.yaml")
 
+	var mode types.FileMode = 0644
+
+	regularFile := "foo"
 	successResources := resouresPkg.Resources{
 		&resouresPkg.File{
-			Path: filepath.Join(tempDir, "foo"),
-			Mode: 0644,
+			Path:        filepath.Join(tempDir, "foo"),
+			RegularFile: &regularFile,
+			Mode:        &mode,
 		},
 	}
 
@@ -42,6 +47,7 @@ func TestValidate(t *testing.T) {
 		ExpectStderrContains []string
 	}
 
+	badUser := "bad-user-name"
 	for _, tc := range []testCase{
 		{
 			Name:                 "success",
@@ -53,8 +59,8 @@ func TestValidate(t *testing.T) {
 			Resources: resouresPkg.Resources{
 				&resouresPkg.File{
 					Path: filepath.Join(tempDir, "foo"),
-					Mode: 0644,
-					User: "bad-user-name",
+					Mode: &mode,
+					User: &badUser,
 				},
 			},
 			ExpectedCode:         1,

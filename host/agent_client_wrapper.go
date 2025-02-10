@@ -128,7 +128,7 @@ func getTmpFile(ctx context.Context, hst types.BaseHost, template string) (strin
 	return strings.TrimRight(stdout, "\n"), nil
 }
 
-func chmod(ctx context.Context, baseHost types.BaseHost, name string, mode uint32) error {
+func chmod(ctx context.Context, baseHost types.BaseHost, name string, mode types.FileMode) error {
 	cmd := types.Cmd{
 		Path: "chmod",
 		Args: []string{fmt.Sprintf("%o", mode), name},
@@ -359,13 +359,13 @@ func (h *AgentClientWrapper) Getegid(ctx context.Context) (uint64, error) {
 	return getgidResponse.Gid, nil
 }
 
-func (h *AgentClientWrapper) Chmod(ctx context.Context, name string, mode uint32) error {
+func (h *AgentClientWrapper) Chmod(ctx context.Context, name string, mode types.FileMode) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Chmod", "name", name, "mode", mode)
 
 	_, err := h.hostServiceClient.Chmod(ctx, &proto.ChmodRequest{
 		Name: name,
-		Mode: mode,
+		Mode: uint32(mode),
 	})
 
 	if err != nil {
@@ -529,14 +529,14 @@ func (h *AgentClientWrapper) ReadDir(ctx context.Context, name string) (<-chan t
 	return dirEntResultCh, cancel
 }
 
-func (h *AgentClientWrapper) Mkdir(ctx context.Context, name string, mode uint32) error {
+func (h *AgentClientWrapper) Mkdir(ctx context.Context, name string, mode types.FileMode) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Mkdir", "name", name)
 
 	_, err := h.hostServiceClient.Mkdir(ctx, &proto.MkdirRequest{
 		Name: name,
-		Mode: mode,
+		Mode: uint32(mode),
 	})
 	if err != nil {
 		return unwrapGrpcStatusErrno(err)
@@ -626,14 +626,14 @@ func (h *AgentClientWrapper) Remove(ctx context.Context, name string) error {
 	return nil
 }
 
-func (h *AgentClientWrapper) Mknod(ctx context.Context, pathName string, mode uint32, dev uint64) error {
+func (h *AgentClientWrapper) Mknod(ctx context.Context, pathName string, mode types.FileMode, dev types.FileDevice) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Mknod", "pathName", pathName, "mode", mode, "dev", dev)
 
 	_, err := h.hostServiceClient.Mknod(ctx, &proto.MknodRequest{
 		Path: pathName,
-		Mode: mode,
-		Dev:  dev,
+		Mode: uint32(mode),
+		Dev:  uint64(dev),
 	})
 	if err != nil {
 		return unwrapGrpcStatusErrno(err)
@@ -765,7 +765,7 @@ func (h *AgentClientWrapper) Run(ctx context.Context, cmd types.Cmd) (types.Wait
 	return waitStatus, nil
 }
 
-func (h *AgentClientWrapper) WriteFile(ctx context.Context, name string, data io.Reader, perm uint32) error {
+func (h *AgentClientWrapper) WriteFile(ctx context.Context, name string, data io.Reader, perm types.FileMode) error {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("WriteFile", "name", name, "data", data, "perm", perm)
@@ -780,7 +780,7 @@ func (h *AgentClientWrapper) WriteFile(ctx context.Context, name string, data io
 			Data: &proto.WriteFileRequest_Metadata{
 				Metadata: &proto.FileMetadata{
 					Name: name,
-					Perm: perm,
+					Perm: uint32(perm),
 				},
 			},
 		},

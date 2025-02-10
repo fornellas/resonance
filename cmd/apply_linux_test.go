@@ -9,7 +9,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	resouresPkg "github.com/fornellas/resonance/resources"
+	"github.com/fornellas/resonance/host/types"
+	resourcesPkg "github.com/fornellas/resonance/resources"
 )
 
 func TestApply(t *testing.T) {
@@ -23,14 +24,14 @@ func TestApply(t *testing.T) {
 	fileContent := "bar"
 	fileUid := uint32(os.Geteuid())
 	fileGid := uint32(os.Getgid())
-
-	resources := resouresPkg.Resources{
-		&resouresPkg.File{
-			Path:    filepath.Join(filesDir, "bar"),
-			Mode:    0644,
-			Content: fileContent,
-			Uid:     fileUid,
-			Gid:     fileGid,
+	var mode types.FileMode = 0644
+	resources := resourcesPkg.Resources{
+		&resourcesPkg.File{
+			Path:        filepath.Join(filesDir, "bar"),
+			Mode:        &mode,
+			RegularFile: &fileContent,
+			Uid:         &fileUid,
+			Gid:         &fileGid,
 		},
 	}
 
@@ -50,8 +51,8 @@ func TestApply(t *testing.T) {
     diff:
       path: %s/bar
       -absent: true
-      +content: bar
-      +mode: 420
+      +regular_file: bar
+      +mode: "0644"
       +uid: %d
       +gid: %d
 🧹 State cleanup`,

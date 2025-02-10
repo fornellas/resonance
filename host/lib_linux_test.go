@@ -93,12 +93,12 @@ func testHost(
 		require.NoError(t, err)
 		file.Close()
 		t.Run("Success", func(t *testing.T) {
-			var fileMode uint32 = 01257
+			var fileMode types.FileMode = 01257
 			err = hst.Chmod(ctx, name, fileMode)
 			require.NoError(t, err)
 			var stat_t syscall.Stat_t
 			require.NoError(t, syscall.Lstat(name, &stat_t))
-			require.Equal(t, fileMode, stat_t.Mode&07777)
+			require.Equal(t, fileMode, types.FileMode(stat_t.Mode&07777))
 		})
 		t.Run("path must be absolute", func(t *testing.T) {
 			err = hst.Chmod(ctx, "foo/bar", 0644)
@@ -117,7 +117,7 @@ func testHost(
 
 	t.Run("Lchown", func(t *testing.T) {
 		prefix := t.TempDir()
-		regularFilePath := filepath.Join(prefix, "foo")
+		regularFilePath := filepath.Join(prefix, "regular")
 		file, err := os.Create(regularFilePath)
 		require.NoError(t, err)
 		require.NoError(t, file.Close())
@@ -407,7 +407,7 @@ func testHost(
 			t.Run(fmt.Sprintf("Success mode=%#.12o", fileMode), func(t *testing.T) {
 				dir := tempDirWithPrefix(t, tempDirPrefix)
 				name := filepath.Join(dir, "foo")
-				err := hst.Mkdir(ctx, name, fileMode)
+				err := hst.Mkdir(ctx, name, types.FileMode(fileMode))
 				require.NoError(t, err)
 				var stat_t syscall.Stat_t
 				require.NoError(t, syscall.Lstat(name, &stat_t))
@@ -600,12 +600,12 @@ func testHost(
 	})
 
 	t.Run("Mknod", func(t *testing.T) {
-		testMknod := func(t *testing.T, name string, fileType, modeBits uint32, dev uint64) {
+		testMknod := func(t *testing.T, name string, fileType, modeBits uint32, dev types.FileDevice) {
 			t.Run(name, func(t *testing.T) {
 				dir := tempDirWithPrefix(t, tempDirPrefix)
 				path := filepath.Join(dir, name)
 				var fileTypeBits uint32 = fileType
-				var mode uint32 = fileTypeBits | modeBits
+				var mode types.FileMode = types.FileMode(fileTypeBits | modeBits)
 
 				var isDevice bool
 				switch fileType & syscall.S_IFMT {
@@ -633,8 +633,8 @@ func testHost(
 		t.Run("File type", func(t *testing.T) {
 			testMknod(t, "socket", syscall.S_IFSOCK, 0644, 0)
 			testMknod(t, "regular file", syscall.S_IFREG, 0644, 0)
-			testMknod(t, "block device", syscall.S_IFBLK, 0644, unix.Mkdev(132, 4123))
-			testMknod(t, "character device", syscall.S_IFCHR, 0644, unix.Mkdev(3421, 7623))
+			testMknod(t, "block device", syscall.S_IFBLK, 0644, types.FileDevice(unix.Mkdev(132, 4123)))
+			testMknod(t, "character device", syscall.S_IFCHR, 0644, types.FileDevice(unix.Mkdev(3421, 7623)))
 			testMknod(t, "FIFO", syscall.S_IFIFO, 0644, 0)
 		})
 		t.Run("Mode bits", func(t *testing.T) {
@@ -652,7 +652,7 @@ func testHost(
 				dataBytes := []byte("foo")
 				data := bytes.NewReader(dataBytes)
 
-				err := hst.WriteFile(ctx, name, data, modeBits)
+				err := hst.WriteFile(ctx, name, data, types.FileMode(modeBits))
 				require.NoError(t, err)
 
 				readDataBytes, err := os.ReadFile(name)
@@ -681,12 +681,12 @@ func testHost(
 		t.Run("ovewrite file", func(t *testing.T) {
 			dir := tempDirWithPrefix(t, tempDirPrefix)
 			name := filepath.Join(dir, "foo")
-			var fileMode uint32 = 01607
+			var fileMode types.FileMode = 01607
 			err := hst.WriteFile(ctx, name, bytes.NewReader([]byte{}), fileMode)
 			require.NoError(t, err)
 			dataBytes := []byte("foo")
 			data := bytes.NewReader(dataBytes)
-			var newFileMode uint32 = 02675
+			var newFileMode types.FileMode = 02675
 			err = hst.WriteFile(ctx, name, data, newFileMode)
 			require.NoError(t, err)
 			readDataBytes, err := os.ReadFile(name)
@@ -694,7 +694,7 @@ func testHost(
 			require.Equal(t, dataBytes, readDataBytes)
 			var stat_t syscall.Stat_t
 			require.NoError(t, syscall.Lstat(name, &stat_t))
-			require.Equal(t, newFileMode, stat_t.Mode&07777)
+			require.Equal(t, newFileMode, types.FileMode(stat_t.Mode&07777))
 		})
 		t.Run("is directory", func(t *testing.T) {
 			dir := tempDirWithPrefix(t, tempDirPrefix)
