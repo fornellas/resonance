@@ -235,9 +235,9 @@ GO_BUILD_MAX_AGENT_SIZE := 4000000
 
 RRB := $(GO) run github.com/fornellas/rrb
 RRB_DEBOUNCE ?= 500ms
-RRB_IGNORE_PATTERN ?= 'host/agent_server_linux_*_gz.go,host/agent_server/proto/*.pb.go'
+RRB_IGNORE_PATTERN ?= 'host/agent_server_linux_*_gz.go' 'host/agent_server/proto/*.pb.go'
 RRB_LOG_LEVEL ?= info
-RRB_PATTERN ?= '**/*.go,**/*.proto,Makefile'
+RRB_PATTERN ?= '**/*.go' '**/*.proto' Makefile
 RRB_MAKE_TARGET ?= ci
 RRB_EXTRA_CMD ?= true
 
@@ -692,9 +692,9 @@ help: help-rrb
 rrb: install-go
 	$(RRB) \
 		--debounce $(RRB_DEBOUNCE) \
-		--ignore-pattern $(RRB_IGNORE_PATTERN) \
+		$(foreach pattern,$(RRB_IGNORE_PATTERN),--ignore-pattern $(pattern)) \
 		--log-level $(RRB_LOG_LEVEL) \
-		--pattern $(RRB_PATTERN) \
+		$(foreach pattern,$(RRB_PATTERN),--pattern $(pattern)) \
 		-- \
 		sh -c "$(MAKE) $(MFLAGS) $(RRB_MAKE_TARGET) && $(RRB_EXTRA_CMD)"
 
