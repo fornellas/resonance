@@ -27,7 +27,7 @@ func TestDocker(t *testing.T) {
 	ctx = log.WithTestLogger(ctx)
 	ctx, cancel := context.WithCancel(ctx)
 
-	tempDir := t.TempDir()
+	tempDirPrefix := t.TempDir()
 
 	name := fmt.Sprintf("resonance-%s-%d", t.Name(), os.Getpid())
 	cmd := exec.CommandContext(
@@ -35,7 +35,7 @@ func TestDocker(t *testing.T) {
 		"docker", "run",
 		"--name", name,
 		"--rm",
-		"--volume", fmt.Sprintf("%s:%s", tempDir, tempDir),
+		"--volume", fmt.Sprintf("%s:%s", tempDirPrefix, tempDirPrefix),
 		"debian",
 		"sleep", "5",
 	)
@@ -98,5 +98,5 @@ func TestDocker(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { require.NoError(t, baseHost.Close(ctx)) }()
 
-	testBaseHost(t, ctx, tempDir, baseHost, connection, "docker")
+	testBaseHost(t, ctx, tempDirPrefix, baseHost, connection, "docker")
 }

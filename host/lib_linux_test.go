@@ -9,7 +9,6 @@ import (
 	"os/user"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -68,13 +67,12 @@ var allModeBits = []uint32{
 func testHost(
 	t *testing.T,
 	ctx context.Context,
-	tmpDir string,
+	tempDirPrefix string,
 	hst types.Host,
 	hostString,
 	hostType string,
 ) {
-	tempDir := t.TempDir()
-	testBaseHost(t, ctx, tempDir, hst, hostString, hostType)
+	testBaseHost(t, ctx, tempDirPrefix, hst, hostString, hostType)
 
 	t.Run("Getuid", func(t *testing.T) {
 		uid, err := hst.Geteuid(ctx)
@@ -89,8 +87,7 @@ func testHost(
 	})
 
 	t.Run("Chmod", func(t *testing.T) {
-		dir, err := os.MkdirTemp(tmpDir, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
-		require.NoError(t, err)
+		dir := tempDirWithPrefix(t, tempDirPrefix)
 		name := filepath.Join(dir, "foo")
 		file, err := os.Create(name)
 		require.NoError(t, err)
@@ -196,8 +193,7 @@ func testHost(
 
 	t.Run("Lstat", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
-			dir, err := os.MkdirTemp(tmpDir, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
-			require.NoError(t, err)
+			dir := tempDirWithPrefix(t, tempDirPrefix)
 			name := filepath.Join(dir, "foo")
 			file, err := os.Create(name)
 			require.NoError(t, err)
@@ -222,8 +218,7 @@ func testHost(
 			t.Run("Mode", func(t *testing.T) {
 				t.Run("S_IFMT", func(t *testing.T) {
 					t.Run("socket", func(t *testing.T) {
-						dir, err := os.MkdirTemp(tmpDir, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
-						require.NoError(t, err)
+						dir := tempDirWithPrefix(t, tempDirPrefix)
 						socketPath := filepath.Join(dir, "socket")
 						err = syscall.Mknod(socketPath, syscall.S_IFSOCK, 0)
 						require.NoError(t, err)
@@ -232,8 +227,7 @@ func testHost(
 						require.True(t, socketStat_t.Mode&syscall.S_IFMT == syscall.S_IFSOCK)
 					})
 					t.Run("symbolic link", func(t *testing.T) {
-						dir, err := os.MkdirTemp(tmpDir, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
-						require.NoError(t, err)
+						dir := tempDirWithPrefix(t, tempDirPrefix)
 						linkPath := filepath.Join(dir, "symlink")
 						require.NoError(t, syscall.Symlink("foo", linkPath))
 						linkStat_t, err := hst.Lstat(ctx, linkPath)
@@ -259,8 +253,7 @@ func testHost(
 						require.True(t, charStat_t.Mode&syscall.S_IFMT == syscall.S_IFCHR)
 					})
 					t.Run("FIFO", func(t *testing.T) {
-						dir, err := os.MkdirTemp(tmpDir, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
-						require.NoError(t, err)
+						dir := tempDirWithPrefix(t, tempDirPrefix)
 						fifoPath := filepath.Join(dir, "fifo")
 						require.NoError(t, syscall.Mkfifo(fifoPath, 0644))
 						fifoStat_t, err := hst.Lstat(ctx, fifoPath)
@@ -340,14 +333,13 @@ func testHost(
 	t.Run("ReadDir", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
 
-			dir, err := os.MkdirTemp(tmpDir, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
-			require.NoError(t, err)
+			dir := tempDirWithPrefix(t, tempDirPrefix)
 
 			expectedTypeMap := map[string]uint8{}
 
 			// socket
 			socketPath := filepath.Join(dir, "socket")
-			err = syscall.Mknod(socketPath, syscall.S_IFSOCK, 0)
+			err := syscall.Mknod(socketPath, syscall.S_IFSOCK, 0)
 			require.NoError(t, err)
 			expectedTypeMap["socket"] = syscall.DT_SOCK
 
@@ -413,10 +405,9 @@ func testHost(
 	t.Run("Mkdir", func(t *testing.T) {
 		for _, fileMode := range allModeBits {
 			t.Run(fmt.Sprintf("Success mode=%#.12o", fileMode), func(t *testing.T) {
-				dir, err := os.MkdirTemp(tmpDir, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
-				require.NoError(t, err)
+				dir := tempDirWithPrefix(t, tempDirPrefix)
 				name := filepath.Join(dir, "foo")
-				err = hst.Mkdir(ctx, name, fileMode)
+				err := hst.Mkdir(ctx, name, fileMode)
 				require.NoError(t, err)
 				var stat_t syscall.Stat_t
 				require.NoError(t, syscall.Lstat(name, &stat_t))
@@ -434,30 +425,27 @@ func testHost(
 			require.ErrorIs(t, err, os.ErrPermission)
 		})
 		t.Run("ErrExist", func(t *testing.T) {
-			dir, err := os.MkdirTemp(tmpDir, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
-			require.NoError(t, err)
+			dir := tempDirWithPrefix(t, tempDirPrefix)
 			name := filepath.Join(dir, "foo")
-			err = hst.Mkdir(ctx, name, 0750)
+			err := hst.Mkdir(ctx, name, 0750)
 			require.NoError(t, err)
 			err = hst.Mkdir(ctx, name, 0750)
 			require.ErrorIs(t, err, os.ErrExist)
 		})
 		t.Run("ErrNotExist", func(t *testing.T) {
-			dir, err := os.MkdirTemp(tmpDir, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
-			require.NoError(t, err)
+			dir := tempDirWithPrefix(t, tempDirPrefix)
 			name := filepath.Join(dir, "foo", "bar")
-			err = hst.Mkdir(ctx, name, 0750)
+			err := hst.Mkdir(ctx, name, 0750)
 			require.ErrorIs(t, err, os.ErrNotExist)
 		})
 	})
 
 	t.Run("ReadFile", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
-			dir, err := os.MkdirTemp(tmpDir, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
-			require.NoError(t, err)
+			dir := tempDirWithPrefix(t, tempDirPrefix)
 			name := filepath.Join(dir, "foo")
 			data := []byte("foo")
-			err = os.WriteFile(name, data, os.FileMode(0600))
+			err := os.WriteFile(name, data, os.FileMode(0600))
 			require.NoError(t, err)
 			fileReadCloser, err := hst.ReadFile(ctx, name)
 			require.NoError(t, err)
@@ -492,11 +480,10 @@ func testHost(
 
 	t.Run("Symlink", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
-			dir, err := os.MkdirTemp(tmpDir, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
-			require.NoError(t, err)
+			dir := tempDirWithPrefix(t, tempDirPrefix)
 			newname := filepath.Join(dir, "newname")
 			oldname := "foo/bar"
-			err = hst.Symlink(ctx, oldname, newname)
+			err := hst.Symlink(ctx, oldname, newname)
 			require.NoError(t, err)
 			readOldname, err := os.Readlink(newname)
 			require.NoError(t, err)
@@ -516,11 +503,10 @@ func testHost(
 			require.ErrorIs(t, err, os.ErrPermission)
 		})
 		t.Run("ErrExist", func(t *testing.T) {
-			dir, err := os.MkdirTemp(tmpDir, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
-			require.NoError(t, err)
+			dir := tempDirWithPrefix(t, tempDirPrefix)
 			newname := filepath.Join(dir, "newname")
 			oldname := "foo/bar"
-			err = hst.Symlink(ctx, oldname, newname)
+			err := hst.Symlink(ctx, oldname, newname)
 			require.NoError(t, err)
 			err = hst.Symlink(ctx, oldname, newname)
 			require.ErrorIs(t, err, os.ErrExist)
@@ -535,10 +521,9 @@ func testHost(
 
 	t.Run("Readlink", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
-			dir, err := os.MkdirTemp(tmpDir, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
-			require.NoError(t, err)
+			dir := tempDirWithPrefix(t, tempDirPrefix)
 			target := filepath.Join(dir, "target")
-			err = os.WriteFile(target, []byte("content"), 0644)
+			err := os.WriteFile(target, []byte("content"), 0644)
 			require.NoError(t, err)
 			symlink := filepath.Join(dir, "symlink")
 			err = os.Symlink(target, symlink)
@@ -559,8 +544,7 @@ func testHost(
 
 	t.Run("Remove", func(t *testing.T) {
 		t.Run("Success file", func(t *testing.T) {
-			dir, err := os.MkdirTemp(tmpDir, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
-			require.NoError(t, err)
+			dir := tempDirWithPrefix(t, tempDirPrefix)
 			name := filepath.Join(dir, "foo")
 			file, err := os.Create(name)
 			require.NoError(t, err)
@@ -571,10 +555,9 @@ func testHost(
 			require.ErrorIs(t, err, os.ErrNotExist)
 		})
 		t.Run("Success dir", func(t *testing.T) {
-			dir, err := os.MkdirTemp(tmpDir, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
-			require.NoError(t, err)
+			dir := tempDirWithPrefix(t, tempDirPrefix)
 			name := filepath.Join(dir, "foo")
-			err = os.Mkdir(name, 0700)
+			err := os.Mkdir(name, 0700)
 			require.NoError(t, err)
 			err = hst.Remove(ctx, name)
 			require.NoError(t, err)
@@ -604,8 +587,7 @@ func testHost(
 	t.Run("Mknod", func(t *testing.T) {
 		testMknod := func(t *testing.T, name string, fileType, modeBits uint32, dev uint64) {
 			t.Run(name, func(t *testing.T) {
-				dir, err := os.MkdirTemp(tmpDir, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
-				require.NoError(t, err)
+				dir := tempDirWithPrefix(t, tempDirPrefix)
 				path := filepath.Join(dir, name)
 				var fileTypeBits uint32 = fileType
 				var mode uint32 = fileTypeBits | modeBits
@@ -616,7 +598,7 @@ func testHost(
 					isDevice = true
 				}
 
-				err = hst.Mknod(ctx, path, mode, dev)
+				err := hst.Mknod(ctx, path, mode, dev)
 				if isDevice && !isRoot(t) {
 					require.ErrorIs(t, err, os.ErrPermission)
 					return
@@ -650,13 +632,12 @@ func testHost(
 	t.Run("WriteFile", func(t *testing.T) {
 		for _, modeBits := range allModeBits {
 			t.Run(fmt.Sprintf("Success mode=%#.12o", modeBits), func(t *testing.T) {
-				dir, err := os.MkdirTemp(tmpDir, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
-				require.NoError(t, err)
+				dir := tempDirWithPrefix(t, tempDirPrefix)
 				name := filepath.Join(dir, "foo")
 				dataBytes := []byte("foo")
 				data := bytes.NewReader(dataBytes)
 
-				err = hst.WriteFile(ctx, name, data, modeBits)
+				err := hst.WriteFile(ctx, name, data, modeBits)
 				require.NoError(t, err)
 
 				readDataBytes, err := os.ReadFile(name)
@@ -683,11 +664,10 @@ func testHost(
 			require.ErrorIs(t, err, os.ErrPermission)
 		})
 		t.Run("ovewrite file", func(t *testing.T) {
-			dir, err := os.MkdirTemp(tmpDir, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
-			require.NoError(t, err)
+			dir := tempDirWithPrefix(t, tempDirPrefix)
 			name := filepath.Join(dir, "foo")
 			var fileMode uint32 = 01607
-			err = hst.WriteFile(ctx, name, bytes.NewReader([]byte{}), fileMode)
+			err := hst.WriteFile(ctx, name, bytes.NewReader([]byte{}), fileMode)
 			require.NoError(t, err)
 			dataBytes := []byte("foo")
 			data := bytes.NewReader(dataBytes)
@@ -702,19 +682,17 @@ func testHost(
 			require.Equal(t, newFileMode, stat_t.Mode&07777)
 		})
 		t.Run("is directory", func(t *testing.T) {
-			dir, err := os.MkdirTemp(tmpDir, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
-			require.NoError(t, err)
+			dir := tempDirWithPrefix(t, tempDirPrefix)
 			name := filepath.Join(dir, "foo")
-			err = os.Mkdir(name, os.FileMode(0700))
+			err := os.Mkdir(name, os.FileMode(0700))
 			require.NoError(t, err)
 			err = hst.WriteFile(ctx, name, bytes.NewReader([]byte{}), 0640)
 			require.Error(t, err)
 		})
 		t.Run("ErrNotExist", func(t *testing.T) {
-			dir, err := os.MkdirTemp(tmpDir, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
-			require.NoError(t, err)
+			dir := tempDirWithPrefix(t, tempDirPrefix)
 			name := filepath.Join(dir, "foo", "bar")
-			err = hst.WriteFile(ctx, name, bytes.NewReader([]byte{}), 0600)
+			err := hst.WriteFile(ctx, name, bytes.NewReader([]byte{}), 0600)
 			require.ErrorIs(t, err, os.ErrNotExist)
 		})
 	})
