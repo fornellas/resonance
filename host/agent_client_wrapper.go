@@ -12,6 +12,7 @@ import (
 	"os"
 	userPkg "os/user"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"syscall"
@@ -28,8 +29,6 @@ import (
 	"github.com/fornellas/resonance/host/types"
 	"github.com/fornellas/resonance/log"
 )
-
-var ErrAgentUnsupportedOsArch = fmt.Errorf("OS and architecture not supported")
 
 func unwrapGrpcStatusErrno(err error) error {
 	st := status.Convert(err)
@@ -147,7 +146,48 @@ func chmod(ctx context.Context, baseHost types.BaseHost, name string, mode types
 	)
 }
 
-func getGoArch(machine string) (string, error) {
+func getGoOs(ctx context.Context, hst types.BaseHost) (string, error) {
+	cmd := types.Cmd{
+		Path: "uname",
+		Args: []string{"-o"},
+	}
+	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+	if err != nil {
+		return "", err
+	}
+	if !waitStatus.Success() {
+		return "", fmt.Errorf(
+			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
+		)
+	}
+	os := strings.TrimRight(stdout, "\n")
+
+	switch os {
+	case "GNU/Linux":
+		return "linux", nil
+	default:
+		return "", fmt.Errorf("operating system not recognized: %#v", os)
+	}
+}
+
+func getGoArch(ctx context.Context, hst types.BaseHost) (string, error) {
+	cmd := types.Cmd{
+		Path: "uname",
+		Args: []string{"-m"},
+	}
+	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+	if err != nil {
+		return "", err
+	}
+	if !waitStatus.Success() {
+		return "", fmt.Errorf(
+			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
+		)
+	}
+	machine := strings.TrimRight(stdout, "\n")
+
 	matched, err := regexp.MatchString("^i[23456]86$", machine)
 	if err != nil {
 		panic(err)
@@ -176,33 +216,29 @@ func getGoArch(machine string) (string, error) {
 	if matched {
 		return "arm64", nil
 	}
-	return "", fmt.Errorf("machine %#v not supported by agent", machine)
+	return "", fmt.Errorf("machine not recognized: %#v", machine)
 }
 
 func getAgentBinGz(ctx context.Context, hst types.BaseHost) ([]byte, error) {
-	cmd := types.Cmd{
-		Path: "uname",
-		Args: []string{"-m"},
-	}
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+	goos, err := getGoOs(ctx, hst)
 	if err != nil {
 		return nil, err
 	}
-	if !waitStatus.Success() {
-		return nil, fmt.Errorf(
-			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus.String(), stdout, stderr,
-		)
-	}
-	goarch, err := getGoArch(strings.TrimRight(stdout, "\n"))
+
+	goarch, err := getGoArch(ctx, hst)
 	if err != nil {
 		return nil, err
 	}
-	osArch := fmt.Sprintf("linux.%s", goarch)
+	osArch := fmt.Sprintf("%s.%s", goos, goarch)
 
 	agentBinGz, ok := AgentBinGz[osArch]
 	if !ok {
-		return nil, ErrAgentUnsupportedOsArch
+		vaildOsArch := []string{}
+		for osArch := range AgentBinGz {
+			vaildOsArch = append(vaildOsArch, osArch)
+		}
+		sort.Strings(vaildOsArch)
+		return nil, fmt.Errorf("%#v not supported by agent, supported options: %v", osArch, vaildOsArch)
 	}
 	return agentBinGz, nil
 }
