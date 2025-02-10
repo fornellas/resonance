@@ -562,11 +562,11 @@ func (h *AgentClientWrapper) ReadFile(ctx context.Context, name string) (io.Read
 
 	logger.Debug("ReadFile", "name", name)
 
-	ctx, cancelFunc := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(ctx)
 
 	stream, err := h.hostServiceClient.ReadFile(ctx, &proto.ReadFileRequest{Name: name})
 	if err != nil {
-		cancelFunc()
+		cancel()
 		return nil, getGrpcError(err)
 	}
 
@@ -574,14 +574,18 @@ func (h *AgentClientWrapper) ReadFile(ctx context.Context, name string) (io.Read
 	// Because of this, we require to read the first element of the stream here, as it
 	// enables to catch the various errors we're expected to return.
 	readFileResponse, err := stream.Recv()
+	if err == io.EOF {
+		cancel()
+		return io.NopCloser(bytes.NewReader([]byte{})), nil
+	}
 	if err != nil {
-		cancelFunc()
+		cancel()
 		return nil, getGrpcError(err)
 	}
 
 	return &AgentClientWrapperReadFileReadCloser{
 		Stream:     stream,
-		CancelFunc: cancelFunc,
+		CancelFunc: cancel,
 		Data:       readFileResponse.Chunk,
 	}, nil
 }

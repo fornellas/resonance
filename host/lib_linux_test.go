@@ -442,17 +442,32 @@ func testHost(
 
 	t.Run("ReadFile", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
-			dir := tempDirWithPrefix(t, tempDirPrefix)
-			name := filepath.Join(dir, "foo")
-			data := []byte("foo")
-			err := os.WriteFile(name, data, os.FileMode(0600))
-			require.NoError(t, err)
-			fileReadCloser, err := hst.ReadFile(ctx, name)
-			require.NoError(t, err)
-			readData, err := io.ReadAll(fileReadCloser)
-			assert.NoError(t, err)
-			assert.Equal(t, data, readData)
-			require.NoError(t, fileReadCloser.Close())
+			t.Run("with contents", func(t *testing.T) {
+				dir := tempDirWithPrefix(t, tempDirPrefix)
+				name := filepath.Join(dir, "foo")
+				data := []byte("foo")
+				err := os.WriteFile(name, data, os.FileMode(0600))
+				require.NoError(t, err)
+				fileReadCloser, err := hst.ReadFile(ctx, name)
+				require.NoError(t, err)
+				readData, err := io.ReadAll(fileReadCloser)
+				assert.NoError(t, err)
+				assert.Equal(t, data, readData)
+				require.NoError(t, fileReadCloser.Close())
+			})
+			t.Run("empty", func(t *testing.T) {
+				dir := tempDirWithPrefix(t, tempDirPrefix)
+				name := filepath.Join(dir, "foo")
+				data := []byte{}
+				err := os.WriteFile(name, data, os.FileMode(0600))
+				require.NoError(t, err)
+				fileReadCloser, err := hst.ReadFile(ctx, name)
+				require.NoError(t, err)
+				readData, err := io.ReadAll(fileReadCloser)
+				assert.NoError(t, err)
+				assert.Equal(t, data, readData)
+				require.NoError(t, fileReadCloser.Close())
+			})
 		})
 		t.Run("path must be absolute", func(t *testing.T) {
 			fileReadCloser, err := hst.ReadFile(ctx, "foo/bar")
