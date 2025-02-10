@@ -79,7 +79,13 @@ func LocalReadDir(ctx context.Context, name string) (<-chan types.DirEntResult, 
 
 		fd, err := syscall.Open(name, syscall.O_RDONLY, 0)
 		if err != nil {
-			dirEntResultCh <- types.DirEntResult{Error: err}
+			dirEntResultCh <- types.DirEntResult{
+				Error: &fs.PathError{
+					Op:   "ReadDir",
+					Path: name,
+					Err:  err,
+				},
+			}
 			close(dirEntResultCh)
 			return
 		}
@@ -92,7 +98,13 @@ func LocalReadDir(ctx context.Context, name string) (<-chan types.DirEntResult, 
 			// requires doing aditional stat calls, which is slower.
 			n, err := syscall.Getdents(fd, buf)
 			if err != nil {
-				dirEntResultCh <- types.DirEntResult{Error: err}
+				dirEntResultCh <- types.DirEntResult{
+					Error: &fs.PathError{
+						Op:   "ReadDir",
+						Path: name,
+						Err:  err,
+					},
+				}
 				break
 			}
 
