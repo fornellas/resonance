@@ -25,6 +25,10 @@ service HostService {
   rpc Shutdown(Empty) returns (Empty) {}
 }
 
+message Errno {
+  uint64 errno = 1;
+}
+
 message PingRequest {
 }
 
@@ -55,6 +59,10 @@ message LookupRequest {
   string username = 1;
 }
 
+message UnknownUserError {
+  string username = 1;
+}
+
 message LookupResponse {
   string name  = 1;
   string uid  = 2;
@@ -64,6 +72,10 @@ message LookupResponse {
 }
 
 message LookupGroupRequest {
+  string name = 1;
+}
+
+message UnknownGroupError {
   string name = 1;
 }
 
