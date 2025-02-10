@@ -16,6 +16,6 @@ func TestLocal(t *testing.T) {
 	host := Local{}
 	defer func() { require.NoError(t, host.Close(ctx)) }()
 
-	tempDir := t.TempDir()
-	testHost(t, ctx, tempDir, host, "localhost", "localhost")
+	tempDirPrefix := t.TempDir()
+	testHost(t, ctx, tempDirPrefix, host, "localhost", "localhost")
 }

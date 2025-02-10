@@ -98,6 +98,6 @@ func TestSsh(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { require.NoError(t, baseHost.Close(ctx)) }()
 
-	tempDir := t.TempDir()
-	testBaseHost(t, ctx, tempDir, baseHost, "localhost", "ssh")
+	tempDirPrefix := t.TempDir()
+	testBaseHost(t, ctx, tempDirPrefix, baseHost, "localhost", "ssh")
 }

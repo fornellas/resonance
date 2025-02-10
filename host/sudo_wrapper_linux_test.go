@@ -70,6 +70,6 @@ func TestSudo(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { require.NoError(t, baseHost.Close(ctx)) }()
 
-	tempDir := t.TempDir()
-	testBaseHost(t, ctx, tempDir, baseHost, wrappedBaseHost.String(), wrappedBaseHost.Type())
+	tempDirPrefix := t.TempDir()
+	testBaseHost(t, ctx, tempDirPrefix, baseHost, wrappedBaseHost.String(), wrappedBaseHost.Type())
 }
