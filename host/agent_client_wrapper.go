@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net"
 	"os"
@@ -41,6 +42,8 @@ func unwrapGrpcStatusErrno(err error) error {
 }
 
 type AgentClientWrapperReadFileReadCloser struct {
+	Op         string
+	Path       string
 	Stream     grpc.ServerStreamingClient[proto.ReadFileResponse]
 	CancelFunc context.CancelFunc
 	Data       []byte
@@ -62,7 +65,11 @@ func (rc *AgentClientWrapperReadFileReadCloser) Read(p []byte) (int, error) {
 		if err == io.EOF {
 			return 0, err
 		}
-		return 0, unwrapGrpcStatusErrno(err)
+		return 0, &fs.PathError{
+			Op:   rc.Op,
+			Path: rc.Path,
+			Err:  unwrapGrpcStatusErrno(err),
+		}
 	}
 
 	n := copy(p, readFileResponse.Chunk)
@@ -405,7 +412,11 @@ func (h *AgentClientWrapper) Chmod(ctx context.Context, name string, mode types.
 	})
 
 	if err != nil {
-		return unwrapGrpcStatusErrno(err)
+		return &fs.PathError{
+			Op:   "Chmod",
+			Path: name,
+			Err:  unwrapGrpcStatusErrno(err),
+		}
 	}
 
 	return nil
@@ -422,7 +433,11 @@ func (h *AgentClientWrapper) Lchown(ctx context.Context, name string, uid, gid u
 	})
 
 	if err != nil {
-		return unwrapGrpcStatusErrno(err)
+		return &fs.PathError{
+			Op:   "Lchown",
+			Path: name,
+			Err:  unwrapGrpcStatusErrno(err),
+		}
 	}
 
 	return nil
@@ -489,7 +504,11 @@ func (h *AgentClientWrapper) Lstat(ctx context.Context, name string) (*types.Sta
 		Name: name,
 	})
 	if err != nil {
-		return nil, unwrapGrpcStatusErrno(err)
+		return nil, &fs.PathError{
+			Op:   "Lstat",
+			Path: name,
+			Err:  unwrapGrpcStatusErrno(err),
+		}
 	}
 
 	stat_t := types.Stat_t{
@@ -534,7 +553,13 @@ func (h *AgentClientWrapper) ReadDir(ctx context.Context, name string) (<-chan t
 			Name: name,
 		})
 		if err != nil {
-			dirEntResultCh <- types.DirEntResult{Error: unwrapGrpcStatusErrno(err)}
+			dirEntResultCh <- types.DirEntResult{
+				Error: &fs.PathError{
+					Op:   "ReadDir",
+					Path: name,
+					Err:  unwrapGrpcStatusErrno(err),
+				},
+			}
 			close(dirEntResultCh)
 			return
 		}
@@ -545,7 +570,13 @@ func (h *AgentClientWrapper) ReadDir(ctx context.Context, name string) (<-chan t
 				break
 			}
 			if err != nil {
-				dirEntResultCh <- types.DirEntResult{Error: unwrapGrpcStatusErrno(err)}
+				dirEntResultCh <- types.DirEntResult{
+					Error: &fs.PathError{
+						Op:   "ReadDir",
+						Path: name,
+						Err:  unwrapGrpcStatusErrno(err),
+					},
+				}
 				close(dirEntResultCh)
 				return
 			}
@@ -575,7 +606,11 @@ func (h *AgentClientWrapper) Mkdir(ctx context.Context, name string, mode types.
 		Mode: uint32(mode),
 	})
 	if err != nil {
-		return unwrapGrpcStatusErrno(err)
+		return &fs.PathError{
+			Op:   "Mkdir",
+			Path: name,
+			Err:  unwrapGrpcStatusErrno(err),
+		}
 	}
 
 	return nil
@@ -591,7 +626,11 @@ func (h *AgentClientWrapper) ReadFile(ctx context.Context, name string) (io.Read
 	stream, err := h.hostServiceClient.ReadFile(ctx, &proto.ReadFileRequest{Name: name})
 	if err != nil {
 		cancel()
-		return nil, unwrapGrpcStatusErrno(err)
+		return nil, &fs.PathError{
+			Op:   "ReadFile",
+			Path: name,
+			Err:  unwrapGrpcStatusErrno(err),
+		}
 	}
 
 	// ReadFile will succeeds to create the stream before the server function is called.
@@ -604,7 +643,11 @@ func (h *AgentClientWrapper) ReadFile(ctx context.Context, name string) (io.Read
 	}
 	if err != nil {
 		cancel()
-		return nil, unwrapGrpcStatusErrno(err)
+		return nil, &fs.PathError{
+			Op:   "ReadFile",
+			Path: name,
+			Err:  unwrapGrpcStatusErrno(err),
+		}
 	}
 
 	return &AgentClientWrapperReadFileReadCloser{
@@ -625,7 +668,11 @@ func (h *AgentClientWrapper) Symlink(ctx context.Context, oldname, newname strin
 	})
 
 	if err != nil {
-		return unwrapGrpcStatusErrno(err)
+		return &fs.PathError{
+			Op:   "Symlink",
+			Path: newname,
+			Err:  unwrapGrpcStatusErrno(err),
+		}
 	}
 
 	return nil
@@ -641,7 +688,11 @@ func (h *AgentClientWrapper) Readlink(ctx context.Context, name string) (string,
 	})
 
 	if err != nil {
-		return "", unwrapGrpcStatusErrno(err)
+		return "", &fs.PathError{
+			Op:   "Readlink",
+			Path: name,
+			Err:  unwrapGrpcStatusErrno(err),
+		}
 	}
 
 	return resp.Destination, nil
@@ -656,7 +707,11 @@ func (h *AgentClientWrapper) Remove(ctx context.Context, name string) error {
 		Name: name,
 	})
 	if err != nil {
-		return unwrapGrpcStatusErrno(err)
+		return &fs.PathError{
+			Op:   "Remove",
+			Path: name,
+			Err:  unwrapGrpcStatusErrno(err),
+		}
 	}
 
 	return nil
@@ -672,7 +727,11 @@ func (h *AgentClientWrapper) Mknod(ctx context.Context, pathName string, mode ty
 		Dev:  uint64(dev),
 	})
 	if err != nil {
-		return unwrapGrpcStatusErrno(err)
+		return &fs.PathError{
+			Op:   "Mknod",
+			Path: pathName,
+			Err:  unwrapGrpcStatusErrno(err),
+		}
 	}
 	return nil
 }
@@ -808,7 +867,11 @@ func (h *AgentClientWrapper) WriteFile(ctx context.Context, name string, data io
 
 	stream, err := h.hostServiceClient.WriteFile(ctx)
 	if err != nil {
-		return unwrapGrpcStatusErrno(err)
+		return &fs.PathError{
+			Op:   "WriteFile",
+			Path: name,
+			Err:  unwrapGrpcStatusErrno(err),
+		}
 	}
 
 	err = stream.Send(
@@ -823,10 +886,14 @@ func (h *AgentClientWrapper) WriteFile(ctx context.Context, name string, data io
 	)
 	if err != nil {
 		_, closeAndRecvErr := stream.CloseAndRecv()
-		return errors.Join(
-			unwrapGrpcStatusErrno(err),
-			closeAndRecvErr,
-		)
+		return &fs.PathError{
+			Op:   "WriteFile",
+			Path: name,
+			Err: errors.Join(
+				unwrapGrpcStatusErrno(err),
+				closeAndRecvErr,
+			),
+		}
 	}
 
 	var sendErr error
@@ -855,10 +922,18 @@ func (h *AgentClientWrapper) WriteFile(ctx context.Context, name string, data io
 	}
 
 	_, closeAndRecvErr := stream.CloseAndRecv()
-	return errors.Join(
+	err = errors.Join(
 		sendErr,
 		unwrapGrpcStatusErrno(closeAndRecvErr),
 	)
+	if err != nil {
+		return &fs.PathError{
+			Op:   "WriteFile",
+			Path: name,
+			Err:  err,
+		}
+	}
+	return nil
 }
 
 func (h *AgentClientWrapper) String() string {
