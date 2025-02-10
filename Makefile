@@ -292,6 +292,7 @@ clean-install-go:
 	rm -rf $(GOCACHE)
 	find $(GOMODCACHE) -print0 | xargs -0 chmod u+w
 	rm -rf $(GOMODCACHE)
+	rm -rf $(GOPATH)
 clean: clean-install-go
 
 # protoc
