@@ -104,14 +104,14 @@ func testHost(
 			err = hst.Chmod(ctx, "foo/bar", 0644)
 			require.ErrorContains(t, err, "path must be absolute")
 		})
-		t.Run("ErrPermission", func(t *testing.T) {
+		t.Run("syscall.EPERM", func(t *testing.T) {
 			skipIfRoot(t)
 			err = hst.Chmod(ctx, "/tmp", 0)
-			require.ErrorIs(t, err, os.ErrPermission)
+			require.ErrorIs(t, err, syscall.EPERM)
 		})
-		t.Run("ErrNotExist", func(t *testing.T) {
+		t.Run("syscall.ENOENT", func(t *testing.T) {
 			err = hst.Chmod(ctx, "/non-existent", 0)
-			require.ErrorIs(t, err, os.ErrNotExist)
+			require.ErrorIs(t, err, syscall.ENOENT)
 		})
 	})
 
@@ -153,14 +153,14 @@ func testHost(
 			err = hst.Lchown(ctx, "foo/bar", 0, 0)
 			require.ErrorContains(t, err, "path must be absolute")
 		})
-		t.Run("ErrPermission", func(t *testing.T) {
+		t.Run("syscall.EPERM", func(t *testing.T) {
 			skipIfRoot(t)
 			err = hst.Lchown(ctx, regularFilePath, 0, 0)
-			require.ErrorIs(t, err, os.ErrPermission)
+			require.ErrorIs(t, err, syscall.EPERM)
 		})
-		t.Run("ErrNotExist", func(t *testing.T) {
+		t.Run("syscall.ENOENT", func(t *testing.T) {
 			err = hst.Lchown(ctx, "/non-existent", 0, 0)
-			require.ErrorIs(t, err, os.ErrNotExist)
+			require.ErrorIs(t, err, syscall.ENOENT)
 		})
 	})
 
@@ -319,14 +319,14 @@ func testHost(
 			_, err := hst.Lstat(ctx, "foo/bar")
 			require.ErrorContains(t, err, "path must be absolute")
 		})
-		t.Run("ErrPermission", func(t *testing.T) {
+		t.Run("syscall.EACCES", func(t *testing.T) {
 			skipIfRoot(t)
 			_, err := hst.Lstat(ctx, "/etc/ssl/private/foo")
-			require.ErrorIs(t, err, os.ErrPermission)
+			require.ErrorIs(t, err, syscall.EACCES)
 		})
-		t.Run("ErrNotExist", func(t *testing.T) {
+		t.Run("syscall.ENOENT", func(t *testing.T) {
 			_, err := hst.Lstat(ctx, "/non-existent")
-			require.ErrorIs(t, err, os.ErrNotExist)
+			require.ErrorIs(t, err, syscall.ENOENT)
 		})
 	})
 
@@ -387,18 +387,18 @@ func testHost(
 			direntResult := <-dirEntResultCh
 			require.ErrorContains(t, direntResult.Error, "path must be absolute")
 		})
-		t.Run("ErrPermission", func(t *testing.T) {
+		t.Run("syscall.EACCES", func(t *testing.T) {
 			skipIfRoot(t)
 			dirEntResultCh, cancel := hst.ReadDir(ctx, "/etc/ssl/private/foo")
 			defer cancel()
 			direntResult := <-dirEntResultCh
-			require.ErrorIs(t, direntResult.Error, os.ErrPermission)
+			require.ErrorIs(t, direntResult.Error, syscall.EACCES)
 		})
 		t.Run("ErrNotExist", func(t *testing.T) {
 			dirEntResultCh, cancel := hst.ReadDir(ctx, "/non-existent")
 			defer cancel()
 			direntResult := <-dirEntResultCh
-			require.ErrorIs(t, direntResult.Error, os.ErrNotExist)
+			require.ErrorIs(t, direntResult.Error, syscall.ENOENT)
 		})
 	})
 
@@ -419,24 +419,24 @@ func testHost(
 			err := hst.Mkdir(ctx, "foo/bar", 0750)
 			require.ErrorContains(t, err, "path must be absolute")
 		})
-		t.Run("ErrPermission", func(t *testing.T) {
+		t.Run("syscall.EACCES", func(t *testing.T) {
 			skipIfRoot(t)
 			err := hst.Mkdir(ctx, "/etc/foo", 0750)
-			require.ErrorIs(t, err, os.ErrPermission)
+			require.ErrorIs(t, err, syscall.EACCES)
 		})
-		t.Run("ErrExist", func(t *testing.T) {
+		t.Run("syscall.EEXIST", func(t *testing.T) {
 			dir := tempDirWithPrefix(t, tempDirPrefix)
 			name := filepath.Join(dir, "foo")
 			err := hst.Mkdir(ctx, name, 0750)
 			require.NoError(t, err)
 			err = hst.Mkdir(ctx, name, 0750)
-			require.ErrorIs(t, err, os.ErrExist)
+			require.ErrorIs(t, err, syscall.EEXIST)
 		})
 		t.Run("ErrNotExist", func(t *testing.T) {
 			dir := tempDirWithPrefix(t, tempDirPrefix)
 			name := filepath.Join(dir, "foo", "bar")
 			err := hst.Mkdir(ctx, name, 0750)
-			require.ErrorIs(t, err, os.ErrNotExist)
+			require.ErrorIs(t, err, syscall.ENOENT)
 		})
 	})
 
@@ -476,17 +476,17 @@ func testHost(
 				require.NoError(t, fileReadCloser.Close())
 			}
 		})
-		t.Run("ErrPermission", func(t *testing.T) {
+		t.Run("syscall.EACCES", func(t *testing.T) {
 			fileReadCloser, err := hst.ReadFile(ctx, "/etc/shadow")
 			skipIfRoot(t)
-			require.ErrorIs(t, err, os.ErrPermission)
+			require.ErrorIs(t, err, syscall.EACCES)
 			if err == nil {
 				require.NoError(t, fileReadCloser.Close())
 			}
 		})
-		t.Run("ErrNotExist", func(t *testing.T) {
+		t.Run("syscall.ENOENT", func(t *testing.T) {
 			fileReadCloser, err := hst.ReadFile(ctx, "/non-existent")
-			require.ErrorIs(t, err, os.ErrNotExist)
+			require.ErrorIs(t, err, syscall.ENOENT)
 			if err == nil {
 				require.NoError(t, fileReadCloser.Close())
 			}
@@ -510,27 +510,27 @@ func testHost(
 			err := hst.Symlink(ctx, oldname, newname)
 			require.ErrorContains(t, err, "path must be absolute")
 		})
-		t.Run("ErrPermission", func(t *testing.T) {
+		t.Run("syscall.EACCES", func(t *testing.T) {
 			skipIfRoot(t)
 			newname := "/etc/foo"
 			oldname := "foo/bar"
 			err := hst.Symlink(ctx, oldname, newname)
-			require.ErrorIs(t, err, os.ErrPermission)
+			require.ErrorIs(t, err, syscall.EACCES)
 		})
-		t.Run("ErrExist", func(t *testing.T) {
+		t.Run("syscall.EEXIST", func(t *testing.T) {
 			dir := tempDirWithPrefix(t, tempDirPrefix)
 			newname := filepath.Join(dir, "newname")
 			oldname := "foo/bar"
 			err := hst.Symlink(ctx, oldname, newname)
 			require.NoError(t, err)
 			err = hst.Symlink(ctx, oldname, newname)
-			require.ErrorIs(t, err, os.ErrExist)
+			require.ErrorIs(t, err, syscall.EEXIST)
 		})
 		t.Run("ErrNotExist", func(t *testing.T) {
 			oldname := "foo/bar"
 			newname := "/bad/path"
 			err := hst.Symlink(ctx, oldname, newname)
-			require.ErrorIs(t, err, os.ErrNotExist)
+			require.ErrorIs(t, err, syscall.ENOENT)
 		})
 	})
 
@@ -551,9 +551,9 @@ func testHost(
 			_, err := hst.Readlink(ctx, "foo/bar")
 			require.ErrorContains(t, err, "path must be absolute")
 		})
-		t.Run("ErrNotExist", func(t *testing.T) {
+		t.Run("syscall.ENOENT", func(t *testing.T) {
 			_, err := hst.Readlink(ctx, "/non-existent")
-			require.ErrorIs(t, err, os.ErrNotExist)
+			require.ErrorIs(t, err, syscall.ENOENT)
 		})
 	})
 
@@ -567,7 +567,7 @@ func testHost(
 			err = hst.Remove(ctx, name)
 			require.NoError(t, err)
 			_, err = os.Lstat(name)
-			require.ErrorIs(t, err, os.ErrNotExist)
+			require.ErrorIs(t, err, syscall.ENOENT)
 		})
 		t.Run("Success dir", func(t *testing.T) {
 			dir := tempDirWithPrefix(t, tempDirPrefix)
@@ -577,25 +577,25 @@ func testHost(
 			err = hst.Remove(ctx, name)
 			require.NoError(t, err)
 			_, err = os.Lstat(name)
-			require.ErrorIs(t, err, os.ErrNotExist)
+			require.ErrorIs(t, err, syscall.ENOENT)
 		})
 		t.Run("path must be absolute", func(t *testing.T) {
 			err := hst.Remove(ctx, "foo/bar")
 			require.ErrorContains(t, err, "path must be absolute")
 		})
-		t.Run("ErrPermission file", func(t *testing.T) {
+		t.Run("syscall.EACCES file", func(t *testing.T) {
 			skipIfRoot(t)
 			err := hst.Remove(ctx, "/bin/ls")
-			require.ErrorIs(t, err, os.ErrPermission)
+			require.ErrorIs(t, err, syscall.EACCES)
 		})
-		t.Run("ErrPermission dir", func(t *testing.T) {
+		t.Run("syscall.EACCES dir", func(t *testing.T) {
 			skipIfRoot(t)
 			err := hst.Remove(ctx, "/bin")
-			require.ErrorIs(t, err, os.ErrPermission)
+			require.ErrorIs(t, err, syscall.EACCES)
 		})
-		t.Run("ErrNotExist", func(t *testing.T) {
+		t.Run("syscall.ENOENT", func(t *testing.T) {
 			err := hst.Remove(ctx, "/non-existent")
-			require.ErrorIs(t, err, os.ErrNotExist)
+			require.ErrorIs(t, err, syscall.ENOENT)
 		})
 	})
 
@@ -615,7 +615,7 @@ func testHost(
 
 				err := hst.Mknod(ctx, path, mode, dev)
 				if isDevice && !isRoot(t) {
-					require.ErrorIs(t, err, os.ErrPermission)
+					require.ErrorIs(t, err, syscall.EPERM)
 					return
 				}
 				require.NoError(t, err)
@@ -660,7 +660,7 @@ func testHost(
 					require.NoError(t, err)
 					require.Equal(t, dataBytes, readDataBytes)
 				} else {
-					require.ErrorIs(t, err, os.ErrPermission)
+					require.ErrorIs(t, err, syscall.EACCES)
 				}
 
 				var stat_t syscall.Stat_t
@@ -673,10 +673,10 @@ func testHost(
 			err := hst.WriteFile(ctx, "foo/bar", bytes.NewReader([]byte{}), 0600)
 			require.ErrorContains(t, err, "path must be absolute")
 		})
-		t.Run("ErrPermission", func(t *testing.T) {
+		t.Run("syscall.EACCES", func(t *testing.T) {
 			skipIfRoot(t)
 			err := hst.WriteFile(ctx, "/etc/foo", bytes.NewReader([]byte{}), 0600)
-			require.ErrorIs(t, err, os.ErrPermission)
+			require.ErrorIs(t, err, syscall.EACCES)
 		})
 		t.Run("ovewrite file", func(t *testing.T) {
 			dir := tempDirWithPrefix(t, tempDirPrefix)
@@ -708,7 +708,7 @@ func testHost(
 			dir := tempDirWithPrefix(t, tempDirPrefix)
 			name := filepath.Join(dir, "foo", "bar")
 			err := hst.WriteFile(ctx, name, bytes.NewReader([]byte{}), 0600)
-			require.ErrorIs(t, err, os.ErrNotExist)
+			require.ErrorIs(t, err, syscall.ENOENT)
 		})
 	})
 }

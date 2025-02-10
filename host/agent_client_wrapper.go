@@ -7,18 +7,17 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"log/slog"
 	"net"
 	"os"
-	"os/user"
+	userPkg "os/user"
 	"regexp"
 	"strings"
 	"sync"
+	"syscall"
 
 	"al.essio.dev/pkg/shellescape"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
@@ -32,15 +31,11 @@ import (
 
 var ErrAgentUnsupportedOsArch = fmt.Errorf("OS and architecture not supported")
 
-func getGrpcError(err error) error {
-	if status, ok := status.FromError(err); ok {
-		switch status.Code() {
-		case codes.PermissionDenied:
-			return os.ErrPermission
-		case codes.NotFound:
-			return os.ErrNotExist
-		case codes.AlreadyExists:
-			return fs.ErrExist
+func unwrapGrpcStatusErrno(err error) error {
+	st := status.Convert(err)
+	for _, detail := range st.Details() {
+		if errno, ok := detail.(*proto.Errno); ok {
+			return syscall.Errno(errno.Errno)
 		}
 	}
 	return err
@@ -68,7 +63,7 @@ func (rc *AgentClientWrapperReadFileReadCloser) Read(p []byte) (int, error) {
 		if err == io.EOF {
 			return 0, err
 		}
-		return 0, getGrpcError(err)
+		return 0, unwrapGrpcStatusErrno(err)
 	}
 
 	n := copy(p, readFileResponse.Chunk)
@@ -346,7 +341,7 @@ func (h *AgentClientWrapper) Geteuid(ctx context.Context) (uint64, error) {
 
 	getuidResponse, err := h.hostServiceClient.Geteuid(ctx, &proto.Empty{})
 	if err != nil {
-		return 0, err
+		return 0, unwrapGrpcStatusErrno(err)
 	}
 
 	return getuidResponse.Uid, nil
@@ -358,7 +353,7 @@ func (h *AgentClientWrapper) Getegid(ctx context.Context) (uint64, error) {
 
 	getgidResponse, err := h.hostServiceClient.Getegid(ctx, &proto.Empty{})
 	if err != nil {
-		return 0, err
+		return 0, unwrapGrpcStatusErrno(err)
 	}
 
 	return getgidResponse.Gid, nil
@@ -374,13 +369,7 @@ func (h *AgentClientWrapper) Chmod(ctx context.Context, name string, mode uint32
 	})
 
 	if err != nil {
-		if strings.Contains(err.Error(), "operation not permitted") {
-			return fmt.Errorf("permission denied: %w", fs.ErrPermission)
-		}
-		if strings.Contains(err.Error(), "no such file or directory") {
-			return fmt.Errorf("no such file or directory: %w", fs.ErrNotExist)
-		}
-		return err
+		return unwrapGrpcStatusErrno(err)
 	}
 
 	return nil
@@ -397,19 +386,13 @@ func (h *AgentClientWrapper) Lchown(ctx context.Context, name string, uid, gid u
 	})
 
 	if err != nil {
-		if strings.Contains(err.Error(), "operation not permitted") {
-			return fmt.Errorf("permission denied: %w", fs.ErrPermission)
-		}
-		if strings.Contains(err.Error(), "no such file or directory") {
-			return fmt.Errorf("no such file or directory: %w", fs.ErrNotExist)
-		}
-		return err
+		return unwrapGrpcStatusErrno(err)
 	}
 
 	return nil
 }
 
-func (h *AgentClientWrapper) Lookup(ctx context.Context, username string) (*user.User, error) {
+func (h *AgentClientWrapper) Lookup(ctx context.Context, username string) (*userPkg.User, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("Lookup", "username", username)
@@ -419,13 +402,16 @@ func (h *AgentClientWrapper) Lookup(ctx context.Context, username string) (*user
 	})
 
 	if err != nil {
-		if strings.Contains(err.Error(), "user: unknown user") {
-			return nil, user.UnknownUserError(username)
+		st := status.Convert(err)
+		for _, detail := range st.Details() {
+			if protoUnknownUserError, ok := detail.(*proto.UnknownUserError); ok {
+				return nil, userPkg.UnknownUserError(protoUnknownUserError.Username)
+			}
 		}
-		return nil, err
+		return nil, unwrapGrpcStatusErrno(err)
 	}
 
-	return &user.User{
+	return &userPkg.User{
 		Uid:      resp.Uid,
 		Gid:      resp.Gid,
 		Username: resp.Username,
@@ -434,7 +420,7 @@ func (h *AgentClientWrapper) Lookup(ctx context.Context, username string) (*user
 	}, nil
 }
 
-func (h *AgentClientWrapper) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
+func (h *AgentClientWrapper) LookupGroup(ctx context.Context, name string) (*userPkg.Group, error) {
 	logger := log.MustLogger(ctx)
 
 	logger.Debug("LookupGroup", "group", name)
@@ -442,15 +428,17 @@ func (h *AgentClientWrapper) LookupGroup(ctx context.Context, name string) (*use
 	resp, err := h.hostServiceClient.LookupGroup(ctx, &proto.LookupGroupRequest{
 		Name: name,
 	})
-
 	if err != nil {
-		if strings.Contains(err.Error(), "group: unknown group") {
-			return nil, user.UnknownGroupError(name)
+		st := status.Convert(err)
+		for _, detail := range st.Details() {
+			if protoUnknownGroupError, ok := detail.(*proto.UnknownGroupError); ok {
+				return nil, userPkg.UnknownGroupError(protoUnknownGroupError.Name)
+			}
 		}
-		return nil, err
+		return nil, unwrapGrpcStatusErrno(err)
 	}
 
-	return &user.Group{
+	return &userPkg.Group{
 		Gid:  resp.Gid,
 		Name: resp.Name,
 	}, nil
@@ -465,7 +453,7 @@ func (h *AgentClientWrapper) Lstat(ctx context.Context, name string) (*types.Sta
 		Name: name,
 	})
 	if err != nil {
-		return nil, getGrpcError(err)
+		return nil, unwrapGrpcStatusErrno(err)
 	}
 
 	stat_t := types.Stat_t{
@@ -510,7 +498,7 @@ func (h *AgentClientWrapper) ReadDir(ctx context.Context, name string) (<-chan t
 			Name: name,
 		})
 		if err != nil {
-			dirEntResultCh <- types.DirEntResult{Error: err}
+			dirEntResultCh <- types.DirEntResult{Error: unwrapGrpcStatusErrno(err)}
 			close(dirEntResultCh)
 			return
 		}
@@ -521,7 +509,7 @@ func (h *AgentClientWrapper) ReadDir(ctx context.Context, name string) (<-chan t
 				break
 			}
 			if err != nil {
-				dirEntResultCh <- types.DirEntResult{Error: getGrpcError(err)}
+				dirEntResultCh <- types.DirEntResult{Error: unwrapGrpcStatusErrno(err)}
 				close(dirEntResultCh)
 				return
 			}
@@ -551,7 +539,7 @@ func (h *AgentClientWrapper) Mkdir(ctx context.Context, name string, mode uint32
 		Mode: mode,
 	})
 	if err != nil {
-		return getGrpcError(err)
+		return unwrapGrpcStatusErrno(err)
 	}
 
 	return nil
@@ -567,7 +555,7 @@ func (h *AgentClientWrapper) ReadFile(ctx context.Context, name string) (io.Read
 	stream, err := h.hostServiceClient.ReadFile(ctx, &proto.ReadFileRequest{Name: name})
 	if err != nil {
 		cancel()
-		return nil, getGrpcError(err)
+		return nil, unwrapGrpcStatusErrno(err)
 	}
 
 	// ReadFile will succeeds to create the stream before the server function is called.
@@ -580,7 +568,7 @@ func (h *AgentClientWrapper) ReadFile(ctx context.Context, name string) (io.Read
 	}
 	if err != nil {
 		cancel()
-		return nil, getGrpcError(err)
+		return nil, unwrapGrpcStatusErrno(err)
 	}
 
 	return &AgentClientWrapperReadFileReadCloser{
@@ -601,7 +589,7 @@ func (h *AgentClientWrapper) Symlink(ctx context.Context, oldname, newname strin
 	})
 
 	if err != nil {
-		return getGrpcError(err)
+		return unwrapGrpcStatusErrno(err)
 	}
 
 	return nil
@@ -617,7 +605,7 @@ func (h *AgentClientWrapper) Readlink(ctx context.Context, name string) (string,
 	})
 
 	if err != nil {
-		return "", getGrpcError(err)
+		return "", unwrapGrpcStatusErrno(err)
 	}
 
 	return resp.Destination, nil
@@ -632,11 +620,12 @@ func (h *AgentClientWrapper) Remove(ctx context.Context, name string) error {
 		Name: name,
 	})
 	if err != nil {
-		return getGrpcError(err)
+		return unwrapGrpcStatusErrno(err)
 	}
 
 	return nil
 }
+
 func (h *AgentClientWrapper) Mknod(ctx context.Context, pathName string, mode uint32, dev uint64) error {
 	logger := log.MustLogger(ctx)
 	logger.Debug("Mknod", "pathName", pathName, "mode", mode, "dev", dev)
@@ -647,17 +636,7 @@ func (h *AgentClientWrapper) Mknod(ctx context.Context, pathName string, mode ui
 		Dev:  dev,
 	})
 	if err != nil {
-		if status, ok := status.FromError(err); ok {
-			switch status.Code() {
-			case codes.PermissionDenied:
-				return fs.ErrPermission
-			case codes.NotFound:
-				return fs.ErrNotExist
-			case codes.AlreadyExists:
-				return fs.ErrExist
-			}
-		}
-		return err
+		return unwrapGrpcStatusErrno(err)
 	}
 	return nil
 }
@@ -673,7 +652,7 @@ func (h *AgentClientWrapper) runStdinCopier(
 			break
 		}
 		if err != nil {
-			return getGrpcError(err)
+			return unwrapGrpcStatusErrno(err)
 		}
 
 		err = stream.Send(
@@ -684,7 +663,7 @@ func (h *AgentClientWrapper) runStdinCopier(
 			},
 		)
 		if err != nil {
-			return getGrpcError(err)
+			return unwrapGrpcStatusErrno(err)
 		}
 	}
 	return nil
@@ -696,7 +675,7 @@ func (h *AgentClientWrapper) Run(ctx context.Context, cmd types.Cmd) (types.Wait
 
 	stream, err := h.hostServiceClient.Run(ctx)
 	if err != nil {
-		return types.WaitStatus{}, getGrpcError(err)
+		return types.WaitStatus{}, unwrapGrpcStatusErrno(err)
 	}
 
 	err = stream.Send(
@@ -716,7 +695,7 @@ func (h *AgentClientWrapper) Run(ctx context.Context, cmd types.Cmd) (types.Wait
 	)
 	if err != nil {
 		return types.WaitStatus{}, errors.Join(
-			getGrpcError(err),
+			unwrapGrpcStatusErrno(err),
 			stream.CloseSend(),
 		)
 	}
@@ -740,7 +719,7 @@ func (h *AgentClientWrapper) Run(ctx context.Context, cmd types.Cmd) (types.Wait
 			break
 		}
 		if err != nil {
-			recvError = getGrpcError(err)
+			recvError = unwrapGrpcStatusErrno(err)
 			break
 		}
 
@@ -754,7 +733,7 @@ func (h *AgentClientWrapper) Run(ctx context.Context, cmd types.Cmd) (types.Wait
 				panic("bug: received stdout chunk for nil stdout")
 			}
 			if _, err := cmd.Stdout.Write(respData.StdoutChunk); err != nil {
-				recvError = getGrpcError(err)
+				recvError = unwrapGrpcStatusErrno(err)
 				break
 			}
 		} else if respData, ok := resp.Data.(*proto.RunResponse_StderrChunk); ok {
@@ -762,7 +741,7 @@ func (h *AgentClientWrapper) Run(ctx context.Context, cmd types.Cmd) (types.Wait
 				panic("bug: received stderr chunk for nil stderr")
 			}
 			if _, err := cmd.Stderr.Write(respData.StderrChunk); err != nil {
-				recvError = getGrpcError(err)
+				recvError = unwrapGrpcStatusErrno(err)
 				break
 			}
 		} else {
@@ -793,7 +772,7 @@ func (h *AgentClientWrapper) WriteFile(ctx context.Context, name string, data io
 
 	stream, err := h.hostServiceClient.WriteFile(ctx)
 	if err != nil {
-		return getGrpcError(err)
+		return unwrapGrpcStatusErrno(err)
 	}
 
 	err = stream.Send(
@@ -809,7 +788,7 @@ func (h *AgentClientWrapper) WriteFile(ctx context.Context, name string, data io
 	if err != nil {
 		_, closeAndRecvErr := stream.CloseAndRecv()
 		return errors.Join(
-			getGrpcError(err),
+			unwrapGrpcStatusErrno(err),
 			closeAndRecvErr,
 		)
 	}
@@ -822,7 +801,7 @@ func (h *AgentClientWrapper) WriteFile(ctx context.Context, name string, data io
 			break
 		}
 		if err != nil {
-			sendErr = getGrpcError(err)
+			sendErr = unwrapGrpcStatusErrno(err)
 			break
 		}
 
@@ -834,7 +813,7 @@ func (h *AgentClientWrapper) WriteFile(ctx context.Context, name string, data io
 			},
 		)
 		if err != nil {
-			sendErr = getGrpcError(err)
+			sendErr = unwrapGrpcStatusErrno(err)
 			break
 		}
 	}
@@ -842,7 +821,7 @@ func (h *AgentClientWrapper) WriteFile(ctx context.Context, name string, data io
 	_, closeAndRecvErr := stream.CloseAndRecv()
 	return errors.Join(
 		sendErr,
-		getGrpcError(closeAndRecvErr),
+		unwrapGrpcStatusErrno(closeAndRecvErr),
 	)
 }
 
