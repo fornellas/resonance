@@ -1,7 +1,9 @@
 package host
 
 import (
+	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -22,6 +24,32 @@ import (
 	"github.com/fornellas/resonance/host/types"
 	"github.com/fornellas/resonance/log"
 )
+
+type SshClientConfig struct {
+	// RekeyThreshold as in ssh.Config
+	RekeyThreshold uint64
+	// KeyExchanges as in ssh.Config
+	KeyExchanges []string
+	// Ciphers as in ssh.Config
+	Ciphers []string
+	// MACs as in ssh.Config
+	MACs []string
+	// HostKeyAlgorithms as in ssh.ClientConfig
+	HostKeyAlgorithms []string
+	// Timeout aas in ssh.ClientConfig
+	Timeout time.Duration
+}
+
+type SshOptions struct {
+	SshClientConfig
+	User string
+	// Fingerprint is an optional unpadded base64 encoded sha256 hash as introduced by
+	// https://www.openssh.com/txt/release-6.8.
+	// Eg: SHA256:uwhOoCVTS7b3wlX1popZs5k609OaD1vQurHU34cCWPk
+	Fingerprint string
+	Host        string
+	Port        int
+}
 
 // Ssh interacts with a remote machine connecting to it via SSH protocol.
 type Ssh struct {
@@ -87,26 +115,23 @@ func sshGetSigners(ctx context.Context) ([]ssh.Signer, error) {
 	return signers, nil
 }
 
-func sshGetHostKeyCallback(ctx context.Context, fingerprint string) (ssh.HostKeyCallback, error) {
+func getFingerprintHostKeyCallback(
+	ctx context.Context,
+	fingerprint string,
+) func(hostname string, remote net.Addr, key ssh.PublicKey) bool {
 	logger := log.MustLogger(ctx)
-
-	var fingerprintHostKeyCallback ssh.HostKeyCallback
 	if fingerprint != "" {
-		if !strings.HasPrefix(fingerprint, "SHA256:") {
-			return nil, fmt.Errorf(
-				"fingerprint must be an unpadded base64 encoded sha256 hash as introduced by https://www.openssh.com/txt/release-6.8, eg: %s",
-				"SHA256:uwhOoCVTS7b3wlX1popZs5k609OaD1vQurHU34cCWPk",
-			)
-		}
 		logger.Debug("Using fingerprint")
-		fingerprintHostKeyCallback = func(hostname string, remote net.Addr, hostPublicKey ssh.PublicKey) error {
-			hostFingerprint := ssh.FingerprintSHA256(hostPublicKey)
-			if fingerprint != hostFingerprint {
-				return fmt.Errorf("expected host fingerprint %s, got %s", fingerprint, hostFingerprint)
-			}
-			return nil
+		return func(hostname string, remote net.Addr, key ssh.PublicKey) bool {
+			hostFingerprint := ssh.FingerprintSHA256(key)
+			return fingerprint == hostFingerprint
 		}
 	}
+	return nil
+}
+
+func getKnownHostsHostKeyCallback(ctx context.Context) (ssh.HostKeyCallback, error) {
+	logger := log.MustLogger(ctx)
 
 	files := []string{}
 	systemKnownHosts := "/etc/ssh/ssh_known_hosts"
@@ -134,23 +159,56 @@ func sshGetHostKeyCallback(ctx context.Context, fingerprint string) (ssh.HostKey
 		}
 		logger.Debug("Known hosts not found", "path", userKnownHosts)
 	}
-	knownHostsHostKeyCallback, err := knownhosts.New(files...)
+	return knownhosts.New(files...)
+}
+
+// knownhosts.KeyError can be cryptic to understand / debug, so we wrap it here with more information
+func wrapKeyError(err error, key ssh.PublicKey) error {
+	var keyError *knownhosts.KeyError
+	if errors.As(err, &keyError) {
+		var buff bytes.Buffer
+		if len(keyError.Want) > 0 {
+			fmt.Fprintf(&buff, "either set host key algorithm to match known host key algorithm or add host key algorithm to known_hosts: ")
+		}
+		fmt.Fprintf(&buff, "host key: %s %s", key.Type(), hex.EncodeToString(key.Marshal()))
+		if len(keyError.Want) > 0 {
+			fmt.Fprintf(&buff, ";")
+			for i, knownKey := range keyError.Want {
+				if i > 0 {
+					fmt.Fprintf(&buff, ",")
+				}
+				fmt.Fprintf(&buff, " %s\n", &knownKey)
+			}
+		}
+		return fmt.Errorf("%w: %s", keyError, buff.String())
+	}
+	return err
+}
+
+func sshGetHostKeyCallback(ctx context.Context, fingerprint string) (ssh.HostKeyCallback, error) {
+	logger := log.MustLogger(ctx)
+
+	fingerprintHostKeyCallback := getFingerprintHostKeyCallback(ctx, fingerprint)
+
+	knownHostsHostKeyCallback, err := getKnownHostsHostKeyCallback(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	hostKeyCallback := func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 		if fingerprintHostKeyCallback != nil {
-			if err := fingerprintHostKeyCallback(hostname, remote, key); err == nil {
-				logger.Debug("Server key verified by fingerprint")
+			if fingerprintHostKeyCallback(hostname, remote, key) {
+				logger.Debug("Host key verified by fingerprint")
 				return nil
+			} else {
+				logger.Debug("Host key not verified by fingerprint")
 			}
 		}
-		err := knownHostsHostKeyCallback(hostname, remote, key)
-		if err == nil {
-			logger.Debug("Server key verified by known_hosts")
+		if err := knownHostsHostKeyCallback(hostname, remote, key); err != nil {
+			return wrapKeyError(err, key)
 		}
-		return err
+		logger.Debug("Host key verified by known_hosts")
+		return nil
 	}
 
 	return hostKeyCallback, nil
@@ -214,50 +272,77 @@ func sshKeyboardInteractiveChallenge(
 	return answers, err
 }
 
-func NewSsh(
-	ctx context.Context,
-	user,
-	fingerprint,
-	host string,
-	port int,
-	timeout time.Duration,
-) (Ssh, error) {
+func NewSsh(ctx context.Context, options SshOptions) (Ssh, error) {
 	ctx, _ = log.MustContextLoggerSection(
 		ctx,
 		"🖧 SSH",
-		"user", user,
-		"fingerprint", fingerprint,
-		"host", host,
-		"port", port,
-		"timeout", timeout,
+		"user", options.User,
+		"fingerprint", options.Fingerprint,
+		"host", options.Host,
+		"port", options.Port,
+		"timeout", options.Timeout,
+		"rekey_threshold", options.RekeyThreshold,
+		"key_exchanges", options.KeyExchanges,
+		"ciphers", options.Ciphers,
+		"MACs", options.MACs,
+		"host_key_algorithms", options.HostKeyAlgorithms,
 	)
+
+	if !strings.HasPrefix(options.Fingerprint, "SHA256:") {
+		return Ssh{}, fmt.Errorf(
+			"fingerprint must be an unpadded base64 encoded sha256 hash as introduced by https://www.openssh.com/txt/release-6.8, eg: %s",
+			"SHA256:uwhOoCVTS7b3wlX1popZs5k609OaD1vQurHU34cCWPk",
+		)
+	}
 
 	signers, err := sshGetSigners(ctx)
 	if err != nil {
 		return Ssh{}, err
 	}
-	hostKeyCallback, err := sshGetHostKeyCallback(ctx, fingerprint)
+	hostKeyCallback, err := sshGetHostKeyCallback(ctx, options.Fingerprint)
 	if err != nil {
 		return Ssh{}, err
 	}
 
 	retries := 3
-	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", host, port), &ssh.ClientConfig{
-		User: user,
+	if len(options.KeyExchanges) == 0 {
+		options.KeyExchanges = nil
+	}
+	if len(options.Ciphers) == 0 {
+		options.Ciphers = nil
+	}
+	if len(options.MACs) == 0 {
+		options.MACs = nil
+	}
+	if len(options.HostKeyAlgorithms) == 0 {
+		options.HostKeyAlgorithms = nil
+	}
+	clientConfig := &ssh.ClientConfig{
+		Config: ssh.Config{
+			RekeyThreshold: options.RekeyThreshold,
+			KeyExchanges:   options.KeyExchanges,
+			Ciphers:        options.Ciphers,
+			MACs:           options.MACs,
+		},
+		User: options.User,
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(signers...),
 			ssh.RetryableAuthMethod(ssh.PasswordCallback(sshGetPasswordCallbackPromptFn()), retries),
 			ssh.RetryableAuthMethod(ssh.KeyboardInteractive(sshKeyboardInteractiveChallenge), retries),
 		},
-		HostKeyCallback: hostKeyCallback,
-		Timeout:         timeout,
-	})
+		HostKeyCallback:   hostKeyCallback,
+		BannerCallback:    ssh.BannerDisplayStderr(),
+		HostKeyAlgorithms: options.HostKeyAlgorithms,
+		Timeout:           options.Timeout,
+	}
+
+	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", options.Host, options.Port), clientConfig)
 	if err != nil {
 		return Ssh{}, fmt.Errorf("failed to connect: %w", err)
 	}
 
 	sshHost := Ssh{
-		Hostname: host,
+		Hostname: options.Host,
 		client:   client,
 	}
 
@@ -296,17 +381,21 @@ func parseAuthority(authority string) (string, string, string, int, error) {
 	return usr, fingerprint, host, port, nil
 }
 
-var DefaultSshTCPConnectTimeout = time.Second * 30
-
 // NewSshAuthority creates a new Ssh from given authority in the format
 // [<user>[;fingerprint=<host-key fingerprint>]@]<host>[:<port>]
 // based on https://www.iana.org/assignments/uri-schemes/prov/ssh
-func NewSshAuthority(ctx context.Context, authority string) (Ssh, error) {
+func NewSshAuthority(ctx context.Context, authority string, sshClientConfig SshClientConfig) (Ssh, error) {
 	user, fingerprint, host, port, err := parseAuthority(authority)
 	if err != nil {
 		return Ssh{}, err
 	}
-	return NewSsh(ctx, user, fingerprint, host, port, DefaultSshTCPConnectTimeout)
+	return NewSsh(ctx, SshOptions{
+		SshClientConfig: sshClientConfig,
+		User:            user,
+		Fingerprint:     fingerprint,
+		Host:            host,
+		Port:            port,
+	})
 }
 
 func (h Ssh) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
