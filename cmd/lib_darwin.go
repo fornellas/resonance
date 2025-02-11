@@ -17,7 +17,14 @@ func GetHost(ctx context.Context) (types.Host, error) {
 	var err error
 
 	if ssh != "" {
-		baseHost, err = hostPkg.NewSshAuthority(ctx, ssh)
+		baseHost, err = hostPkg.NewSshAuthority(ctx, ssh, hostPkg.SshClientConfig{
+			RekeyThreshold:    sshRekeyThreshold,
+			KeyExchanges:      sshKeyExchanges,
+			Ciphers:           sshCiphers,
+			MACs:              sshMACs,
+			HostKeyAlgorithms: sshHostKeyAlgorithms,
+			Timeout:           sshTcpConnectTimeout,
+		})
 		if err != nil {
 			return nil, err
 		}

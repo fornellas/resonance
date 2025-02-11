@@ -91,10 +91,8 @@ func TestSsh(t *testing.T) {
 	go server.Serve(listener)
 	defer func() { server.Close() }()
 
-	baseHost, err := NewSshAuthority(ctx, fmt.Sprintf(
-		"%s;fingerprint=%s@localhost:%d",
-		username, serverFingerprint, port,
-	))
+	authority := fmt.Sprintf("%s;fingerprint=%s@localhost:%d", username, serverFingerprint, port)
+	baseHost, err := NewSshAuthority(ctx, authority, SshClientConfig{})
 	require.NoError(t, err)
 	defer func() { require.NoError(t, baseHost.Close(ctx)) }()
 
