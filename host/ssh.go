@@ -288,7 +288,7 @@ func NewSsh(ctx context.Context, options SshOptions) (Ssh, error) {
 		"host_key_algorithms", options.HostKeyAlgorithms,
 	)
 
-	if !strings.HasPrefix(options.Fingerprint, "SHA256:") {
+	if len(options.Fingerprint) > 0 && !strings.HasPrefix(options.Fingerprint, "SHA256:") {
 		return Ssh{}, fmt.Errorf(
 			"fingerprint must be an unpadded base64 encoded sha256 hash as introduced by https://www.openssh.com/txt/release-6.8, eg: %s",
 			"SHA256:uwhOoCVTS7b3wlX1popZs5k609OaD1vQurHU34cCWPk",
