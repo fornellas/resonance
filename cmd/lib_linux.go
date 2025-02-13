@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 
 	"github.com/spf13/cobra"
 
@@ -45,7 +44,7 @@ func GetHost(ctx context.Context) (types.Host, error) {
 			return nil, err
 		}
 	} else {
-		return nil, errors.New("no target host specified: must pass either --target-localhost, --target-ssh or --target-docker")
+		panic("bug: no target set")
 	}
 
 	if sudo {
@@ -65,12 +64,16 @@ func GetHost(ctx context.Context) (types.Host, error) {
 }
 
 func AddHostFlags(cmd *cobra.Command) {
+	targetFlagNames := addCommonTargetFlags(cmd)
+
 	cmd.Flags().BoolVarP(
 		&localhost, "target-localhost", "1", defaultLocalhost,
 		"Applies configuration to the same machine running the command",
 	)
+	targetFlagNames = append(targetFlagNames, "target-localhost")
 
-	addHostFlagsCommon(cmd)
+	cmd.MarkFlagsMutuallyExclusive(targetFlagNames...)
+	cmd.MarkFlagsOneRequired(targetFlagNames...)
 }
 
 func AddStoreFlags(cmd *cobra.Command) {
