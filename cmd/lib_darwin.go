@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 
-	"errors"
-
 	"github.com/spf13/cobra"
 
 	hostPkg "github.com/fornellas/resonance/host"
@@ -34,7 +32,7 @@ func GetHost(ctx context.Context) (types.Host, error) {
 			return nil, err
 		}
 	} else {
-		return nil, errors.New("no target host specified: must pass either --target-ssh or --target-docker")
+		panic("bug: no target set")
 	}
 
 	if sudo {
@@ -54,7 +52,10 @@ func GetHost(ctx context.Context) (types.Host, error) {
 }
 
 func AddHostFlags(cmd *cobra.Command) {
-	addHostFlagsCommon(cmd)
+	targetFlagNames := addCommonTargetFlags(cmd)
+
+	cmd.MarkFlagsMutuallyExclusive(targetFlagNames...)
+	cmd.MarkFlagsOneRequired(targetFlagNames...)
 }
 
 func AddStoreFlags(cmd *cobra.Command) {

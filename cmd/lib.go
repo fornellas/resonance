@@ -45,12 +45,15 @@ var defaultSshHostKeyAlgorithms = []string{}
 var sshTcpConnectTimeout time.Duration
 var defaultSshTcpConnectTimeout = time.Second * 30
 
-func addHostFlagsCommon(cmd *cobra.Command) {
+func addCommonTargetFlags(cmd *cobra.Command) []string {
+	targetFlagNames := []string{}
+
 	// Ssh
 	cmd.Flags().StringVarP(
 		&ssh, "target-ssh", "s", defaultSsh,
 		"Applies configuration to given hostname using SSH in the format: [<user>[;fingerprint=<host-key fingerprint>]@]<host>[:<port>]",
 	)
+	targetFlagNames = append(targetFlagNames, "target-ssh")
 	cmd.Flags().Uint64Var(
 		&sshRekeyThreshold, "target-ssh-rekey-threshold", defaultSshRekeyThreshold,
 		"The maximum number of bytes sent or received after which a new key is negotiated. It must be at least 256. If unspecified, a size suitable for the chosen cipher is used.",
@@ -82,12 +85,15 @@ func addHostFlagsCommon(cmd *cobra.Command) {
 		"Applies configuration to given Docker container name \n"+
 			"Use given format '[<name|uid>[:<group|gid>]@]<image>'",
 	)
+	targetFlagNames = append(targetFlagNames, "target-docker")
 
 	// Common
 	cmd.Flags().BoolVarP(
 		&sudo, "target-sudo", "r", defaultSudo,
 		"Use sudo to gain root privileges",
 	)
+
+	return targetFlagNames
 }
 
 func addStoreFlagsCommon(cmd *cobra.Command) {
