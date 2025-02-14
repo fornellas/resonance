@@ -301,7 +301,7 @@ func (f *File) Resolve(ctx context.Context, hst types.Host) error {
 		f.Uid = &uid32
 		f.User = nil
 	}
-	if f.Uid == nil {
+	if f.Uid == nil && !f.Absent {
 		f.Uid = new(uint32)
 	}
 
@@ -318,7 +318,7 @@ func (f *File) Resolve(ctx context.Context, hst types.Host) error {
 		f.Gid = &gid32
 		f.Group = nil
 	}
-	if f.Gid == nil {
+	if f.Gid == nil && !f.Absent {
 		f.Gid = new(uint32)
 	}
 
