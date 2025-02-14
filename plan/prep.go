@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/fornellas/resonance/diff"
 	"github.com/fornellas/resonance/host/types"
 
 	blueprintPkg "github.com/fornellas/resonance/blueprint"
@@ -157,8 +156,8 @@ func LoadOrCreateAndSaveLastBlueprintWithValidation(
 		if err != nil {
 			return nil, err
 		}
-		chunks := diff.DiffAsYaml(lastBlueprint, currentBlueprint)
 
+		chunks := currentBlueprint.Satisfies(lastBlueprint)
 		if chunks.HaveChanges() {
 			return nil, fmt.Errorf(
 				"host state has changed:\n%s",

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/fornellas/resonance/diff"
 	"github.com/fornellas/resonance/host/types"
 	resourcesPkg "github.com/fornellas/resonance/resources"
 )
@@ -89,4 +90,34 @@ func (b *Blueprint) GetResourceWithSameTypeId(resource resourcesPkg.Resource) re
 
 func (b *Blueprint) HasResourceWithSameTypeId(resource resourcesPkg.Resource) bool {
 	return b.getresourceMap().GetResourceWithSameTypeId(resource) != nil
+}
+
+// Satisfies returns whether the Blueprint satisfies otherBlueprint.
+// Eg: if the Blueprint defines a package with a name and a specific version, but
+// otherBlueprint specifies a package with the same name, but with any version, then
+// the Blueprint satisfies otherBlueprint.
+func (b *Blueprint) Satisfies(otherBlueprint *Blueprint) diff.Chunks {
+	chunks := diff.Chunks{}
+
+	visitedResources := map[resourcesPkg.Resource]bool{}
+
+	for _, resource := range b.Resources() {
+		visitedResources[resource] = true
+		otherResource := otherBlueprint.GetResourceWithSameTypeId(resource)
+		if otherResource == nil || !resourcesPkg.Satisfies(resource, otherResource) {
+			chunks = append(chunks, diff.DiffAsYaml(otherResource, resource)...)
+		}
+	}
+
+	for _, otherResource := range otherBlueprint.Resources() {
+		if _, ok := visitedResources[otherResource]; ok {
+			continue
+		}
+		resource := b.GetResourceWithSameTypeId(otherResource)
+		if resource == nil || !resourcesPkg.Satisfies(resource, otherResource) {
+			chunks = append(chunks, diff.DiffAsYaml(otherResource, resource)...)
+		}
+	}
+
+	return chunks
 }
