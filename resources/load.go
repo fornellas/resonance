@@ -17,7 +17,7 @@ import (
 )
 
 func LoadFile(ctx context.Context, path string) (Resources, error) {
-	_, _ = log.MustContextLoggerSection(ctx, "📝 Loading resources from file", "path", path)
+	_, _ = log.MustContextLoggerWithSection(ctx, "📝 Loading resources from file", "path", path)
 
 	f, err := os.Open(path)
 	if err != nil {
@@ -86,7 +86,7 @@ func LoadFile(ctx context.Context, path string) (Resources, error) {
 }
 
 func LoadDir(ctx context.Context, dir string) (Resources, error) {
-	ctx, logger := log.MustContextLoggerSection(ctx, "🗃️ Loading resources from directory", "dir", dir)
+	ctx, logger := log.MustContextLoggerWithSection(ctx, "🗃️ Loading resources from directory", "dir", dir)
 
 	resources := Resources{}
 

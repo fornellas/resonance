@@ -19,11 +19,11 @@ import (
 	"github.com/fornellas/resonance"
 )
 
-// This interface extends slog.Handler to enable logging with indentation.
-type IndentableHandler interface {
+// This interface extends slog.Handler to enable logging with indented sections.
+type SectionHandler interface {
 	slog.Handler
-	// Returns a copy of the handler with another level of indentation added.
-	WithIndent() slog.Handler
+	// Returns a copy of the handler with another indented section added.
+	WithSection() slog.Handler
 }
 
 // Options for [ConsoleHandler].
@@ -37,7 +37,7 @@ type ConsoleHandlerOptions struct {
 	ReplaceAttr func(groups []string, attr slog.Attr) slog.Attr
 }
 
-// Colored logging to the console, with indentation via [IndentableHandler] interface.
+// Colored logging to the console, with indentation via [SectionHandler] interface.
 type ConsoleHandler struct {
 	writer          io.Writer
 	writerMutex     *sync.Mutex
@@ -262,7 +262,7 @@ func (h *ConsoleHandler) WithGroup(name string) slog.Handler {
 	return &h2
 }
 
-func (h *ConsoleHandler) WithIndent() slog.Handler {
+func (h *ConsoleHandler) WithSection() slog.Handler {
 	h2 := *h
 
 	h2.indentLevel += 1

@@ -158,7 +158,7 @@ func (a *Action) Apply(ctx context.Context, host types.Host) error {
 	if len(diffStr) > 0 {
 		args = append(args, []any{"diff", diffStr}...)
 	}
-	ctx, _ = log.MustContextLoggerSection(ctx, a.String(), args...)
+	ctx, _ = log.MustContextLoggerWithSection(ctx, a.String(), args...)
 
 	if len(a.ApplyResources) == 0 {
 		return nil
@@ -282,7 +282,7 @@ func NewPlan(
 
 // Apply commits all required changes for plan to given Host.
 func (p Plan) Apply(ctx context.Context, host types.Host) error {
-	ctx, _ = log.MustContextLoggerSection(ctx, "⚙️ Applying")
+	ctx, _ = log.MustContextLoggerWithSection(ctx, "⚙️ Applying")
 
 	for _, action := range p {
 		if err := action.Apply(ctx, host); err != nil {

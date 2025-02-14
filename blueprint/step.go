@@ -123,7 +123,7 @@ func (s *Step) appendRequiredByStep(step *Step) {
 
 // Resolve the state with information that may be required from the host for all Resources.
 func (s *Step) Resolve(ctx context.Context, hst types.Host) error {
-	ctx, _ = log.MustContextLoggerSection(ctx, s.String())
+	ctx, _ = log.MustContextLoggerWithSection(ctx, s.String())
 
 	if s.singleResource != nil {
 		err := s.singleResource.Resolve(ctx, hst)
