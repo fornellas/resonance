@@ -223,8 +223,10 @@ GO_BUILD_FLAGS := -trimpath -ldflags "-s -w"
 # management of local users
 GO_BUILD_FLAGS_COMMON := -tags osusergo
 
+GO_BUILD_AGENT_GOARCHS_ALL := 386 amd64 arm arm64
+
 ifneq ($(GO_BUILD_AGENT_NATIVE_ONLY),1)
-GO_BUILD_AGENT_GOARCHS := 386 amd64 arm arm64
+GO_BUILD_AGENT_GOARCHS := $(GO_BUILD_AGENT_GOARCHS_ALL)
 else
 GO_BUILD_AGENT_GOARCHS := $(GOARCH)
 endif
@@ -603,7 +605,7 @@ clean-build-agent-%:
 	rm -f host/agent_server/agent_server_linux_$*
 	rm -f host/agent_server/agent_server_linux_$*.gz
 	rm -f host/agent_server_linux_$*_gz.go
-clean-agent: $(foreach GOARCH,$(GO_BUILD_AGENT_GOARCHS),clean-build-agent-$(GOARCH))
+clean-agent: $(foreach GOARCH,$(GO_BUILD_AGENT_GOARCHS_ALL),clean-build-agent-$(GOARCH))
 
 # clean agent
 
