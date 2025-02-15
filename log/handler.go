@@ -21,7 +21,6 @@ import (
 
 // This interface extends slog.Handler to enable logging with indented sections.
 type SectionHandler interface {
-	slog.Handler
 	// Returns a copy of the handler with another indented section added.
 	WithSection() slog.Handler
 }
