@@ -1,31 +1,17 @@
 package main
 
 import (
-	"os"
+	"context"
 	"time"
 
 	"github.com/spf13/cobra"
 
+	hostPkg "github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/host/types"
-	storePkg "github.com/fornellas/resonance/store"
 )
-
-// This is to be used in place of os.Exit() to aid writing test assertions on exit code.
-var Exit func(int) = func(code int) { os.Exit(code) }
 
 var ssh string
 var defaultSsh = ""
-
-var docker string
-var defaultDocker = ""
-
-var sudo bool
-var defaultSudo = false
-
-var storeValue = NewStoreValue()
-
-var storeHostTargetPath string
-var defaultStoreHostTargetPath = "/var/lib/resonance"
 
 var sshRekeyThreshold uint64
 var defaultSshRekeyThreshold uint64 = 0
@@ -45,7 +31,13 @@ var defaultSshHostKeyAlgorithms = []string{}
 var sshTcpConnectTimeout time.Duration
 var defaultSshTcpConnectTimeout = time.Second * 30
 
-func addCommonTargetFlags(cmd *cobra.Command) []string {
+var docker string
+var defaultDocker = ""
+
+var sudo bool
+var defaultSudo = false
+
+func AddTargetFlags(cmd *cobra.Command) {
 	targetFlagNames := []string{}
 
 	// Ssh
@@ -93,34 +85,69 @@ func addCommonTargetFlags(cmd *cobra.Command) []string {
 		"Use sudo to gain root privileges",
 	)
 
-	return targetFlagNames
+	targetFlagNames = append(targetFlagNames, addTargetFlagsArch(cmd)...)
+
+	cmd.MarkFlagsMutuallyExclusive(targetFlagNames...)
+	cmd.MarkFlagsOneRequired(targetFlagNames...)
 }
 
-func addStoreFlagsCommon(cmd *cobra.Command) {
-	cmd.PersistentFlags().VarP(storeValue, "store", "", "Where to store state information")
+func GetHost(ctx context.Context) (types.Host, error) {
+	var baseHost types.BaseHost
+	var err error
 
-	cmd.Flags().StringVarP(
-		&storeHostTargetPath, "store-target-path", "", defaultStoreHostTargetPath,
-		"Path on target host where to store state",
-	)
-}
+	baseHost, host := getHostArch(ctx)
 
-func getStoreCommon(hst types.Host) storePkg.Store {
-	var storePath string
-	switch storeValue.String() {
-	case "target":
-		storePath = storeHostTargetPath
-	default:
-		return nil
+	if host != nil {
+		return host, nil
+	} else if baseHost == nil {
+		if ssh != "" {
+			baseHost, err = hostPkg.NewSshAuthority(ctx, ssh, hostPkg.SshClientConfig{
+				RekeyThreshold:    sshRekeyThreshold,
+				KeyExchanges:      sshKeyExchanges,
+				Ciphers:           sshCiphers,
+				MACs:              sshMACs,
+				HostKeyAlgorithms: sshHostKeyAlgorithms,
+				Timeout:           sshTcpConnectTimeout,
+			})
+			if err != nil {
+				return nil, err
+			}
+		} else if docker != "" {
+			baseHost, err = hostPkg.NewDocker(ctx, docker)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			panic("bug: no target set")
+		}
 	}
-	return storeValue.GetStore(hst, storePath)
+
+	if sudo {
+		var err error
+		baseHost, err = hostPkg.NewSudoWrapper(ctx, baseHost)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	hst, err := hostPkg.NewAgentClientWrapper(ctx, baseHost)
+	if err != nil {
+		return nil, err
+	}
+
+	return hst, nil
 }
 
 func init() {
 	resetFlagsFns = append(resetFlagsFns, func() {
 		ssh = defaultSsh
+		sshRekeyThreshold = defaultSshRekeyThreshold
+		sshKeyExchanges = defaultSshKeyExchanges
+		sshCiphers = defaultSshCiphers
+		sshMACs = defaultSshMACs
+		sshHostKeyAlgorithms = defaultSshHostKeyAlgorithms
+		sshTcpConnectTimeout = defaultSshTcpConnectTimeout
 		docker = defaultDocker
-		storeHostTargetPath = defaultStoreHostTargetPath
 		sudo = defaultSudo
 	})
 }

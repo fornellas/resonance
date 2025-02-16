@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -12,6 +13,9 @@ import (
 	"github.com/fornellas/resonance"
 	"github.com/fornellas/resonance/log"
 )
+
+// This is to be used in place of os.Exit() to aid writing test assertions on exit code.
+var Exit func(int) = func(code int) { os.Exit(code) }
 
 var logLevelValue = NewLogLevelValue()
 
