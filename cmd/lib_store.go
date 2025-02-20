@@ -6,7 +6,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/host/types"
 	storePkg "github.com/fornellas/resonance/store"
 )
@@ -73,11 +72,14 @@ func AddStoreFlags(cmd *cobra.Command) {
 }
 
 func GetStore(hst types.Host) storePkg.Store {
+	store := getStoreArch(hst)
+	if hst != nil {
+		return store
+	}
+
 	switch storeValue.String() {
 	case "target":
 		return storePkg.NewHostStore(hst, storeTargetPath)
-	case "localhost":
-		return storePkg.NewHostStore(host.Local{}, storeLocalhostPath)
 	default:
 		panic("bug: unexpected store value")
 	}
