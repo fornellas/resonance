@@ -71,9 +71,9 @@ var RootCmd = &cobra.Command{
 var resetFlagsFns []func()
 
 func ResetFlags() {
-	logLevelValue = NewLogLevelValue()
+	logLevelValue.Reset()
 
-	logHandlerValue = NewLogHandlerValue()
+	logHandlerValue.Reset()
 
 	logHandlerAddSource = defaultLogHandlerAddSource
 

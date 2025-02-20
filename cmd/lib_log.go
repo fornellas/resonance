@@ -10,11 +10,13 @@ import (
 	"github.com/fornellas/resonance/log"
 )
 
+var defaultLevel = slog.LevelInfo
+
 type LogLevelValue slog.Level
 
 func NewLogLevelValue() *LogLevelValue {
-	v := LogLevelValue(slog.LevelInfo)
-	return &v
+	logLevelValue := LogLevelValue(defaultLevel)
+	return &logLevelValue
 }
 
 func (l LogLevelValue) String() string {
@@ -23,6 +25,12 @@ func (l LogLevelValue) String() string {
 
 func (l *LogLevelValue) Set(value string) error {
 	return (*slog.Level)(l).UnmarshalText([]byte(value))
+}
+
+func (l *LogLevelValue) Reset() {
+	if err := l.Set(defaultLevel.String()); err != nil {
+		panic(err)
+	}
 }
 
 func (l LogLevelValue) Type() string {
@@ -81,12 +89,14 @@ func logHandlerNames() (names []string) {
 	return names
 }
 
+var defaultLogHandlerValue = "console"
+
 type LogHandlerValue struct {
 	name string
 }
 
 func NewLogHandlerValue() *LogHandlerValue {
-	return &LogHandlerValue{name: "console"}
+	return &LogHandlerValue{name: defaultLogHandlerValue}
 }
 
 func (h *LogHandlerValue) String() string {
@@ -99,6 +109,12 @@ func (h *LogHandlerValue) Set(value string) error {
 	}
 	h.name = value
 	return nil
+}
+
+func (h *LogHandlerValue) Reset() {
+	if err := h.Set(defaultLogHandlerValue); err != nil {
+		panic(err)
+	}
 }
 
 func (h *LogHandlerValue) Type() string {

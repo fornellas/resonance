@@ -21,9 +21,9 @@ type StoreValue struct {
 }
 
 func NewStoreValue() *StoreValue {
-	return &StoreValue{
-		name: "target",
-	}
+	storeValue := &StoreValue{}
+	storeValue.Reset()
+	return storeValue
 }
 
 func (s *StoreValue) String() string {
@@ -36,6 +36,10 @@ func (s *StoreValue) Set(value string) error {
 	}
 	s.name = value
 	return nil
+}
+
+func (s *StoreValue) Reset() {
+	s.name = "target"
 }
 
 func (s *StoreValue) Type() string {
@@ -81,7 +85,7 @@ func GetStore(hst types.Host) storePkg.Store {
 
 func init() {
 	resetFlagsFns = append(resetFlagsFns, func() {
-		storeValue = NewStoreValue()
+		storeValue.Reset()
 		storeTargetPath = defaultStoreTargetPath
 		storeLocalhostPath = defaultStoreLocalhostPath
 	})
