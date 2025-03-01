@@ -132,6 +132,16 @@ function start() {
         > "${GIT_HOME}/.ssh/authorized_keys"
     chmod 644 "${GIT_HOME}/.ssh/authorized_keys"
 
+    echo "🏠 Setting up home"
+    cp -f .env "${GIT_HOME}"
+    echo "export _GIT_ROOT=${DOCKER_GIT_ROOT}" >> "${GIT_HOME}"/.env
+    cp -f .profile "${GIT_HOME}"
+    cp -f .bashrc "${GIT_HOME}"
+    echo "PATH=$(run make TOOLS_PATH)\$PATH" >>  "${GIT_HOME}"/.env
+
+    echo "📦 Installing tools"
+    run make --quiet install-tools
+
     status
 
     info
