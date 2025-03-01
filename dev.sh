@@ -69,7 +69,8 @@ SSH_HOST=127.0.0.1
 SSH_PORT=2222
 SSH_KNOWN_HOSTS="${HOME}/.ssh/known_hosts"
 SSH_KNOWN_HOSTS_HOSTNAME="[${SSH_HOST}]:${SSH_PORT}"
-SSH_CLIENT_PUBLIC_KEYS_GLOB="\~/.ssh/id_*.pub"
+# shellcheck disable=SC2088 # this is passed to eval
+SSH_CLIENT_PUBLIC_KEYS_GLOB="~/.ssh/id_*.pub"
 
 ####################################################################################################
 # Functions
@@ -122,7 +123,7 @@ function start() {
     if ! eval "ls ${SSH_CLIENT_PUBLIC_KEYS_GLOB}" &>/dev/null; then
         echo "❌ No public keys found: ${SSH_CLIENT_PUBLIC_KEYS_GLOB}"
         echo "You can generate public keys by running:"
-        echo "\$ ssh-keygen"
+        echo '$ ssh-keygen'
         echo "then you can try again."
         return 1
     fi
