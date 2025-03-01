@@ -78,10 +78,10 @@ GOROOT := $(GOROOT_PREFIX)/$(GOVERSION).$(GOOS)-$(GOARCH_DOWNLOAD)
 export GOBIN := $(GOROOT)/bin
 export GOTOOLDIR := $(GOBIN)
 GO := $(GOBIN)/go
-PATH := $(GOBIN):$(PATH)
+TOOLS_PATH := $(GOBIN):$(TOOLS_PATH)
 
 export GOPATH := $(CACHE_PATH)/GOPATH
-PATH := $(GOPATH)/bin:$(PATH)
+TOOLS_PATH := $(GOPATH)/bin:$(TOOLS_PATH)
 
 export GOCACHE := $(CACHE_PATH)/GOCACHE
 
@@ -207,7 +207,7 @@ ifneq ($(.SHELLSTATUS),0)
 endif
 
 PROTOC_BIN_PATH := $(CACHE_PATH)/protoc/$(PROTOC_VERSION)/$(PROTOC_OS)-$(PROTOC_ARCH)
-PATH := $(PROTOC_BIN_PATH):$(PATH)
+TOOLS_PATH := $(PROTOC_BIN_PATH):$(TOOLS_PATH)
 
 PROTOC := $(PROTOC_BIN_PATH)/protoc
 PROTOC_PROTO_PATH := ./host/agent_server/proto
@@ -242,6 +242,14 @@ RRB_LOG_LEVEL ?= info
 RRB_PATTERN ?= '**/*.go' '**/*.proto' Makefile
 RRB_MAKE_TARGET ?= ci
 RRB_EXTRA_CMD ?= true
+
+# Path
+
+PATH := $(TOOLS_PATH):$(PATH)
+
+.PHONY: TOOLS_PATH
+TOOLS_PATH:
+	@echo $(TOOLS_PATH)
 
 ##
 ## Help
