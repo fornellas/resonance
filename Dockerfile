@@ -11,6 +11,7 @@ RUN apt -y --no-install-recommends install \
     less \
     libc6-dev \
     make \
+    man \
     npm \
     openssh-server \
     shellcheck \
