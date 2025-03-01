@@ -162,6 +162,15 @@ function stop() {
     docker kill "${DOCKER_CONTAINER}"
 }
 
+function restart() {
+    if [ $# -gt 0 ] ; then
+        echo "invalid arguments: ${@}"
+        return 1
+    fi
+    stop
+    start
+}
+
 function status() {
     if [ $# -gt 0 ] ; then
         echo "invalid arguments: ${@}"
@@ -197,6 +206,10 @@ function run() {
 }
 
 function info() {
+    if [ $# -gt 0 ] ; then
+        echo "invalid arguments: ${@}"
+        return 1
+    fi
     echo "ℹ️ Information"
     echo "Shell:"
     echo "\$ $0 shell"
@@ -226,6 +239,9 @@ case "${ACTION}" in
         ;;
     stop)
         stop "${@}"
+        ;;
+    restart)
+        restart "${@}"
         ;;
     status)
         status "${@}"
