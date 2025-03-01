@@ -135,6 +135,8 @@ function start() {
     status
 
     info
+
+    trap - ERR
 }
 
 function stop() {
@@ -168,12 +170,20 @@ function shell() {
         echo "invalid arguments: ${@}"
         return 1
     fi
+    if ! status &>/dev/null ; then
+        start
+    fi
     ssh -p "${SSH_PORT}" "${DOCKER_USER}@${SSH_HOST}"
 }
 
 function run() {
-    echo "TODO run"
-    return 1
+    if ! status &>/dev/null ; then
+        echo "❌ Stopped."
+        echo "Start the container with:"
+        echo "\$ $0 start"
+        return 1
+    fi
+    ssh -p "${SSH_PORT}" "${DOCKER_USER}@${SSH_HOST}" "${@}"
 }
 
 function info() {
