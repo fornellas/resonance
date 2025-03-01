@@ -502,6 +502,16 @@ shellcheck:
         .profile
 lint: shellcheck
 
+# shfmt
+.PHONY: shfmt
+shfmt:
+	shfmt --write --simplify --language-dialect bash --indent 4 \
+		.bashrc \
+		.env \
+		.profile \
+		dev.sh
+lint: shfmt
+
 ##
 ## Test
 ##
