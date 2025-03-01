@@ -100,7 +100,6 @@ function start() {
         .
 
     echo "🚀 Running container..."
-    echo mkdir -p "${GIT_HOME_ROOT}"
     mkdir -p "${GIT_HOME_ROOT}"
     docker run \
         --name "${DOCKER_CONTAINER}" \
