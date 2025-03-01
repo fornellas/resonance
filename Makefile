@@ -490,6 +490,18 @@ go-get-u-t: install-go go-mod-tidy
 	$(GO) get -u ./...
 update-deps: go-get-u-t
 
+# shellcheck
+
+.PHONY: shellcheck
+shellcheck:
+	set -e
+	shellcheck dev.sh
+	shellcheck \
+        .bashrc \
+        .env \
+        .profile
+lint: shellcheck
+
 ##
 ## Test
 ##
