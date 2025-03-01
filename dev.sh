@@ -203,6 +203,11 @@ function help() {
     return 1
 }
 
+if [ $# -lt 1 ] ; then
+    help
+    return 1
+fi
+
 ACTION="$1"
 shift
 case "${ACTION}" in
