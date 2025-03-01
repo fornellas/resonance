@@ -21,7 +21,7 @@ SYSTEM="$(uname -s)"
 ## Docker
 ##
 
-if [ -z "$DOCKER_PLATFORM" ] ; then
+if [ -z "$DOCKER_PLATFORM" ]; then
     DOCKER_PLATFORM_ARCH_NATIVE="$(docker system info --format '{{.Architecture}}')"
     DOCKER_PLATFORM="linux/$DOCKER_PLATFORM_ARCH_NATIVE"
 fi
@@ -31,21 +31,21 @@ fi
 DOCKER_USER=resonance
 DOCKER_GROUP=resonance
 case "${SYSTEM}" in
-    Linux)
-        # For Linux hosts, we can map these 1:1.
-        DOCKER_UID="$(id -u)"
-        DOCKER_GID="$(id -g)"
-        ;;
-    Darwin)
-        # Darwin runs containers on a VM, and volumes map to the host user UID/GID always. For
-        # the container, we fix safe values here that won't clash with any system accounts.
-        DOCKER_UID=1000
-        DOCKER_GID=1000
-        ;;
-    *)
-        echo "unsupported system: ${SYSTEM}"
-        return 1
-        ;;
+Linux)
+    # For Linux hosts, we can map these 1:1.
+    DOCKER_UID="$(id -u)"
+    DOCKER_GID="$(id -g)"
+    ;;
+Darwin)
+    # Darwin runs containers on a VM, and volumes map to the host user UID/GID always. For
+    # the container, we fix safe values here that won't clash with any system accounts.
+    DOCKER_UID=1000
+    DOCKER_GID=1000
+    ;;
+*)
+    echo "unsupported system: ${SYSTEM}"
+    return 1
+    ;;
 esac
 DOCKER_HOME="/home/${DOCKER_USER}"
 DOCKER_IMAGE="${NAME}:local"
@@ -55,7 +55,7 @@ DOCKER_CONTAINER="${NAME}"
 ## Git
 ##
 
-GIT_ROOT="$(cd $(dirname $0) && git rev-parse --show-toplevel)"
+GIT_ROOT="$(cd "$(dirname $0)" && git rev-parse --show-toplevel)"
 DOCKER_GIT_ROOT="${DOCKER_HOME}/${NAME}"
 DOCKER_GIT_HOME="${DOCKER_GIT_ROOT}/.home"
 GIT_HOME="${GIT_ROOT}/.home/${DOCKER_PLATFORM}"
@@ -69,19 +69,19 @@ SSH_HOST=127.0.0.1
 SSH_PORT=2222
 SSH_KNOWN_HOSTS="${HOME}/.ssh/known_hosts"
 SSH_KNOWN_HOSTS_HOSTNAME="[${SSH_HOST}]:${SSH_PORT}"
-SSH_CLIENT_PUBLIC_KEYS_GLOB="~/.ssh/id_*.pub"
+SSH_CLIENT_PUBLIC_KEYS_GLOB="\~/.ssh/id_*.pub"
 
 ####################################################################################################
 # Functions
 ####################################################################################################
 
 function start() {
-    if [ $# -gt 0 ] ; then
-        echo "invalid arguments: ${@}"
+    if [ $# -gt 0 ]; then
+        echo "invalid arguments: " "${@}"
         return 1
     fi
 
-    if status &>/dev/null ; then
+    if status &>/dev/null; then
         echo "🌱 Already running"
         return
     fi
@@ -116,10 +116,10 @@ function start() {
 
     echo "🔑 Setting up SSH keys"
     ssh-keygen -q -f "${SSH_KNOWN_HOSTS}" -R "${SSH_KNOWN_HOSTS_HOSTNAME}"
-    docker exec resonance sh -c "cat /etc/ssh/ssh_host_*_key.pub" \
-        | awk '{print "'"${SSH_KNOWN_HOSTS_HOSTNAME}"' "$0}' \
-        >> "${SSH_KNOWN_HOSTS}"
-    if ! eval "ls ${SSH_CLIENT_PUBLIC_KEYS_GLOB}" &>/dev/null ; then
+    docker exec resonance sh -c "cat /etc/ssh/ssh_host_*_key.pub" |
+        awk '{print "'"${SSH_KNOWN_HOSTS_HOSTNAME}"' "$0}' \
+            >>"${SSH_KNOWN_HOSTS}"
+    if ! eval "ls ${SSH_CLIENT_PUBLIC_KEYS_GLOB}" &>/dev/null; then
         echo "❌ No public keys found: ${SSH_CLIENT_PUBLIC_KEYS_GLOB}"
         echo "You can generate public keys by running:"
         echo "\$ ssh-keygen"
@@ -129,15 +129,15 @@ function start() {
     mkdir -p "${GIT_HOME}/.ssh"
     chmod 700 "${GIT_HOME}/.ssh"
     eval "cat ${SSH_CLIENT_PUBLIC_KEYS_GLOB}" \
-        > "${GIT_HOME}/.ssh/authorized_keys"
+        >"${GIT_HOME}/.ssh/authorized_keys"
     chmod 644 "${GIT_HOME}/.ssh/authorized_keys"
 
     echo "🏠 Setting up home"
     cp -f .env "${GIT_HOME}"
-    echo "export _GIT_ROOT=${DOCKER_GIT_ROOT}" >> "${GIT_HOME}"/.env
+    echo "export _GIT_ROOT=${DOCKER_GIT_ROOT}" >>"${GIT_HOME}"/.env
     cp -f .profile "${GIT_HOME}"
     cp -f .bashrc "${GIT_HOME}"
-    echo "PATH=$(run make TOOLS_PATH)\$PATH" >>  "${GIT_HOME}"/.env
+    echo "PATH=$(run make TOOLS_PATH)\$PATH" >>"${GIT_HOME}"/.env
 
     echo "📦 Installing tools"
     run make --quiet install-tools
@@ -150,11 +150,11 @@ function start() {
 }
 
 function stop() {
-    if [ $# -gt 0 ] ; then
-        echo "invalid arguments: ${@}"
+    if [ $# -gt 0 ]; then
+        echo "invalid arguments: " "${@}"
         return 1
     fi
-    if ! status &>/dev/null ; then
+    if ! status &>/dev/null; then
         echo "💀 Already stopped"
         return
     fi
@@ -163,8 +163,8 @@ function stop() {
 }
 
 function restart() {
-    if [ $# -gt 0 ] ; then
-        echo "invalid arguments: ${@}"
+    if [ $# -gt 0 ]; then
+        echo "invalid arguments: " "${@}"
         return 1
     fi
     stop
@@ -172,11 +172,11 @@ function restart() {
 }
 
 function status() {
-    if [ $# -gt 0 ] ; then
-        echo "invalid arguments: ${@}"
+    if [ $# -gt 0 ]; then
+        echo "invalid arguments: " "${@}"
         return 1
     fi
-    if docker exec "${DOCKER_CONTAINER}" true &>/dev/null ; then
+    if docker exec "${DOCKER_CONTAINER}" true &>/dev/null; then
         echo "🌱 Running"
     else
         echo "💀 Stopped"
@@ -185,18 +185,18 @@ function status() {
 }
 
 function shell() {
-    if [ $# -gt 0 ] ; then
-        echo "invalid arguments: ${@}"
+    if [ $# -gt 0 ]; then
+        echo "invalid arguments: " "${@}"
         return 1
     fi
-    if ! status &>/dev/null ; then
+    if ! status &>/dev/null; then
         start
     fi
     ssh -p "${SSH_PORT}" "${DOCKER_USER}@${SSH_HOST}"
 }
 
 function run() {
-    if ! status &>/dev/null ; then
+    if ! status &>/dev/null; then
         echo "❌ Stopped."
         echo "Start the container with:"
         echo "\$ $0 start"
@@ -206,8 +206,8 @@ function run() {
 }
 
 function info() {
-    if [ $# -gt 0 ] ; then
-        echo "invalid arguments: ${@}"
+    if [ $# -gt 0 ]; then
+        echo "invalid arguments:" "${@}"
         return 1
     fi
     echo "ℹ️ Information"
@@ -218,15 +218,15 @@ function info() {
 }
 
 function help() {
-    if [ $# -gt 0 ] ; then
-        echo "invalid arguments: ${@}"
+    if [ $# -gt 0 ]; then
+        echo "invalid arguments:" "${@}"
         return 1
     fi
     echo "TODO help"
     return 1
 }
 
-if [ $# -lt 1 ] ; then
+if [ $# -lt 1 ]; then
     help
     return 1
 fi
@@ -234,36 +234,35 @@ fi
 ACTION="$1"
 shift
 case "${ACTION}" in
-    start)
-        start "${@}"
-        ;;
-    stop)
-        stop "${@}"
-        ;;
-    restart)
-        restart "${@}"
-        ;;
-    status)
-        status "${@}"
-        ;;
-    shell)
-        shell "${@}"
-        ;;
-    run)
-        run "${@}"
-        ;;
-    info)
-        info "${@}"
-        ;;
-    help)
-        help "${@}"
-        ;;
-    *)
-        help "${@}"
-        return 1
-        ;;
+start)
+    start "${@}"
+    ;;
+stop)
+    stop "${@}"
+    ;;
+restart)
+    restart "${@}"
+    ;;
+status)
+    status "${@}"
+    ;;
+shell)
+    shell "${@}"
+    ;;
+run)
+    run "${@}"
+    ;;
+info)
+    info "${@}"
+    ;;
+help)
+    help "${@}"
+    ;;
+*)
+    help "${@}"
+    return 1
+    ;;
 esac
-
 
 # # https://github.com/moby/moby/issues/42732
 # if [ "$DOCKER_PLATFORM" == "linux/386" ] && [ "$DOCKER_PLATFORM_ARCH_NATIVE" == "x86_64" ] ; then
