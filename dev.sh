@@ -268,8 +268,3 @@ help)
     return 1
     ;;
 esac
-
-# # https://github.com/moby/moby/issues/42732
-# if [ "$DOCKER_PLATFORM" == "linux/386" ] && [ "$DOCKER_PLATFORM_ARCH_NATIVE" == "x86_64" ] ; then
-#   GO_ENV_ARGS="$GO_ENV_ARGS --env GOARCH_DOWNLOAD=386"
-# fi
