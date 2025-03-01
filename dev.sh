@@ -203,7 +203,12 @@ function run() {
         echo "\$ $0 start"
         return 1
     fi
-    ssh -p "${SSH_PORT}" "${DOCKER_USER}@${SSH_HOST}" "${@}"
+    docker exec \
+        --interactive \
+        --tty \
+        --user "${DOCKER_UID}:${DOCKER_GID}" \
+        --workdir "${DOCKER_GIT_ROOT}" \
+        "${DOCKER_CONTAINER}" "${@}"
 }
 
 function info() {
