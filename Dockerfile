@@ -11,10 +11,16 @@ RUN apt -y --no-install-recommends install \
     less \
     libc6-dev \
     make \
+    npm \
     openssh-server \
+    shellcheck \
+    shfmt \
     unzip
 RUN rm -rf /var/cache/apt/archives/
 RUN rm -rf /var/lib/apt/lists/
+
+# bash-language-server
+RUN npm i -g bash-language-server
 
 # root
 RUN passwd -d root
