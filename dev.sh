@@ -55,7 +55,7 @@ DOCKER_CONTAINER="${NAME}"
 ## Git
 ##
 
-GIT_ROOT="$(cd "$(dirname $0)" && git rev-parse --show-toplevel)"
+GIT_ROOT="$(cd "$(dirname "$0")" && git rev-parse --show-toplevel)"
 DOCKER_GIT_ROOT="${DOCKER_HOME}/${NAME}"
 DOCKER_GIT_HOME="${DOCKER_GIT_ROOT}/.home"
 GIT_HOME="${GIT_ROOT}/.home/${DOCKER_PLATFORM}"
