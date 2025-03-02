@@ -21,10 +21,12 @@ SYSTEM="$(uname -s)"
 ## Docker
 ##
 
-if [ -z "$DOCKER_PLATFORM" ]; then
-    DOCKER_PLATFORM_ARCH_NATIVE="$(docker system info --format '{{.Architecture}}')"
-    DOCKER_PLATFORM="linux/$DOCKER_PLATFORM_ARCH_NATIVE"
+DOCKER_PLATFORM_ARCH_NATIVE="$(docker system info --format '{{.Architecture}}')"
+if [ -z "${DOCKER_PLATFORM_ARCH}" ]; then
+    DOCKER_PLATFORM_ARCH="${DOCKER_PLATFORM_ARCH_NATIVE}"
 fi
+DOCKER_PLATFORM="linux/${DOCKER_PLATFORM_ARCH}"
+
 # We fix user / group here, because while on Linux hosts, we can use the exact same values in the
 # container, for Darwin hosts, we can't, as Darwin accepts names which aren't good for Linux.
 # We fix these for both cases.
