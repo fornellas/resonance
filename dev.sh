@@ -102,7 +102,7 @@ function start() {
     fi
 
     echo "🔧 Building image..."
-    docker build \
+    docker buildx build \
         --platform "${DOCKER_PLATFORM}" \
         --build-arg "USER=${DOCKER_USER}" \
         --build-arg "GROUP=${DOCKER_GROUP}" \

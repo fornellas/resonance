@@ -206,35 +206,12 @@ GCOV2LCOV := $(GO) tool gcov2lcov
 
 GO_TEST_MIN_COVERAGE := 50
 
-# protobuf
+# protoc
 
-SHELL_PROTOC_VERSION := cat .protoc_version
-PROTOC_VERSION := $(shell $(SHELL_PROTOC_VERSION))
-ifneq ($(.SHELLSTATUS),0)
-$(error $(SHELL_PROTOC_VERSION): $(PROTOC_VERSION))
-endif
-
-ifeq ($(UNAME_S),Linux)
-PROTOC_OS := linux
-else
-ifeq ($(UNAME_S),Darwin)
-PROTOC_OS := osx
-else
-$(error Unsupported system: $(UNAME_S))
-endif
-endif
-
-SHELL_PROTOC_ARCH := case $(UNAME_M) in i[23456]86) echo x86_32;; x86_64) echo x86_64;; aarch64|arm64) echo aarch_64;; *) echo Unknown machine $(UNAME_M) 1>&2 ; exit 1 ;; esac
-PROTOC_ARCH ?= $(shell $(SHELL_PROTOC_ARCH))
-ifneq ($(.SHELLSTATUS),0)
-  $(error $(SHELL_PROTOC_ARCH): $(PROTOC_ARCH))
-endif
-
-PROTOC_BIN_PATH := $(CACHE_PATH)/protoc/$(PROTOC_VERSION)/$(PROTOC_OS)-$(PROTOC_ARCH)
-TOOLS_PATH := $(PROTOC_BIN_PATH):$(TOOLS_PATH)
-
-PROTOC := $(PROTOC_BIN_PATH)/protoc
+PROTOC := protoc
 PROTOC_PROTO_PATH := ./host/agent_server/proto
+
+# protolint
 
 PROTOLINT := $(GO) tool protolint
 PROTOLINT_ARGS :=
