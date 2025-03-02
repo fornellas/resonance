@@ -30,8 +30,8 @@ DOCKER_PLATFORM="linux/${DOCKER_PLATFORM_ARCH}"
 # We fix user / group here, because while on Linux hosts, we can use the exact same values in the
 # container, for Darwin hosts, we can't, as Darwin accepts names which aren't good for Linux.
 # We fix these for both cases.
-DOCKER_USER=resonance
-DOCKER_GROUP=resonance
+DOCKER_USER="${NAME}"
+DOCKER_GROUP="${NAME}"
 case "${SYSTEM}" in
 Linux)
     # For Linux hosts, we can map these 1:1.
@@ -132,7 +132,7 @@ function start() {
 
     echo "🔑 Setting up SSH keys"
     ssh-keygen -q -f "${SSH_KNOWN_HOSTS}" -R "${SSH_KNOWN_HOSTS_HOSTNAME}"
-    docker exec resonance sh -c "cat /etc/ssh/ssh_host_*_key.pub" |
+    docker exec "${DOCKER_CONTAINER}" sh -c "cat /etc/ssh/ssh_host_*_key.pub" |
         awk '{print "'"${SSH_KNOWN_HOSTS_HOSTNAME}"' "$0}' \
             >>"${SSH_KNOWN_HOSTS}"
     if ! eval "ls ${SSH_CLIENT_PUBLIC_KEYS_GLOB}" &>/dev/null; then
