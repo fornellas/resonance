@@ -332,27 +332,16 @@ clean: clean-install-go
 
 # protoc
 
-.PHONY: install-protoc
-install-protoc:
-	set -e
-	if [ -x $(PROTOC_BIN_PATH)/protoc ] ; then exit ; fi
-	mkdir -p $(PROTOC_BIN_PATH)
-	curl -sSfL https://github.com/protocolbuffers/protobuf/releases/download/v$(PROTOC_VERSION)/protoc-$(PROTOC_VERSION)-$(PROTOC_OS)-$(PROTOC_ARCH).zip > $(CACHE_PATH)/protoc.zip
-	unzip -p $(CACHE_PATH)/protoc.zip bin/protoc > $(PROTOC_BIN_PATH)/protoc.tmp
-	chmod +x $(PROTOC_BIN_PATH)/protoc.tmp
-	mv $(PROTOC_BIN_PATH)/protoc.tmp $(PROTOC_BIN_PATH)/protoc
-install-tools: install-protoc
-
 .PHONY: update-protoc
 update-protoc:
 	set -e
 	V="$$(curl -fv https://github.com/protocolbuffers/protobuf/releases/latest/ 2>&1 | \
-	   grep -Ei '^< location: ' | \
-	   tr / \\n | \
-	   tail -n 1 | \
-	   cut -c 2-)"
+    	grep -Ei '^< location: ' | \
+    	tr / \\n | \
+    	tail -n 1 | \
+    	cut -c 2- | \
+    	tr -d '\r')"
 	echo "$$V" > .protoc_version
-	$(MAKE) $(MFLAGS) install-protoc
 update-deps: update-protoc
 
 .PHONY: clean-install-protoc
@@ -391,7 +380,7 @@ clean: clean-install-protoc-gen-go
 # protoc
 
 .PHONY: gen-protofiles
-gen-protofiles: install-protoc install-protoc-gen-go install-protoc-gen-go-grpc protolint
+gen-protofiles: install-protoc-gen-go install-protoc-gen-go-grpc protolint
 	$(PROTOC) \
 		--go_out=. \
 		--go_opt=paths=source_relative \
