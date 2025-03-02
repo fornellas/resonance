@@ -74,6 +74,12 @@ SSH_KNOWN_HOSTS_HOSTNAME="[${SSH_HOST}]:${SSH_PORT}"
 # shellcheck disable=SC2088 # this is passed to eval
 SSH_CLIENT_PUBLIC_KEYS_GLOB="~/.ssh/id_*.pub"
 
+##
+## Go
+##
+
+GO_VERSION="$(cat go.mod | awk '/^go /{print $2}')"
+
 ####################################################################################################
 # Functions
 ####################################################################################################
@@ -97,6 +103,7 @@ function start() {
         --build-arg "UID=${DOCKER_UID}" \
         --build-arg "GID=${DOCKER_GID}" \
         --build-arg "HOME=${DOCKER_HOME}" \
+        --build-arg "GO_VERSION=${GO_VERSION}" \
         --tag "${DOCKER_IMAGE}" \
         --quiet \
         .
@@ -113,7 +120,7 @@ function start() {
         --volume "${GIT_ROOT}:${DOCKER_GIT_ROOT}" \
         --volume "${DOCKER_GIT_HOME}" \
         "${DOCKER_IMAGE}" \
-        sh -c "chown ${DOCKER_UID}:${DOCKER_GID} ${DOCKER_HOME} && mkdir /run/sshd && /usr/sbin/sshd -D"
+        sh -c "chown ${DOCKER_UID}:${DOCKER_GID} ${DOCKER_HOME} && mkdir /run/sshd && exec /usr/sbin/sshd -D"
     trap stop ERR
 
     echo "🔑 Setting up SSH keys"
@@ -135,15 +142,11 @@ function start() {
     chmod 644 "${GIT_HOME}/.ssh/authorized_keys"
 
     echo "🏠 Setting up home"
-    cp -f .env "${GIT_HOME}"
-    echo "export _NAME=${NAME}" >>"${GIT_HOME}"/.env
-    echo "export _GIT_ROOT=${DOCKER_GIT_ROOT}" >>"${GIT_HOME}"/.env
+    cp -f .bashrc.vars "${GIT_HOME}"
+    echo "_NAME=${NAME}" >>"${GIT_HOME}"/.bashrc.vars
+    echo "_GIT_ROOT=${DOCKER_GIT_ROOT}" >>"${GIT_HOME}"/.bashrc.vars
     cp -f .profile "${GIT_HOME}"
     cp -f .bashrc "${GIT_HOME}"
-    echo "PATH=$(run make TOOLS_PATH)\$PATH" >>"${GIT_HOME}"/.env
-
-    echo "📦 Installing tools"
-    run make --quiet install-tools
 
     status
 
@@ -205,12 +208,11 @@ function run() {
         echo "\$ $0 start"
         return 1
     fi
-    docker exec \
-        --interactive \
-        --tty \
-        --user "${DOCKER_UID}:${DOCKER_GID}" \
-        --workdir "${DOCKER_GIT_ROOT}" \
-        "${DOCKER_CONTAINER}" "${@}"
+    if [ $# -eq 0 ]; then
+        echo "missing arguments"
+        return 1
+    fi
+    ssh -p "${SSH_PORT}" "${DOCKER_USER}@${SSH_HOST}" "${@}"
 }
 
 function info() {
