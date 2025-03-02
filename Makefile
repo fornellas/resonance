@@ -4,7 +4,9 @@ help:
 ## Variables
 ##
 
-# Make
+##
+## Make
+##
 
 SHELL := /bin/bash
 .ONESHELL:
@@ -16,7 +18,11 @@ ifeq ($(MAKE_BAD_VERSION),true)
   $(error Make version is below $(MAKE_REQUIRED_MAJOR_VERSION), please update it.)
 endif
 
-# uname
+##
+## uname
+##
+
+# system
 
 SHELL_UNAME_S := uname -s
 UNAME_S := $(shell $(SHELL_UNAME_S))
@@ -24,13 +30,17 @@ ifneq ($(.SHELLSTATUS),0)
 $(error $(SHELL_UNAME_S): $(UNAME_S))
 endif
 
+# machine
+
 SHELL_UNAME_M := uname -m
 UNAME_M := $(shell $(SHELL_UNAME_M))
 ifneq ($(.SHELLSTATUS),0)
 $(error $(SHELL_UNAME_M): $(UNAME_M))
 endif
 
-# Cache
+##
+## Cache
+##
 
 ifeq ($(UNAME_S),Linux)
 XDG_CACHE_HOME ?= $(HOME)/.cache
@@ -44,7 +54,11 @@ endif
 
 CACHE_PATH ?= $(XDG_CACHE_HOME)/resonance
 
-# Go
+##
+## Go
+##
+
+# version
 
 SHELL_GO_VERSION := cat go.mod | awk '/^go /{print $$2}'
 export GOVERSION := go$(shell $(SHELL_GO_VERSION))
@@ -52,11 +66,17 @@ ifneq ($(.SHELLSTATUS),0)
   $(error $(SHELL_GO_VERSION): $(GOVERSION))
 endif
 
-SHELL_GOOS := case $(UNAME_S) in Linux) echo linux;; Darwin) echo darwin;; *) echo Unknown system $(UNAME_S) 1>&2 ; exit 1 ;; esac
-export GOOS ?= $(shell $(SHELL_GOOS))
+# GOOS
+
+SHELL_GOOS_NATIVE := case $(UNAME_S) in Linux) echo linux;; Darwin) echo darwin;; *) echo Unknown system $(UNAME_S) 1>&2 ; exit 1 ;; esac
+GOOS_NATIVE := $(shell $(SHELL_GOOS_NATIVE))
 ifneq ($(.SHELLSTATUS),0)
-  $(error $(SHELL_GOOS): $(GOOS))
+  $(error $(SHELL_GOOS_NATIVE): $(GOOS_NATIVE))
 endif
+
+export GOOS ?= $(GOOS_NATIVE)
+
+# GOARCH
 
 SHELL_GOARCH_NATIVE := case $(UNAME_M) in i[23456]86) echo 386;; x86_64) echo amd64;; armv6l|armv7l) echo arm;; aarch64|arm64) echo arm64;; *) echo Unknown machine $(UNAME_M) 1>&2 ; exit 1 ;; esac
 GOARCH_NATIVE := $(shell $(SHELL_GOARCH_NATIVE))
@@ -72,8 +92,12 @@ ifneq ($(.SHELLSTATUS),0)
   $(error $(SHELL_GOARCH_DOWNLOAD): $(GOARCH_DOWNLOAD))
 endif
 
+# GOROOT
+
 GOROOT_PREFIX := $(CACHE_PATH)/GOROOT
-GOROOT := $(GOROOT_PREFIX)/$(GOVERSION).$(GOOS)-$(GOARCH_DOWNLOAD)
+GOROOT := $(GOROOT_PREFIX)/$(GOVERSION).$(GOOS_NATIVE)-$(GOARCH_DOWNLOAD)
+
+# Misc
 
 export GOBIN := $(GOROOT)/bin
 export GOTOOLDIR := $(GOBIN)
@@ -291,7 +315,7 @@ install-go:
 	if [ -d $(GOROOT) ] ; then exit ; fi
 	rm -rf $(GOROOT_PREFIX)/go
 	mkdir -p $(GOROOT_PREFIX)
-	curl -sSfL  https://go.dev/dl/$(GOVERSION).$(GOOS)-$(GOARCH_DOWNLOAD).tar.gz | \
+	curl -sSfL  https://go.dev/dl/$(GOVERSION).$(GOOS_NATIVE)-$(GOARCH_DOWNLOAD).tar.gz | \
 		tar -zx -C $(GOROOT_PREFIX) && \
 		touch $(GOROOT_PREFIX)/go &&
 		mv $(GOROOT_PREFIX)/go $(GOROOT)
