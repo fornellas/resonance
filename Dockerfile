@@ -73,7 +73,6 @@ RUN set -ex; \
         > /tmp/protoc.zip; \
     unzip -d /opt/protoc /tmp/protoc.zip; \
     rm -f /tmp/protoc.zip
-
 RUN echo "PROTOC_BIN=/opt/protoc/bin" >> /etc/environment
 
 # root
