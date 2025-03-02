@@ -1,3 +1,10 @@
 /.git-toplevel
 /.home/
 /.version
+/cover.html
+/cover.lcov
+/cover.txt
+/host/agent_server/agent_server_linux_*
+/host/agent_server/proto/*.pb.go
+/host/agent_server_linux_*_gz.go
+/resonance.*.*
