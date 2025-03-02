@@ -134,6 +134,7 @@ function start() {
 
     echo "🏠 Setting up home"
     cp -f .env "${GIT_HOME}"
+    echo "export _NAME=${NAME}" >>"${GIT_HOME}"/.env
     echo "export _GIT_ROOT=${DOCKER_GIT_ROOT}" >>"${GIT_HOME}"/.env
     cp -f .profile "${GIT_HOME}"
     cp -f .bashrc "${GIT_HOME}"
