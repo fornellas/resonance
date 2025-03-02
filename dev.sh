@@ -78,7 +78,7 @@ SSH_CLIENT_PUBLIC_KEYS_GLOB="~/.ssh/id_*.pub"
 ## Go
 ##
 
-GO_VERSION="$(cat go.mod | awk '/^go /{print $2}')"
+GO_VERSION="$(awk '/^go /{print $2}' <go.mod)"
 
 ##
 ## protoc

@@ -58,60 +58,37 @@ CACHE_PATH ?= $(XDG_CACHE_HOME)/resonance
 ## Go
 ##
 
-# version
+# go
 
-SHELL_GO_VERSION := cat go.mod | awk '/^go /{print $$2}'
-export GOVERSION := go$(shell $(SHELL_GO_VERSION))
+GO := go
+
+SHELL_GOPATH := go env GOPATH
+GOPATH := $(shell $(SHELL_GOPATH))
 ifneq ($(.SHELLSTATUS),0)
-  $(error $(SHELL_GO_VERSION): $(GOVERSION))
+  $(error $(SHELL_GOPATH): $(GOPATH))
 endif
 
-# GOOS
+GOBIN := $(GOPATH)/bin
 
-SHELL_GOOS_NATIVE := case $(UNAME_S) in Linux) echo linux;; Darwin) echo darwin;; *) echo Unknown system $(UNAME_S) 1>&2 ; exit 1 ;; esac
-GOOS_NATIVE := $(shell $(SHELL_GOOS_NATIVE))
+SHELL_GOOS := go env GOOS
+GOOS := $(shell $(SHELL_GOOS))
 ifneq ($(.SHELLSTATUS),0)
-  $(error $(SHELL_GOOS_NATIVE): $(GOOS_NATIVE))
+  $(error $(SHELL_GOOS): $(GOOS))
 endif
 
-export GOOS ?= $(GOOS_NATIVE)
+SHELL_GOARCH := go env GOARCH
+GOARCH := $(shell $(SHELL_GOARCH))
+ifneq ($(.SHELLSTATUS),0)
+  $(error $(SHELL_GOARCH): $(GOARCH))
+endif
 
-# GOARCH
-
-SHELL_GOARCH_NATIVE := case $(UNAME_M) in i[23456]86) echo 386;; x86_64) echo amd64;; armv6l|armv7l) echo arm;; aarch64|arm64) echo arm64;; *) echo Unknown machine $(UNAME_M) 1>&2 ; exit 1 ;; esac
+SHELL_GOARCH_NATIVE := go env GOARCH
 GOARCH_NATIVE := $(shell $(SHELL_GOARCH_NATIVE))
 ifneq ($(.SHELLSTATUS),0)
   $(error $(SHELL_GOARCH_NATIVE): $(GOARCH_NATIVE))
 endif
 
-export GOARCH ?= $(GOARCH_NATIVE)
-
-SHELL_GOARCH_DOWNLOAD := case $(GOARCH_NATIVE) in 386) echo 386;; amd64) echo amd64;; arm) echo armv6l;; arm64) echo arm64;; *) echo GOARCH $(GOARCH_NATIVE) 1>&2 ; exit 1 ;; esac
-GOARCH_DOWNLOAD ?= $(shell $(SHELL_GOARCH_DOWNLOAD))
-ifneq ($(.SHELLSTATUS),0)
-  $(error $(SHELL_GOARCH_DOWNLOAD): $(GOARCH_DOWNLOAD))
-endif
-
-# GOROOT
-
-GOROOT_PREFIX := $(CACHE_PATH)/GOROOT
-GOROOT := $(GOROOT_PREFIX)/$(GOVERSION).$(GOOS_NATIVE)-$(GOARCH_DOWNLOAD)
-
-# Misc
-
-export GOBIN := $(GOROOT)/bin
-export GOTOOLDIR := $(GOBIN)
-GO := $(GOBIN)/go
-TOOLS_PATH := $(GOBIN):$(TOOLS_PATH)
-
-export GOPATH := $(CACHE_PATH)/GOPATH
-TOOLS_PATH := $(GOPATH)/bin:$(TOOLS_PATH)
-
-export GOCACHE := $(CACHE_PATH)/GOCACHE
-
-export GOMODCACHE := $(CACHE_PATH)/GOMODCACHE
-
-# Go source
+# sources
 
 SHELL_GO_MODULE := cat go.mod | awk '/^module /{print $$2}'
 export GO_MODULE := $(shell $(SHELL_GO_MODULE))
@@ -156,38 +133,9 @@ GO_TEST := $(GO) tool gotest
 
 GO_TEST_FLAGS :=
 
-define go_test_build_flags
-$(value GO_TEST_BUILD_FLAGS_$(1))
-endef
-
 GO_TEST_BUILD_FLAGS :=
-# https://go.dev/doc/articles/race_detector#Requirements
 ifneq ($(GO_TEST_BUILD_FLAGS_NO_RACE),1)
-ifeq ($(GOOS)/$(GOARCH),linux/amd64)
-GO_TEST_BUILD_FLAGS_linux_amd64 := -race $(GO_TEST_BUILD_FLAGS)
-endif
-ifeq ($(GOOS)/$(GOARCH),linux/ppc64le)
-GO_TEST_BUILD_FLAGS_linux_ppc64le := -race $(GO_TEST_BUILD_FLAGS)
-endif
-# https://github.com/golang/go/issues/29948
-# ifeq ($(GOOS)/$(GOARCH),linux/arm64)
-#_LINUX_ARM64 GO_TEST_BUILD_FLAGS := -race $(GO_TEST_BUILD_FLAGS)
-# endif
-ifeq ($(GOOS)/$(GOARCH),freebsd/amd64)
-GO_TEST_BUILD_FLAGS_freebsd_amd64 := -race $(GO_TEST_BUILD_FLAGS)
-endif
-ifeq ($(GOOS)/$(GOARCH),netbsd/amd64)
-GO_TEST_BUILD_FLAGS_netbsd_amd64 := -race $(GO_TEST_BUILD_FLAGS)
-endif
-ifeq ($(GOOS)/$(GOARCH),darwin/amd64)
-GO_TEST_BUILD_FLAGS_darwin_amd64 := -race $(GO_TEST_BUILD_FLAGS)
-endif
-ifeq ($(GOOS)/$(GOARCH),darwin/arm64)
-GO_TEST_BUILD_FLAGS_darwin_arm64 := -race $(GO_TEST_BUILD_FLAGS)
-endif
-ifeq ($(GOOS)/$(GOARCH),windows/amd64)
-GO_TEST_BUILD_FLAGS_windows_amd64 := -race $(GO_TEST_BUILD_FLAGS)
-endif
+GO_TEST_BUILD_FLAGS := -race $(GO_TEST_BUILD_FLAGS)
 endif
 
 GO_TEST_PACKAGES_DEFAULT := $(GO_MODULE)/...
@@ -229,7 +177,7 @@ GO_BUILD_AGENT_GOARCHS_ALL := 386 amd64 arm arm64
 ifneq ($(GO_BUILD_AGENT_NATIVE_ONLY),1)
 GO_BUILD_AGENT_GOARCHS := $(GO_BUILD_AGENT_GOARCHS_ALL)
 else
-GO_BUILD_AGENT_GOARCHS := $(GOARCH)
+GO_BUILD_AGENT_GOARCHS := $(GOARCH_NATIVE)
 endif
 
 GO_BUILD_MAX_AGENT_SIZE := 4300000
@@ -243,14 +191,6 @@ RRB_LOG_LEVEL ?= info
 RRB_PATTERN ?= '**/*.go' '**/*.proto' Makefile
 RRB_MAKE_TARGET ?= ci
 RRB_EXTRA_CMD ?= true
-
-# Path
-
-PATH := $(TOOLS_PATH):$(PATH)
-
-.PHONY: TOOLS_PATH
-TOOLS_PATH:
-	@echo $(TOOLS_PATH)
 
 ##
 ## Help
@@ -272,39 +212,19 @@ help: help-clean
 clean:
 
 ##
-## Install Tools
+## Tools
 ##
 
-.PHONY: help-install-tools
-help-install-tools:
-	@echo 'install-tools: installs all tool dependencies'
-help: help-install-tools
+# go
 
-.PHONY: install-tools
-install-tools:
-
-# Go
-
-.PHONY: install-go
-install-go:
+.PHONY: go-update
+go-update:
 	set -e
-	if [ -d $(GOROOT) ] ; then exit ; fi
-	rm -rf $(GOROOT_PREFIX)/go
-	mkdir -p $(GOROOT_PREFIX)
-	curl -sSfL  https://go.dev/dl/$(GOVERSION).$(GOOS_NATIVE)-$(GOARCH_DOWNLOAD).tar.gz | \
-		tar -zx -C $(GOROOT_PREFIX) && \
-		touch $(GOROOT_PREFIX)/go &&
-		mv $(GOROOT_PREFIX)/go $(GOROOT)
-install-tools: install-go
+	set -o pipefail
+	$(GO) mod edit -go $$(curl -s https://go.dev/VERSION?m=text | head -n 1 | cut -c 3-)
+update-deps: go-update
 
-.PHONY: clean-install-go
-clean-install-go:
-	rm -rf $(GOROOT_PREFIX)
-	rm -rf $(GOCACHE)
-	find $(GOMODCACHE) -print0 | xargs -0 chmod u+w
-	rm -rf $(GOMODCACHE)
-	rm -rf $(GOPATH)
-clean: clean-install-go
+# FIXME go-clean
 
 # protoc
 
@@ -320,27 +240,29 @@ update-protoc:
 	echo "$$V" > .protoc_version
 update-deps: update-protoc
 
-# protoc-gen-go-grpc
-
-.PHONY: install-protoc-gen-go-grpc
-install-protoc-gen-go-grpc: install-go
-	$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc
-install-tools: install-protoc-gen-go-grpc
-
-.PHONY: clean-install-protoc-gen-go-grpc
-clean-install-protoc-gen-go-grpc:
-	rm -f $(GOTOOLDIR)/protoc-gen-go-grpc
-clean: clean-install-protoc-gen-go-grpc
+# protoc-gen-go
 
 .PHONY: install-protoc-gen-go
-install-protoc-gen-go: install-go
+install-protoc-gen-go:
 	$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go
 install-tools: install-protoc-gen-go
 
 .PHONY: clean-install-protoc-gen-go
 clean-install-protoc-gen-go:
-	rm -f $(GOTOOLDIR)/protoc-gen-go
+	rm -f $(GOBIN)/protoc-gen-go
 clean: clean-install-protoc-gen-go
+
+# protoc-gen-go-grpc
+
+.PHONY: install-protoc-gen-go-grpc
+install-protoc-gen-go-grpc:
+	$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc
+install-tools: install-protoc-gen-go-grpc
+
+.PHONY: clean-install-protoc-gen-go-grpc
+clean-install-protoc-gen-go-grpc:
+	rm -f $(GOBIN)/protoc-gen-go-grpc
+clean: clean-install-protoc-gen-go-grpc
 
 ##
 ## Generate
@@ -349,7 +271,7 @@ clean: clean-install-protoc-gen-go
 # protoc
 
 .PHONY: gen-protofiles
-gen-protofiles: install-protoc-gen-go install-protoc-gen-go-grpc protolint
+gen-protofiles: protolint install-protoc-gen-go install-protoc-gen-go-grpc
 	$(PROTOC) \
 		--go_out=. \
 		--go_opt=paths=source_relative \
@@ -365,7 +287,7 @@ clean: clean-gen-protofiles
 # go generate
 
 .PHONY: go-generate
-go-generate: install-go
+go-generate:
 	$(GO) generate ./...
 
 ##
@@ -387,21 +309,21 @@ lint:
 # protolint
 
 .PHONY: protolint
-protolint: install-go
+protolint:
 	$(PROTOLINT) lint $(PROTOLINT_ARGS) .
 lint: protolint
 
 # go mod tidy
 
 .PHONY: go-mod-tidy
-go-mod-tidy: install-go go-generate gen-protofiles
+go-mod-tidy: go-generate gen-protofiles
 	$(GO) mod tidy
 lint: go-mod-tidy
 
 # goimports
 
 .PHONY: goimports
-goimports: install-go go-mod-tidy
+goimports: go-mod-tidy
 	$(GOIMPORTS) -w -local $(GOIMPORTS_LOCAL) $(GO_SOURCE_FILES)
 lint: goimports
 
@@ -409,7 +331,7 @@ lint: goimports
 
 ifneq ($(LINT_GOVULNCHECK_DISABLE),1)
 .PHONY: govulncheck
-govulncheck: go-generate install-go go-mod-tidy
+govulncheck: go-generate go-mod-tidy
 	$(GOVULNCHECK) $(GO_MODULE)/...
 lint: govulncheck
 endif
@@ -417,7 +339,7 @@ endif
 # staticcheck
 
 .PHONY: staticcheck
-staticcheck: install-go go-mod-tidy go-generate goimports
+staticcheck: go-mod-tidy go-generate goimports
 	$(STATICCHECK) $(GO_MODULE)/...
 lint: staticcheck
 
@@ -429,14 +351,14 @@ clean: clean-staticcheck
 # misspell
 
 .PHONY: misspell
-misspell: install-go go-mod-tidy go-generate
+misspell: go-mod-tidy go-generate
 	$(MISSPELL) -error $(GO_SOURCE_FILES)
 lint: misspell
 
 # gocyclo
 
 .PHONY: gocyclo
-gocyclo: install-go go-generate go-mod-tidy
+gocyclo: go-generate go-mod-tidy
 	$(GOCYCLO) -over $(GOCYCLO_OVER) -avg -ignore $(GOCYCLO_IGNORE_REGEX) .
 
 lint: gocyclo
@@ -444,7 +366,7 @@ lint: gocyclo
 # ineffassign
 
 .PHONY: ineffassign
-ineffassign: install-go go-generate go-mod-tidy
+ineffassign: go-generate go-mod-tidy
 	$(INEFFASSIGN) ./...
 
 lint: ineffassign
@@ -452,23 +374,14 @@ lint: ineffassign
 # go vet
 
 .PHONY: go-vet
-go-vet: install-go go-mod-tidy go-generate
+go-vet: go-mod-tidy go-generate
 	$(GO) vet ./...
 lint: go-vet
-
-# go-update
-.PHONY: go-update
-go-update: install-go
-	set -e
-	set -o pipefail
-	$(GO) mod edit -go $$(curl -s https://go.dev/VERSION?m=text | head -n 1 | cut -c 3-)
-	$(MAKE) $(MFLAGS) install-go
-update-deps: go-update
 
 # go get -u
 
 .PHONY: go-get-u-t
-go-get-u-t: install-go go-mod-tidy
+go-get-u-t: go-mod-tidy
 	$(GO) get -u ./...
 update-deps: go-get-u-t
 
@@ -480,7 +393,7 @@ shellcheck:
 	shellcheck dev.sh
 	shellcheck \
         .bashrc \
-        .env \
+        .bashrc.vars \
         .profile
 lint: shellcheck
 
@@ -489,7 +402,7 @@ lint: shellcheck
 shfmt:
 	shfmt --write --simplify --language-dialect bash --indent 4 \
 		.bashrc \
-		.env \
+		.bashrc.vars \
 		.profile \
 		dev.sh
 lint: shfmt
@@ -516,10 +429,10 @@ help: help-test
 # gotest
 
 .PHONY: gotest
-gotest: install-go go-generate gen-protofiles
+gotest: go-generate gen-protofiles
 	$(GO_TEST) \
 		$(GO_BUILD_FLAGS_COMMON) \
-		$(call go_test_build_flags,$(GOOS)_$(GOARCH_NATIVE)) \
+		$(GO_TEST_BUILD_FLAGS) \
 		$(GO_TEST_FLAGS) \
 		$(GO_TEST_PACKAGES) \
 		$(GO_TEST_BINARY_FLAGS) \
@@ -536,8 +449,9 @@ clean: clean-gotest
 # cover.html
 
 ifneq ($(GO_TEST_NO_COVER),1)
+
 .PHONY: cover.html
-cover.html: install-go gotest
+cover.html: gotest
 	$(GO) tool cover -html cover.txt -o cover.html
 test: cover.html
 
@@ -549,7 +463,7 @@ clean: clean-cover.html
 # cover.lcov
 
 .PHONY: cover.lcov
-cover.lcov: install-go gotest
+cover.lcov: gotest
 	$(GCOV2LCOV) -infile cover.txt -outfile cover.lcov
 test: cover.lcov
 
@@ -560,9 +474,8 @@ clean: clean-cover.lcov
 
 # test-coverage
 
-ifeq ($(GOOS),linux)
 .PHONY: test-coverage
-test-coverage: install-go cover.txt
+test-coverage: cover.txt
 	PERCENT=$$($(GO) tool cover -func cover.txt | awk '/^total:/{print $$NF}' | tr -d % | cut -d. -f1) && \
 		echo "Coverage: $$PERCENT%" && \
 		if [ $$PERCENT -lt $(GO_TEST_MIN_COVERAGE) ] ; then \
@@ -570,7 +483,6 @@ test-coverage: install-go cover.txt
 			exit 1 ; \
 		fi
 test: test-coverage
-endif
 
 endif
 
@@ -635,7 +547,7 @@ go-vet: clean-agent
 # build
 
 .PHONY: build
-build: install-go go-generate build-agent gen-protofiles
+build: go-generate build-agent gen-protofiles
 	$(GO) \
 		build \
 		-o resonance.$(GOOS).$(GOARCH) \
@@ -688,11 +600,9 @@ update-deps:
 ## rrb
 ##
 
-ifeq ($(GOOS),linux)
-
 .PHONY: help-rrb
 help-rrb:
-	@echo 'rrb: rerun build automatically on file changes'
+	@echo 'rrb: rerun build automatically on file changes (Linux hosts only)'
 	@echo ' use RRB_DEBOUNCE to set debounce (default: $(RRB_DEBOUNCE))'
 	@echo ' use RRB_IGNORE_PATTERN to set ignore pattern (default: $(RRB_IGNORE_PATTERN))'
 	@echo ' use RRB_LOG_LEVEL to set log level (default: $(RRB_LOG_LEVEL))'
@@ -703,7 +613,7 @@ help-rrb:
 help: help-rrb
 
 .PHONY: rrb
-rrb: install-go
+rrb:
 	$(RRB) \
 		--debounce $(RRB_DEBOUNCE) \
 		$(foreach pattern,$(RRB_IGNORE_PATTERN),--ignore-pattern $(pattern)) \
@@ -717,27 +627,3 @@ rrb-dev:
 	$(MAKE) $(MFLAGS) MAKELEVEL= \
 		rrb \
 			RRB_MAKE_TARGET=ci-dev
-
-endif
-
-##
-## shell
-##
-
-.PHONY: help-shell
-help-shell:
-	@echo 'shell: starts a development shell'
-help: help-shell
-
-.PHONY: shell
-shell: install-tools
-	@echo Make targets:
-	@$(MAKE) help MAKELEVEL=
-	@PATH=$(GOBIN):$(GOTOOLDIR):$(PATH) \
-		GOOS=$(GOOS) \
-		GOARCH=$(GOARCH) \
-		GOROOT=$(GOROOT) \
-		GOCACHE=$(GOCACHE) \
-		GOMODCACHE=$(GOMODCACHE) \
-		STATICCHECK_CACHE=$(STATICCHECK_CACHE) \
-		bash --rcfile .bashrc
