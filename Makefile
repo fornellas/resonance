@@ -206,7 +206,7 @@ GCOV2LCOV := $(GO) tool gcov2lcov
 
 GO_TEST_MIN_COVERAGE := 50
 
-# protobuf
+# protoc
 
 SHELL_PROTOC_VERSION := cat .protoc_version
 PROTOC_VERSION := $(shell $(SHELL_PROTOC_VERSION))
@@ -236,6 +236,8 @@ PATH := $(PROTOC_BIN_PATH):$(PATH)
 
 PROTOC := $(PROTOC_BIN_PATH)/protoc
 PROTOC_PROTO_PATH := ./host/agent_server/proto
+
+# protolint
 
 PROTOLINT := $(GO) tool protolint
 PROTOLINT_ARGS :=
