@@ -80,6 +80,12 @@ SSH_CLIENT_PUBLIC_KEYS_GLOB="~/.ssh/id_*.pub"
 
 GO_VERSION="$(cat go.mod | awk '/^go /{print $2}')"
 
+##
+## protoc
+##
+
+PROTOC_VERSION="$(cat .protoc_version)"
+
 ####################################################################################################
 # Functions
 ####################################################################################################
@@ -104,6 +110,7 @@ function start() {
         --build-arg "GID=${DOCKER_GID}" \
         --build-arg "HOME=${DOCKER_HOME}" \
         --build-arg "GO_VERSION=${GO_VERSION}" \
+        --build-arg "PROTOC_VERSION=${PROTOC_VERSION}" \
         --tag "${DOCKER_IMAGE}" \
         --quiet \
         .
