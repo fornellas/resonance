@@ -76,11 +76,15 @@ ifneq ($(.SHELLSTATUS),0)
   $(error $(SHELL_GOOS): $(GOOS))
 endif
 
+GOOS_BUILD ?= $(GOOS)
+
 SHELL_GOARCH := go env GOARCH
 GOARCH := $(shell $(SHELL_GOARCH))
 ifneq ($(.SHELLSTATUS),0)
   $(error $(SHELL_GOARCH): $(GOARCH))
 endif
+
+GOARCH_BUILD ?= $(GOARCH)
 
 SHELL_GOARCH_NATIVE := go env GOARCH
 GOARCH_NATIVE := $(shell $(SHELL_GOARCH_NATIVE))
@@ -542,6 +546,8 @@ help-build:
 	@echo 'build: build everything'
 	@echo '  use GO_BUILD_FLAGS to add extra build flags (see `go help build`)'
 	@echo '  use GO_BUILD_AGENT_NATIVE_ONLY=1 to only build agent to native arch (faster)'
+	@echo '  set GOOS_BUILD to cross compile'
+	@echo '  set GOARCH_BUILD to cross compile'
 help: help-build
 
 # agent
@@ -593,12 +599,14 @@ go-vet: clean-agent
 
 .PHONY: build
 build: go-generate build-agent gen-protofiles
-	$(GO) \
-		build \
-		-o resonance.$(GOOS).$(GOARCH) \
-		$(GO_BUILD_FLAGS_COMMON) \
-		$(GO_BUILD_FLAGS) \
-		./cmd/
+	GOOS=$(GOOS_BUILD) \
+	GOARCH=$(GOARCH_BUILD) \
+        $(GO) \
+            build \
+            -o resonance.$(GOOS_BUILD).$(GOARCH_BUILD) \
+            $(GO_BUILD_FLAGS_COMMON) \
+            $(GO_BUILD_FLAGS) \
+            ./cmd/
 
 .PHONY: clean-build
 clean-build:
