@@ -1,3 +1,8 @@
 {
-  "file_scan_exclusions": [".git/", ".home/"]
+  "file_scan_exclusions": [".git/", ".home/"],
+  "languages": {
+    "Dockerfile": {
+      "format_on_save": "off"
+    }
+  }
 }
