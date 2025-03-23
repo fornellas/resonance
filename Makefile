@@ -206,7 +206,8 @@ ifneq ($(.SHELLSTATUS),0)
   $(error $(SHELL_PROTOC_ARCH): $(PROTOC_ARCH))
 endif
 
-PROTOC_BIN_PATH := $(CACHE_PATH)/protoc/$(PROTOC_VERSION)/$(PROTOC_OS)-$(PROTOC_ARCH)
+PROTOC_PREFIX := $(CACHE_PATH)/protoc
+PROTOC_BIN_PATH := ${PROTOC_PREFIX}/$(PROTOC_VERSION)/$(PROTOC_OS)-$(PROTOC_ARCH)
 PATH := $(PROTOC_BIN_PATH):$(PATH)
 
 PROTOC := $(PROTOC_BIN_PATH)/protoc
@@ -324,10 +325,9 @@ update-deps: update-protoc
 
 .PHONY: clean-install-protoc
 clean-install-protoc:
-	rm -rf $(PROTOC_BIN_PATH)
+	PROTOC_PREFIX
+	rm -rf $(PROTOC_PREFIX)
 	rm -f $(CACHE_PATH)/protoc.zip
-	rm -f $(PROTOC_BIN_PATH)/protoc.tmp
-	rm -f $(PROTOC_BIN_PATH)/protoc
 clean: clean-install-protoc
 
 # protoc-gen-go-grpc
