@@ -18,14 +18,14 @@ type APTPackage struct {
 	// The name of the package
 	// See https://www.debian.org/doc/debian-policy/ch-controlfields.html#package
 	Package string `yaml:"package"`
+	// Whether to remove the package
+	Absent bool `yaml:"absent,omitempty"`
 	// Architectures.
 	// See https://www.debian.org/doc/debian-policy/ch-controlfields.html#architecture
-	Architectures []string `yaml:"architecture"`
+	Architectures []string `yaml:"architectures,omitempty"`
 	// Package version.
 	// See https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
 	Version string `yaml:"version,omitempty"`
-	// Whether to remove the package
-	Absent bool `yaml:"absent,omitempty"`
 }
 
 var validDpkgPackageRegexp = regexp.MustCompile(`^[a-z0-9][a-z0-9+\-.]{1,}$`)
