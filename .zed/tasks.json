@@ -1,0 +1,14 @@
+[
+    {
+        "label": "CI",
+        "command": "make ci"
+    },
+    {
+        "label": "CI Dev",
+        "command": "make ci-dev"
+    },
+    {
+        "label": "Update dependencies",
+        "command": "make update-deps"
+    }
+]
