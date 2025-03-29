@@ -185,6 +185,7 @@ func (o *Ownership[P]) CompileResources(
 	ctx context.Context, host types.Host, resourcesPath string,
 ) error {
 	logger := log.MustLogger(ctx)
+	logger.Info("Compiling resources")
 
 	packages := []Package{}
 	for pkg := range o.installPackages {
