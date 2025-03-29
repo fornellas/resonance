@@ -206,7 +206,7 @@ func (o *Ownership[P]) CompileResources(
 		}
 		if len(issues) > 0 {
 			logger.Warn(
-				"APT package has issues",
+				"Package has issues",
 				"package", pkg.Name(),
 				"issues", issues,
 				"suggestion", "package may be corrupt, try reinstalling it; note that on debian/ubunt systems broken symlinks may be OK",
