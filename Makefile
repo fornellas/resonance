@@ -99,36 +99,36 @@ GO_SOURCE_FILES := $$(find $$PWD -name \*.go ! -path '$(CACHE_PATH)/*')
 
 # goimports
 
-GOIMPORTS := $(GO) run golang.org/x/tools/cmd/goimports
+GOIMPORTS := $(GO) tool goimports
 GOIMPORTS_LOCAL := $(GO_MODULE)
 
 # govulncheck
 
-GOVULNCHECK := $(GO) run golang.org/x/vuln/cmd/govulncheck
+GOVULNCHECK := $(GO) tool govulncheck
 LINT_GOVULNCHECK_DISABLE :=
 
 # staticcheck
 
-STATICCHECK := $(GO) run honnef.co/go/tools/cmd/staticcheck
+STATICCHECK := $(GO) tool staticcheck
 export STATICCHECK_CACHE := $(CACHE_PATH)/staticcheck
 
 # misspell
 
-MISSPELL := $(GO) run github.com/client9/misspell/cmd/misspell
+MISSPELL := $(GO) tool misspell
 
 # gocyclo
 
 GOCYCLO_IGNORE_REGEX := '.*\.pb\.go'
-GOCYCLO := $(GO) run github.com/fzipp/gocyclo/cmd/gocyclo
+GOCYCLO := $(GO) tool gocyclo
 GOCYCLO_OVER := 15
 
 # ineffassign
 
-INEFFASSIGN := $(GO) run github.com/gordonklaus/ineffassign
+INEFFASSIGN := $(GO) tool ineffassign
 
 # go test
 
-GO_TEST := $(GO) run github.com/rakyll/gotest
+GO_TEST := $(GO) tool gotest
 
 GO_TEST_FLAGS :=
 
@@ -178,7 +178,7 @@ GO_TEST_BINARY_FLAGS := -failfast $(GO_TEST_BINARY_FLAGS)
 
 GO_TEST_BINARY_FLAGS_EXTRA :=
 
-GCOV2LCOV := $(GO) run github.com/jandelgado/gcov2lcov
+GCOV2LCOV := $(GO) tool gcov2lcov
 
 GO_TEST_MIN_COVERAGE := 50
 
@@ -213,7 +213,9 @@ PATH := $(PROTOC_BIN_PATH):$(PATH)
 PROTOC := $(PROTOC_BIN_PATH)/protoc
 PROTOC_PROTO_PATH := ./host/agent_server/proto
 
-PROTOLINT := $(GO) run github.com/yoheimuta/protolint/cmd/protolint
+# protolint
+
+PROTOLINT := $(GO) tool protolint
 PROTOLINT_ARGS :=
 
 # go build
@@ -236,7 +238,7 @@ GO_BUILD_MAX_AGENT_SIZE := 4300000
 
 # rrb
 
-RRB := $(GO) run github.com/fornellas/rrb
+RRB := $(GO) tool rrb
 RRB_DEBOUNCE ?= 500ms
 RRB_IGNORE_PATTERN ?= 'host/agent_server_linux_*_gz.go' 'host/agent_server/proto/*.pb.go'
 RRB_LOG_LEVEL ?= info
