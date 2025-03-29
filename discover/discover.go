@@ -90,7 +90,7 @@ func (d *Discover) Run(ctx context.Context, host types.Host, resourcesPath strin
 		return err
 	}
 
-	root, err := LoadRoot(ctx, host, ignorePatterns)
+	rootPath, err := LoadRootPath(ctx, host, ignorePatterns)
 	if err != nil {
 		return err
 	}
@@ -100,7 +100,7 @@ func (d *Discover) Run(ctx context.Context, host types.Host, resourcesPath strin
 		return err
 	}
 
-	ownership := NewOwnership(root, dpkgDb)
+	ownership := NewOwnership(rootPath, dpkgDb)
 	ownership.Compile(ctx, host)
 	if err := ownership.CompileResources(ctx, host, resourcesPath); err != nil {
 		return err

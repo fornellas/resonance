@@ -150,7 +150,7 @@ func (f *Path) load(
 	return nil
 }
 
-func LoadRoot(
+func LoadRootPath(
 	ctx context.Context,
 	host types.Host,
 	ignorePatterns []string,
