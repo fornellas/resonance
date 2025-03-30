@@ -21,12 +21,12 @@ import (
 
 // Infers file ownership
 type Ownership[P Package] struct {
-	root            *Path
-	packageDb       PackageDb[P]
-	installPackages map[Package]bool
-	brokenSymlink   map[*Path]bool
-	orphanPathMap   map[*Path]bool
-	mutex           sync.Mutex
+	root                *Path
+	packageDb           PackageDb[P]
+	installPackages     map[Package]bool
+	orphanBrokenSymlink map[*Path]bool
+	orphanPathMap       map[*Path]bool
+	mutex               sync.Mutex
 }
 
 func NewOwnership[P Package](
@@ -34,11 +34,11 @@ func NewOwnership[P Package](
 	packageDb PackageDb[P],
 ) *Ownership[P] {
 	return &Ownership[P]{
-		root:            root,
-		packageDb:       packageDb,
-		installPackages: map[Package]bool{},
-		brokenSymlink:   map[*Path]bool{},
-		orphanPathMap:   map[*Path]bool{},
+		root:                root,
+		packageDb:           packageDb,
+		installPackages:     map[Package]bool{},
+		orphanBrokenSymlink: map[*Path]bool{},
+		orphanPathMap:       map[*Path]bool{},
 	}
 }
 
@@ -83,51 +83,50 @@ func (o *Ownership[P]) processPath(ctx context.Context, host types.Host, path *P
 	skip, brokenSymlink, err := o.skipPath(ctx, host, path)
 	if err != nil {
 		return err
-	} else {
-		if brokenSymlink {
-			o.mutex.Lock()
-			o.brokenSymlink[path] = true
-			o.mutex.Unlock()
-		}
-		if skip {
-			return nil
-		}
+	}
+	if skip {
+		return nil
 	}
 
-	name := path.String()
-	if packages := o.packageDb.FindOwnerPackages(name); packages != nil {
-		for _, pkg := range packages {
-			o.mutex.Lock()
-			o.installPackages[pkg] = true
-			o.mutex.Unlock()
-		}
+	var ownerPackages []P
+
+	if packages := o.packageDb.FindOwnerPackages(path.String()); packages != nil {
+		ownerPackages = packages
 	} else {
-		matchingPackages := map[Package]bool{}
-		var matchingPackage Package
-		parentPath := name
+		parentPath := path.String()
 		for {
 			parentPath = filepath.Dir(parentPath)
 			if parentPath == "/" {
 				break
 			}
 			if packages := o.packageDb.FindOwnerPackages(parentPath); packages != nil {
-				for _, pkg := range packages {
-					matchingPackage = pkg
-					matchingPackages[matchingPackage] = true
-					if brokenSymlink {
-						matchingPackage.AddBrokenSymLink(path.String())
-					}
+				if len(packages) == 0 {
+					continue
 				}
+				if len(packages) == 1 {
+					ownerPackages = packages
+				}
+				break
 			}
 		}
+	}
 
-		if len(matchingPackages) == 1 {
-			matchingPackage.AddInferredOwnedPath(path.String())
-		} else {
+	if len(ownerPackages) > 0 {
+		for _, pkg := range ownerPackages {
 			o.mutex.Lock()
-			o.orphanPathMap[path] = true
+			o.installPackages[pkg] = true
 			o.mutex.Unlock()
+			if brokenSymlink {
+				pkg.AddBrokenSymLink(path.String())
+			}
 		}
+	} else {
+		o.mutex.Lock()
+		o.orphanPathMap[path] = true
+		if brokenSymlink {
+			o.orphanBrokenSymlink[path] = true
+		}
+		o.mutex.Unlock()
 	}
 
 	return nil
@@ -256,7 +255,7 @@ func (o *Ownership[P]) CompileResources(
 		return err
 	}
 	for _, path := range orphanPath {
-		if o.brokenSymlink[path] {
+		if o.orphanBrokenSymlink[path] {
 			logger.Warn("ignoring orphan file that is broken symlink", "path", path.String())
 			continue
 		}
