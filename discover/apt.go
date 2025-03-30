@@ -56,66 +56,66 @@ func getNameFromBinaryPackage(binaryPackage string) string {
 	return name
 }
 
-func (d *AptPackage) Name() string {
-	return d.pkg + ":" + d.architecture
+func (a *AptPackage) Name() string {
+	return a.pkg + ":" + a.architecture
 }
 
-func (d *AptPackage) AddBrokenSymLink(path string) {
-	d.mutex.Lock()
-	d.brokenSymLinks = append(d.brokenSymLinks, path)
-	d.mutex.Unlock()
+func (a *AptPackage) AddBrokenSymLink(path string) {
+	a.mutex.Lock()
+	a.brokenSymLinks = append(a.brokenSymLinks, path)
+	a.mutex.Unlock()
 }
 
-func (d *AptPackage) AddInferredOwnedPath(path string) {
-	d.mutex.Lock()
-	d.inferredOwnedPaths = append(d.inferredOwnedPaths, path)
-	d.mutex.Unlock()
+func (a *AptPackage) AddInferredOwnedPath(path string) {
+	a.mutex.Lock()
+	a.inferredOwnedPaths = append(a.inferredOwnedPaths, path)
+	a.mutex.Unlock()
 }
 
-func (d *AptPackage) AddMissingPath(path string) {
-	d.mutex.Lock()
-	d.missingPaths = append(d.missingPaths, path)
-	d.mutex.Unlock()
+func (a *AptPackage) AddMissingPath(path string) {
+	a.mutex.Lock()
+	a.missingPaths = append(a.missingPaths, path)
+	a.mutex.Unlock()
 }
 
-func (d *AptPackage) AddDigestCheckFailedPath(path string) {
-	d.mutex.Lock()
-	d.digestCheckFailedPaths = append(d.digestCheckFailedPaths, path)
-	d.mutex.Unlock()
+func (a *AptPackage) AddDigestCheckFailedPath(path string) {
+	a.mutex.Lock()
+	a.digestCheckFailedPaths = append(a.digestCheckFailedPaths, path)
+	a.mutex.Unlock()
 }
 
-func (d *AptPackage) MarkManual() {
-	d.mutex.Lock()
-	d.manual = true
-	d.mutex.Unlock()
+func (a *AptPackage) MarkManual() {
+	a.mutex.Lock()
+	a.manual = true
+	a.mutex.Unlock()
 }
 
-func (d *AptPackage) MarkHold() {
-	d.mutex.Lock()
-	d.hold = true
-	d.mutex.Unlock()
+func (a *AptPackage) MarkHold() {
+	a.mutex.Lock()
+	a.hold = true
+	a.mutex.Unlock()
 }
 
-func (d *AptPackage) String() string {
-	return d.Name() + "-" + d.version
+func (a *AptPackage) String() string {
+	return a.Name() + "-" + a.version
 }
 
-func (d *AptPackage) CompileResources(
+func (a *AptPackage) CompileResources(
 	ctx context.Context, host types.Host,
 ) (string, resourcesPkg.Resources, []string, error) {
-	group := d.sourcePackage
+	group := a.sourcePackage
 
 	resources := resourcesPkg.Resources{}
-	if d.manual || len(d.inferredOwnedPaths) > 0 {
+	if a.manual || len(a.inferredOwnedPaths) > 0 {
 		var version string
-		if d.hold {
-			version = d.version
+		if a.hold {
+			version = a.version
 		}
 		resources = append(resources, &resourcesPkg.APTPackage{
-			Package: d.Name(),
+			Package: a.Name(),
 			Version: version,
 		})
-		for _, path := range d.inferredOwnedPaths {
+		for _, path := range a.inferredOwnedPaths {
 			file := &resourcesPkg.File{
 				Path: path,
 			}
@@ -127,13 +127,13 @@ func (d *AptPackage) CompileResources(
 	}
 
 	issues := []string{}
-	for _, path := range d.brokenSymLinks {
+	for _, path := range a.brokenSymLinks {
 		issues = append(issues, fmt.Sprintf("broken symlink: %s", path))
 	}
-	for _, path := range d.missingPaths {
+	for _, path := range a.missingPaths {
 		issues = append(issues, fmt.Sprintf("missing: %s", path))
 	}
-	for _, path := range d.digestCheckFailedPaths {
+	for _, path := range a.digestCheckFailedPaths {
 		issues = append(issues, fmt.Sprintf("digest check failed: %s", path))
 	}
 
