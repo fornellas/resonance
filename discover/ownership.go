@@ -208,7 +208,7 @@ func (o *Ownership[P]) CompileResources(
 				"Package has issues",
 				"package", pkg.Name(),
 				"issues", issues,
-				"suggestion", "package may be corrupt, try reinstalling it; note that on debian/ubunt systems broken symlinks may be OK",
+				"suggestion", "package may be corrupt, try reinstalling it; note that on Debian/Ubuntu systems broken symlinks may be expected in some cases",
 			)
 		}
 	}
