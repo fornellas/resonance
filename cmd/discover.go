@@ -47,7 +47,6 @@ var defaultIgnorePatterns = []string{
 	// "/usr/share/locale", TODO
 	// "/usr/share/man", TODO
 	// "/backup",           // FIXME
-	// "/home",             // FIXME
 	// "/opt",              // FIXME
 	// "/steam",            // FIXME
 	// "/usr/lib/firmware", // FIXME
