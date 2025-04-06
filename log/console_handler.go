@@ -16,22 +16,75 @@ import (
 	"golang.org/x/term"
 )
 
+// ANSI color codes for console output
+const (
+	reset     = "\033[0m"
+	bold      = "\033[1m"
+	dim       = "\033[2m"
+	italic    = "\033[3m"
+	underline = "\033[4m"
+	blink     = "\033[5m"
+	reverse   = "\033[7m"
+	hidden    = "\033[8m"
+	strike    = "\033[9m"
+
+	// Foreground colors (3-bit)
+	black   = "\033[30m"
+	red     = "\033[31m"
+	green   = "\033[32m"
+	yellow  = "\033[33m"
+	blue    = "\033[34m"
+	magenta = "\033[35m"
+	cyan    = "\033[36m"
+	white   = "\033[37m"
+
+	// Background colors (3-bit)
+	blackBg   = "\033[40m"
+	redBg     = "\033[41m"
+	greenBg   = "\033[42m"
+	yellowBg  = "\033[43m"
+	blueBg    = "\033[44m"
+	magentaBg = "\033[45m"
+	cyanBg    = "\033[46m"
+	whiteBg   = "\033[47m"
+
+	// Bright foreground colors (4-bit)
+	darkGray     = "\033[90m"
+	lightRed     = "\033[91m"
+	lightGreen   = "\033[92m"
+	lightYellow  = "\033[93m"
+	lightBlue    = "\033[94m"
+	lightMagenta = "\033[95m"
+	lightCyan    = "\033[96m"
+	lightWhite   = "\033[97m"
+
+	// Bright background colors (4-bit)
+	darkGrayBg     = "\033[100m"
+	lightRedBg     = "\033[101m"
+	lightGreenBg   = "\033[102m"
+	lightYellowBg  = "\033[103m"
+	lightBlueBg    = "\033[104m"
+	lightMagentaBg = "\033[105m"
+	lightCyanBg    = "\033[106m"
+	lightWhiteBg   = "\033[107m"
+)
+
 // ConsoleHandlerOptions extends HandlerOptions with console-specific options
 type ConsoleHandlerOptions struct {
 	slog.HandlerOptions
 	// If true, include time in output
 	Time bool
-	// TODO Force ANSI escape sequences for color, even when no TTY detected.
-	// ForceColor bool
-	// TODO Disable color, even when TTY detected
-	// NoColor bool
+	// If true, force ANSI escape sequences for color, even when no TTY detected.
+	ForceColor bool
+	// If true, disable color, even when TTY detected; takes precedence over ForceColor.
+	NoColor bool
 }
 
 // ConsoleHandler implements slog.Handler
 type ConsoleHandler struct {
 	opts   *ConsoleHandlerOptions
 	writer io.Writer
-	isTTY  bool
+	color  bool
 	groups []string
 	attrs  []slog.Attr
 }
@@ -50,7 +103,7 @@ func NewConsoleHandler(w io.Writer, opts *ConsoleHandlerOptions) *ConsoleHandler
 	return &ConsoleHandler{
 		opts:   opts,
 		writer: w,
-		isTTY:  isTTY,
+		color:  !opts.NoColor && (opts.ForceColor || isTTY),
 		groups: []string{},
 	}
 }
@@ -102,6 +155,32 @@ func (h *ConsoleHandler) escape(s string) string {
 	return string(rs)
 }
 
+func (h *ConsoleHandler) colorize(s string, color string) string {
+	if h.color {
+		return color + s + reset
+	}
+	return s
+}
+
+func (h *ConsoleHandler) levelColor(level slog.Level) string {
+	if !h.color {
+		return ""
+	}
+
+	switch {
+	case level >= slog.LevelError:
+		return red
+	case level >= slog.LevelWarn:
+		return yellow
+	case level >= slog.LevelInfo:
+		return green
+	case level >= slog.LevelDebug:
+		return cyan
+	default:
+		return blue
+	}
+}
+
 func (h *ConsoleHandler) writeAttr(writer io.Writer, indent int, attr slog.Attr) {
 	attr.Value = attr.Value.Resolve()
 	if h.opts.ReplaceAttr != nil && attr.Value.Kind() != slog.KindGroup {
@@ -125,22 +204,22 @@ func (h *ConsoleHandler) writeAttr(writer io.Writer, indent int, attr slog.Attr)
 			if len(groupAttrs) == 0 {
 				return
 			}
-			fmt.Fprintf(writer, "%sGroup: %s\n", indentStr, h.escape(attr.Key))
+			fmt.Fprintf(writer, "%s%s: %s\n", indentStr, h.colorize("Group", blue+bold), h.colorize(h.escape(attr.Key), bold))
 			for _, groupAttr := range groupAttrs {
 				h.writeAttr(writer, indent+1, groupAttr)
 			}
 		}
 	} else {
-		fmt.Fprintf(writer, "%s%s:", indentStr, h.escape(attr.Key))
+		fmt.Fprintf(writer, "%s%s:", indentStr, h.colorize(h.escape(attr.Key), cyan+dim))
 		valueStr := attr.Value.String()
 		if len(valueStr) > 0 && bytes.ContainsRune([]byte(valueStr), '\n') {
 			strings.SplitSeq(valueStr, "\n")(func(line string) bool {
-				fmt.Fprintf(writer, "\n  %s%s", indentStr, h.escape(line))
+				fmt.Fprintf(writer, "\n  %s%s", indentStr, h.colorize(h.escape(line), dim))
 				return true
 			})
 			writer.Write([]byte("\n"))
 		} else {
-			fmt.Fprintf(writer, " %s\n", h.escape(valueStr))
+			fmt.Fprintf(writer, " %s\n", h.colorize(h.escape(valueStr), dim))
 		}
 	}
 }
@@ -165,17 +244,21 @@ func (h *ConsoleHandler) Handle(_ context.Context, record slog.Record) error {
 	buff.Write([]byte(indentStr))
 
 	if h.opts.Time && !record.Time.IsZero() {
-		fmt.Fprintf(&buff, "%s ", record.Time.Round(0).Format(time.DateTime))
+		timeStr := record.Time.Round(0).Format(time.DateTime)
+		fmt.Fprintf(&buff, "%s ", h.colorize(timeStr, dim))
 	}
 
-	fmt.Fprintf(&buff, "%s %s\n", record.Level.String(), h.escape(record.Message))
+	levelColor := h.levelColor(record.Level)
+	levelStr := h.colorize(record.Level.String(), levelColor+bold)
+	fmt.Fprintf(&buff, "%s %s\n", levelStr, h.colorize(h.escape(record.Message), bold))
 
 	if h.opts.HandlerOptions.AddSource && record.PC != 0 {
 		frames := runtime.CallersFrames([]uintptr{record.PC})
 		frame, _ := frames.Next()
-		fmt.Fprintf(&buff, "%s  %s:%d", indentStr, frame.File, frame.Line)
+		fileInfo := fmt.Sprintf("%s:%d", frame.File, frame.Line)
+		fmt.Fprintf(&buff, "%s  %s", indentStr, h.colorize(fileInfo, dim))
 		if len(frame.Function) > 0 {
-			fmt.Fprintf(&buff, " (%s) ", frame.Function)
+			fmt.Fprintf(&buff, " (%s) ", h.colorize(frame.Function, dim))
 		} else {
 			buff.Write([]byte(" "))
 		}
