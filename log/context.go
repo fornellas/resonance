@@ -47,9 +47,9 @@ func MustLogger(ctx context.Context) *slog.Logger {
 // MustContextLoggerSection creates a new log section.
 // It fetches a logger value from the context, previously set with WithLogger, and logs given
 // msg and args as info.
-// If its handler implements [SectionHandler], then it WithIndent(), and set the new logger value
+// If its handler implements [SectionHandler], then it WithSection(), and set the new logger value
 // to a copy of the context.
-// If the handler does not implement [SectionHandler], return the originalcontext and the
+// If the handler does not implement [SectionHandler], return the original context and the
 // retrieved logger.
 // It panics if no logger value has been set previously.
 func MustContextLoggerWithSection(ctx context.Context, msg string, args ...any) (context.Context, *slog.Logger) {
