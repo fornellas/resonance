@@ -11,9 +11,9 @@ func main() {
 	// Create a ConsoleHandler
 	handler := log.NewConsoleHandler(os.Stdout, &log.ConsoleHandlerOptions{
 		HandlerOptions: slog.HandlerOptions{
-			// AddSource: true,
+			AddSource: true,
 		},
-		// Time: true,
+		Time: true,
 	})
 
 	// Create a logger
