@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/fornellas/resonance"
 	"github.com/fornellas/resonance/log"
@@ -54,6 +55,10 @@ type LogHandlerValueOptions struct {
 
 var logHandlerNameFnMap = map[string]func(io.Writer, LogHandlerValueOptions) slog.Handler{
 	"console": func(writer io.Writer, options LogHandlerValueOptions) slog.Handler {
+		var timeLayout string
+		if options.ConsoleTime {
+			timeLayout = time.DateTime
+		}
 		return log.NewConsoleHandler(writer, &log.ConsoleHandlerOptions{
 			HandlerOptions: slog.HandlerOptions{
 				Level:     options.Level,
@@ -65,7 +70,7 @@ var logHandlerNameFnMap = map[string]func(io.Writer, LogHandlerValueOptions) slo
 					return attr
 				},
 			},
-			Time: options.ConsoleTime,
+			TimeLayout: timeLayout,
 		})
 	},
 	"json": func(writer io.Writer, options LogHandlerValueOptions) slog.Handler {
