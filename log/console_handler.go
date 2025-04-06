@@ -80,14 +80,40 @@ type ConsoleHandlerOptions struct {
 	NoColor bool
 }
 
+type currHandlerChain struct {
+	chain []*ConsoleHandler
+	m     sync.Mutex
+}
+
+func newCurrHandlerChain() *currHandlerChain {
+	return &currHandlerChain{
+		chain: []*ConsoleHandler{},
+	}
+}
+
+func (s *currHandlerChain) writeHandlerGroupAttrs(writer io.Writer, currStack []*ConsoleHandler) {
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	for i, sh := range currStack {
+		if i+1 > len(s.chain) || sh != (s.chain)[i] {
+			sh.writeHandlerGroupAttrs(writer)
+		}
+	}
+	s.chain = make([]*ConsoleHandler, len(currStack))
+	copy(s.chain, currStack)
+}
+
 // ConsoleHandler implements slog.Handler
 type ConsoleHandler struct {
-	opts        *ConsoleHandlerOptions
-	writer      io.Writer
-	writerMutex *sync.Mutex
-	color       bool
-	groups      []string
-	attrs       []slog.Attr
+	opts             *ConsoleHandlerOptions
+	writer           io.Writer
+	writerMutex      *sync.Mutex
+	color            bool
+	groups           []string
+	attrs            []slog.Attr
+	handlerChain     []*ConsoleHandler
+	currHandlerChain *currHandlerChain
 }
 
 // NewConsoleHandler creates a new ConsoleHandler
@@ -101,18 +127,24 @@ func NewConsoleHandler(w io.Writer, opts *ConsoleHandlerOptions) *ConsoleHandler
 		isTTY = term.IsTerminal(int(f.Fd()))
 	}
 
-	return &ConsoleHandler{
-		opts:   opts,
-		writer: w,
-		color:  !opts.NoColor && (opts.ForceColor || isTTY),
-		groups: []string{},
+	h := &ConsoleHandler{
+		opts:             opts,
+		writer:           w,
+		writerMutex:      &sync.Mutex{},
+		color:            !opts.NoColor && (opts.ForceColor || isTTY),
+		groups:           []string{},
+		attrs:            []slog.Attr{},
+		currHandlerChain: newCurrHandlerChain(),
 	}
+	h.handlerChain = []*ConsoleHandler{h}
+	return h
 }
 
 func (h *ConsoleHandler) clone() *ConsoleHandler {
 	h2 := *h
 	h2.groups = slices.Clip(h.groups)
 	h2.attrs = slices.Clip(h.attrs)
+	h2.handlerChain = slices.Clip(h.handlerChain)
 	return &h2
 }
 
@@ -129,6 +161,7 @@ func (h *ConsoleHandler) Enabled(_ context.Context, level slog.Level) bool {
 func (h *ConsoleHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	h2 := h.clone()
 	h2.attrs = append(h2.attrs, attrs...)
+	h2.handlerChain[len(h2.handlerChain)-1] = h2
 	return h2
 }
 
@@ -139,6 +172,7 @@ func (h *ConsoleHandler) WithGroup(name string) slog.Handler {
 	}
 	h2 := h.clone()
 	h2.groups = append(h2.groups, name)
+	h2.handlerChain = append(h2.handlerChain, h2)
 	return h2
 }
 
@@ -225,21 +259,25 @@ func (h *ConsoleHandler) writeAttr(writer io.Writer, indent int, attr slog.Attr)
 	}
 }
 
-// Handle implements slog.Handler.Handle
-func (h *ConsoleHandler) Handle(_ context.Context, record slog.Record) error {
-	var buff bytes.Buffer
-
+func (h *ConsoleHandler) writeHandlerGroupAttrs(writer io.Writer) {
 	if len(h.groups) > 0 {
 		attrAny := make([]any, len(h.attrs))
 		for i, attr := range h.attrs {
 			attrAny[i] = attr
 		}
-		h.writeAttr(&buff, len(h.groups)-1, slog.Group(h.groups[len(h.groups)-1], attrAny...))
+		h.writeAttr(writer, len(h.groups)-1, slog.Group(h.groups[len(h.groups)-1], attrAny...))
 	} else {
 		for _, attr := range h.attrs {
-			h.writeAttr(&buff, 0, attr)
+			h.writeAttr(writer, 0, attr)
 		}
 	}
+}
+
+// Handle implements slog.Handler.Handle
+func (h *ConsoleHandler) Handle(_ context.Context, record slog.Record) error {
+	var buff bytes.Buffer
+
+	h.currHandlerChain.writeHandlerGroupAttrs(&buff, h.handlerChain)
 
 	indentStr := strings.Repeat("  ", len(h.groups))
 	buff.Write([]byte(indentStr))
