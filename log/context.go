@@ -29,7 +29,6 @@ func WithTestLogger(ctx context.Context) context.Context {
 				return attr
 			},
 		},
-		Time: false,
 	})
 	logger := slog.New(handler)
 	return WithLogger(ctx, logger)
