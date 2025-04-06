@@ -54,16 +54,18 @@ type LogHandlerValueOptions struct {
 
 var logHandlerNameFnMap = map[string]func(io.Writer, LogHandlerValueOptions) slog.Handler{
 	"console": func(writer io.Writer, options LogHandlerValueOptions) slog.Handler {
-		return log.NewConsoleHandler(writer, log.ConsoleHandlerOptions{
-			Level:     options.Level,
-			AddSource: options.AddSource,
-			Time:      options.ConsoleTime,
-			ReplaceAttr: func(groups []string, attr slog.Attr) slog.Attr {
-				if len(groups) == 0 && attr.Key == "version" {
-					return slog.Attr{}
-				}
-				return attr
+		return log.NewConsoleHandler(writer, &log.ConsoleHandlerOptions{
+			HandlerOptions: slog.HandlerOptions{
+				Level:     options.Level,
+				AddSource: options.AddSource,
+				ReplaceAttr: func(groups []string, attr slog.Attr) slog.Attr {
+					if len(groups) == 0 && attr.Key == "version" {
+						return slog.Attr{}
+					}
+					return attr
+				},
 			},
+			Time: options.ConsoleTime,
 		})
 	},
 	"json": func(writer io.Writer, options LogHandlerValueOptions) slog.Handler {
