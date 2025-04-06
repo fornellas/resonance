@@ -3,6 +3,7 @@ package main
 import (
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/fornellas/resonance/log"
 )
@@ -13,7 +14,7 @@ func main() {
 		HandlerOptions: slog.HandlerOptions{
 			AddSource: true,
 		},
-		Time: true,
+		TimeLayout: time.DateTime,
 	})
 
 	// Create a logger

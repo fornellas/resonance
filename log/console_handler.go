@@ -11,7 +11,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"golang.org/x/term"
 )
@@ -72,8 +71,8 @@ const (
 // ConsoleHandlerOptions extends HandlerOptions with console-specific options
 type ConsoleHandlerOptions struct {
 	slog.HandlerOptions
-	// If true, include time in output
-	Time bool
+	// Time layout for timestamps; if empty, time is not included in output.
+	TimeLayout string
 	// If true, force ANSI escape sequences for color, even when no TTY detected.
 	ForceColor bool
 	// If true, disable color, even when TTY detected; takes precedence over ForceColor.
@@ -243,8 +242,8 @@ func (h *ConsoleHandler) Handle(_ context.Context, record slog.Record) error {
 	indentStr := strings.Repeat("  ", len(h.groups))
 	buff.Write([]byte(indentStr))
 
-	if h.opts.Time && !record.Time.IsZero() {
-		timeStr := record.Time.Round(0).Format(time.DateTime)
+	if h.opts.TimeLayout != "" && !record.Time.IsZero() {
+		timeStr := record.Time.Round(0).Format(h.opts.TimeLayout)
 		fmt.Fprintf(&buff, "%s ", h.colorize(timeStr, dim))
 	}
 
