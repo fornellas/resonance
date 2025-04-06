@@ -69,17 +69,6 @@ const (
 	lightWhiteBg   = "\033[107m"
 )
 
-// ConsoleHandlerOptions extends HandlerOptions with console-specific options
-type ConsoleHandlerOptions struct {
-	slog.HandlerOptions
-	// Time layout for timestamps; if empty, time is not included in output.
-	TimeLayout string
-	// If true, force ANSI escape sequences for color, even when no TTY detected.
-	ForceColor bool
-	// If true, disable color, even when TTY detected; takes precedence over ForceColor.
-	NoColor bool
-}
-
 // currHandlerChain tracks the chain of ConsoleHandler instances to avoid
 // duplicating output of handler attributes. It maintains the last written
 // handler chain to determine which parts of the chain need to be written
@@ -108,7 +97,23 @@ func (s *currHandlerChain) writeHandlerGroupAttrs(writer io.Writer, currStack []
 	copy(s.chain, currStack)
 }
 
-// ConsoleHandler implements slog.Handler
+// ConsoleHandlerOptions extends HandlerOptions with ConsoleHandler specific options.
+type ConsoleHandlerOptions struct {
+	slog.HandlerOptions
+	// Time layout for timestamps; if empty, time is not included in output.
+	TimeLayout string
+	// If true, force ANSI escape sequences for color, even when no TTY detected.
+	ForceColor bool
+	// If true, disable color, even when TTY detected; takes precedence over ForceColor.
+	NoColor bool
+}
+
+// ConsoleHandler implements slog.Handler interface with enhanced console output features.
+// It provides colorized logging with level-appropriate colors, proper indentation for
+// nested groups, and smart handling of multiline content. ConsoleHandler automatically
+// detects terminal capabilities and enables or disables ANSI color codes accordingly,
+// though this behavior can be overridden through options. The handler also supports
+// customizable timestamp formats and sophisticated attribute formatting.
 type ConsoleHandler struct {
 	opts             *ConsoleHandlerOptions
 	writer           io.Writer
