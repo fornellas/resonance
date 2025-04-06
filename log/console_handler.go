@@ -84,17 +84,18 @@ func newCurrHandlerChain() *currHandlerChain {
 	}
 }
 
-func (s *currHandlerChain) writeHandlerGroupAttrs(writer io.Writer, currStack []*ConsoleHandler) {
+func (s *currHandlerChain) writeHandlerGroupAttrs(writer io.Writer, handlerChain []*ConsoleHandler) {
 	s.m.Lock()
 	defer s.m.Unlock()
 
-	for i, sh := range currStack {
-		if i+1 > len(s.chain) || sh != (s.chain)[i] {
-			sh.writeHandlerGroupAttrs(writer)
+	for i, h := range handlerChain {
+		if i+1 > len(s.chain) || h != (s.chain)[i] {
+			h.writeHandlerGroupAttrs(writer)
 		}
 	}
-	s.chain = make([]*ConsoleHandler, len(currStack))
-	copy(s.chain, currStack)
+
+	s.chain = make([]*ConsoleHandler, len(handlerChain))
+	copy(s.chain, handlerChain)
 }
 
 // ConsoleHandlerOptions extends HandlerOptions with ConsoleHandler specific options.
