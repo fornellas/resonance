@@ -80,6 +80,10 @@ type ConsoleHandlerOptions struct {
 	NoColor bool
 }
 
+// currHandlerChain tracks the chain of ConsoleHandler instances to avoid
+// duplicating output of handler attributes. It maintains the last written
+// handler chain to determine which parts of the chain need to be written
+// for subsequent log entries.
 type currHandlerChain struct {
 	chain []*ConsoleHandler
 	m     sync.Mutex
