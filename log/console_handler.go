@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"golang.org/x/term"
 )
@@ -81,11 +82,12 @@ type ConsoleHandlerOptions struct {
 
 // ConsoleHandler implements slog.Handler
 type ConsoleHandler struct {
-	opts   *ConsoleHandlerOptions
-	writer io.Writer
-	color  bool
-	groups []string
-	attrs  []slog.Attr
+	opts        *ConsoleHandlerOptions
+	writer      io.Writer
+	writerMutex *sync.Mutex
+	color       bool
+	groups      []string
+	attrs       []slog.Attr
 }
 
 // NewConsoleHandler creates a new ConsoleHandler
@@ -271,6 +273,8 @@ func (h *ConsoleHandler) Handle(_ context.Context, record slog.Record) error {
 		})
 	}
 
+	h.writerMutex.Lock()
+	defer h.writerMutex.Unlock()
 	h.writer.Write(buff.Bytes())
 
 	return nil
