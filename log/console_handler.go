@@ -39,34 +39,34 @@ const (
 	white   = "\033[37m"
 
 	// Background colors (3-bit)
-	blackBg   = "\033[40m"
-	redBg     = "\033[41m"
-	greenBg   = "\033[42m"
-	yellowBg  = "\033[43m"
-	blueBg    = "\033[44m"
-	magentaBg = "\033[45m"
-	cyanBg    = "\033[46m"
-	whiteBg   = "\033[47m"
+	// blackBg   = "\033[40m"
+	// redBg     = "\033[41m"
+	// greenBg   = "\033[42m"
+	// yellowBg  = "\033[43m"
+	// blueBg    = "\033[44m"
+	// magentaBg = "\033[45m"
+	// cyanBg    = "\033[46m"
+	// whiteBg   = "\033[47m"
 
-	// Bright foreground colors (4-bit)
-	darkGray     = "\033[90m"
-	lightRed     = "\033[91m"
-	lightGreen   = "\033[92m"
-	lightYellow  = "\033[93m"
-	lightBlue    = "\033[94m"
-	lightMagenta = "\033[95m"
-	lightCyan    = "\033[96m"
-	lightWhite   = "\033[97m"
+	// // Bright foreground colors (4-bit)
+	// darkGray     = "\033[90m"
+	// lightRed     = "\033[91m"
+	// lightGreen   = "\033[92m"
+	// lightYellow  = "\033[93m"
+	// lightBlue    = "\033[94m"
+	// lightMagenta = "\033[95m"
+	// lightCyan    = "\033[96m"
+	// lightWhite   = "\033[97m"
 
-	// Bright background colors (4-bit)
-	darkGrayBg     = "\033[100m"
-	lightRedBg     = "\033[101m"
-	lightGreenBg   = "\033[102m"
-	lightYellowBg  = "\033[103m"
-	lightBlueBg    = "\033[104m"
-	lightMagentaBg = "\033[105m"
-	lightCyanBg    = "\033[106m"
-	lightWhiteBg   = "\033[107m"
+	// // Bright background colors (4-bit)
+	// darkGrayBg     = "\033[100m"
+	// lightRedBg     = "\033[101m"
+	// lightGreenBg   = "\033[102m"
+	// lightYellowBg  = "\033[103m"
+	// lightBlueBg    = "\033[104m"
+	// lightMagentaBg = "\033[105m"
+	// lightCyanBg    = "\033[106m"
+	// lightWhiteBg   = "\033[107m"
 )
 
 // currHandlerChain tracks the chain of ConsoleHandler instances to avoid
@@ -246,9 +246,6 @@ func (h *ConsoleHandler) writeAttr(writer io.Writer, indent int, attr slog.Attr)
 				h.writeAttr(writer, indent, groupAttr)
 			}
 		} else {
-			if len(groupAttrs) == 0 {
-				return
-			}
 			fmt.Fprintf(writer, "%s%s: %s\n", indentStr, h.colorize("Group", blue+bold), h.colorize(h.escape(attr.Key), bold))
 			for _, groupAttr := range groupAttrs {
 				h.writeAttr(writer, indent+1, groupAttr)
@@ -307,9 +304,7 @@ func (h *ConsoleHandler) Handle(_ context.Context, record slog.Record) error {
 		fileInfo := fmt.Sprintf("%s:%d", frame.File, frame.Line)
 		fmt.Fprintf(&buff, "%s  %s", indentStr, h.colorize(fileInfo, dim))
 		if len(frame.Function) > 0 {
-			fmt.Fprintf(&buff, " (%s) ", h.colorize(frame.Function, dim))
-		} else {
-			buff.Write([]byte(" "))
+			fmt.Fprintf(&buff, " (%s)", h.colorize(frame.Function, dim))
 		}
 		buff.Write([]byte("\n"))
 	}
