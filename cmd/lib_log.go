@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fornellas/resonance"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -63,12 +62,6 @@ var logHandlerNameFnMap = map[string]func(io.Writer, LogHandlerValueOptions) slo
 			HandlerOptions: slog.HandlerOptions{
 				Level:     options.Level,
 				AddSource: options.AddSource,
-				ReplaceAttr: func(groups []string, attr slog.Attr) slog.Attr {
-					if len(groups) == 0 && attr.Key == "version" {
-						return slog.Attr{}
-					}
-					return attr
-				},
 			},
 			TimeLayout: timeLayout,
 		})
@@ -77,14 +70,6 @@ var logHandlerNameFnMap = map[string]func(io.Writer, LogHandlerValueOptions) slo
 		return slog.NewJSONHandler(writer, &slog.HandlerOptions{
 			AddSource: options.AddSource,
 			Level:     options.Level,
-			ReplaceAttr: func(groups []string, attr slog.Attr) slog.Attr {
-				if len(groups) == 0 && attr.Key == slog.SourceKey {
-					attr.Value = slog.AnyValue(
-						strings.Replace(attr.Value.String(), " "+resonance.GitTopLevel, " ", 1),
-					)
-				}
-				return attr
-			},
 		})
 	},
 }

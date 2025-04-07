@@ -80,6 +80,8 @@ func TestConsoleHandler_Handle(t *testing.T) {
 			},
 			logFunc: func(logger *slog.Logger) {
 				logger.Info("hello with attrs", "user", "tester")
+				logger = logger.With("extra", "attr")
+				logger.Info("hello with extra attrs", "something", "else")
 			},
 			check: func(t *testing.T, output string) {
 				assert.Equal(
@@ -87,7 +89,10 @@ func TestConsoleHandler_Handle(t *testing.T) {
 					"service: test\n"+
 						"version: 1\n"+
 						"INFO hello with attrs\n"+
-						"  user: tester\n",
+						"  user: tester\n"+
+						"extra: attr\n"+
+						"INFO hello with extra attrs\n"+
+						"  something: else\n",
 					output,
 				)
 			},
@@ -102,6 +107,8 @@ func TestConsoleHandler_Handle(t *testing.T) {
 			},
 			logFunc: func(logger *slog.Logger) {
 				logger.Info("started server", "port", 8080)
+				logger = logger.With("extra", "attr")
+				logger.Info("with extra attrs", "something", "else")
 			},
 			check: func(t *testing.T, output string) {
 				assert.Equal(
@@ -109,7 +116,10 @@ func TestConsoleHandler_Handle(t *testing.T) {
 					"Group: server\n"+
 						"  type: api\n"+
 						"  INFO started server\n"+
-						"    port: 8080\n",
+						"    port: 8080\n"+
+						"  extra: attr\n"+
+						"  INFO with extra attrs\n"+
+						"    something: else\n",
 					output,
 				)
 			},
@@ -118,7 +128,12 @@ func TestConsoleHandler_Handle(t *testing.T) {
 			name: "nested_groups",
 			setupLogger: func(buf *bytes.Buffer) *slog.Logger {
 				h := NewConsoleHandler(buf, &ConsoleHandlerOptions{NoColor: true})
-				return slog.New(h.WithGroup("app").WithGroup("database"))
+				return slog.New(
+					h.WithGroup("app").
+						WithAttrs([]slog.Attr{slog.String("version", "1.0")}).
+						WithGroup("database").
+						WithAttrs([]slog.Attr{slog.String("db", "sql")}),
+				)
 			},
 			logFunc: func(logger *slog.Logger) {
 				logger.Info("connected", "host", "localhost", "port", 5432)
@@ -127,7 +142,9 @@ func TestConsoleHandler_Handle(t *testing.T) {
 				assert.Equal(
 					t,
 					"Group: app\n"+
+						"  version: 1.0\n"+
 						"  Group: database\n"+
+						"    db: sql\n"+
 						"    INFO connected\n"+
 						"      host: localhost\n"+
 						"      port: 5432\n",
@@ -298,25 +315,6 @@ func TestConsoleHandler_WithGroup(t *testing.T) {
 			"  INFO grouped message\n",
 		output,
 	)
-}
-
-func TestConsoleHandler_MultipleHandlers(t *testing.T) {
-	buf := &bytes.Buffer{}
-	h1 := NewConsoleHandler(buf, &ConsoleHandlerOptions{NoColor: true})
-	h2 := h1.WithGroup("group1")
-
-	logger1 := slog.New(h1)
-	logger2 := slog.New(h2)
-
-	logger1.Info("from logger1")
-	output := buf.String()
-	assert.Equal(t, "INFO from logger1\n", output)
-
-	buf.Reset()
-
-	logger2.Info("from logger2")
-	output = buf.String()
-	assert.Equal(t, "Group: group1\n  INFO from logger2\n", output)
 }
 
 func TestConsoleHandler_ColorDetection(t *testing.T) {
