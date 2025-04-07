@@ -89,8 +89,13 @@ func (s *currHandlerChain) writeHandlerGroupAttrs(writer io.Writer, handlerChain
 	defer s.m.Unlock()
 
 	for i, h := range handlerChain {
-		if i+1 > len(s.chain) || h != (s.chain)[i] {
-			h.writeHandlerGroupAttrs(writer)
+		if i+1 > len(s.chain) {
+			h.writeHandlerGroupAttrs(writer, nil)
+		} else {
+			ch := s.chain[i]
+			if h != ch {
+				h.writeHandlerGroupAttrs(writer, ch)
+			}
 		}
 	}
 
@@ -182,6 +187,7 @@ func (h *ConsoleHandler) WithGroup(name string) slog.Handler {
 	}
 	h2 := h.clone()
 	h2.groups = append(h2.groups, name)
+	h2.attrs = []slog.Attr{}
 	h2.handlerChain = append(h2.handlerChain, h2)
 	return h2
 }
@@ -266,15 +272,50 @@ func (h *ConsoleHandler) writeAttr(writer io.Writer, indent int, attr slog.Attr)
 	}
 }
 
-func (h *ConsoleHandler) writeHandlerGroupAttrs(writer io.Writer) {
-	if len(h.groups) > 0 {
-		attrAny := make([]any, len(h.attrs))
-		for i, attr := range h.attrs {
-			attrAny[i] = attr
+func (h *ConsoleHandler) sameGroups(h2 *ConsoleHandler) bool {
+	if len(h.groups) != len(h2.groups) {
+		return false
+	}
+	for i, v := range h.groups {
+		if v != h2.groups[i] {
+			return false
 		}
-		h.writeAttr(writer, len(h.groups)-1, slog.Group(h.groups[len(h.groups)-1], attrAny...))
+	}
+	return true
+}
+
+// write handler group & attrs, as a function of the current handler at the chain, preventing
+// duplicate attrs
+func (h *ConsoleHandler) writeHandlerGroupAttrs(writer io.Writer, ch *ConsoleHandler) {
+	var attrs []slog.Attr
+	var sameGroups bool
+	if ch != nil {
+		if sameGroups = h.sameGroups(ch); sameGroups {
+			attrs = []slog.Attr{}
+			for i, attr := range h.attrs {
+				if i+1 <= len(ch.attrs) && attr.Equal(ch.attrs[i]) {
+					continue
+				}
+				attrs = append(attrs, attr)
+			}
+		}
 	} else {
-		for _, attr := range h.attrs {
+		attrs = h.attrs
+	}
+	if len(h.groups) > 0 {
+		if sameGroups {
+			for _, attr := range attrs {
+				h.writeAttr(writer, len(h.groups), attr)
+			}
+		} else {
+			attrAny := make([]any, len(attrs))
+			for i, attr := range attrs {
+				attrAny[i] = attr
+			}
+			h.writeAttr(writer, len(h.groups)-1, slog.Group(h.groups[len(h.groups)-1], attrAny...))
+		}
+	} else {
+		for _, attr := range attrs {
 			h.writeAttr(writer, 0, attr)
 		}
 	}

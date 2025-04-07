@@ -51,7 +51,7 @@ var RootCmd = &cobra.Command{
 				ConsoleTime: logHandlerConsoleTime,
 			},
 		)
-		logger := slog.New(handler).With("version", resonance.Version)
+		logger := slog.New(handler).With("((o)) Resonance", resonance.Version)
 		ctx := cmd.Context()
 		ctx = log.WithLogger(
 			ctx,
