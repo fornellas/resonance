@@ -72,12 +72,13 @@ func AddStoreFlags(cmd *cobra.Command) {
 }
 
 func GetStore(hst types.Host) storePkg.Store {
-	store := getStoreArch(hst)
-	if hst != nil {
-		return store
-	}
-
 	switch storeValue.String() {
+	case "localhost":
+		store := getLocalStore()
+		if store == nil {
+			panic("bug: getLocalStore() == nil")
+		}
+		return store
 	case "target":
 		return storePkg.NewHostStore(hst, storeTargetPath)
 	default:
