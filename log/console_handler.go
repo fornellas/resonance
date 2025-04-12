@@ -215,25 +215,6 @@ func (h *ConsoleHandler) colorize(s string, color string) string {
 	return s
 }
 
-func (h *ConsoleHandler) levelColor(level slog.Level) string {
-	if !h.color {
-		return ""
-	}
-
-	switch {
-	case level >= slog.LevelError:
-		return red
-	case level >= slog.LevelWarn:
-		return yellow
-	case level >= slog.LevelInfo:
-		return green
-	case level >= slog.LevelDebug:
-		return cyan
-	default:
-		return blue
-	}
-}
-
 func (h *ConsoleHandler) writeAttr(writer io.Writer, indent int, attr slog.Attr) {
 	attr.Value = attr.Value.Resolve()
 	if h.opts.ReplaceAttr != nil && attr.Value.Kind() != slog.KindGroup {
@@ -342,9 +323,18 @@ func (h *ConsoleHandler) Handle(_ context.Context, record slog.Record) error {
 		fmt.Fprintf(&buff, "%s ", h.colorize(timeStr, dim))
 	}
 
-	levelColor := h.levelColor(record.Level)
-	levelStr := h.colorize(record.Level.String(), levelColor+bold)
-	fmt.Fprintf(&buff, "%s %s\n", levelStr, h.colorize(h.escape(record.Message), bold))
+	message := h.escape(record.Message)
+	if record.Level >= slog.LevelError {
+		fmt.Fprintf(&buff, "%s %s\n", h.colorize(record.Level.String(), red+bold), h.colorize(message, bold))
+	} else if record.Level >= slog.LevelWarn {
+		fmt.Fprintf(&buff, "%s %s\n", h.colorize(record.Level.String(), yellow+bold), h.colorize(message, bold))
+	} else if record.Level >= slog.LevelInfo {
+		fmt.Fprintf(&buff, "%s\n", h.colorize(message, bold))
+	} else if record.Level >= slog.LevelDebug {
+		fmt.Fprintf(&buff, "%s\n", message)
+	} else {
+		fmt.Fprintf(&buff, "%s\n", h.colorize(message, dim))
+	}
 
 	if h.opts.HandlerOptions.AddSource && record.PC != 0 {
 		frames := runtime.CallersFrames([]uintptr{record.PC})
