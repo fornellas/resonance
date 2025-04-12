@@ -113,7 +113,7 @@ func TestConsoleHandler_Handle(t *testing.T) {
 			check: func(t *testing.T, output string) {
 				assert.Equal(
 					t,
-					"Group: server\n"+
+					"🏷️ server\n"+
 						"  type: api\n"+
 						"  INFO started server\n"+
 						"    port: 8080\n"+
@@ -141,9 +141,9 @@ func TestConsoleHandler_Handle(t *testing.T) {
 			check: func(t *testing.T, output string) {
 				assert.Equal(
 					t,
-					"Group: app\n"+
+					"🏷️ app\n"+
 						"  version: 1.0\n"+
-						"  Group: database\n"+
+						"  🏷️ database\n"+
 						"    db: sql\n"+
 						"    INFO connected\n"+
 						"      host: localhost\n"+
@@ -171,7 +171,7 @@ func TestConsoleHandler_Handle(t *testing.T) {
 				assert.Equal(
 					t,
 					"INFO user action\n"+
-						"  Group: user\n"+
+						"  🏷️ user\n"+
 						"    id: 123\n"+
 						"    name: test\n"+
 						"  action: login\n",
@@ -311,7 +311,7 @@ func TestConsoleHandler_WithGroup(t *testing.T) {
 	output := buf.String()
 	assert.Equal(
 		t,
-		"Group: test\n"+
+		"🏷️ test\n"+
 			"  INFO grouped message\n",
 		output,
 	)

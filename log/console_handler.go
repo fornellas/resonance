@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"golang.org/x/term"
 )
@@ -185,6 +186,7 @@ func (h *ConsoleHandler) WithGroup(name string) slog.Handler {
 	if len(name) == 0 {
 		return h
 	}
+
 	h2 := h.clone()
 	h2.groups = append(h2.groups, name)
 	h2.attrs = []slog.Attr{}
@@ -252,7 +254,12 @@ func (h *ConsoleHandler) writeAttr(writer io.Writer, indent int, attr slog.Attr)
 				h.writeAttr(writer, indent, groupAttr)
 			}
 		} else {
-			fmt.Fprintf(writer, "%s%s: %s\n", indentStr, h.colorize("Group", blue+bold), h.colorize(h.escape(attr.Key), bold))
+			emoji := ""
+			r, _ := utf8.DecodeRuneInString(attr.Key)
+			if !IsEmojiStart(r) {
+				emoji = "🏷️ "
+			}
+			fmt.Fprintf(writer, "%s%s%s\n", indentStr, emoji, h.colorize(h.escape(attr.Key), bold))
 			for _, groupAttr := range groupAttrs {
 				h.writeAttr(writer, indent+1, groupAttr)
 			}
