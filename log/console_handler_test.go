@@ -66,7 +66,7 @@ func TestConsoleHandler_Handle(t *testing.T) {
 				logger.Info("hello world")
 			},
 			check: func(t *testing.T, output string) {
-				assert.Equal(t, "INFO hello world\n", output)
+				assert.Equal(t, "hello world\n", output)
 			},
 		},
 		{
@@ -88,10 +88,10 @@ func TestConsoleHandler_Handle(t *testing.T) {
 					t,
 					"service: test\n"+
 						"version: 1\n"+
-						"INFO hello with attrs\n"+
+						"hello with attrs\n"+
 						"  user: tester\n"+
 						"extra: attr\n"+
-						"INFO hello with extra attrs\n"+
+						"hello with extra attrs\n"+
 						"  something: else\n",
 					output,
 				)
@@ -115,10 +115,10 @@ func TestConsoleHandler_Handle(t *testing.T) {
 					t,
 					"🏷️ server\n"+
 						"  type: api\n"+
-						"  INFO started server\n"+
+						"  started server\n"+
 						"    port: 8080\n"+
 						"  extra: attr\n"+
-						"  INFO with extra attrs\n"+
+						"  with extra attrs\n"+
 						"    something: else\n",
 					output,
 				)
@@ -145,7 +145,7 @@ func TestConsoleHandler_Handle(t *testing.T) {
 						"  version: 1.0\n"+
 						"  🏷️ database\n"+
 						"    db: sql\n"+
-						"    INFO connected\n"+
+						"    connected\n"+
 						"      host: localhost\n"+
 						"      port: 5432\n",
 					output,
@@ -170,7 +170,7 @@ func TestConsoleHandler_Handle(t *testing.T) {
 			check: func(t *testing.T, output string) {
 				assert.Equal(
 					t,
-					"INFO user action\n"+
+					"user action\n"+
 						"  🏷️ user\n"+
 						"    id: 123\n"+
 						"    name: test\n"+
@@ -214,7 +214,7 @@ func TestConsoleHandler_Handle(t *testing.T) {
 			},
 			check: func(t *testing.T, output string) {
 				// Check if output contains an RFC3339 date format (yyyy-mm-ddThh:mm:ss)
-				assert.Regexp(t, `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[-+:0-9]* INFO message with time\n$`, output)
+				assert.Regexp(t, `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[-+:0-9]* message with time\n$`, output)
 			},
 		},
 		{
@@ -232,7 +232,7 @@ func TestConsoleHandler_Handle(t *testing.T) {
 				logger.Info("message with source")
 			},
 			check: func(t *testing.T, output string) {
-				assert.Regexp(t, `^INFO message with source\n  .+console_handler_test\.go:\d+ \(.+\)\n$`, output)
+				assert.Regexp(t, `^message with source\n  .+console_handler_test\.go:\d+ \(.+\)\n$`, output)
 			},
 		},
 		{
@@ -247,7 +247,7 @@ func TestConsoleHandler_Handle(t *testing.T) {
 			check: func(t *testing.T, output string) {
 				assert.Equal(
 					t,
-					"INFO empty group should be ignored\n",
+					"empty group should be ignored\n",
 					output,
 				)
 			},
@@ -274,7 +274,7 @@ func TestConsoleHandler_Handle(t *testing.T) {
 			check: func(t *testing.T, output string) {
 				assert.Equal(
 					t,
-					"INFO message with sensitive data\n"+
+					"message with sensitive data\n"+
 						"  sensitive: REDACTED\n"+
 						"  normal: visible\n",
 					output,
@@ -312,7 +312,7 @@ func TestConsoleHandler_WithGroup(t *testing.T) {
 	assert.Equal(
 		t,
 		"🏷️ test\n"+
-			"  INFO grouped message\n",
+			"  grouped message\n",
 		output,
 	)
 }
