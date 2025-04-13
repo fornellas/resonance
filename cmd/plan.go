@@ -36,13 +36,13 @@ var PlanCmd = &cobra.Command{
 		var targetResources resourcesPkg.Resources
 		{
 			var err error
-			ctx, _ := log.MustContextLoggerWithSection(ctx, "📂 Loading target resources")
+			ctx, _ := log.WithGroup(ctx, "📂 Loading target resources")
 			targetResources, err = resourcesPkg.LoadPath(ctx, path)
 			if err != nil {
 				logger.Error(err.Error())
 				Exit(1)
 			}
-			_, logger := log.MustContextLoggerWithSection(ctx, "📚 All loaded resources")
+			_, logger := log.WithGroup(ctx, "📚 All loaded resources")
 			for _, resource := range targetResources {
 				logger.Info(resourcesPkg.GetResourceTypeName(resource), "yaml", resourcesPkg.GetResourceYaml(resource))
 			}
@@ -50,7 +50,7 @@ var PlanCmd = &cobra.Command{
 
 		var plan planPkg.Plan
 		{
-			ctx, logger := log.MustContextLoggerWithSection(ctx, "📝 Planning")
+			ctx, logger := log.WithGroup(ctx, "📝 Planning")
 			plan, _, _, err = planPkg.PrepAndPlan(ctx, host, store, targetResources)
 			if err != nil {
 				logger.Error(err.Error())
@@ -59,7 +59,7 @@ var PlanCmd = &cobra.Command{
 		}
 
 		{
-			_, logger := log.MustContextLoggerWithSection(ctx, "💡 Actions")
+			_, logger := log.WithGroup(ctx, "💡 Actions")
 			for _, action := range plan {
 				args := []any{}
 				diffStr := action.DiffString()
