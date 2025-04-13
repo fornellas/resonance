@@ -23,7 +23,7 @@ func WithTestLogger(ctx context.Context) context.Context {
 			Level:     slog.LevelDebug,
 			AddSource: true,
 			ReplaceAttr: func(groups []string, attr slog.Attr) slog.Attr {
-				if len(groups) == 0 && attr.Key == "version" {
+				if len(groups) == 0 && attr.Key == "((o)) Resonance" {
 					return slog.Attr{}
 				}
 				return attr
