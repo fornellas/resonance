@@ -94,8 +94,8 @@ func NewAction(step *blueprintPkg.Step, beforeResourceMap resourcesPkg.ResourceM
 // String returns a single-line representation of the action.
 func (a *Action) String() string {
 	actionStrs := make([]string, len(a.ResourceDiffs))
-	for i, resourceDiffs := range a.ResourceDiffs {
-		actionStrs[i] = resourceDiffs.String()
+	for i, resourceDiff := range a.ResourceDiffs {
+		actionStrs[i] = resourceDiff.String()
 	}
 	return fmt.Sprintf("%s:%s", a.ResourceType, strings.Join(actionStrs, ","))
 }
@@ -153,12 +153,14 @@ func (a *Action) DetailedString() string {
 
 // Apply commits all required changes for action to given Host.
 func (a *Action) Apply(ctx context.Context, host types.Host) error {
-	args := []any{}
+	ctx, logger := log.WithGroup(ctx, a.String())
 	diffStr := a.DiffString()
 	if len(diffStr) > 0 {
-		args = append(args, []any{"diff", diffStr}...)
+		ctx, logger = log.WithAttrs(ctx, "diff", diffStr)
+		logger.Info("Applying changes")
+	} else {
+		logger.Info("Nothing to do")
 	}
-	ctx, _ = log.WithGroupAttrs(ctx, a.String(), args...)
 
 	if len(a.ApplyResources) == 0 {
 		return nil

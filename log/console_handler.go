@@ -286,6 +286,8 @@ func (h *ConsoleHandler) writeHandlerGroupAttrs(writer io.Writer, ch *ConsoleHan
 				}
 				attrs = append(attrs, attr)
 			}
+		} else {
+			attrs = h.attrs
 		}
 	} else {
 		attrs = h.attrs

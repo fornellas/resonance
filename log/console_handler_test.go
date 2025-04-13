@@ -125,6 +125,70 @@ func TestConsoleHandler_Handle(t *testing.T) {
 			},
 		},
 		{
+			// Test for the case where we switch between handlers with different groups
+			// This tests the code path marked with "FIXME add test" in writeHandlerGroupAttrs
+			name: "different_groups",
+			setupLogger: func(buf *bytes.Buffer) *slog.Logger {
+				h := NewConsoleHandler(buf, &ConsoleHandlerOptions{NoColor: true})
+				// Just return the base handler, as we'll create multiple loggers in logFunc
+				return slog.New(h)
+			},
+			logFunc: func(logger *slog.Logger) {
+				// Get the base handler from the logger
+				h := logger.Handler().(*ConsoleHandler)
+
+				// First log with one group
+				logger1 := slog.New(h.WithGroup("group1").WithAttrs([]slog.Attr{
+					slog.String("attr1", "value1"),
+				}))
+				logger1.Info("first message")
+
+				// Then log with a different group
+				logger2 := slog.New(h.WithGroup("group2").WithAttrs([]slog.Attr{
+					slog.String("attr2", "value2"),
+				}))
+				logger2.Info("second message")
+			},
+			check: func(t *testing.T, output string) {
+				expected := "🏷️ group1\n" +
+					"  attr1: value1\n" +
+					"  first message\n" +
+					"🏷️ group2\n" +
+					"  attr2: value2\n" +
+					"  second message\n"
+				assert.Equal(t, expected, output)
+			},
+		},
+		{
+			name: "different_groups",
+			setupLogger: func(buf *bytes.Buffer) *slog.Logger {
+				h := NewConsoleHandler(buf, &ConsoleHandlerOptions{NoColor: true})
+				return slog.New(h)
+			},
+			logFunc: func(logger *slog.Logger) {
+				h := logger.Handler().(*ConsoleHandler)
+
+				logger1 := slog.New(h.WithGroup("group1").WithAttrs([]slog.Attr{
+					slog.String("attr1", "value1"),
+				}))
+				logger1.Info("first message")
+
+				logger2 := slog.New(h.WithGroup("group2").WithAttrs([]slog.Attr{
+					slog.String("attr2", "value2"),
+				}))
+				logger2.Info("second message")
+			},
+			check: func(t *testing.T, output string) {
+				expected := "🏷️ group1\n" +
+					"  attr1: value1\n" +
+					"  first message\n" +
+					"🏷️ group2\n" +
+					"  attr2: value2\n" +
+					"  second message\n"
+				assert.Equal(t, expected, output)
+			},
+		},
+		{
 			name: "nested_groups",
 			setupLogger: func(buf *bytes.Buffer) *slog.Logger {
 				h := NewConsoleHandler(buf, &ConsoleHandlerOptions{NoColor: true})
