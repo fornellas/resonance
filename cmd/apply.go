@@ -36,13 +36,13 @@ var ApplyCmd = &cobra.Command{
 		var targetResources resourcesPkg.Resources
 		{
 			var err error
-			ctx, _ := log.MustContextLoggerWithSection(ctx, "📂 Loading target resources")
+			ctx, _ := log.WithGroup(ctx, "📂 Loading target resources")
 			targetResources, err = resourcesPkg.LoadPath(ctx, path)
 			if err != nil {
 				logger.Error(err.Error())
 				Exit(1)
 			}
-			_, logger := log.MustContextLoggerWithSection(ctx, "📚 All loaded resources")
+			_, logger := log.WithGroup(ctx, "📚 All loaded resources")
 			for _, resource := range targetResources {
 				logger.Info(resourcesPkg.GetResourceTypeName(resource), "yaml", resourcesPkg.GetResourceYaml(resource))
 			}
@@ -52,14 +52,14 @@ var ApplyCmd = &cobra.Command{
 		var targetBlueprint *blueprintPkg.Blueprint
 		var lastBlueprint *blueprintPkg.Blueprint
 		{
-			ctx, logger := log.MustContextLoggerWithSection(ctx, "📝 Planning")
+			ctx, logger := log.WithGroup(ctx, "📝 Planning")
 			plan, targetBlueprint, lastBlueprint, err = planPkg.PrepAndPlan(ctx, host, store, targetResources)
 			if err != nil {
 				logger.Error(err.Error())
 				Exit(1)
 			}
 			{
-				ctx, _ := log.MustContextLoggerWithSection(ctx, "💾 Saving tatrget Blueprint")
+				ctx, _ := log.WithGroup(ctx, "💾 Saving tatrget Blueprint")
 				hasTargetBlueprint, err := store.HasTargetBlueprint(ctx)
 				if err != nil {
 					logger.Error(err.Error())
@@ -83,7 +83,7 @@ var ApplyCmd = &cobra.Command{
 		}
 
 		{
-			ctx, logger := log.MustContextLoggerWithSection(ctx, "🧹 State cleanup")
+			ctx, logger := log.WithGroup(ctx, "🧹 State cleanup")
 
 			targetResourcesMap := resourcesPkg.NewResourceMap(targetResources)
 			for _, lastResource := range lastBlueprint.Resources() {

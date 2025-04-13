@@ -69,9 +69,3 @@ func WithGroupAttrs(ctx context.Context, name string, args ...any) (context.Cont
 	logger := MustLogger(ctx).WithGroup(name).With(args...)
 	return WithLogger(ctx, logger), logger
 }
-
-// FIXME replace by slog.Handler.WithGroup
-func MustContextLoggerWithSection(ctx context.Context, msg string, args ...any) (context.Context, *slog.Logger) {
-	logger := MustLogger(ctx).WithGroup(msg).With(args...)
-	return WithLogger(ctx, logger), logger
-}

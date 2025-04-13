@@ -20,7 +20,7 @@ func CreateTargetBlueprint(
 	host types.Host,
 	targetResources resouresPkg.Resources,
 ) (*blueprintPkg.Blueprint, error) {
-	ctx, _ = log.MustContextLoggerWithSection(ctx, "🎯 Crafting target Blueprint")
+	ctx, _ = log.WithGroup(ctx, "🎯 Crafting target Blueprint")
 
 	var targetBlueprint *blueprintPkg.Blueprint
 	{
@@ -30,13 +30,13 @@ func CreateTargetBlueprint(
 			return nil, err
 		}
 		{
-			ctx, _ := log.MustContextLoggerWithSection(ctx, "⚙️ Resolving target Blueprint")
+			ctx, _ := log.WithGroup(ctx, "⚙️ Resolving target Blueprint")
 			if err := targetBlueprint.Resolve(ctx, host); err != nil {
 				return nil, err
 			}
 		}
 		{
-			_, logger := log.MustContextLoggerWithSection(ctx, "🧩 Crafted target Blueprint")
+			_, logger := log.WithGroup(ctx, "🧩 Crafted target Blueprint")
 			for _, step := range targetBlueprint.Steps {
 				resources := step.Resources()
 				if len(resources) == 1 {
@@ -60,7 +60,7 @@ func SaveOriginalResourcesState(
 	store storePkg.Store,
 	targetBlueprint *blueprintPkg.Blueprint,
 ) error {
-	ctx, logger := log.MustContextLoggerWithSection(ctx, "🌱 Storing original resource states")
+	ctx, logger := log.WithGroup(ctx, "🌱 Storing original resource states")
 	for _, step := range targetBlueprint.Steps {
 		noOriginalResources := resouresPkg.Resources{}
 		for _, resource := range step.Resources() {
@@ -121,7 +121,7 @@ func LoadOrCreateAndSaveLastBlueprintWithValidation(
 	store storePkg.Store,
 	targetBlueprint *blueprintPkg.Blueprint,
 ) (*blueprintPkg.Blueprint, error) {
-	ctx, logger := log.MustContextLoggerWithSection(ctx, "↩️ Loading last Blueprint")
+	ctx, logger := log.WithGroup(ctx, "↩️ Loading last Blueprint")
 	lastBlueprint, err := store.LoadLastBlueprint(ctx)
 	if err != nil {
 		return nil, err
@@ -135,7 +135,7 @@ func LoadOrCreateAndSaveLastBlueprintWithValidation(
 		}
 
 		{
-			_, logger := log.MustContextLoggerWithSection(ctx, "🧩 Loaded Blueprint")
+			_, logger := log.WithGroup(ctx, "🧩 Loaded Blueprint")
 			for _, step := range lastBlueprint.Steps {
 				resources := step.Resources()
 				if len(resources) == 1 {
