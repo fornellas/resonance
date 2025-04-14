@@ -326,16 +326,20 @@ func (h *ConsoleHandler) Handle(_ context.Context, record slog.Record) error {
 	}
 
 	message := h.escape(record.Message)
-	if record.Level >= slog.LevelError {
-		fmt.Fprintf(&buff, "%s %s\n", h.colorize(record.Level.String(), red+bold), h.colorize(message, bold))
-	} else if record.Level >= slog.LevelWarn {
-		fmt.Fprintf(&buff, "%s %s\n", h.colorize(record.Level.String(), yellow+bold), h.colorize(message, bold))
-	} else if record.Level >= slog.LevelInfo {
-		fmt.Fprintf(&buff, "%s\n", h.colorize(message, bold))
-	} else if record.Level >= slog.LevelDebug {
-		fmt.Fprintf(&buff, "%s\n", message)
+	if h.color {
+		if record.Level >= slog.LevelError {
+			fmt.Fprintf(&buff, "%s %s\n", h.colorize(record.Level.String(), red+bold), h.colorize(message, bold))
+		} else if record.Level >= slog.LevelWarn {
+			fmt.Fprintf(&buff, "%s %s\n", h.colorize(record.Level.String(), yellow+bold), h.colorize(message, bold))
+		} else if record.Level >= slog.LevelInfo {
+			fmt.Fprintf(&buff, "%s\n", h.colorize(message, bold))
+		} else if record.Level >= slog.LevelDebug {
+			fmt.Fprintf(&buff, "%s\n", message)
+		} else {
+			fmt.Fprintf(&buff, "%s\n", h.colorize(message, dim))
+		}
 	} else {
-		fmt.Fprintf(&buff, "%s\n", h.colorize(message, dim))
+		fmt.Fprintf(&buff, "%s %s\n", record.Level.String(), message)
 	}
 
 	if h.opts.HandlerOptions.AddSource && record.PC != 0 {
