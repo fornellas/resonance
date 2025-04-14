@@ -17,11 +17,11 @@ func addStoreFlagsArch(cmd *cobra.Command) {
 	)
 }
 
-func getStoreArch(storeType string) storePkg.Store {
+func getStoreArch(storeType string) (storePkg.Store, string) {
 	if storeType == "localhost" {
-		return storePkg.NewHostStore(host.Local{}, storeLocalhostPath)
+		return storePkg.NewHostStore(host.Local{}, storeLocalhostPath), storeLocalhostPath
 	}
-	return nil
+	return nil, ""
 }
 
 func init() {
