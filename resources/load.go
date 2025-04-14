@@ -17,6 +17,7 @@ import (
 )
 
 func LoadFile(ctx context.Context, path string) (Resources, error) {
+	ctx, logger := log.WithGroupAttrs(ctx, "📄 Loading resources from file", "path", path)
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load resource file: %w", err)
@@ -80,11 +81,13 @@ func LoadFile(ctx context.Context, path string) (Resources, error) {
 		return nil, fmt.Errorf("failed to load resource file: no resources found")
 	}
 
+	logger.Info("Loaded", "resources", len(resources))
+
 	return resources, nil
 }
 
 func LoadDir(ctx context.Context, dir string) (Resources, error) {
-	ctx, logger := log.WithGroupAttrs(ctx, "🗃️ Loading resources from directory", "dir", dir)
+	ctx, logger := log.WithGroupAttrs(ctx, "🗃️ Loading resources from directory", "path", dir)
 
 	resources := Resources{}
 
@@ -116,6 +119,7 @@ func LoadDir(ctx context.Context, dir string) (Resources, error) {
 		resources = append(resources, fileResources...)
 	}
 
+	logger.Debug("Validating")
 	if err := resources.Validate(); err != nil {
 		return resources, err
 	}
@@ -125,6 +129,8 @@ func LoadDir(ctx context.Context, dir string) (Resources, error) {
 
 // Load Resources from path, which can be either a file or a directory.
 func LoadPath(ctx context.Context, path string) (Resources, error) {
+	ctx, _ = log.WithGroupAttrs(ctx, "📂 Loading resources", "path", path)
+
 	var resources Resources
 
 	fileInfo, err := os.Stat(path)

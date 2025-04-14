@@ -30,7 +30,7 @@ var PlanCmd = &cobra.Command{
 		defer host.Close(ctx)
 		logger.Info("🖥️ Target", "host", host)
 
-		store := GetStore(host)
+		store, _ := GetStore(host)
 
 		// Load Target Resources
 		var targetResources resourcesPkg.Resources

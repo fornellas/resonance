@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"log/slog"
+
 	"github.com/spf13/cobra"
 
 	blueprintPkg "github.com/fornellas/resonance/blueprint"
@@ -19,9 +22,8 @@ var ApplyCmd = &cobra.Command{
 
 		ctx := cmd.Context()
 
-		logger := log.MustLogger(ctx)
-
-		logger.Info("✏️ Applying", "path", path)
+		var logger *slog.Logger
+		ctx, logger = log.WithGroupAttrs(ctx, "✏️ Apply", "path", path)
 
 		host, err := GetHost(ctx)
 		if err != nil {
@@ -29,14 +31,13 @@ var ApplyCmd = &cobra.Command{
 			Exit(1)
 		}
 		defer host.Close(ctx)
-		logger.Info("🖥️ Target", "host", host)
 
-		store := GetStore(host)
+		store, storeConfig := GetStore(host)
+		ctx, logger = log.WithAttrs(ctx, "store", fmt.Sprintf("%s %s", storeValue.String(), storeConfig))
 
 		var targetResources resourcesPkg.Resources
 		{
 			var err error
-			ctx, _ := log.WithGroup(ctx, "📂 Loading target resources")
 			targetResources, err = resourcesPkg.LoadPath(ctx, path)
 			if err != nil {
 				logger.Error(err.Error())
