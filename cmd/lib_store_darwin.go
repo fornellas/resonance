@@ -1,9 +1,13 @@
 package main
 
 import (
+	"github.com/spf13/cobra"
+
 	storePkg "github.com/fornellas/resonance/store"
 )
 
-func getLocalStore() storePkg.Store {
+func addStoreFlagsArch(cmd *cobra.Command) {}
+
+func getStoreArch(storeType string) storePkg.Store {
 	return nil
 }

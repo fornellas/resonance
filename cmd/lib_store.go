@@ -11,8 +11,7 @@ import (
 )
 
 var storeNameMap = map[string]bool{
-	"target":    true,
-	"localhost": true,
+	"target": true,
 }
 
 type StoreValue struct {
@@ -54,9 +53,6 @@ var storeValue = NewStoreValue()
 var storeTargetPath string
 var defaultStoreTargetPath = "/var/lib/resonance"
 
-var storeLocalhostPath string
-var defaultStoreLocalhostPath = "state/"
-
 func AddStoreFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().VarP(storeValue, "store", "", "Where to store state information")
 
@@ -65,20 +61,16 @@ func AddStoreFlags(cmd *cobra.Command) {
 		"Path on target host where to store state",
 	)
 
-	cmd.Flags().StringVarP(
-		&storeLocalhostPath, "store-localhost-path", "", defaultStoreLocalhostPath,
-		"Path on localhost where to store state",
-	)
+	addStoreFlagsArch(cmd)
 }
 
 func GetStore(hst types.Host) storePkg.Store {
-	switch storeValue.String() {
-	case "localhost":
-		store := getLocalStore()
-		if store == nil {
-			panic("bug: getLocalStore() == nil")
-		}
+	store := getStoreArch(storeValue.String())
+	if store != nil {
 		return store
+	}
+
+	switch storeValue.String() {
 	case "target":
 		return storePkg.NewHostStore(hst, storeTargetPath)
 	default:
@@ -90,6 +82,5 @@ func init() {
 	resetFlagsFns = append(resetFlagsFns, func() {
 		storeValue.Reset()
 		storeTargetPath = defaultStoreTargetPath
-		storeLocalhostPath = defaultStoreLocalhostPath
 	})
 }
