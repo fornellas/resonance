@@ -17,7 +17,7 @@ import (
 )
 
 func LoadFile(ctx context.Context, path string) (Resources, error) {
-	ctx, logger := log.WithGroupAttrs(ctx, "📄 Loading resources from file", "path", path)
+	_, logger := log.WithGroupAttrs(ctx, "📄 Loading resources from file", "path", path)
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load resource file: %w", err)
