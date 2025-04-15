@@ -87,7 +87,7 @@ func LoadFile(ctx context.Context, path string) (Resources, error) {
 }
 
 func LoadDir(ctx context.Context, dir string) (Resources, error) {
-	ctx, logger := log.WithGroupAttrs(ctx, "🗃️ Loading resources from directory", "path", dir)
+	ctx, logger := log.WithGroupAttrs(ctx, "📂 Loading resources recursively", "path", dir)
 
 	resources := Resources{}
 
@@ -129,8 +129,6 @@ func LoadDir(ctx context.Context, dir string) (Resources, error) {
 
 // Load Resources from path, which can be either a file or a directory.
 func LoadPath(ctx context.Context, path string) (Resources, error) {
-	ctx, _ = log.WithGroupAttrs(ctx, "📂 Loading resources", "path", path)
-
 	var resources Resources
 
 	fileInfo, err := os.Stat(path)
