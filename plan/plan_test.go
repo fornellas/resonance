@@ -273,7 +273,7 @@ File:🔄/bar
 
 			originalResourceMap := resourcesPkg.NewResourceMap(tc.originalResources)
 
-			plan, err := NewPlan(
+			plan, err := compilePlan(
 				ctx,
 				targetBlueprint, lastBlueprint,
 				func(ctx context.Context, resource resourcesPkg.Resource) (resourcesPkg.Resource, error) {

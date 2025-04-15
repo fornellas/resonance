@@ -51,7 +51,7 @@ var PlanCmd = &cobra.Command{
 		var plan planPkg.Plan
 		{
 			ctx, logger := log.WithGroup(ctx, "📝 Planning")
-			plan, _, _, err = planPkg.PrepAndPlan(ctx, host, store, targetResources)
+			plan, _, _, err = planPkg.CraftPlan(ctx, host, store, targetResources)
 			if err != nil {
 				logger.Error(err.Error())
 				Exit(1)

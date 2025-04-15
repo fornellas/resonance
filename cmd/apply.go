@@ -54,7 +54,7 @@ var ApplyCmd = &cobra.Command{
 		var lastBlueprint *blueprintPkg.Blueprint
 		{
 			ctx, logger := log.WithGroup(ctx, "📝 Planning")
-			plan, targetBlueprint, lastBlueprint, err = planPkg.PrepAndPlan(ctx, host, store, targetResources)
+			plan, targetBlueprint, lastBlueprint, err = planPkg.CraftPlan(ctx, host, store, targetResources)
 			if err != nil {
 				logger.Error(err.Error())
 				Exit(1)
