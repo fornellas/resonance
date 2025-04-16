@@ -23,16 +23,16 @@ func getHostArch(context.Context) (types.BaseHost, types.Host) {
 	return nil, nil
 }
 
-func addTargetFlagsArch(cmd *cobra.Command) []string {
-	targetFlagNames := []string{}
+func addHostFlagsArch(cmd *cobra.Command) []string {
+	hostFlagNames := []string{}
 
 	cmd.Flags().BoolVarP(
-		&localhost, "target-localhost", "1", defaultLocalhost,
+		&localhost, "host-local", "1", defaultLocalhost,
 		"Applies configuration to the same machine running the command",
 	)
-	targetFlagNames = append(targetFlagNames, "target-localhost")
+	hostFlagNames = append(hostFlagNames, "host-local")
 
-	return targetFlagNames
+	return hostFlagNames
 }
 
 func init() {

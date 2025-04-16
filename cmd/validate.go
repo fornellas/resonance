@@ -27,7 +27,7 @@ var ValidateCmd = &cobra.Command{
 		}
 		defer hst.Close(ctx)
 
-		logger.Info("🔍 Validating", "path", path, "target", hst)
+		logger.Info("🔍 Validating", "path", path, "host", hst)
 
 		resources, err := resourcesPkg.LoadPath(ctx, path)
 		if err != nil {
@@ -55,7 +55,7 @@ var ValidateCmd = &cobra.Command{
 }
 
 func init() {
-	AddTargetFlags(ValidateCmd)
+	AddHostFlags(ValidateCmd)
 
 	RootCmd.AddCommand(ValidateCmd)
 }

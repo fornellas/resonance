@@ -11,7 +11,7 @@ import (
 )
 
 var storeNameMap = map[string]bool{
-	"target": true,
+	"remote": true,
 }
 
 type StoreValue struct {
@@ -37,7 +37,7 @@ func (s *StoreValue) Set(value string) error {
 }
 
 func (s *StoreValue) Reset() {
-	s.name = "target"
+	s.name = "remote"
 }
 
 func (s *StoreValue) Type() string {
@@ -50,15 +50,15 @@ func (s *StoreValue) Type() string {
 
 var storeValue = NewStoreValue()
 
-var storeTargetPath string
-var defaultStoreTargetPath = "/var/lib/resonance"
+var storeHostPath string
+var defaultStoreHostPath = "/var/lib/resonance"
 
 func AddStoreFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().VarP(storeValue, "store", "", "Where to store state information")
 
 	cmd.Flags().StringVarP(
-		&storeTargetPath, "store-target-path", "", defaultStoreTargetPath,
-		"Path on target host where to store state",
+		&storeHostPath, "store-remote-path", "", defaultStoreHostPath,
+		"Path on remote host where to store state",
 	)
 
 	addStoreFlagsArch(cmd)
@@ -71,10 +71,10 @@ func GetStore(hst types.Host) (storePkg.Store, string) {
 	}
 
 	switch storeValue.String() {
-	case "target":
+	case "remote":
 		return storePkg.NewLoggingStore(
-			storePkg.NewHostStore(hst, storeTargetPath),
-		), storeTargetPath
+			storePkg.NewHostStore(hst, storeHostPath),
+		), storeHostPath
 	default:
 		panic("bug: unexpected store value")
 	}
@@ -83,6 +83,6 @@ func GetStore(hst types.Host) (storePkg.Store, string) {
 func init() {
 	resetFlagsFns = append(resetFlagsFns, func() {
 		storeValue.Reset()
-		storeTargetPath = defaultStoreTargetPath
+		storeHostPath = defaultStoreHostPath
 	})
 }

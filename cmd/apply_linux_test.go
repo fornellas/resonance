@@ -42,9 +42,9 @@ func TestApply(t *testing.T) {
 			Args: []string{
 				"apply",
 				"--log-level=debug",
-				"--target-localhost",
-				"--store", "localhost",
-				"--store-localhost-path", storeDir,
+				"--host-local",
+				"--store", "local",
+				"--store-local-path", storeDir,
 				resourcesDir,
 			},
 			ExpectStderrContains: []string{fmt.Sprintf(`⚙️ Applying
@@ -66,9 +66,9 @@ func TestApply(t *testing.T) {
 		(&TestCmd{
 			Args: []string{
 				"apply",
-				"--target-localhost",
-				"--store", "localhost",
-				"--store-localhost-path", storeDir,
+				"--host-local",
+				"--store", "local",
+				"--store-local-path", storeDir,
 				resourcesDir,
 			},
 			ExpectStderrContains: []string{fmt.Sprintf(`⚙️ Applying

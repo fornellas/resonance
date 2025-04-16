@@ -39,9 +39,9 @@ func TestPlan(t *testing.T) {
 		cmd := TestCmd{
 			Args: []string{
 				"plan",
-				"--target-localhost",
-				"--store", "localhost",
-				"--store-localhost-path", storeDir,
+				"--host-local",
+				"--store", "local",
+				"--store-local-path", storeDir,
 				resourcesDir,
 			},
 			ExpectStderrContains: []string{fmt.Sprintf(
@@ -92,9 +92,9 @@ func TestPlan(t *testing.T) {
 		cmd := TestCmd{
 			Args: []string{
 				"plan",
-				"--target-localhost",
-				"--store", "localhost",
-				"--store-localhost-path", storeDir,
+				"--host-local",
+				"--store", "local",
+				"--store-local-path", storeDir,
 				resourcesDir,
 			},
 			ExpectStderrContains: []string{fmt.Sprintf(
