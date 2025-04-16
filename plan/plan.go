@@ -106,7 +106,7 @@ func createTargetBlueprint(
 	host types.Host,
 	targetResources resourcesPkg.Resources,
 ) (*blueprintPkg.Blueprint, error) {
-	ctx, _ = log.WithGroup(ctx, "🎯 Crafting target Blueprint")
+	ctx, _ = log.WithGroup(ctx, "🎯 Target Blueprint")
 
 	var targetBlueprint *blueprintPkg.Blueprint
 	{
@@ -115,20 +115,17 @@ func createTargetBlueprint(
 		if err != nil {
 			return nil, err
 		}
-		{
-			ctx, _ := log.WithGroup(ctx, "⚙️ Resolving target Blueprint")
-			if err := targetBlueprint.Resolve(ctx, host); err != nil {
-				return nil, err
-			}
+		if err := targetBlueprint.Resolve(ctx, host); err != nil {
+			return nil, err
 		}
 		{
-			_, logger := log.WithGroup(ctx, "🧩 Crafted target Blueprint")
+			_, logger := log.WithGroup(ctx, "🧩 Steps")
 			for _, step := range targetBlueprint.Steps {
 				resources := step.Resources()
 				if len(resources) == 1 {
-					logger.Info(resourcesPkg.GetResourceTypeName(resources[0]), "yaml", resourcesPkg.GetResourceYaml(resources[0]))
+					logger.Debug(resourcesPkg.GetResourceTypeName(resources[0]), "yaml", resourcesPkg.GetResourceYaml(resources[0]))
 				} else {
-					logger.Info(resourcesPkg.GetResourceTypeName(resources[0]), "yaml", resourcesPkg.GetResourcesYaml(resources))
+					logger.Debug(resourcesPkg.GetResourceTypeName(resources[0]), "yaml", resourcesPkg.GetResourcesYaml(resources))
 				}
 			}
 		}
@@ -146,7 +143,7 @@ func saveOriginalResourcesState(
 	store storePkg.Store,
 	targetBlueprint *blueprintPkg.Blueprint,
 ) error {
-	ctx, logger := log.WithGroup(ctx, "🌱 Storing original resource states")
+	ctx, logger := log.WithGroup(ctx, "🌱 Saving original state")
 	for _, step := range targetBlueprint.Steps {
 		noOriginalResources := resourcesPkg.Resources{}
 		for _, resource := range step.Resources() {
@@ -266,6 +263,7 @@ func CraftPlan(
 	store storePkg.Store,
 	targetResources resourcesPkg.Resources,
 ) (Plan, *blueprintPkg.Blueprint, *blueprintPkg.Blueprint, error) {
+	ctx, _ = log.WithGroup(ctx, "📐 Crafting Plan")
 	targetBlueprint, err := createTargetBlueprint(ctx, host, targetResources)
 	if err != nil {
 		return nil, nil, nil, err

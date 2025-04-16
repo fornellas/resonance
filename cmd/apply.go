@@ -43,9 +43,9 @@ var ApplyCmd = &cobra.Command{
 				logger.Error(err.Error())
 				Exit(1)
 			}
-			_, logger := log.WithGroup(ctx, "📚 All loaded resources")
+			_, logger := log.WithGroup(ctx, "📚 Loaded resources")
 			for _, resource := range targetResources {
-				logger.Info(resourcesPkg.GetResourceTypeName(resource), "yaml", resourcesPkg.GetResourceYaml(resource))
+				logger.Debug(resourcesPkg.GetResourceTypeName(resource), "yaml", resourcesPkg.GetResourceYaml(resource))
 			}
 		}
 
@@ -53,7 +53,6 @@ var ApplyCmd = &cobra.Command{
 		var targetBlueprint *blueprintPkg.Blueprint
 		var lastBlueprint *blueprintPkg.Blueprint
 		{
-			ctx, logger := log.WithGroup(ctx, "📝 Planning")
 			plan, targetBlueprint, lastBlueprint, err = planPkg.CraftPlan(ctx, host, store, targetResources)
 			if err != nil {
 				logger.Error(err.Error())
