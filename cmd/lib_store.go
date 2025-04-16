@@ -67,12 +67,14 @@ func AddStoreFlags(cmd *cobra.Command) {
 func GetStore(hst types.Host) (storePkg.Store, string) {
 	store, config := getStoreArch(storeValue.String())
 	if store != nil {
-		return store, config
+		return storePkg.NewLoggingStore(store), config
 	}
 
 	switch storeValue.String() {
 	case "target":
-		return storePkg.NewHostStore(hst, storeTargetPath), storeTargetPath
+		return storePkg.NewLoggingStore(
+			storePkg.NewHostStore(hst, storeTargetPath),
+		), storeTargetPath
 	default:
 		panic("bug: unexpected store value")
 	}
