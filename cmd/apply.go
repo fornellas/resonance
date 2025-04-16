@@ -111,7 +111,7 @@ var ApplyCmd = &cobra.Command{
 }
 
 func init() {
-	AddTargetFlags(ApplyCmd)
+	AddHostFlags(ApplyCmd)
 
 	AddStoreFlags(ApplyCmd)
 

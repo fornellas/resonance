@@ -12,20 +12,20 @@ var defaultStoreLocalhostPath = "state/"
 
 func addStoreFlagsArch(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(
-		&storeLocalhostPath, "store-localhost-path", "", defaultStoreLocalhostPath,
+		&storeLocalhostPath, "store-local-path", "", defaultStoreLocalhostPath,
 		"Path on localhost where to store state",
 	)
 }
 
 func getStoreArch(storeType string) (storePkg.Store, string) {
-	if storeType == "localhost" {
+	if storeType == "local" {
 		return storePkg.NewHostStore(host.Local{}, storeLocalhostPath), storeLocalhostPath
 	}
 	return nil, ""
 }
 
 func init() {
-	storeNameMap["localhost"] = true
+	storeNameMap["local"] = true
 	resetFlagsFns = append(resetFlagsFns, func() {
 		storeLocalhostPath = defaultStoreLocalhostPath
 	})

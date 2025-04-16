@@ -74,7 +74,7 @@ var PlanCmd = &cobra.Command{
 }
 
 func init() {
-	AddTargetFlags(PlanCmd)
+	AddHostFlags(PlanCmd)
 
 	AddStoreFlags(PlanCmd)
 
