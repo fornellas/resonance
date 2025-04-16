@@ -399,9 +399,6 @@ func NewSshAuthority(ctx context.Context, authority string, sshClientConfig SshC
 }
 
 func (h Ssh) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
-	logger := log.MustLogger(ctx)
-	logger.Debug("Run", "cmd", cmd)
-
 	session, err := h.client.NewSession()
 	if err != nil {
 		return types.WaitStatus{}, fmt.Errorf("failed to create session: %w", err)

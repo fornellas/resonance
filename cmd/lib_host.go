@@ -98,6 +98,7 @@ func GetHost(ctx context.Context) (types.Host, error) {
 	baseHost, host := getHostArch(ctx)
 
 	if host != nil {
+		host = hostPkg.NewLoggingHost(host)
 		return host, nil
 	} else if baseHost == nil {
 		if ssh != "" {
@@ -130,12 +131,14 @@ func GetHost(ctx context.Context) (types.Host, error) {
 		}
 	}
 
-	hst, err := hostPkg.NewAgentClientWrapper(ctx, baseHost)
+	host, err = hostPkg.NewAgentClientWrapper(ctx, baseHost)
 	if err != nil {
 		return nil, err
 	}
 
-	return hst, nil
+	host = hostPkg.NewLoggingHost(host)
+
+	return host, nil
 }
 
 func init() {
