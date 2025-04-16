@@ -41,6 +41,7 @@ func TestApply(t *testing.T) {
 		(&TestCmd{
 			Args: []string{
 				"apply",
+				"--log-level=debug",
 				"--target-localhost",
 				"--store", "localhost",
 				"--store-localhost-path", storeDir,
