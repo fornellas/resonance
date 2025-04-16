@@ -7,6 +7,7 @@ import (
 
 	"github.com/fornellas/resonance/diff"
 	"github.com/fornellas/resonance/host/types"
+	"github.com/fornellas/resonance/log"
 	resourcesPkg "github.com/fornellas/resonance/resources"
 )
 
@@ -49,6 +50,7 @@ func (b *Blueprint) String() string {
 
 // Resolve the state with information that may be required from the host for all Resources.
 func (b *Blueprint) Resolve(ctx context.Context, hst types.Host) error {
+	ctx, _ = log.WithGroup(ctx, "⚙️ Resolving")
 	for _, step := range b.Steps {
 		if err := step.Resolve(ctx, hst); err != nil {
 			return err
