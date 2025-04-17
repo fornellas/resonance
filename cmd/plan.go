@@ -30,19 +30,19 @@ var PlanCmd = &cobra.Command{
 		defer host.Close(ctx)
 		logger.Info("🖥️ Target", "host", host)
 
-		store := GetStore(host)
+		store, _ := GetStore(host)
 
 		// Load Target Resources
 		var targetResources resourcesPkg.Resources
 		{
 			var err error
-			ctx, _ := log.MustContextLoggerWithSection(ctx, "📂 Loading target resources")
+			ctx, _ := log.WithGroup(ctx, "📂 Loading target resources")
 			targetResources, err = resourcesPkg.LoadPath(ctx, path)
 			if err != nil {
 				logger.Error(err.Error())
 				Exit(1)
 			}
-			_, logger := log.MustContextLoggerWithSection(ctx, "📚 All loaded resources")
+			_, logger := log.WithGroup(ctx, "📚 All loaded resources")
 			for _, resource := range targetResources {
 				logger.Info(resourcesPkg.GetResourceTypeName(resource), "yaml", resourcesPkg.GetResourceYaml(resource))
 			}
@@ -50,8 +50,8 @@ var PlanCmd = &cobra.Command{
 
 		var plan planPkg.Plan
 		{
-			ctx, logger := log.MustContextLoggerWithSection(ctx, "📝 Planning")
-			plan, _, _, err = planPkg.PrepAndPlan(ctx, host, store, targetResources)
+			ctx, logger := log.WithGroup(ctx, "📝 Planning")
+			plan, _, _, err = planPkg.CraftPlan(ctx, host, store, targetResources)
 			if err != nil {
 				logger.Error(err.Error())
 				Exit(1)
@@ -59,7 +59,7 @@ var PlanCmd = &cobra.Command{
 		}
 
 		{
-			_, logger := log.MustContextLoggerWithSection(ctx, "💡 Actions")
+			_, logger := log.WithGroup(ctx, "💡 Actions")
 			for _, action := range plan {
 				args := []any{}
 				diffStr := action.DiffString()
@@ -74,7 +74,7 @@ var PlanCmd = &cobra.Command{
 }
 
 func init() {
-	AddTargetFlags(PlanCmd)
+	AddHostFlags(PlanCmd)
 
 	AddStoreFlags(PlanCmd)
 

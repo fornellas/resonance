@@ -27,7 +27,7 @@ var ValidateCmd = &cobra.Command{
 		}
 		defer hst.Close(ctx)
 
-		logger.Info("🔍 Validating", "path", path, "target", hst)
+		logger.Info("🔍 Validating", "path", path, "host", hst)
 
 		resources, err := resourcesPkg.LoadPath(ctx, path)
 		if err != nil {
@@ -35,7 +35,7 @@ var ValidateCmd = &cobra.Command{
 			Exit(1)
 		}
 
-		blueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, resources)
+		blueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, "validate", resources)
 		if err != nil {
 			logger.Error(err.Error())
 			Exit(1)
@@ -55,7 +55,7 @@ var ValidateCmd = &cobra.Command{
 }
 
 func init() {
-	AddTargetFlags(ValidateCmd)
+	AddHostFlags(ValidateCmd)
 
 	RootCmd.AddCommand(ValidateCmd)
 }
