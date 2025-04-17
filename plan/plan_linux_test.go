@@ -83,7 +83,7 @@ func TestSaveOriginalResourcesState(t *testing.T) {
 		RegularFile: &fileContent,
 	}
 
-	targetBlueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, resouresPkg.Resources{
+	targetBlueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, "target-test", resouresPkg.Resources{
 		fileResource,
 	})
 	require.NoError(t, err)
@@ -128,7 +128,7 @@ func TestLoadOrCreateAndSaveLastBlueprintWithValidation(t *testing.T) {
 		RegularFile: &fileContent,
 	}
 
-	targetBlueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, resouresPkg.Resources{
+	targetBlueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, "target-test", resouresPkg.Resources{
 		fileResource,
 	})
 	require.NoError(t, err)
