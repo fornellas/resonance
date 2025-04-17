@@ -153,6 +153,8 @@ func (s *Step) Resolve(ctx context.Context, hst types.Host) error {
 
 // Load returns a copy of the Step, with all resource states loaded from given Host.
 func (s *Step) Load(ctx context.Context, hst types.Host) (*Step, error) {
+	ctx, logger := log.WithGroupAttrs(ctx, "🪜 Step", "resources", s.String())
+	logger.Debug("Loading")
 	ns := *s
 	if s.singleResource != nil {
 		resosurce := resourcesPkg.NewResourceWithSameId(s.singleResource)
