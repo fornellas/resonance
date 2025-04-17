@@ -132,7 +132,7 @@ func saveOriginalResourcesState(
 	store storePkg.Store,
 	targetBlueprint *blueprintPkg.Blueprint,
 ) error {
-	ctx, logger := log.WithGroup(ctx, "🌱 Saving original state")
+	ctx, _ = log.WithGroup(ctx, "🌱 Saving original state")
 	for _, step := range targetBlueprint.Steps {
 		noOriginalResources := resourcesPkg.Resources{}
 		for _, resource := range step.Resources() {
@@ -167,14 +167,7 @@ func saveOriginalResourcesState(
 			return err
 		}
 
-		originalResources := originalStep.Resources()
-		if len(originalResources) == 1 {
-			logger.Info(resourcesPkg.GetResourceTypeName(originalResources[0]), "yaml", resourcesPkg.GetResourceYaml(originalResources[0]))
-		} else {
-			logger.Info(resourcesPkg.GetResourceTypeName(originalResources[0]), "yaml", resourcesPkg.GetResourcesYaml(originalResources))
-		}
-
-		for _, originalResource := range originalResources {
+		for _, originalResource := range originalStep.Resources() {
 			if err := store.SaveOriginalResource(ctx, originalResource); err != nil {
 				return err
 			}
@@ -285,7 +278,7 @@ func CraftPlan(
 
 // Apply commits all required changes for plan to given Host.
 func (p Plan) Apply(ctx context.Context, host types.Host) error {
-	ctx, _ = log.WithGroup(ctx, "⚙️ Applying")
+	ctx, _ = log.WithGroup(ctx, "⚙️ Apply")
 
 	for _, action := range p {
 		if err := action.Apply(ctx, host); err != nil {

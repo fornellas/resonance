@@ -153,13 +153,13 @@ func (a *Action) DetailedString() string {
 
 // Apply commits all required changes for action to given Host.
 func (a *Action) Apply(ctx context.Context, host types.Host) error {
-	ctx, logger := log.WithGroup(ctx, a.String())
+	ctx, logger := log.WithGroupAttrs(ctx, "🚀 Action", "resources", a.String())
 	diffStr := a.DiffString()
 	if len(diffStr) > 0 {
 		ctx, logger = log.WithAttrs(ctx, "diff", diffStr)
 		logger.Info("Applying changes")
 	} else {
-		logger.Info("Nothing to do")
+		logger.Debug("Nothing to do")
 	}
 
 	if len(a.ApplyResources) == 0 {
