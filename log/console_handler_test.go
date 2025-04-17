@@ -125,6 +125,28 @@ func TestConsoleHandler_Handle(t *testing.T) {
 			},
 		},
 		{
+			name: "with_similar_groups",
+			setupLogger: func(buf *bytes.Buffer) *slog.Logger {
+				h := NewConsoleHandler(buf, &ConsoleHandlerOptions{NoColor: true})
+				return slog.New(h)
+			},
+			logFunc: func(logger *slog.Logger) {
+				logger1 := logger.WithGroup("Same Group")
+				logger1.Info("first")
+				logger2 := logger.WithGroup("Same Group")
+				logger2.Info("second")
+			},
+			check: func(t *testing.T, output string) {
+				assert.Equal(
+					t,
+					"🏷️ Same Group\n"+
+						"  INFO first\n"+
+						"  INFO second\n",
+					output,
+				)
+			},
+		},
+		{
 			// Test for the case where we switch between handlers with different groups
 			// This tests the code path marked with "FIXME add test" in writeHandlerGroupAttrs
 			name: "different_groups",
