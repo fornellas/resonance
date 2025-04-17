@@ -47,9 +47,10 @@ func (l LogLevelValue) Level() slog.Level {
 }
 
 type LogHandlerValueOptions struct {
-	Level       slog.Level
-	AddSource   bool
-	ConsoleTime bool
+	Level             slog.Level
+	AddSource         bool
+	ConsoleTime       bool
+	ConsoleForceColor bool
 }
 
 var logHandlerNameFnMap = map[string]func(io.Writer, LogHandlerValueOptions) slog.Handler{
@@ -64,6 +65,7 @@ var logHandlerNameFnMap = map[string]func(io.Writer, LogHandlerValueOptions) slo
 				AddSource: options.AddSource,
 			},
 			TimeLayout: timeLayout,
+			ForceColor: options.ConsoleForceColor,
 		})
 	},
 	"json": func(writer io.Writer, options LogHandlerValueOptions) slog.Handler {
