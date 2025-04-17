@@ -13,19 +13,21 @@ import (
 
 // Blueprint holds a full desired state for a host.
 type Blueprint struct {
+	Name        string
 	Steps       Steps
 	resourceMap resourcesPkg.ResourceMap
 }
 
 // NewBlueprintFromResources creates a new Blueprint from given Resources, merging GroupResource
 // of the same type in the same step, while respecting the declared order.
-func NewBlueprintFromResources(ctx context.Context, resources resourcesPkg.Resources) (*Blueprint, error) {
+func NewBlueprintFromResources(ctx context.Context, name string, resources resourcesPkg.Resources) (*Blueprint, error) {
 	steps, err := NewSteps(resources)
 	if err != nil {
 		return nil, err
 	}
 
 	blueprint := &Blueprint{
+		Name:  name,
 		Steps: steps,
 	}
 
@@ -50,7 +52,7 @@ func (b *Blueprint) String() string {
 
 // Resolve the state with information that may be required from the host for all Resources.
 func (b *Blueprint) Resolve(ctx context.Context, hst types.Host) error {
-	ctx, _ = log.WithGroup(ctx, "⚙️ Resolving")
+	ctx, _ = log.WithGroupAttrs(ctx, "📄 Blueprint", "name", b.Name)
 	for _, step := range b.Steps {
 		if err := step.Resolve(ctx, hst); err != nil {
 			return err
@@ -61,7 +63,9 @@ func (b *Blueprint) Resolve(ctx context.Context, hst types.Host) error {
 
 // Load returns a copy of the Blueprint, with all resource states loaded from given Host.
 func (b *Blueprint) Load(ctx context.Context, hst types.Host) (*Blueprint, error) {
+	ctx, _ = log.WithGroupAttrs(ctx, "📄 Blueprint", "name", b.Name)
 	newBlueprint := &Blueprint{
+		Name:  b.Name,
 		Steps: make(Steps, len(b.Steps)),
 	}
 	for i, step := range b.Steps {

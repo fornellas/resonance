@@ -86,7 +86,7 @@ func compilePlan(
 	}
 
 	// Calculate plan actions
-	planBlueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, planResources)
+	planBlueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, "plan", planResources)
 	if err != nil {
 		return nil, err
 	}
@@ -111,23 +111,12 @@ func createTargetBlueprint(
 	var targetBlueprint *blueprintPkg.Blueprint
 	{
 		var err error
-		targetBlueprint, err = blueprintPkg.NewBlueprintFromResources(ctx, targetResources)
+		targetBlueprint, err = blueprintPkg.NewBlueprintFromResources(ctx, "target", targetResources)
 		if err != nil {
 			return nil, err
 		}
 		if err := targetBlueprint.Resolve(ctx, host); err != nil {
 			return nil, err
-		}
-		{
-			_, logger := log.WithGroup(ctx, "🧩 Steps")
-			for _, step := range targetBlueprint.Steps {
-				resources := step.Resources()
-				if len(resources) == 1 {
-					logger.Debug(resourcesPkg.GetResourceTypeName(resources[0]), "yaml", resourcesPkg.GetResourceYaml(resources[0]))
-				} else {
-					logger.Debug(resourcesPkg.GetResourceTypeName(resources[0]), "yaml", resourcesPkg.GetResourcesYaml(resources))
-				}
-			}
 		}
 	}
 

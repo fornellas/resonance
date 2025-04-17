@@ -27,7 +27,7 @@ func TestNewBlueprintFromResources(t *testing.T) {
 		Path: "/bar",
 	}
 
-	blueprint, err := NewBlueprintFromResources(ctx, resourcesPkg.Resources{
+	blueprint, err := NewBlueprintFromResources(ctx, "test", resourcesPkg.Resources{
 		aptFoo, fileFoo, aptBar, fileBar,
 	})
 	require.NoError(t, err)

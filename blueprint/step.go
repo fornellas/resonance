@@ -123,8 +123,8 @@ func (s *Step) appendRequiredByStep(step *Step) {
 
 // Resolve the state with information that may be required from the host for all Resources.
 func (s *Step) Resolve(ctx context.Context, hst types.Host) error {
-	ctx, logger := log.WithGroupAttrs(ctx, fmt.Sprintf("🔎 %s", s.String()))
-	logger.Debug("Resolving")
+	ctx, logger := log.WithGroupAttrs(ctx, "🪜 Step", "resources", s.String())
+	logger.Info("Resolving")
 
 	if s.singleResource != nil {
 		err := s.singleResource.Resolve(ctx, hst)
@@ -154,7 +154,7 @@ func (s *Step) Resolve(ctx context.Context, hst types.Host) error {
 // Load returns a copy of the Step, with all resource states loaded from given Host.
 func (s *Step) Load(ctx context.Context, hst types.Host) (*Step, error) {
 	ctx, logger := log.WithGroupAttrs(ctx, "🪜 Step", "resources", s.String())
-	logger.Debug("Loading")
+	logger.Info("Loading")
 	ns := *s
 	if s.singleResource != nil {
 		resosurce := resourcesPkg.NewResourceWithSameId(s.singleResource)
