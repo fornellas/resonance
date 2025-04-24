@@ -197,7 +197,7 @@ func (h *ConsoleHandler) WithGroup(name string) slog.Handler {
 func (h *ConsoleHandler) escape(s string) string {
 	rs := []rune{}
 	for _, r := range s {
-		if strconv.IsPrint(r) {
+		if r == '\t' || strconv.IsPrint(r) {
 			rs = append(rs, r)
 		} else {
 			e := strconv.QuoteRune(r)

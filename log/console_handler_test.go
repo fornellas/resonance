@@ -272,7 +272,7 @@ func TestConsoleHandler_Handle(t *testing.T) {
 				return slog.New(h)
 			},
 			logFunc: func(logger *slog.Logger) {
-				logger.Error("error occurred", "stack", "line1\nline2\nline3")
+				logger.Error("error occurred", "stack", "line1\nline2\nline3\t tab")
 			},
 			check: func(t *testing.T, output string) {
 				assert.Equal(
@@ -281,7 +281,7 @@ func TestConsoleHandler_Handle(t *testing.T) {
 						"  stack:\n"+
 						"    line1\n"+
 						"    line2\n"+
-						"    line3\n",
+						"    line3\t tab\n",
 					output,
 				)
 			},
