@@ -17,7 +17,7 @@ import (
 )
 
 func loadFile(ctx context.Context, path string) (Resources, error) {
-	_, logger := log.WithGroupAttrs(ctx, "📄 Resources File", "path", path)
+	_, logger := log.MustWithGroupAttrs(ctx, "📄 Resources File", "path", path)
 	logger.Info("Loading")
 	f, err := os.Open(path)
 	if err != nil {
@@ -86,7 +86,7 @@ func loadFile(ctx context.Context, path string) (Resources, error) {
 }
 
 func LoadDir(ctx context.Context, dir string) (Resources, error) {
-	ctx, logger := log.WithGroupAttrs(ctx, "📂 Resources load", "path", dir)
+	ctx, logger := log.MustWithGroupAttrs(ctx, "📂 Resources load", "path", dir)
 
 	resources := Resources{}
 

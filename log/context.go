@@ -47,8 +47,8 @@ func MustLogger(ctx context.Context) *slog.Logger {
 
 // Returns a copy of the given context with a logger that has a group added to it.
 // The logger is retrieved from the context with [MustLogger] and a group is added to it with
-// [slog.Logger.WithGroup], then the new logger is stored in the returned context.
-func WithGroup(ctx context.Context, name string) (context.Context, *slog.Logger) {
+// [slog.Logger.MustWithGroup], then the new logger is stored in the returned context.
+func MustWithGroup(ctx context.Context, name string) (context.Context, *slog.Logger) {
 	logger := MustLogger(ctx).WithGroup(name)
 	return WithLogger(ctx, logger), logger
 }
@@ -56,7 +56,7 @@ func WithGroup(ctx context.Context, name string) (context.Context, *slog.Logger)
 // Returns a copy of the given context with a logger that has attributes added to it.
 // The logger is retrieved from the context with [MustLogger] and attributes are added to it with
 // [slog.Logger.With], then the new logger is stored in the returned context.
-func WithAttrs(ctx context.Context, args ...any) (context.Context, *slog.Logger) {
+func MustWithAttrs(ctx context.Context, args ...any) (context.Context, *slog.Logger) {
 	logger := MustLogger(ctx).With(args...)
 	return WithLogger(ctx, logger), logger
 }
@@ -65,7 +65,7 @@ func WithAttrs(ctx context.Context, args ...any) (context.Context, *slog.Logger)
 // The logger is retrieved from the context with [MustLogger], a group is added to it with
 // [slog.Logger.WithGroup], and attributes are added with [slog.Logger.With],
 // then the new logger is stored in the returned context.
-func WithGroupAttrs(ctx context.Context, name string, args ...any) (context.Context, *slog.Logger) {
+func MustWithGroupAttrs(ctx context.Context, name string, args ...any) (context.Context, *slog.Logger) {
 	logger := MustLogger(ctx).WithGroup(name).With(args...)
 	return WithLogger(ctx, logger), logger
 }

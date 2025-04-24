@@ -273,7 +273,7 @@ func sshKeyboardInteractiveChallenge(
 }
 
 func NewSsh(ctx context.Context, options SshOptions) (Ssh, error) {
-	ctx, _ = log.WithGroupAttrs(
+	ctx, _ = log.MustWithGroupAttrs(
 		ctx,
 		"🖧 SSH",
 		"user", options.User,

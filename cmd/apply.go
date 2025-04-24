@@ -23,7 +23,7 @@ var ApplyCmd = &cobra.Command{
 		ctx := cmd.Context()
 
 		var logger *slog.Logger
-		ctx, logger = log.WithGroupAttrs(ctx, "✏️ Apply", "path", path)
+		ctx, logger = log.MustWithGroupAttrs(ctx, "✏️ Apply", "path", path)
 
 		host, err := GetHost(ctx)
 		if err != nil {
@@ -35,10 +35,10 @@ var ApplyCmd = &cobra.Command{
 				logger.Error("failed to close host", "error", err)
 			}
 		}()
-		ctx, _ = log.WithAttrs(ctx, "host", fmt.Sprintf("%s => %s", host.Type(), host.String()))
+		ctx, _ = log.MustWithAttrs(ctx, "host", fmt.Sprintf("%s => %s", host.Type(), host.String()))
 
 		store, storeConfig := GetStore(host)
-		ctx, logger = log.WithAttrs(ctx, "store", fmt.Sprintf("%s %s", storeValue.String(), storeConfig))
+		ctx, logger = log.MustWithAttrs(ctx, "store", fmt.Sprintf("%s %s", storeValue.String(), storeConfig))
 
 		var targetResources resourcesPkg.Resources
 		{
@@ -48,7 +48,7 @@ var ApplyCmd = &cobra.Command{
 				logger.Error(err.Error())
 				Exit(1)
 			}
-			_, logger := log.WithGroup(ctx, "📚 Target resources")
+			_, logger := log.MustWithGroup(ctx, "📚 Target resources")
 			for _, resource := range targetResources {
 				logger.Debug(resourcesPkg.GetResourceTypeName(resource), "yaml", resourcesPkg.GetResourceYaml(resource))
 			}
@@ -64,7 +64,7 @@ var ApplyCmd = &cobra.Command{
 				Exit(1)
 			}
 			{
-				ctx, _ := log.WithGroup(ctx, "💾 Saving target Blueprint")
+				ctx, _ := log.MustWithGroup(ctx, "💾 Saving target Blueprint")
 				hasTargetBlueprint, err := store.HasTargetBlueprint(ctx)
 				if err != nil {
 					logger.Error(err.Error())
@@ -88,7 +88,7 @@ var ApplyCmd = &cobra.Command{
 		}
 
 		{
-			ctx, logger := log.WithGroup(ctx, "🧹 State cleanup")
+			ctx, logger := log.MustWithGroup(ctx, "🧹 State cleanup")
 
 			targetResourcesMap := resourcesPkg.NewResourceMap(targetResources)
 			for _, lastResource := range lastBlueprint.Resources() {

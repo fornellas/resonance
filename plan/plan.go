@@ -106,7 +106,7 @@ func createTargetBlueprint(
 	host types.Host,
 	targetResources resourcesPkg.Resources,
 ) (*blueprintPkg.Blueprint, error) {
-	ctx, _ = log.WithGroup(ctx, "🎯 Target Blueprint")
+	ctx, _ = log.MustWithGroup(ctx, "🎯 Target Blueprint")
 
 	var targetBlueprint *blueprintPkg.Blueprint
 	{
@@ -132,7 +132,7 @@ func saveOriginalResourcesState(
 	store storePkg.Store,
 	targetBlueprint *blueprintPkg.Blueprint,
 ) error {
-	ctx, _ = log.WithGroup(ctx, "🌱 Saving original state")
+	ctx, _ = log.MustWithGroup(ctx, "🌱 Saving original state")
 	for _, step := range targetBlueprint.Steps {
 		noOriginalResources := resourcesPkg.Resources{}
 		for _, resource := range step.Resources() {
@@ -186,7 +186,7 @@ func loadOrCreateAndSaveLastBlueprintWithValidation(
 	store storePkg.Store,
 	targetBlueprint *blueprintPkg.Blueprint,
 ) (*blueprintPkg.Blueprint, error) {
-	ctx, logger := log.WithGroup(ctx, "↩️ Loading last Blueprint")
+	ctx, logger := log.MustWithGroup(ctx, "↩️ Loading last Blueprint")
 	lastBlueprint, err := store.LoadLastBlueprint(ctx)
 	if err != nil {
 		return nil, err
@@ -200,7 +200,7 @@ func loadOrCreateAndSaveLastBlueprintWithValidation(
 		}
 
 		{
-			_, logger := log.WithGroup(ctx, "🧩 Loaded Blueprint")
+			_, logger := log.MustWithGroup(ctx, "🧩 Loaded Blueprint")
 			for _, step := range lastBlueprint.Steps {
 				resources := step.Resources()
 				if len(resources) == 1 {
@@ -245,7 +245,7 @@ func CraftPlan(
 	store storePkg.Store,
 	targetResources resourcesPkg.Resources,
 ) (Plan, *blueprintPkg.Blueprint, *blueprintPkg.Blueprint, error) {
-	ctx, _ = log.WithGroup(ctx, "📐 Crafting Plan")
+	ctx, _ = log.MustWithGroup(ctx, "📐 Crafting Plan")
 	targetBlueprint, err := createTargetBlueprint(ctx, host, targetResources)
 	if err != nil {
 		return nil, nil, nil, err
@@ -278,7 +278,7 @@ func CraftPlan(
 
 // Apply commits all required changes for plan to given Host.
 func (p Plan) Apply(ctx context.Context, host types.Host) error {
-	ctx, _ = log.WithGroup(ctx, "⚙️ Apply")
+	ctx, _ = log.MustWithGroup(ctx, "⚙️ Apply")
 
 	for _, action := range p {
 		if err := action.Apply(ctx, host); err != nil {

@@ -55,61 +55,61 @@ func NewLoggingStore(store Store) Store {
 }
 
 func (s *LoggingStore) SaveOriginalResource(ctx context.Context, resource resourcesPkg.Resource) error {
-	ctx, logger := log.WithGroupAttrs(ctx, "🗄️ Store")
+	ctx, logger := log.MustWithGroupAttrs(ctx, "🗄️ Store")
 	logger.Debug("SaveOriginalResource", "resource", resource)
 	return s.store.SaveOriginalResource(ctx, resource)
 }
 
 func (s *LoggingStore) HasOriginalResource(ctx context.Context, resource resourcesPkg.Resource) (bool, error) {
-	ctx, logger := log.WithGroupAttrs(ctx, "🗄️ Store")
+	ctx, logger := log.MustWithGroupAttrs(ctx, "🗄️ Store")
 	logger.Debug("HasOriginalResource", "resource", resource)
 	return s.store.HasOriginalResource(ctx, resource)
 }
 
 func (s *LoggingStore) LoadOriginalResource(ctx context.Context, resource resourcesPkg.Resource) (resourcesPkg.Resource, error) {
-	ctx, logger := log.WithGroupAttrs(ctx, "🗄️ Store")
+	ctx, logger := log.MustWithGroupAttrs(ctx, "🗄️ Store")
 	logger.Debug("LoadOriginalResource", "resource", resource)
 	return s.store.LoadOriginalResource(ctx, resource)
 }
 
 func (s *LoggingStore) DeleteOriginalResource(ctx context.Context, resource resourcesPkg.Resource) error {
-	ctx, logger := log.WithGroupAttrs(ctx, "🗄️ Store")
+	ctx, logger := log.MustWithGroupAttrs(ctx, "🗄️ Store")
 	logger.Debug("DeleteOriginalResource", "resource", resource)
 	return s.store.DeleteOriginalResource(ctx, resource)
 }
 
 func (s *LoggingStore) SaveLastBlueprint(ctx context.Context, blueprint *blueprintPkg.Blueprint) error {
-	ctx, logger := log.WithGroupAttrs(ctx, "🗄️ Store")
+	ctx, logger := log.MustWithGroupAttrs(ctx, "🗄️ Store")
 	logger.Debug("SaveLastBlueprint", "blueprint", blueprint)
 	return s.store.SaveLastBlueprint(ctx, blueprint)
 }
 
 func (s *LoggingStore) LoadLastBlueprint(ctx context.Context) (*blueprintPkg.Blueprint, error) {
-	ctx, logger := log.WithGroupAttrs(ctx, "🗄️ Store")
+	ctx, logger := log.MustWithGroupAttrs(ctx, "🗄️ Store")
 	logger.Debug("LoadLastBlueprint")
 	return s.store.LoadLastBlueprint(ctx)
 }
 
 func (s *LoggingStore) SaveTargetBlueprint(ctx context.Context, blueprint *blueprintPkg.Blueprint) error {
-	ctx, logger := log.WithGroupAttrs(ctx, "🗄️ Store")
+	ctx, logger := log.MustWithGroupAttrs(ctx, "🗄️ Store")
 	logger.Debug("SaveTargetBlueprint", "blueprint", blueprint)
 	return s.store.SaveTargetBlueprint(ctx, blueprint)
 }
 
 func (s *LoggingStore) HasTargetBlueprint(ctx context.Context) (bool, error) {
-	ctx, logger := log.WithGroupAttrs(ctx, "🗄️ Store")
+	ctx, logger := log.MustWithGroupAttrs(ctx, "🗄️ Store")
 	logger.Debug("HasTargetBlueprint")
 	return s.store.HasTargetBlueprint(ctx)
 }
 
 func (s *LoggingStore) LoadTargetBlueprint(ctx context.Context) (*blueprintPkg.Blueprint, error) {
-	ctx, logger := log.WithGroupAttrs(ctx, "🗄️ Store")
+	ctx, logger := log.MustWithGroupAttrs(ctx, "🗄️ Store")
 	logger.Debug("LoadTargetBlueprint")
 	return s.store.LoadTargetBlueprint(ctx)
 }
 
 func (s *LoggingStore) DeleteTargetBlueprint(ctx context.Context) error {
-	ctx, logger := log.WithGroupAttrs(ctx, "🗄️ Store")
+	ctx, logger := log.MustWithGroupAttrs(ctx, "🗄️ Store")
 	logger.Debug("DeleteTargetBlueprint")
 	return s.store.DeleteTargetBlueprint(ctx)
 }

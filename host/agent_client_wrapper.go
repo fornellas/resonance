@@ -270,7 +270,7 @@ func copyReader(ctx context.Context, baseHost types.BaseHost, reader io.Reader, 
 }
 
 func NewAgentClientWrapper(ctx context.Context, baseHost types.BaseHost) (*AgentClientWrapper, error) {
-	ctx, _ = log.WithGroup(ctx, "🐈 Agent")
+	ctx, _ = log.MustWithGroup(ctx, "🐈 Agent")
 
 	agentPath, err := getTmpFile(ctx, baseHost, "resonance_agent")
 	if err != nil {

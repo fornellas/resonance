@@ -123,7 +123,7 @@ type SudoWrapper struct {
 }
 
 func NewSudoWrapper(ctx context.Context, baseHost types.BaseHost) (*SudoWrapper, error) {
-	ctx, _ = log.WithGroup(ctx, "⚡ Sudo")
+	ctx, _ = log.MustWithGroup(ctx, "⚡ Sudo")
 
 	sudoWrapper := SudoWrapper{
 		BaseHost: baseHost,
