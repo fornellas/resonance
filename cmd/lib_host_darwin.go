@@ -12,7 +12,7 @@ func getHostArch(context.Context) (types.BaseHost, types.Host) {
 	return nil, nil
 }
 
-func addHostFlagsArch(cmd *cobra.Command) []string {
+func addHostFlagsArch(_ *cobra.Command) []string {
 	hostFlagNames := []string{}
 
 	return hostFlagNames

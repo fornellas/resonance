@@ -13,7 +13,7 @@ import (
 	resourcesPkg "github.com/fornellas/resonance/resources"
 )
 
-func getTestBlueprint(t *testing.T, ctx context.Context) *blueprintPkg.Blueprint {
+func getTestBlueprint(t *testing.T, _ context.Context) *blueprintPkg.Blueprint {
 	uid := uint32(123)
 	gid := uint32(456)
 	resources := resourcesPkg.Resources{

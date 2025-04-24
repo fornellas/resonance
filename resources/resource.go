@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"unicode"
@@ -39,7 +40,7 @@ var resourceAbsentFieldIndex = 1
 // omitempty flag set (except for the resonance:"id" tagged field).
 // This is important, as it enables leaner / clearer diffs between Resource objects.
 func validateResourceStructTagYaml(resourceType reflect.Type) {
-	for i := 0; i < resourceType.NumField(); i++ {
+	for i := range resourceType.NumField() {
 		structField := resourceType.FieldByIndex([]int{i})
 
 		if len(structField.Name) < 1 {
@@ -72,14 +73,7 @@ func validateResourceStructTagYaml(resourceType reflect.Type) {
 			))
 		}
 
-		hasOmitempty := false
-		for _, flag := range values[1:] {
-			if flag == "omitempty" {
-				hasOmitempty = true
-				break
-			}
-		}
-		if hasOmitempty {
+		if slices.Contains(values[1:], "omitempty") {
 			if resourceIdFieldIndex == i {
 				panic(fmt.Sprintf(
 					`bug: %s field %s is tagged with resonance:"id", it can not be tagged with yaml:"*,omitempty"; got: yaml"%s"`,

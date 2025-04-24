@@ -40,7 +40,8 @@ func (r *StdinSudo) Read(p []byte) (int, error) {
 		case <-r.Unlock:
 			r.unlocked = true
 		case password := <-r.SendPass:
-			passwordBytes := []byte(fmt.Sprintf("%s\n", password))
+			var passwordBytes []byte
+			passwordBytes = fmt.Appendf(passwordBytes, "%s\n", password)
 			if len(passwordBytes) > len(p) {
 				return 0, fmt.Errorf(
 					"password is longer (%d) than read buffer (%d)", len(passwordBytes), len(p),
@@ -272,11 +273,12 @@ func (h *SudoWrapper) setEnvPath(ctx context.Context) error {
 			cmd, waitStatus.String(), stdoutBuffer.String(), stderrBuffer.String(),
 		)
 	}
-	for _, value := range strings.Split(stdoutBuffer.String(), "\n") {
+	strings.SplitSeq(stdoutBuffer.String(), "\n")(func(value string) bool {
 		if strings.HasPrefix(value, "PATH=") {
 			h.envPath = value
-			break
+			return false
 		}
-	}
+		return true
+	})
 	return nil
 }
