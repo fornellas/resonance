@@ -52,6 +52,10 @@ func (f *FileDevice) String() string {
 	return fmt.Sprintf("%d,%d", unix.Major(uint64(*f)), unix.Minor(uint64(*f)))
 }
 
+func (f FileDevice) LogValue() slog.Value {
+	return slog.StringValue(f.String())
+}
+
 func (f *FileDevice) MarshalYAML() (any, error) {
 	return f.String(), nil
 }
