@@ -134,6 +134,6 @@ var rangeTableEmoji16 = &unicode.RangeTable{
 }
 
 // Returns true when the rune is a start code point for an emoji.
-func IsEmojiStart(r rune) bool {
+func IsEmojiStartCodePoint(r rune) bool {
 	return unicode.In(r, rangeTableEmoji16)
 }

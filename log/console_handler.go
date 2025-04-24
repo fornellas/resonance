@@ -237,7 +237,7 @@ func (h *ConsoleHandler) writeAttr(writer io.Writer, indent int, attr slog.Attr)
 		} else {
 			emoji := ""
 			r, _ := utf8.DecodeRuneInString(attr.Key)
-			if !IsEmojiStart(r) {
+			if !IsEmojiStartCodePoint(r) {
 				emoji = "🏷️ "
 			}
 			fmt.Fprintf(writer, "%s%s%s\n", indentStr, emoji, h.colorize(h.escape(attr.Key), bold))
