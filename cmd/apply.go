@@ -30,7 +30,11 @@ var ApplyCmd = &cobra.Command{
 			logger.Error(err.Error())
 			Exit(1)
 		}
-		defer host.Close(ctx)
+		defer func() {
+			if err := host.Close(ctx); err != nil {
+				logger.Error("failed to close host", "error", err)
+			}
+		}()
 		ctx, _ = log.WithAttrs(ctx, "host", fmt.Sprintf("%s => %s", host.Type(), host.String()))
 
 		store, storeConfig := GetStore(host)
@@ -60,7 +64,7 @@ var ApplyCmd = &cobra.Command{
 				Exit(1)
 			}
 			{
-				ctx, _ := log.WithGroup(ctx, "💾 Saving tatrget Blueprint")
+				ctx, _ := log.WithGroup(ctx, "💾 Saving target Blueprint")
 				hasTargetBlueprint, err := store.HasTargetBlueprint(ctx)
 				if err != nil {
 					logger.Error(err.Error())
