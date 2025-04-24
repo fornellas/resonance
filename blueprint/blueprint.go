@@ -52,7 +52,7 @@ func (b *Blueprint) String() string {
 
 // Resolve the state with information that may be required from the host for all Resources.
 func (b *Blueprint) Resolve(ctx context.Context, hst types.Host) error {
-	ctx, _ = log.WithGroupAttrs(ctx, "📄 Blueprint", "name", b.Name)
+	ctx, _ = log.WithGroupAttrs(ctx, "📄 Blueprint: Resolve", "name", b.Name)
 	for _, step := range b.Steps {
 		if err := step.Resolve(ctx, hst); err != nil {
 			return err
@@ -63,7 +63,7 @@ func (b *Blueprint) Resolve(ctx context.Context, hst types.Host) error {
 
 // Load returns a copy of the Blueprint, with all resource states loaded from given Host.
 func (b *Blueprint) Load(ctx context.Context, hst types.Host) (*Blueprint, error) {
-	ctx, _ = log.WithGroupAttrs(ctx, "📄 Blueprint", "name", b.Name)
+	ctx, _ = log.WithGroupAttrs(ctx, "📄 Blueprint: Load", "name", b.Name)
 	newBlueprint := &Blueprint{
 		Name:  b.Name,
 		Steps: make(Steps, len(b.Steps)),
