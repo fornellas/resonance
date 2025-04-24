@@ -67,12 +67,12 @@ func AddStoreFlags(cmd *cobra.Command) {
 func GetStore(hst types.Host) (storePkg.Store, string) {
 	store, config := getStoreArch(storeValue.String())
 	if store != nil {
-		return storePkg.NewLoggingStore(store), config
+		return storePkg.NewLoggingWrapper(store), config
 	}
 
 	switch storeValue.String() {
 	case "remote":
-		return storePkg.NewLoggingStore(
+		return storePkg.NewLoggingWrapper(
 			storePkg.NewHostStore(hst, storeHostPath),
 		), storeHostPath
 	default:
