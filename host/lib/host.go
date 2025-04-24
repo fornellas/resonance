@@ -17,7 +17,7 @@ import (
 
 // SimpleRun starts the specified command and waits for it to complete.
 // Returns WaitStatus, stdout and stderr.
-func SimpleRun(ctx context.Context, hst types.BaseHost, cmd types.Cmd) (types.WaitStatus, string, string, error) {
+func SimpleRun(ctx context.Context, baseHost types.BaseHost, cmd types.Cmd) (types.WaitStatus, string, string, error) {
 	if cmd.Stdout != nil {
 		panic(fmt.Errorf("can not set Cmd.Stdout: %s", cmd))
 	}
@@ -30,7 +30,7 @@ func SimpleRun(ctx context.Context, hst types.BaseHost, cmd types.Cmd) (types.Wa
 	stderrBuffer := bytes.Buffer{}
 	cmd.Stderr = &stderrBuffer
 
-	waitStatus, err := hst.Run(ctx, cmd)
+	waitStatus, err := baseHost.Run(ctx, cmd)
 	return waitStatus, stdoutBuffer.String(), stderrBuffer.String(), err
 }
 

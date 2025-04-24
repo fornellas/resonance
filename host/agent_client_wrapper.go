@@ -116,12 +116,12 @@ type AgentClientWrapper struct {
 	spawnErrCh        chan error
 }
 
-func getTmpFile(ctx context.Context, hst types.BaseHost, template string) (string, error) {
+func getTmpFile(ctx context.Context, baseHost types.BaseHost, template string) (string, error) {
 	cmd := types.Cmd{
 		Path: "mktemp",
 		Args: []string{"-t", fmt.Sprintf("%s.XXXXXXXX", template)},
 	}
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, baseHost, cmd)
 	if err != nil {
 		return "", err
 	}
@@ -153,12 +153,12 @@ func chmod(ctx context.Context, baseHost types.BaseHost, name string, mode types
 	)
 }
 
-func getGoOs(ctx context.Context, hst types.BaseHost) (string, error) {
+func getGoOs(ctx context.Context, baseHost types.BaseHost) (string, error) {
 	cmd := types.Cmd{
 		Path: "uname",
 		Args: []string{"-o"},
 	}
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, baseHost, cmd)
 	if err != nil {
 		return "", err
 	}
@@ -178,12 +178,12 @@ func getGoOs(ctx context.Context, hst types.BaseHost) (string, error) {
 	}
 }
 
-func getGoArch(ctx context.Context, hst types.BaseHost) (string, error) {
+func getGoArch(ctx context.Context, baseHost types.BaseHost) (string, error) {
 	cmd := types.Cmd{
 		Path: "uname",
 		Args: []string{"-m"},
 	}
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, baseHost, cmd)
 	if err != nil {
 		return "", err
 	}
@@ -226,13 +226,13 @@ func getGoArch(ctx context.Context, hst types.BaseHost) (string, error) {
 	return "", fmt.Errorf("machine not recognized: %#v", machine)
 }
 
-func getAgentBinGz(ctx context.Context, hst types.BaseHost) ([]byte, error) {
-	goos, err := getGoOs(ctx, hst)
+func getAgentBinGz(ctx context.Context, baseHost types.BaseHost) ([]byte, error) {
+	goos, err := getGoOs(ctx, baseHost)
 	if err != nil {
 		return nil, err
 	}
 
-	goarch, err := getGoArch(ctx, hst)
+	goarch, err := getGoArch(ctx, baseHost)
 	if err != nil {
 		return nil, err
 	}
@@ -250,13 +250,13 @@ func getAgentBinGz(ctx context.Context, hst types.BaseHost) ([]byte, error) {
 	return agentBinGz, nil
 }
 
-func copyReader(ctx context.Context, hst types.BaseHost, reader io.Reader, path string) error {
+func copyReader(ctx context.Context, baseHost types.BaseHost, reader io.Reader, path string) error {
 	cmd := types.Cmd{
 		Path:  "sh",
 		Args:  []string{"-c", fmt.Sprintf("cat > %s", shellescape.Quote(path))},
 		Stdin: reader,
 	}
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, baseHost, cmd)
 	if err != nil {
 		return err
 	}

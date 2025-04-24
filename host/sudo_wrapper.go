@@ -122,11 +122,11 @@ type SudoWrapper struct {
 	envPath  string
 }
 
-func NewSudoWrapper(ctx context.Context, hst types.BaseHost) (*SudoWrapper, error) {
+func NewSudoWrapper(ctx context.Context, baseHost types.BaseHost) (*SudoWrapper, error) {
 	ctx, _ = log.WithGroup(ctx, "⚡ Sudo")
 
 	sudoWrapper := SudoWrapper{
-		BaseHost: hst,
+		BaseHost: baseHost,
 	}
 
 	cmd := types.Cmd{
