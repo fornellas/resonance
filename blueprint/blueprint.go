@@ -44,8 +44,12 @@ func (b *Blueprint) getresourceMap() resourcesPkg.ResourceMap {
 
 func (b *Blueprint) String() string {
 	var buff bytes.Buffer
-	for _, step := range b.Steps {
-		fmt.Fprintf(&buff, "%s\n", step)
+	for i, step := range b.Steps {
+		if i == len(b.Steps)-1 {
+			fmt.Fprintf(&buff, "%s", step)
+		} else {
+			fmt.Fprintf(&buff, "%s\n", step)
+		}
 	}
 	return buff.String()
 }
