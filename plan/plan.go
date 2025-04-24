@@ -132,7 +132,7 @@ func saveOriginalResourcesState(
 	store storePkg.Store,
 	targetBlueprint *blueprintPkg.Blueprint,
 ) error {
-	ctx, _ = log.MustWithGroup(ctx, "🌱 Saving original state")
+	ctx, _ = log.MustWithGroup(ctx, "🌱 Original state")
 	for _, step := range targetBlueprint.Steps {
 		noOriginalResources := resourcesPkg.Resources{}
 		for _, resource := range step.Resources() {
@@ -186,37 +186,23 @@ func loadOrCreateAndSaveLastBlueprintWithValidation(
 	store storePkg.Store,
 	targetBlueprint *blueprintPkg.Blueprint,
 ) (*blueprintPkg.Blueprint, error) {
-	ctx, logger := log.MustWithGroup(ctx, "↩️ Loading last Blueprint")
+	ctx, logger := log.MustWithGroup(ctx, "↩️ Last Blueprint")
 	lastBlueprint, err := store.LoadLastBlueprint(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if lastBlueprint == nil {
-		logger.Info("🔎 No last Blueprint, loading current state")
+		logger.Info("Absent: loading & saving current state")
 		var err error
 		lastBlueprint, err = targetBlueprint.Load(ctx, host)
 		if err != nil {
 			return nil, err
 		}
-
-		{
-			_, logger := log.MustWithGroup(ctx, "🧩 Loaded Blueprint")
-			for _, step := range lastBlueprint.Steps {
-				resources := step.Resources()
-				if len(resources) == 1 {
-					logger.Info(resourcesPkg.GetResourceTypeName(resources[0]), "yaml", resourcesPkg.GetResourceYaml(resources[0]))
-				} else {
-					logger.Info(resourcesPkg.GetResourceTypeName(resources[0]), "yaml", resourcesPkg.GetResourcesYaml(resources))
-				}
-			}
-		}
-
-		logger.Info("💾 Saving as last Blueprint")
 		if err := store.SaveLastBlueprint(ctx, lastBlueprint); err != nil {
 			return nil, err
 		}
 	} else {
-		logger.Info("🔎 Validating previous host state")
+		logger.Info("Validating")
 		currentBlueprint, err := lastBlueprint.Load(ctx, host)
 		if err != nil {
 			return nil, err
@@ -245,7 +231,7 @@ func CraftPlan(
 	store storePkg.Store,
 	targetResources resourcesPkg.Resources,
 ) (Plan, *blueprintPkg.Blueprint, *blueprintPkg.Blueprint, error) {
-	ctx, _ = log.MustWithGroup(ctx, "📐 Crafting Plan")
+	ctx, _ = log.MustWithGroup(ctx, "📐 Plan: Craft")
 	targetBlueprint, err := createTargetBlueprint(ctx, host, targetResources)
 	if err != nil {
 		return nil, nil, nil, err

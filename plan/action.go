@@ -153,7 +153,7 @@ func (a *Action) DetailedString() string {
 
 // Apply commits all required changes for action to given Host.
 func (a *Action) Apply(ctx context.Context, host types.Host) error {
-	ctx, logger := log.MustWithGroupAttrs(ctx, "🚀 Action", "resources", a.String())
+	ctx, logger := log.MustWithGroupAttrs(ctx, "🚀 Action: Apply", "resources", a.String())
 	diffStr := a.DiffString()
 	if len(diffStr) > 0 {
 		ctx, logger = log.MustWithAttrs(ctx, "diff", diffStr)
