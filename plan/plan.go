@@ -86,7 +86,7 @@ func compilePlan(
 	}
 
 	// Calculate plan actions
-	planBlueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, "plan", planResources)
+	planBlueprint, err := blueprintPkg.NewBlueprintFromResources("plan", planResources)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func createTargetBlueprint(
 	var targetBlueprint *blueprintPkg.Blueprint
 	{
 		var err error
-		targetBlueprint, err = blueprintPkg.NewBlueprintFromResources(ctx, "target", targetResources)
+		targetBlueprint, err = blueprintPkg.NewBlueprintFromResources("target", targetResources)
 		if err != nil {
 			return nil, err
 		}

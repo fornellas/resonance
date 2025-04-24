@@ -27,7 +27,7 @@ func getTestBlueprint(t *testing.T, ctx context.Context) *blueprintPkg.Blueprint
 			Version: "1.2.3",
 		},
 	}
-	blueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, "test", resources)
+	blueprint, err := blueprintPkg.NewBlueprintFromResources("test", resources)
 	require.NoError(t, err)
 	return blueprint
 }

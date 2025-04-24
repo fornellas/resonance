@@ -20,7 +20,7 @@ type Blueprint struct {
 
 // NewBlueprintFromResources creates a new Blueprint from given Resources, merging GroupResource
 // of the same type in the same step, while respecting the declared order.
-func NewBlueprintFromResources(ctx context.Context, name string, resources resourcesPkg.Resources) (*Blueprint, error) {
+func NewBlueprintFromResources(name string, resources resourcesPkg.Resources) (*Blueprint, error) {
 	steps, err := NewSteps(resources)
 	if err != nil {
 		return nil, err
