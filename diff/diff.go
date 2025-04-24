@@ -79,7 +79,7 @@ func (cs Chunks) String() string {
 }
 
 // DiffAsYaml converts both interfaces to yaml and diffs them.
-func DiffAsYaml(a, b interface{}) Chunks {
+func DiffAsYaml(a, b any) Chunks {
 	var aStr string
 	if a != nil {
 		aBytes, err := yaml.Marshal(a)

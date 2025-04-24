@@ -37,7 +37,7 @@ func (r Resources) Validate() error {
 	return nil
 }
 
-func (r Resources) MarshalYAML() (interface{}, error) {
+func (r Resources) MarshalYAML() (any, error) {
 	type MarshalSchema []map[string]Resource
 
 	resources := make(MarshalSchema, len(r))

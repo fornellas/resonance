@@ -194,7 +194,7 @@ func (s *Step) Load(ctx context.Context, hst types.Host) (*Step, error) {
 	panic("bug: invalid state")
 }
 
-func (s *Step) MarshalYAML() (interface{}, error) {
+func (s *Step) MarshalYAML() (any, error) {
 	type MarshalSchema struct {
 		SingleResourceType string                      `yaml:"single_resource_type,omitempty"`
 		SingleResource     resourcesPkg.SingleResource `yaml:"single_resource,omitempty"`
