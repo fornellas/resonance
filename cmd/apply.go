@@ -31,6 +31,7 @@ var ApplyCmd = &cobra.Command{
 			Exit(1)
 		}
 		defer host.Close(ctx)
+		ctx, _ = log.WithAttrs(ctx, "host", fmt.Sprintf("%s => %s", host.Type(), host.String()))
 
 		store, storeConfig := GetStore(host)
 		ctx, logger = log.WithAttrs(ctx, "store", fmt.Sprintf("%s %s", storeValue.String(), storeConfig))
@@ -43,7 +44,7 @@ var ApplyCmd = &cobra.Command{
 				logger.Error(err.Error())
 				Exit(1)
 			}
-			_, logger := log.WithGroup(ctx, "📚 Loaded resources")
+			_, logger := log.WithGroup(ctx, "📚 Target resources")
 			for _, resource := range targetResources {
 				logger.Debug(resourcesPkg.GetResourceTypeName(resource), "yaml", resourcesPkg.GetResourceYaml(resource))
 			}
