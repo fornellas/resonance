@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"log/slog"
 	"syscall"
 
 	"golang.org/x/sys/unix"
@@ -16,6 +17,10 @@ func (f *FileMode) String() string {
 		return fmt.Sprintf("0%o", *f)
 	}
 	return "0"
+}
+
+func (f FileMode) LogValue() slog.Value {
+	return slog.StringValue(f.String())
 }
 
 func (f *FileMode) MarshalYAML() (any, error) {
