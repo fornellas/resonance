@@ -98,7 +98,7 @@ func GetHost(ctx context.Context) (types.Host, error) {
 	baseHost, host := getHostArch(ctx)
 
 	if host != nil {
-		host = hostPkg.NewLoggingHost(host)
+		host = hostPkg.NewLoggingWrapper(host)
 		return host, nil
 	} else if baseHost == nil {
 		if ssh != "" {
@@ -136,7 +136,7 @@ func GetHost(ctx context.Context) (types.Host, error) {
 		return nil, err
 	}
 
-	host = hostPkg.NewLoggingHost(host)
+	host = hostPkg.NewLoggingWrapper(host)
 
 	return host, nil
 }
