@@ -117,13 +117,13 @@ func LocalReadDir(ctx context.Context, name string) (<-chan types.DirEntResult, 
 				dirent := (*syscall.Dirent)(unsafe.Pointer(&buf[offset]))
 
 				var l int
-				for l := range len(dirent.Name) {
+				for l = 0; l < len(dirent.Name); l++ {
 					if dirent.Name[l] == 0 {
 						break
 					}
 				}
 				nameBytes := make([]byte, l)
-				for i := range l {
+				for i := 0; i < l; i++ {
 					nameBytes[i] = byte(dirent.Name[i])
 				}
 				name := string(nameBytes)
