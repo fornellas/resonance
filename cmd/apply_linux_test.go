@@ -47,16 +47,19 @@ func TestApply(t *testing.T) {
 				"--store-local-path", storeDir,
 				resourcesDir,
 			},
-			ExpectStderrContains: []string{fmt.Sprintf(`⚙️ Applying
-  File:🔧%s/bar
-    diff:
-      path: %s/bar
-      -absent: true
-      +regular_file: bar
-      +mode: "0644"
-      +uid: %d
-      +gid: %d
-🧹 State cleanup`,
+			ExpectStderrContains: []string{fmt.Sprintf(`  ⚙️ Apply
+    🚀 Action: Apply
+      resources: File:🔧%s/bar
+      diff:
+        path: %s/bar
+        -absent: true
+        +regular_file: bar
+        +mode: "0644"
+        +uid: %d
+        +gid: %d
+      INFO Applying changes
+  INFO 🎆 Apply successful
+`,
 				filesDir, filesDir, fileUid, fileGid,
 			)},
 		}).Run(t)
