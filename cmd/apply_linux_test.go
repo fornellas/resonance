@@ -41,7 +41,6 @@ func TestApply(t *testing.T) {
 		(&TestCmd{
 			Args: []string{
 				"apply",
-				"--log-level=info",
 				"--host-local",
 				"--store", "local",
 				"--store-local-path", storeDir,
@@ -74,9 +73,11 @@ func TestApply(t *testing.T) {
 				"--store-local-path", storeDir,
 				resourcesDir,
 			},
-			ExpectStderrContains: []string{fmt.Sprintf(`⚙️ Applying
-  File:✅%s/bar
-🧹 State cleanup`,
+			ExpectStderrContains: []string{fmt.Sprintf(`  ⚙️ Apply
+    🚀 Action: Apply
+      resources: File:✅%s/bar
+      INFO Nothing to do
+  INFO 🎆 Apply successful`,
 				filesDir,
 			)},
 		}).Run(t)

@@ -159,7 +159,7 @@ func (a *Action) Apply(ctx context.Context, host types.Host) error {
 		ctx, logger = log.MustWithAttrs(ctx, "diff", diffStr)
 		logger.Info("Applying changes")
 	} else {
-		logger.Debug("Nothing to do")
+		logger.Info("Nothing to do")
 	}
 
 	if len(a.ApplyResources) == 0 {
