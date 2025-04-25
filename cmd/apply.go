@@ -57,27 +57,26 @@ var ApplyCmd = &cobra.Command{
 		var plan planPkg.Plan
 		var targetBlueprint *blueprintPkg.Blueprint
 		var lastBlueprint *blueprintPkg.Blueprint
+		plan, targetBlueprint, lastBlueprint, err = planPkg.CraftPlan(ctx, host, store, targetResources)
+		if err != nil {
+			logger.Error(err.Error())
+			Exit(1)
+		}
+
 		{
-			plan, targetBlueprint, lastBlueprint, err = planPkg.CraftPlan(ctx, host, store, targetResources)
+			ctx, _ := log.MustWithGroup(ctx, "💾 Saving target Blueprint")
+			hasTargetBlueprint, err := store.HasTargetBlueprint(ctx)
 			if err != nil {
 				logger.Error(err.Error())
 				Exit(1)
 			}
-			{
-				ctx, _ := log.MustWithGroup(ctx, "💾 Saving target Blueprint")
-				hasTargetBlueprint, err := store.HasTargetBlueprint(ctx)
-				if err != nil {
+			if hasTargetBlueprint {
+				logger.Error("a previous apply was interrupted")
+				Exit(1)
+			} else {
+				if err := store.SaveTargetBlueprint(ctx, targetBlueprint); err != nil {
 					logger.Error(err.Error())
 					Exit(1)
-				}
-				if hasTargetBlueprint {
-					logger.Error("a previous apply was interrupted")
-					Exit(1)
-				} else {
-					if err := store.SaveTargetBlueprint(ctx, targetBlueprint); err != nil {
-						logger.Error(err.Error())
-						Exit(1)
-					}
 				}
 			}
 		}
