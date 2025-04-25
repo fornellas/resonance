@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log/slog"
 
 	"github.com/spf13/cobra"
 
@@ -20,10 +19,7 @@ var ApplyCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		path := args[0]
 
-		ctx := cmd.Context()
-
-		var logger *slog.Logger
-		ctx, logger = log.MustWithGroupAttrs(ctx, "✏️ Apply", "path", path)
+		ctx, logger := log.MustWithGroupAttrs(cmd.Context(), "✏️ Apply", "path", path)
 
 		host, err := GetHost(ctx)
 		if err != nil {

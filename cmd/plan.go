@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log/slog"
 
 	"github.com/spf13/cobra"
 
@@ -19,10 +18,7 @@ var PlanCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		path := args[0]
 
-		ctx := cmd.Context()
-
-		var logger *slog.Logger
-		ctx, logger = log.MustWithGroupAttrs(ctx, "📝 Planning", "path", path)
+		ctx, logger := log.MustWithGroupAttrs(cmd.Context(), "📝 Planning", "path", path)
 
 		host, err := GetHost(ctx)
 		if err != nil {
