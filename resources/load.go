@@ -85,8 +85,8 @@ func loadFile(ctx context.Context, path string) (Resources, error) {
 	return resources, nil
 }
 
-func LoadDir(ctx context.Context, dir string) (Resources, error) {
-	ctx, logger := log.MustWithGroupAttrs(ctx, "📂 Resources load", "path", dir)
+func loadDir(ctx context.Context, dir string) (Resources, error) {
+	logger := log.MustLogger(ctx)
 
 	resources := Resources{}
 
@@ -138,21 +138,23 @@ func LoadDir(ctx context.Context, dir string) (Resources, error) {
 
 // Load Resources from path, which can be either a file or a directory.
 func LoadPath(ctx context.Context, path string) (Resources, error) {
+	ctx, _ = log.MustWithGroupAttrs(ctx, "📂 Load resources", "path", path)
+
 	var resources Resources
 
 	fileInfo, err := os.Stat(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to load resources: %w", err)
 	}
 	if fileInfo.IsDir() {
-		resources, err = LoadDir(ctx, path)
+		resources, err = loadDir(ctx, path)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to load resources: %w", err)
 		}
 	} else {
 		resources, err = loadFile(ctx, path)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to load resources: %w", err)
 		}
 	}
 
