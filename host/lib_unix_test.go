@@ -41,7 +41,7 @@ func testBaseHost(
 				}
 			})
 			require.False(t, waitStatus.Success())
-			require.Equal(t, 2, waitStatus.ExitCode)
+			require.Equal(t, uint32(2), waitStatus.ExitCode)
 			require.True(t, waitStatus.Exited)
 			require.Equal(t, "", waitStatus.Signal)
 			require.Equal(t, "../tmp\n", stdout)
@@ -60,7 +60,7 @@ func testBaseHost(
 				require.NoError(t, err)
 
 				require.True(t, waitStatus.Success())
-				require.Equal(t, 0, waitStatus.ExitCode)
+				require.Equal(t, uint32(0), waitStatus.ExitCode)
 				require.True(t, waitStatus.Exited)
 				require.Equal(t, "", waitStatus.Signal)
 
@@ -89,7 +89,7 @@ func testBaseHost(
 					}
 				})
 				require.True(t, waitStatus.Success())
-				require.Equal(t, 0, waitStatus.ExitCode)
+				require.Equal(t, uint32(0), waitStatus.ExitCode)
 				require.True(t, waitStatus.Exited)
 				require.Equal(t, "", waitStatus.Signal)
 				require.Equal(t, env, strings.TrimRight(stdout, "\n"))
@@ -110,7 +110,7 @@ func testBaseHost(
 					}
 				})
 				require.True(t, waitStatus.Success())
-				require.Equal(t, 0, waitStatus.ExitCode)
+				require.Equal(t, uint32(0), waitStatus.ExitCode)
 				require.True(t, waitStatus.Exited)
 				require.Equal(t, "", waitStatus.Signal)
 				require.Equal(t, fmt.Sprintf("%s\n", dir), stdout)
@@ -138,7 +138,7 @@ func testBaseHost(
 				}
 			})
 			require.True(t, waitStatus.Success())
-			require.Equal(t, 0, waitStatus.ExitCode)
+			require.Equal(t, uint32(0), waitStatus.ExitCode)
 			require.True(t, waitStatus.Exited)
 			require.Equal(t, "", waitStatus.Signal)
 			require.Equal(t, fmt.Sprintf("=%s=\n", stdin), stdout)

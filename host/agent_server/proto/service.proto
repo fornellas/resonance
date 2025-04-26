@@ -176,7 +176,7 @@ message RunRequest {
 }
 
 message WaitStatus {
-  int64 exitcode = 1;
+  uint32 exitcode = 1;
   bool exited = 2;
   string signal = 3;
 }

@@ -90,7 +90,7 @@ func (h Docker) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error
 	}
 
 	waitStatus := types.WaitStatus{}
-	waitStatus.ExitCode = execCmd.ProcessState.ExitCode()
+	waitStatus.ExitCode = uint32(execCmd.ProcessState.ExitCode())
 	waitStatus.Exited = execCmd.ProcessState.Exited()
 	signal := execCmd.ProcessState.Sys().(syscall.WaitStatus).Signal()
 	if signal > 0 {

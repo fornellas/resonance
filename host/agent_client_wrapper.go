@@ -763,7 +763,7 @@ func (h *AgentClientWrapper) Run(ctx context.Context, cmd types.Cmd) (types.Wait
 		}
 
 		if respData, ok := resp.Data.(*proto.RunResponse_Waitstatus); ok {
-			waitStatus.ExitCode = int(respData.Waitstatus.Exitcode)
+			waitStatus.ExitCode = respData.Waitstatus.Exitcode
 			waitStatus.Exited = respData.Waitstatus.Exited
 			waitStatus.Signal = respData.Waitstatus.Signal
 			break
