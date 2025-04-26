@@ -3,7 +3,6 @@ on:
     pull_request:
         branches:
             - "master"
-            - "spr/master/*"
     push:
         branches:
             - "master"
@@ -101,13 +100,3 @@ jobs:
               uses: coverallsapp/github-action@v2.3.4
               with:
                   parallel-finished: true
-    spr:
-        runs-on: ubuntu-latest
-        if: startsWith(github.event.pull_request.base.ref, 'spr/master/')
-        steps:
-            - name: Block PRs against spr/master/*
-              id: check_base
-              run: |
-                  echo "Base branch seems to be part of a PR stack: this can't be merged directly. Details: https://github.com/ejoffe/spr."
-                  exit 1
-              shell: bash
