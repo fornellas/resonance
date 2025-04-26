@@ -445,7 +445,7 @@ func (h Ssh) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
 		fmt.Fprintf(&cmdStrBdr, " %s", shellescape.Quote(arg))
 	}
 
-	var exitCode int
+	var exitCode uint32
 	var exited bool
 	var signal string
 	if err := session.Run(cmdStrBdr.String()); err == nil {
@@ -454,7 +454,7 @@ func (h Ssh) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
 	} else {
 		var exitError *ssh.ExitError
 		if errors.As(err, &exitError) {
-			exitCode = exitError.ExitStatus()
+			exitCode = uint32(exitError.ExitStatus())
 			exited = exitError.Signal() == ""
 			signal = exitError.Signal()
 		} else {

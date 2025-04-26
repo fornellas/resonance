@@ -58,7 +58,7 @@ func (c Cmd) String() string {
 // WaitStatus
 type WaitStatus struct {
 	// ExitCode returns the exit code of the exited process, or -1 if the process hasn't exited or was terminated by a signal.
-	ExitCode int
+	ExitCode uint32
 	// Exited reports whether the program has exited. On Unix systems this reports true if the program exited due to calling exit, but false if the program terminated due to a signal.
 	Exited bool
 	// Signal describes a process signal.

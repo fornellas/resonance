@@ -636,7 +636,7 @@ func (s *HostService) Run(stream grpc.BidiStreamingServer[proto.RunRequest, prot
 	err = stream.Send(&proto.RunResponse{
 		Data: &proto.RunResponse_Waitstatus{
 			Waitstatus: &proto.WaitStatus{
-				Exitcode: int64(waitStatus.ExitCode),
+				Exitcode: waitStatus.ExitCode,
 				Exited:   waitStatus.Exited,
 				Signal:   waitStatus.Signal,
 			},
