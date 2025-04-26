@@ -15,6 +15,8 @@ import (
 	"unicode/utf8"
 
 	"golang.org/x/term"
+
+	"github.com/fornellas/resonance/unicode"
 )
 
 // ANSI color codes for console output
@@ -237,7 +239,7 @@ func (h *ConsoleHandler) writeAttr(writer io.Writer, indent int, attr slog.Attr)
 		} else {
 			emoji := ""
 			r, _ := utf8.DecodeRuneInString(attr.Key)
-			if !IsEmojiStartCodePoint(r) {
+			if !unicode.IsEmojiStartCodePoint(r) {
 				emoji = "🏷️ "
 			}
 			fmt.Fprintf(writer, "%s%s%s\n", indentStr, emoji, h.colorize(h.escape(attr.Key), bold))
