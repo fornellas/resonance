@@ -299,8 +299,7 @@ func TestConsoleHandler_Handle(t *testing.T) {
 				logger.Info("message with time")
 			},
 			check: func(t *testing.T, output string) {
-				// Check if output contains an RFC3339 date format (yyyy-mm-ddThh:mm:ss)
-				assert.Regexp(t, `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[-+:0-9]* INFO message with time\n$`, output)
+				assert.Regexp(t, `^((?:(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2}(?:\.\d+)?))(Z|[\+-]\d{2}:\d{2})?) INFO message with time\n$`, output)
 			},
 		},
 		{
