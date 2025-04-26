@@ -265,15 +265,15 @@ File:🔄/bar
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			targetBlueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, tc.targetResources)
+			targetBlueprint, err := blueprintPkg.NewBlueprintFromResources("target-test", tc.targetResources)
 			require.NoError(t, err)
 
-			lastBlueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, tc.lastResources)
+			lastBlueprint, err := blueprintPkg.NewBlueprintFromResources("last-test", tc.lastResources)
 			require.NoError(t, err)
 
 			originalResourceMap := resourcesPkg.NewResourceMap(tc.originalResources)
 
-			plan, err := NewPlan(
+			plan, err := compilePlan(
 				ctx,
 				targetBlueprint, lastBlueprint,
 				func(ctx context.Context, resource resourcesPkg.Resource) (resourcesPkg.Resource, error) {

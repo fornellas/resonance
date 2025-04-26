@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	blueprintPkg "github.com/fornellas/resonance/blueprint"
@@ -17,62 +19,60 @@ var ApplyCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		path := args[0]
 
-		ctx := cmd.Context()
-
-		logger := log.MustLogger(ctx)
-
-		logger.Info("✏️ Applying", "path", path)
+		ctx, logger := log.MustWithGroupAttrs(cmd.Context(), "✏️ Apply", "path", path)
 
 		host, err := GetHost(ctx)
 		if err != nil {
 			logger.Error(err.Error())
 			Exit(1)
 		}
-		defer host.Close(ctx)
-		logger.Info("🖥️ Target", "host", host)
+		defer func() {
+			if err := host.Close(ctx); err != nil {
+				logger.Error("failed to close host", "error", err)
+			}
+		}()
+		ctx, _ = log.MustWithAttrs(ctx, "host", fmt.Sprintf("%s => %s", host.Type(), host.String()))
 
-		store := GetStore(host)
+		store, storeConfig := GetStore(host)
+		ctx, logger = log.MustWithAttrs(ctx, "store", fmt.Sprintf("%s %s", storeValue.String(), storeConfig))
 
 		var targetResources resourcesPkg.Resources
 		{
 			var err error
-			ctx, _ := log.MustContextLoggerWithSection(ctx, "📂 Loading target resources")
 			targetResources, err = resourcesPkg.LoadPath(ctx, path)
 			if err != nil {
 				logger.Error(err.Error())
 				Exit(1)
 			}
-			_, logger := log.MustContextLoggerWithSection(ctx, "📚 All loaded resources")
+			_, logger := log.MustWithGroup(ctx, "📚 Target resources")
 			for _, resource := range targetResources {
-				logger.Info(resourcesPkg.GetResourceTypeName(resource), "yaml", resourcesPkg.GetResourceYaml(resource))
+				logger.Debug(resourcesPkg.GetResourceTypeName(resource), "yaml", resourcesPkg.GetResourceYaml(resource))
 			}
 		}
 
 		var plan planPkg.Plan
 		var targetBlueprint *blueprintPkg.Blueprint
 		var lastBlueprint *blueprintPkg.Blueprint
+		plan, targetBlueprint, lastBlueprint, err = planPkg.CraftPlan(ctx, host, store, targetResources)
+		if err != nil {
+			logger.Error(err.Error())
+			Exit(1)
+		}
+
 		{
-			ctx, logger := log.MustContextLoggerWithSection(ctx, "📝 Planning")
-			plan, targetBlueprint, lastBlueprint, err = planPkg.PrepAndPlan(ctx, host, store, targetResources)
+			ctx, _ := log.MustWithGroup(ctx, "💾 Saving target Blueprint")
+			hasTargetBlueprint, err := store.HasTargetBlueprint(ctx)
 			if err != nil {
 				logger.Error(err.Error())
 				Exit(1)
 			}
-			{
-				ctx, _ := log.MustContextLoggerWithSection(ctx, "💾 Saving tatrget Blueprint")
-				hasTargetBlueprint, err := store.HasTargetBlueprint(ctx)
-				if err != nil {
+			if hasTargetBlueprint {
+				logger.Error("a previous apply was interrupted")
+				Exit(1)
+			} else {
+				if err := store.SaveTargetBlueprint(ctx, targetBlueprint); err != nil {
 					logger.Error(err.Error())
 					Exit(1)
-				}
-				if hasTargetBlueprint {
-					logger.Error("a previous apply was interrupted")
-					Exit(1)
-				} else {
-					if err := store.SaveTargetBlueprint(ctx, targetBlueprint); err != nil {
-						logger.Error(err.Error())
-						Exit(1)
-					}
 				}
 			}
 		}
@@ -83,7 +83,7 @@ var ApplyCmd = &cobra.Command{
 		}
 
 		{
-			ctx, logger := log.MustContextLoggerWithSection(ctx, "🧹 State cleanup")
+			ctx, logger := log.MustWithGroup(ctx, "🧹 State cleanup")
 
 			targetResourcesMap := resourcesPkg.NewResourceMap(targetResources)
 			for _, lastResource := range lastBlueprint.Resources() {
@@ -111,7 +111,7 @@ var ApplyCmd = &cobra.Command{
 }
 
 func init() {
-	AddTargetFlags(ApplyCmd)
+	AddHostFlags(ApplyCmd)
 
 	AddStoreFlags(ApplyCmd)
 

@@ -5,8 +5,8 @@ import (
 	"io"
 	"log/slog"
 	"strings"
+	"time"
 
-	"github.com/fornellas/resonance"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -47,37 +47,31 @@ func (l LogLevelValue) Level() slog.Level {
 }
 
 type LogHandlerValueOptions struct {
-	Level       slog.Level
-	AddSource   bool
-	ConsoleTime bool
+	Level             slog.Level
+	AddSource         bool
+	ConsoleTime       bool
+	ConsoleForceColor bool
 }
 
 var logHandlerNameFnMap = map[string]func(io.Writer, LogHandlerValueOptions) slog.Handler{
 	"console": func(writer io.Writer, options LogHandlerValueOptions) slog.Handler {
-		return log.NewConsoleHandler(writer, log.ConsoleHandlerOptions{
-			Level:     options.Level,
-			AddSource: options.AddSource,
-			Time:      options.ConsoleTime,
-			ReplaceAttr: func(groups []string, attr slog.Attr) slog.Attr {
-				if len(groups) == 0 && attr.Key == "version" {
-					return slog.Attr{}
-				}
-				return attr
+		var timeLayout string
+		if options.ConsoleTime {
+			timeLayout = time.DateTime
+		}
+		return log.NewConsoleHandler(writer, &log.ConsoleHandlerOptions{
+			HandlerOptions: slog.HandlerOptions{
+				Level:     options.Level,
+				AddSource: options.AddSource,
 			},
+			TimeLayout: timeLayout,
+			ForceColor: options.ConsoleForceColor,
 		})
 	},
 	"json": func(writer io.Writer, options LogHandlerValueOptions) slog.Handler {
 		return slog.NewJSONHandler(writer, &slog.HandlerOptions{
 			AddSource: options.AddSource,
 			Level:     options.Level,
-			ReplaceAttr: func(groups []string, attr slog.Attr) slog.Attr {
-				if len(groups) == 0 && attr.Key == slog.SourceKey {
-					attr.Value = slog.AnyValue(
-						strings.Replace(attr.Value.String(), " "+resonance.GitTopLevel, " ", 1),
-					)
-				}
-				return attr
-			},
 		})
 	},
 }

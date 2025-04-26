@@ -65,12 +65,13 @@ func testBaseHost(
 				require.Equal(t, "", waitStatus.Signal)
 
 				receivedEnv := []string{}
-				for _, value := range strings.Split(stdout, "\n") {
+				strings.SplitSeq(stdout, "\n")(func(value string) bool {
 					if value == "" {
-						continue
+						return true
 					}
 					receivedEnv = append(receivedEnv, value)
-				}
+					return true
+				})
 				sort.Strings(receivedEnv)
 				require.Equal(t, types.DefaultEnv, receivedEnv)
 				require.Empty(t, stderr)

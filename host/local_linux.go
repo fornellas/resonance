@@ -14,23 +14,16 @@ import (
 
 	"github.com/fornellas/resonance/host/lib"
 	"github.com/fornellas/resonance/host/types"
-	"github.com/fornellas/resonance/log"
 )
 
 // Local interacts with the local machine running the code.
 type Local struct{}
 
 func (h Local) Geteuid(ctx context.Context) (uint64, error) {
-	logger := log.MustLogger(ctx)
-	logger.Debug("Geteuid")
-
 	return uint64(syscall.Geteuid()), nil
 }
 
 func (h Local) Getegid(ctx context.Context) (uint64, error) {
-	logger := log.MustLogger(ctx)
-	logger.Debug("Getegid")
-
 	return uint64(syscall.Getegid()), nil
 }
 
@@ -50,9 +43,6 @@ func (h Local) getPathError(op, path string, err error) error {
 }
 
 func (h Local) Chmod(ctx context.Context, name string, mode types.FileMode) error {
-	logger := log.MustLogger(ctx)
-	logger.Debug("Chmod", "name", name, "mode", mode)
-
 	if !filepath.IsAbs(name) {
 		return h.getPathError("Chmod", name, errors.New("path must be absolute"))
 	}
@@ -61,9 +51,6 @@ func (h Local) Chmod(ctx context.Context, name string, mode types.FileMode) erro
 }
 
 func (h Local) Lchown(ctx context.Context, name string, uid, gid uint32) error {
-	logger := log.MustLogger(ctx)
-	logger.Debug("Lchown", "name", name, "uid", uid, "gid", gid)
-
 	if !filepath.IsAbs(name) {
 		return h.getPathError("Lchown", name, errors.New("path must be absolute"))
 	}
@@ -72,21 +59,14 @@ func (h Local) Lchown(ctx context.Context, name string, uid, gid uint32) error {
 }
 
 func (h Local) Lookup(ctx context.Context, username string) (*user.User, error) {
-	logger := log.MustLogger(ctx)
-	logger.Debug("Lookup", "username", username)
 	return user.Lookup(username)
 }
 
 func (h Local) LookupGroup(ctx context.Context, name string) (*user.Group, error) {
-	logger := log.MustLogger(ctx)
-	logger.Debug("LookupGroup", "name", name)
 	return user.LookupGroup(name)
 }
 
 func (h Local) Lstat(ctx context.Context, name string) (*types.Stat_t, error) {
-	logger := log.MustLogger(ctx)
-	logger.Debug("Lstat", "name", name)
-
 	if !filepath.IsAbs(name) {
 		return nil, h.getPathError("Lstat", name, errors.New("path must be absolute"))
 	}
@@ -124,16 +104,10 @@ func (h Local) Lstat(ctx context.Context, name string) (*types.Stat_t, error) {
 }
 
 func (h Local) ReadDir(ctx context.Context, name string) (<-chan types.DirEntResult, func()) {
-	logger := log.MustLogger(ctx)
-	logger.Debug("ReadDir", "name", name)
-
 	return lib.LocalReadDir(ctx, name)
 }
 
 func (h Local) Mkdir(ctx context.Context, name string, mode types.FileMode) error {
-	logger := log.MustLogger(ctx)
-	logger.Debug("Mkdir", "name", name, "mode", mode)
-
 	if !filepath.IsAbs(name) {
 		return h.getPathError("Mkdir", name, errors.New("path must be absolute"))
 	}
@@ -145,9 +119,6 @@ func (h Local) Mkdir(ctx context.Context, name string, mode types.FileMode) erro
 }
 
 func (h Local) ReadFile(ctx context.Context, name string) (io.ReadCloser, error) {
-	logger := log.MustLogger(ctx)
-	logger.Debug("ReadFile", "name", name)
-
 	if !filepath.IsAbs(name) {
 		return nil, h.getPathError("ReadFile", name, errors.New("path must be absolute"))
 	}
@@ -160,9 +131,6 @@ func (h Local) ReadFile(ctx context.Context, name string) (io.ReadCloser, error)
 }
 
 func (h Local) Symlink(ctx context.Context, oldname, newname string) error {
-	logger := log.MustLogger(ctx)
-	logger.Debug("Symlink", "oldname", oldname, "newname", newname)
-
 	if !path.IsAbs(newname) {
 		return h.getPathError("Symlink", newname, errors.New("path must be absolute"))
 	}
@@ -171,9 +139,6 @@ func (h Local) Symlink(ctx context.Context, oldname, newname string) error {
 }
 
 func (h Local) Readlink(ctx context.Context, name string) (string, error) {
-	logger := log.MustLogger(ctx)
-	logger.Debug("Readlink", "name", name)
-
 	if !filepath.IsAbs(name) {
 		return "", h.getPathError("Readlink", name, errors.New("path must be absolute"))
 	}
@@ -186,9 +151,6 @@ func (h Local) Readlink(ctx context.Context, name string) (string, error) {
 }
 
 func (h Local) Remove(ctx context.Context, name string) error {
-	logger := log.MustLogger(ctx)
-	logger.Debug("Remove", "name", name)
-
 	if !filepath.IsAbs(name) {
 		return h.getPathError("Remove", name, errors.New("path must be absolute"))
 	}
@@ -197,9 +159,6 @@ func (h Local) Remove(ctx context.Context, name string) error {
 }
 
 func (h Local) Mknod(ctx context.Context, pathName string, mode types.FileMode, dev types.FileDevice) error {
-	logger := log.MustLogger(ctx)
-	logger.Debug("Mknod", "pathName", pathName, "mode", mode, "dev", dev)
-
 	if !path.IsAbs(pathName) {
 		return h.getPathError("Mknod", pathName, fmt.Errorf("path must be absolute"))
 	}
@@ -216,15 +175,10 @@ func (h Local) Mknod(ctx context.Context, pathName string, mode types.FileMode, 
 }
 
 func (h Local) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
-	logger := log.MustLogger(ctx)
-	logger.Debug("Run", "cmd", cmd)
 	return lib.LocalRun(ctx, cmd)
 }
 
 func (h Local) WriteFile(ctx context.Context, name string, data io.Reader, mode types.FileMode) error {
-	logger := log.MustLogger(ctx)
-	logger.Debug("WriteFile", "name", name, "data", data, "mode", mode)
-
 	if !filepath.IsAbs(name) {
 		return h.getPathError("WriteFile", name, errors.New("path must be absolute"))
 	}

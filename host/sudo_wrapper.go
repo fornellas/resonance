@@ -40,7 +40,8 @@ func (r *StdinSudo) Read(p []byte) (int, error) {
 		case <-r.Unlock:
 			r.unlocked = true
 		case password := <-r.SendPass:
-			passwordBytes := []byte(fmt.Sprintf("%s\n", password))
+			var passwordBytes []byte
+			passwordBytes = fmt.Appendf(passwordBytes, "%s\n", password)
 			if len(passwordBytes) > len(p) {
 				return 0, fmt.Errorf(
 					"password is longer (%d) than read buffer (%d)", len(passwordBytes), len(p),
@@ -122,11 +123,11 @@ type SudoWrapper struct {
 	envPath  string
 }
 
-func NewSudoWrapper(ctx context.Context, hst types.BaseHost) (*SudoWrapper, error) {
-	ctx, _ = log.MustContextLoggerWithSection(ctx, "⚡ Sudo")
+func NewSudoWrapper(ctx context.Context, baseHost types.BaseHost) (*SudoWrapper, error) {
+	ctx, _ = log.MustWithGroup(ctx, "⚡ Sudo")
 
 	sudoWrapper := SudoWrapper{
-		BaseHost: hst,
+		BaseHost: baseHost,
 	}
 
 	cmd := types.Cmd{
@@ -272,11 +273,12 @@ func (h *SudoWrapper) setEnvPath(ctx context.Context) error {
 			cmd, waitStatus.String(), stdoutBuffer.String(), stderrBuffer.String(),
 		)
 	}
-	for _, value := range strings.Split(stdoutBuffer.String(), "\n") {
+	strings.SplitSeq(stdoutBuffer.String(), "\n")(func(value string) bool {
 		if strings.HasPrefix(value, "PATH=") {
 			h.envPath = value
-			break
+			return false
 		}
-	}
+		return true
+	})
 	return nil
 }

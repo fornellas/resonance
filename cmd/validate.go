@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	blueprintPkg "github.com/fornellas/resonance/blueprint"
@@ -16,18 +18,19 @@ var ValidateCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		path := args[0]
 
-		ctx := cmd.Context()
+		ctx, logger := log.MustWithGroupAttrs(cmd.Context(), "🔍 Validate", "path", path)
 
-		logger := log.MustLogger(ctx)
-
-		hst, err := GetHost(ctx)
+		host, err := GetHost(ctx)
 		if err != nil {
 			logger.Error(err.Error())
 			Exit(1)
 		}
-		defer hst.Close(ctx)
-
-		logger.Info("🔍 Validating", "path", path, "target", hst)
+		defer func() {
+			if err := host.Close(ctx); err != nil {
+				logger.Error("failed to close host", "error", err)
+			}
+		}()
+		ctx, _ = log.MustWithAttrs(ctx, "host", fmt.Sprintf("%s => %s", host.Type(), host.String()))
 
 		resources, err := resourcesPkg.LoadPath(ctx, path)
 		if err != nil {
@@ -35,12 +38,12 @@ var ValidateCmd = &cobra.Command{
 			Exit(1)
 		}
 
-		blueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, resources)
+		blueprint, err := blueprintPkg.NewBlueprintFromResources("validate", resources)
 		if err != nil {
 			logger.Error(err.Error())
 			Exit(1)
 		}
-		if err := blueprint.Resolve(ctx, hst); err != nil {
+		if err := blueprint.Resolve(ctx, host); err != nil {
 			logger.Error(err.Error())
 			Exit(1)
 		}
@@ -55,7 +58,7 @@ var ValidateCmd = &cobra.Command{
 }
 
 func init() {
-	AddTargetFlags(ValidateCmd)
+	AddHostFlags(ValidateCmd)
 
 	RootCmd.AddCommand(ValidateCmd)
 }

@@ -99,7 +99,7 @@ func (wl WriterLogger) Write(b []byte) (int, error) {
 		if len(line) == 0 && i+1 == len(lines) {
 			break
 		}
-		wl.Logger.Error("Agent", "line", line)
+		wl.Logger.Error(line)
 	}
 	return len(b), nil
 }
@@ -116,12 +116,12 @@ type AgentClientWrapper struct {
 	spawnErrCh        chan error
 }
 
-func getTmpFile(ctx context.Context, hst types.BaseHost, template string) (string, error) {
+func getTmpFile(ctx context.Context, baseHost types.BaseHost, template string) (string, error) {
 	cmd := types.Cmd{
 		Path: "mktemp",
 		Args: []string{"-t", fmt.Sprintf("%s.XXXXXXXX", template)},
 	}
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, baseHost, cmd)
 	if err != nil {
 		return "", err
 	}
@@ -153,12 +153,12 @@ func chmod(ctx context.Context, baseHost types.BaseHost, name string, mode types
 	)
 }
 
-func getGoOs(ctx context.Context, hst types.BaseHost) (string, error) {
+func getGoOs(ctx context.Context, baseHost types.BaseHost) (string, error) {
 	cmd := types.Cmd{
 		Path: "uname",
 		Args: []string{"-o"},
 	}
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, baseHost, cmd)
 	if err != nil {
 		return "", err
 	}
@@ -178,12 +178,12 @@ func getGoOs(ctx context.Context, hst types.BaseHost) (string, error) {
 	}
 }
 
-func getGoArch(ctx context.Context, hst types.BaseHost) (string, error) {
+func getGoArch(ctx context.Context, baseHost types.BaseHost) (string, error) {
 	cmd := types.Cmd{
 		Path: "uname",
 		Args: []string{"-m"},
 	}
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, baseHost, cmd)
 	if err != nil {
 		return "", err
 	}
@@ -226,13 +226,13 @@ func getGoArch(ctx context.Context, hst types.BaseHost) (string, error) {
 	return "", fmt.Errorf("machine not recognized: %#v", machine)
 }
 
-func getAgentBinGz(ctx context.Context, hst types.BaseHost) ([]byte, error) {
-	goos, err := getGoOs(ctx, hst)
+func getAgentBinGz(ctx context.Context, baseHost types.BaseHost) ([]byte, error) {
+	goos, err := getGoOs(ctx, baseHost)
 	if err != nil {
 		return nil, err
 	}
 
-	goarch, err := getGoArch(ctx, hst)
+	goarch, err := getGoArch(ctx, baseHost)
 	if err != nil {
 		return nil, err
 	}
@@ -250,13 +250,13 @@ func getAgentBinGz(ctx context.Context, hst types.BaseHost) ([]byte, error) {
 	return agentBinGz, nil
 }
 
-func copyReader(ctx context.Context, hst types.BaseHost, reader io.Reader, path string) error {
+func copyReader(ctx context.Context, baseHost types.BaseHost, reader io.Reader, path string) error {
 	cmd := types.Cmd{
 		Path:  "sh",
 		Args:  []string{"-c", fmt.Sprintf("cat > %s", shellescape.Quote(path))},
 		Stdin: reader,
 	}
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, baseHost, cmd)
 	if err != nil {
 		return err
 	}
@@ -270,7 +270,7 @@ func copyReader(ctx context.Context, hst types.BaseHost, reader io.Reader, path 
 }
 
 func NewAgentClientWrapper(ctx context.Context, baseHost types.BaseHost) (*AgentClientWrapper, error) {
-	ctx, _ = log.MustContextLoggerWithSection(ctx, "🐈 Agent")
+	ctx, _ = log.MustWithGroup(ctx, "🐈 Agent")
 
 	agentPath, err := getTmpFile(ctx, baseHost, "resonance_agent")
 	if err != nil {
@@ -309,8 +309,6 @@ func NewAgentClientWrapper(ctx context.Context, baseHost types.BaseHost) (*Agent
 }
 
 func (h *AgentClientWrapper) spawn(ctx context.Context) error {
-	logger := log.MustLogger(ctx)
-
 	stdinReader, stdinWriter, err := os.Pipe()
 	if err != nil {
 		return err
@@ -342,7 +340,7 @@ func (h *AgentClientWrapper) spawn(ctx context.Context) error {
 			Stdin:  stdinReader,
 			Stdout: stdoutWriter,
 			Stderr: WriterLogger{
-				Logger: logger,
+				Logger: log.MustLogger(ctx).WithGroup("🔗 Agent Server"),
 			},
 		})
 
@@ -379,9 +377,6 @@ func (h *AgentClientWrapper) spawn(ctx context.Context) error {
 }
 
 func (h *AgentClientWrapper) Geteuid(ctx context.Context) (uint64, error) {
-	logger := log.MustLogger(ctx)
-	logger.Debug("Geteuid")
-
 	getuidResponse, err := h.hostServiceClient.Geteuid(ctx, &proto.Empty{})
 	if err != nil {
 		return 0, unwrapGrpcStatusErrno(err)
@@ -391,9 +386,6 @@ func (h *AgentClientWrapper) Geteuid(ctx context.Context) (uint64, error) {
 }
 
 func (h *AgentClientWrapper) Getegid(ctx context.Context) (uint64, error) {
-	logger := log.MustLogger(ctx)
-	logger.Debug("Getegid")
-
 	getgidResponse, err := h.hostServiceClient.Getegid(ctx, &proto.Empty{})
 	if err != nil {
 		return 0, unwrapGrpcStatusErrno(err)
@@ -403,9 +395,6 @@ func (h *AgentClientWrapper) Getegid(ctx context.Context) (uint64, error) {
 }
 
 func (h *AgentClientWrapper) Chmod(ctx context.Context, name string, mode types.FileMode) error {
-	logger := log.MustLogger(ctx)
-	logger.Debug("Chmod", "name", name, "mode", mode)
-
 	_, err := h.hostServiceClient.Chmod(ctx, &proto.ChmodRequest{
 		Name: name,
 		Mode: uint32(mode),
@@ -423,9 +412,6 @@ func (h *AgentClientWrapper) Chmod(ctx context.Context, name string, mode types.
 }
 
 func (h *AgentClientWrapper) Lchown(ctx context.Context, name string, uid, gid uint32) error {
-	logger := log.MustLogger(ctx)
-	logger.Debug("Lchown", "name", name, "uid", uid, "gid", gid)
-
 	_, err := h.hostServiceClient.Lchown(ctx, &proto.LchownRequest{
 		Name: name,
 		Uid:  int64(uid),
@@ -444,10 +430,6 @@ func (h *AgentClientWrapper) Lchown(ctx context.Context, name string, uid, gid u
 }
 
 func (h *AgentClientWrapper) Lookup(ctx context.Context, username string) (*userPkg.User, error) {
-	logger := log.MustLogger(ctx)
-
-	logger.Debug("Lookup", "username", username)
-
 	resp, err := h.hostServiceClient.Lookup(ctx, &proto.LookupRequest{
 		Username: username,
 	})
@@ -472,10 +454,6 @@ func (h *AgentClientWrapper) Lookup(ctx context.Context, username string) (*user
 }
 
 func (h *AgentClientWrapper) LookupGroup(ctx context.Context, name string) (*userPkg.Group, error) {
-	logger := log.MustLogger(ctx)
-
-	logger.Debug("LookupGroup", "group", name)
-
 	resp, err := h.hostServiceClient.LookupGroup(ctx, &proto.LookupGroupRequest{
 		Name: name,
 	})
@@ -496,10 +474,6 @@ func (h *AgentClientWrapper) LookupGroup(ctx context.Context, name string) (*use
 }
 
 func (h *AgentClientWrapper) Lstat(ctx context.Context, name string) (*types.Stat_t, error) {
-	logger := log.MustLogger(ctx)
-
-	logger.Debug("Lstat", "name", name)
-
 	resp, err := h.hostServiceClient.Lstat(ctx, &proto.LstatRequest{
 		Name: name,
 	})
@@ -540,10 +514,6 @@ func (h *AgentClientWrapper) Lstat(ctx context.Context, name string) (*types.Sta
 }
 
 func (h *AgentClientWrapper) ReadDir(ctx context.Context, name string) (<-chan types.DirEntResult, func()) {
-	logger := log.MustLogger(ctx)
-
-	logger.Debug("ReadDir", "name", name)
-
 	ctx, cancel := context.WithCancel(ctx)
 
 	dirEntResultCh := make(chan types.DirEntResult, 100)
@@ -597,10 +567,6 @@ func (h *AgentClientWrapper) ReadDir(ctx context.Context, name string) (<-chan t
 }
 
 func (h *AgentClientWrapper) Mkdir(ctx context.Context, name string, mode types.FileMode) error {
-	logger := log.MustLogger(ctx)
-
-	logger.Debug("Mkdir", "name", name)
-
 	_, err := h.hostServiceClient.Mkdir(ctx, &proto.MkdirRequest{
 		Name: name,
 		Mode: uint32(mode),
@@ -617,10 +583,6 @@ func (h *AgentClientWrapper) Mkdir(ctx context.Context, name string, mode types.
 }
 
 func (h *AgentClientWrapper) ReadFile(ctx context.Context, name string) (io.ReadCloser, error) {
-	logger := log.MustLogger(ctx)
-
-	logger.Debug("ReadFile", "name", name)
-
 	ctx, cancel := context.WithCancel(ctx)
 
 	stream, err := h.hostServiceClient.ReadFile(ctx, &proto.ReadFileRequest{Name: name})
@@ -658,10 +620,6 @@ func (h *AgentClientWrapper) ReadFile(ctx context.Context, name string) (io.Read
 }
 
 func (h *AgentClientWrapper) Symlink(ctx context.Context, oldname, newname string) error {
-	logger := log.MustLogger(ctx)
-
-	logger.Debug("Symlink", "oldname", oldname, "newname", newname)
-
 	_, err := h.hostServiceClient.Symlink(ctx, &proto.SymlinkRequest{
 		Oldname: oldname,
 		Newname: newname,
@@ -679,10 +637,6 @@ func (h *AgentClientWrapper) Symlink(ctx context.Context, oldname, newname strin
 }
 
 func (h *AgentClientWrapper) Readlink(ctx context.Context, name string) (string, error) {
-	logger := log.MustLogger(ctx)
-
-	logger.Debug("Readlink", "name", name)
-
 	resp, err := h.hostServiceClient.ReadLink(ctx, &proto.ReadLinkRequest{
 		Name: name,
 	})
@@ -699,10 +653,6 @@ func (h *AgentClientWrapper) Readlink(ctx context.Context, name string) (string,
 }
 
 func (h *AgentClientWrapper) Remove(ctx context.Context, name string) error {
-	logger := log.MustLogger(ctx)
-
-	logger.Debug("Remove", "name", name)
-
 	_, err := h.hostServiceClient.Remove(ctx, &proto.RemoveRequest{
 		Name: name,
 	})
@@ -718,9 +668,6 @@ func (h *AgentClientWrapper) Remove(ctx context.Context, name string) error {
 }
 
 func (h *AgentClientWrapper) Mknod(ctx context.Context, pathName string, mode types.FileMode, dev types.FileDevice) error {
-	logger := log.MustLogger(ctx)
-	logger.Debug("Mknod", "pathName", pathName, "mode", mode, "dev", dev)
-
 	_, err := h.hostServiceClient.Mknod(ctx, &proto.MknodRequest{
 		Path: pathName,
 		Mode: uint32(mode),
@@ -765,9 +712,6 @@ func (h *AgentClientWrapper) runStdinCopier(
 }
 
 func (h *AgentClientWrapper) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
-	logger := log.MustLogger(ctx)
-	logger.Debug("Run", "cmd", cmd)
-
 	stream, err := h.hostServiceClient.Run(ctx)
 	if err != nil {
 		return types.WaitStatus{}, unwrapGrpcStatusErrno(err)
@@ -861,10 +805,6 @@ func (h *AgentClientWrapper) Run(ctx context.Context, cmd types.Cmd) (types.Wait
 }
 
 func (h *AgentClientWrapper) WriteFile(ctx context.Context, name string, data io.Reader, perm types.FileMode) error {
-	logger := log.MustLogger(ctx)
-
-	logger.Debug("WriteFile", "name", name, "data", data, "perm", perm)
-
 	stream, err := h.hostServiceClient.WriteFile(ctx)
 	if err != nil {
 		return &fs.PathError{

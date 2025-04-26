@@ -41,21 +41,24 @@ func TestApply(t *testing.T) {
 		(&TestCmd{
 			Args: []string{
 				"apply",
-				"--target-localhost",
-				"--store", "localhost",
-				"--store-localhost-path", storeDir,
+				"--host-local",
+				"--store", "local",
+				"--store-local-path", storeDir,
 				resourcesDir,
 			},
-			ExpectStderrContains: []string{fmt.Sprintf(`⚙️ Applying
-  File:🔧%s/bar
-    diff:
-      path: %s/bar
-      -absent: true
-      +regular_file: bar
-      +mode: "0644"
-      +uid: %d
-      +gid: %d
-🧹 State cleanup`,
+			ExpectStderrContains: []string{fmt.Sprintf(`  ⚙️ Apply
+    🚀 Action: Apply
+      resources: File:🔧%s/bar
+      diff:
+        path: %s/bar
+        -absent: true
+        +regular_file: bar
+        +mode: "0644"
+        +uid: %d
+        +gid: %d
+      INFO Applying changes
+  INFO 🎆 Apply successful
+`,
 				filesDir, filesDir, fileUid, fileGid,
 			)},
 		}).Run(t)
@@ -65,14 +68,16 @@ func TestApply(t *testing.T) {
 		(&TestCmd{
 			Args: []string{
 				"apply",
-				"--target-localhost",
-				"--store", "localhost",
-				"--store-localhost-path", storeDir,
+				"--host-local",
+				"--store", "local",
+				"--store-local-path", storeDir,
 				resourcesDir,
 			},
-			ExpectStderrContains: []string{fmt.Sprintf(`⚙️ Applying
-  File:✅%s/bar
-🧹 State cleanup`,
+			ExpectStderrContains: []string{fmt.Sprintf(`  ⚙️ Apply
+    🚀 Action: Apply
+      resources: File:✅%s/bar
+      INFO Nothing to do
+  INFO 🎆 Apply successful`,
 				filesDir,
 			)},
 		}).Run(t)

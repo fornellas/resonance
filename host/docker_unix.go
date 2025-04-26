@@ -13,7 +13,6 @@ import (
 	"al.essio.dev/pkg/shellescape"
 
 	"github.com/fornellas/resonance/host/types"
-	"github.com/fornellas/resonance/log"
 )
 
 // Docker uses docker exec to target a running container.
@@ -30,9 +29,6 @@ func NewDocker(ctx context.Context, connection string) (Docker, error) {
 }
 
 func (h Docker) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
-	logger := log.MustLogger(ctx)
-	logger.Debug("Run", "cmd", cmd)
-
 	parts := strings.Split(h.ConnectionString, "@")
 	var dockerConnectionUser, dockerConnectionContainer string
 	switch len(parts) {

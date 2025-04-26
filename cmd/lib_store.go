@@ -11,8 +11,7 @@ import (
 )
 
 var storeNameMap = map[string]bool{
-	"target":    true,
-	"localhost": true,
+	"remote": true,
 }
 
 type StoreValue struct {
@@ -38,7 +37,7 @@ func (s *StoreValue) Set(value string) error {
 }
 
 func (s *StoreValue) Reset() {
-	s.name = "target"
+	s.name = "remote"
 }
 
 func (s *StoreValue) Type() string {
@@ -51,35 +50,31 @@ func (s *StoreValue) Type() string {
 
 var storeValue = NewStoreValue()
 
-var storeTargetPath string
-var defaultStoreTargetPath = "/var/lib/resonance"
-
-var storeLocalhostPath string
-var defaultStoreLocalhostPath = "state/"
+var storeHostPath string
+var defaultStoreHostPath = "/var/lib/resonance"
 
 func AddStoreFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().VarP(storeValue, "store", "", "Where to store state information")
 
 	cmd.Flags().StringVarP(
-		&storeTargetPath, "store-target-path", "", defaultStoreTargetPath,
-		"Path on target host where to store state",
+		&storeHostPath, "store-remote-path", "", defaultStoreHostPath,
+		"Path on remote host where to store state",
 	)
 
-	cmd.Flags().StringVarP(
-		&storeLocalhostPath, "store-localhost-path", "", defaultStoreLocalhostPath,
-		"Path on localhost where to store state",
-	)
+	addStoreFlagsArch(cmd)
 }
 
-func GetStore(hst types.Host) storePkg.Store {
-	store := getStoreArch(hst)
-	if hst != nil {
-		return store
+func GetStore(hst types.Host) (storePkg.Store, string) {
+	store, config := getStoreArch(storeValue.String())
+	if store != nil {
+		return storePkg.NewLoggingWrapper(store), config
 	}
 
 	switch storeValue.String() {
-	case "target":
-		return storePkg.NewHostStore(hst, storeTargetPath)
+	case "remote":
+		return storePkg.NewLoggingWrapper(
+			storePkg.NewHostStore(hst, storeHostPath),
+		), storeHostPath
 	default:
 		panic("bug: unexpected store value")
 	}
@@ -88,7 +83,6 @@ func GetStore(hst types.Host) storePkg.Store {
 func init() {
 	resetFlagsFns = append(resetFlagsFns, func() {
 		storeValue.Reset()
-		storeTargetPath = defaultStoreTargetPath
-		storeLocalhostPath = defaultStoreLocalhostPath
+		storeHostPath = defaultStoreHostPath
 	})
 }

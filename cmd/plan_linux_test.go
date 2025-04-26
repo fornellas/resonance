@@ -39,22 +39,22 @@ func TestPlan(t *testing.T) {
 		cmd := TestCmd{
 			Args: []string{
 				"plan",
-				"--target-localhost",
-				"--store", "localhost",
-				"--store-localhost-path", storeDir,
+				"--host-local",
+				"--store", "local",
+				"--store-local-path", storeDir,
 				resourcesDir,
 			},
-			ExpectStderrContains: []string{fmt.Sprintf(
-				`💡 Actions
-  File:🔧%s/bar
-    diff:
-      path: %s/bar
-      -absent: true
-      +regular_file: bar
-      +mode: "0644"
-      +uid: 0
-      +gid: 0
-🎆 Planning successful`,
+			ExpectStderrContains: []string{fmt.Sprintf(`  💡 Actions
+    INFO File:🔧%s/bar
+      diff:
+        path: %s/bar
+        -absent: true
+        +regular_file: bar
+        +mode: "0644"
+        +uid: 0
+        +gid: 0
+  INFO 🎆 Planning successful
+`,
 				filesDir, filesDir,
 			)},
 		}
@@ -92,15 +92,15 @@ func TestPlan(t *testing.T) {
 		cmd := TestCmd{
 			Args: []string{
 				"plan",
-				"--target-localhost",
-				"--store", "localhost",
-				"--store-localhost-path", storeDir,
+				"--host-local",
+				"--store", "local",
+				"--store-local-path", storeDir,
 				resourcesDir,
 			},
-			ExpectStderrContains: []string{fmt.Sprintf(
-				`💡 Actions
-  File:✅%s/bar
-🎆 Planning successful`,
+			ExpectStderrContains: []string{fmt.Sprintf(`  💡 Actions
+    INFO File:✅%s/bar
+  INFO 🎆 Planning successful
+`,
 				filesDir,
 			)},
 		}

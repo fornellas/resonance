@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"log/slog"
 	"syscall"
 
 	"golang.org/x/sys/unix"
@@ -18,7 +19,11 @@ func (f *FileMode) String() string {
 	return "0"
 }
 
-func (f *FileMode) MarshalYAML() (interface{}, error) {
+func (f FileMode) LogValue() slog.Value {
+	return slog.StringValue(f.String())
+}
+
+func (f *FileMode) MarshalYAML() (any, error) {
 	return f.String(), nil
 }
 
@@ -47,7 +52,11 @@ func (f *FileDevice) String() string {
 	return fmt.Sprintf("%d,%d", unix.Major(uint64(*f)), unix.Minor(uint64(*f)))
 }
 
-func (f *FileDevice) MarshalYAML() (interface{}, error) {
+func (f FileDevice) LogValue() slog.Value {
+	return slog.StringValue(f.String())
+}
+
+func (f *FileDevice) MarshalYAML() (any, error) {
 	return f.String(), nil
 }
 

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/fornellas/resonance/log"
@@ -16,50 +18,46 @@ var PlanCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		path := args[0]
 
-		ctx := cmd.Context()
-
-		logger := log.MustLogger(ctx)
-
-		logger.Info("✏️ Planning", "path", path)
+		ctx, logger := log.MustWithGroupAttrs(cmd.Context(), "📝 Planning", "path", path)
 
 		host, err := GetHost(ctx)
 		if err != nil {
 			logger.Error(err.Error())
 			Exit(1)
 		}
-		defer host.Close(ctx)
-		logger.Info("🖥️ Target", "host", host)
+		defer func() {
+			if err := host.Close(ctx); err != nil {
+				logger.Error("failed to close host", "error", err)
+			}
+		}()
+		ctx, _ = log.MustWithAttrs(ctx, "host", fmt.Sprintf("%s => %s", host.Type(), host.String()))
 
-		store := GetStore(host)
+		store, storeConfig := GetStore(host)
+		ctx, logger = log.MustWithAttrs(ctx, "store", fmt.Sprintf("%s %s", storeValue.String(), storeConfig))
 
-		// Load Target Resources
 		var targetResources resourcesPkg.Resources
 		{
 			var err error
-			ctx, _ := log.MustContextLoggerWithSection(ctx, "📂 Loading target resources")
 			targetResources, err = resourcesPkg.LoadPath(ctx, path)
 			if err != nil {
 				logger.Error(err.Error())
 				Exit(1)
 			}
-			_, logger := log.MustContextLoggerWithSection(ctx, "📚 All loaded resources")
+			_, logger := log.MustWithGroup(ctx, "📚 Target resources")
 			for _, resource := range targetResources {
-				logger.Info(resourcesPkg.GetResourceTypeName(resource), "yaml", resourcesPkg.GetResourceYaml(resource))
+				logger.Debug(resourcesPkg.GetResourceTypeName(resource), "yaml", resourcesPkg.GetResourceYaml(resource))
 			}
 		}
 
 		var plan planPkg.Plan
-		{
-			ctx, logger := log.MustContextLoggerWithSection(ctx, "📝 Planning")
-			plan, _, _, err = planPkg.PrepAndPlan(ctx, host, store, targetResources)
-			if err != nil {
-				logger.Error(err.Error())
-				Exit(1)
-			}
+		plan, _, _, err = planPkg.CraftPlan(ctx, host, store, targetResources)
+		if err != nil {
+			logger.Error(err.Error())
+			Exit(1)
 		}
 
 		{
-			_, logger := log.MustContextLoggerWithSection(ctx, "💡 Actions")
+			_, logger := log.MustWithGroup(ctx, "💡 Actions")
 			for _, action := range plan {
 				args := []any{}
 				diffStr := action.DiffString()
@@ -74,7 +72,7 @@ var PlanCmd = &cobra.Command{
 }
 
 func init() {
-	AddTargetFlags(PlanCmd)
+	AddHostFlags(PlanCmd)
 
 	AddStoreFlags(PlanCmd)
 

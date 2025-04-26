@@ -41,7 +41,7 @@ func TestCreateAndStoreTargetBlueprint(t *testing.T) {
 		},
 	}
 
-	targetBlueprint, err := CreateTargetBlueprint(
+	targetBlueprint, err := createTargetBlueprint(
 		ctx,
 		host,
 		targetResources,
@@ -83,12 +83,12 @@ func TestSaveOriginalResourcesState(t *testing.T) {
 		RegularFile: &fileContent,
 	}
 
-	targetBlueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, resouresPkg.Resources{
+	targetBlueprint, err := blueprintPkg.NewBlueprintFromResources("target-test", resouresPkg.Resources{
 		fileResource,
 	})
 	require.NoError(t, err)
 
-	err = SaveOriginalResourcesState(ctx, host, store, targetBlueprint)
+	err = saveOriginalResourcesState(ctx, host, store, targetBlueprint)
 	require.NoError(t, err)
 
 	resource, err := store.LoadOriginalResource(ctx, &resouresPkg.File{
@@ -128,12 +128,12 @@ func TestLoadOrCreateAndSaveLastBlueprintWithValidation(t *testing.T) {
 		RegularFile: &fileContent,
 	}
 
-	targetBlueprint, err := blueprintPkg.NewBlueprintFromResources(ctx, resouresPkg.Resources{
+	targetBlueprint, err := blueprintPkg.NewBlueprintFromResources("target-test", resouresPkg.Resources{
 		fileResource,
 	})
 	require.NoError(t, err)
 
-	lastBlueprint, err := LoadOrCreateAndSaveLastBlueprintWithValidation(
+	lastBlueprint, err := loadOrCreateAndSaveLastBlueprintWithValidation(
 		ctx,
 		host,
 		store,
@@ -152,7 +152,7 @@ func TestLoadOrCreateAndSaveLastBlueprintWithValidation(t *testing.T) {
 		require.Equal(t, lastStep.DetailedString(), loadedLastBlueprint.Steps[i].DetailedString())
 	}
 
-	reLoadedLastBlueprint, err := LoadOrCreateAndSaveLastBlueprintWithValidation(
+	reLoadedLastBlueprint, err := loadOrCreateAndSaveLastBlueprintWithValidation(
 		ctx,
 		host,
 		store,
@@ -167,7 +167,7 @@ func TestLoadOrCreateAndSaveLastBlueprintWithValidation(t *testing.T) {
 	err = host.Remove(ctx, filePath)
 	require.NoError(t, err)
 
-	_, err = LoadOrCreateAndSaveLastBlueprintWithValidation(
+	_, err = loadOrCreateAndSaveLastBlueprintWithValidation(
 		ctx,
 		host,
 		store,

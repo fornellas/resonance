@@ -7,24 +7,27 @@ import (
 
 	"github.com/fornellas/resonance/diff"
 	"github.com/fornellas/resonance/host/types"
+	"github.com/fornellas/resonance/log"
 	resourcesPkg "github.com/fornellas/resonance/resources"
 )
 
 // Blueprint holds a full desired state for a host.
 type Blueprint struct {
+	Name        string
 	Steps       Steps
 	resourceMap resourcesPkg.ResourceMap
 }
 
 // NewBlueprintFromResources creates a new Blueprint from given Resources, merging GroupResource
 // of the same type in the same step, while respecting the declared order.
-func NewBlueprintFromResources(ctx context.Context, resources resourcesPkg.Resources) (*Blueprint, error) {
+func NewBlueprintFromResources(name string, resources resourcesPkg.Resources) (*Blueprint, error) {
 	steps, err := NewSteps(resources)
 	if err != nil {
 		return nil, err
 	}
 
 	blueprint := &Blueprint{
+		Name:  name,
 		Steps: steps,
 	}
 
@@ -41,14 +44,19 @@ func (b *Blueprint) getresourceMap() resourcesPkg.ResourceMap {
 
 func (b *Blueprint) String() string {
 	var buff bytes.Buffer
-	for _, step := range b.Steps {
-		fmt.Fprintf(&buff, "%s\n", step)
+	for i, step := range b.Steps {
+		if i == len(b.Steps)-1 {
+			fmt.Fprintf(&buff, "%s", step)
+		} else {
+			fmt.Fprintf(&buff, "%s\n", step)
+		}
 	}
 	return buff.String()
 }
 
 // Resolve the state with information that may be required from the host for all Resources.
 func (b *Blueprint) Resolve(ctx context.Context, hst types.Host) error {
+	ctx, _ = log.MustWithGroupAttrs(ctx, "📄 Blueprint: Resolve", "name", b.Name)
 	for _, step := range b.Steps {
 		if err := step.Resolve(ctx, hst); err != nil {
 			return err
@@ -59,7 +67,9 @@ func (b *Blueprint) Resolve(ctx context.Context, hst types.Host) error {
 
 // Load returns a copy of the Blueprint, with all resource states loaded from given Host.
 func (b *Blueprint) Load(ctx context.Context, hst types.Host) (*Blueprint, error) {
+	ctx, _ = log.MustWithGroupAttrs(ctx, "📄 Blueprint: Load", "name", b.Name)
 	newBlueprint := &Blueprint{
+		Name:  b.Name,
 		Steps: make(Steps, len(b.Steps)),
 	}
 	for i, step := range b.Steps {

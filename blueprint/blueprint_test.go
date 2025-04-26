@@ -1,19 +1,14 @@
 package blueprint
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/fornellas/resonance/log"
 	resourcesPkg "github.com/fornellas/resonance/resources"
 )
 
 func TestNewBlueprintFromResources(t *testing.T) {
-	ctx := context.Background()
-	ctx = log.WithTestLogger(ctx)
-
 	aptFoo := &resourcesPkg.APTPackage{
 		Package: "foo",
 	}
@@ -27,7 +22,7 @@ func TestNewBlueprintFromResources(t *testing.T) {
 		Path: "/bar",
 	}
 
-	blueprint, err := NewBlueprintFromResources(ctx, resourcesPkg.Resources{
+	blueprint, err := NewBlueprintFromResources("test", resourcesPkg.Resources{
 		aptFoo, fileFoo, aptBar, fileBar,
 	})
 	require.NoError(t, err)

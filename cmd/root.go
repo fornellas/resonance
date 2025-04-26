@@ -27,6 +27,9 @@ var logHandlerAddSource = defaultLogHandlerAddSource
 var defaultLogHandlerConsoleTime = false
 var logHandlerConsoleTime = defaultLogHandlerConsoleTime
 
+var defaultLogHandlerConsoleForceColor = false
+var logHandlerConsoleForceColor = defaultLogHandlerConsoleForceColor
+
 var RootCmd = &cobra.Command{
 	Use:   "resonance",
 	Short: "Resonance is a configuration management tool.",
@@ -46,12 +49,13 @@ var RootCmd = &cobra.Command{
 		handler := logHandlerValue.GetHandler(
 			cmd.OutOrStderr(),
 			LogHandlerValueOptions{
-				Level:       logLevelValue.Level(),
-				AddSource:   logHandlerAddSource,
-				ConsoleTime: logHandlerConsoleTime,
+				Level:             logLevelValue.Level(),
+				AddSource:         logHandlerAddSource,
+				ConsoleTime:       logHandlerConsoleTime,
+				ConsoleForceColor: logHandlerConsoleForceColor,
 			},
 		)
-		logger := slog.New(handler).With("version", resonance.Version)
+		logger := slog.New(handler).With("((o)) Resonance", resonance.Version)
 		ctx := cmd.Context()
 		ctx = log.WithLogger(
 			ctx,
@@ -79,6 +83,8 @@ func ResetFlags() {
 
 	logHandlerConsoleTime = defaultLogHandlerConsoleTime
 
+	logHandlerConsoleForceColor = defaultLogHandlerConsoleForceColor
+
 	for _, resetFlagFn := range resetFlagsFns {
 		resetFlagFn()
 	}
@@ -97,5 +103,10 @@ func init() {
 	RootCmd.PersistentFlags().BoolVarP(
 		&logHandlerConsoleTime, "log-handler-console-time", "", defaultLogHandlerConsoleTime,
 		"Enable time for console handler",
+	)
+
+	RootCmd.PersistentFlags().BoolVarP(
+		&logHandlerConsoleForceColor, "log-handler-console-force-color", "", defaultLogHandlerConsoleForceColor,
+		"Force ANSI colors even when terminal is not detected",
 	)
 }

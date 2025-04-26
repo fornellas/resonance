@@ -1,14 +1,9 @@
 package types
 
 import (
-	"bytes"
 	"context"
-	"fmt"
 	"io"
-	"io/fs"
 	"os/user"
-	"path/filepath"
-	"syscall"
 )
 
 // BaseHost defines a minimalist interface for interfacing with a Linux host.
@@ -79,53 +74,4 @@ type Host interface {
 
 	// WriteFile works similar to os.WriteFile, but receives mode bits (see inode(7)) and ignores umask.
 	WriteFile(ctx context.Context, name string, data io.Reader, mode FileMode) error
-}
-
-// Run starts the specified command and waits for it to complete.
-// Returns WaitStatus, stdout and stderr.
-func Run(ctx context.Context, hst BaseHost, cmd Cmd) (WaitStatus, string, string, error) {
-	if cmd.Stdout != nil {
-		panic(fmt.Errorf("can not set Cmd.Stdout: %s", cmd))
-	}
-	stdoutBuffer := bytes.Buffer{}
-	cmd.Stdout = &stdoutBuffer
-
-	if cmd.Stderr != nil {
-		panic(fmt.Errorf("can not set Cmd.Stderr: %s", cmd))
-	}
-	stderrBuffer := bytes.Buffer{}
-	cmd.Stderr = &stderrBuffer
-
-	waitStatus, err := hst.Run(ctx, cmd)
-	return waitStatus, stdoutBuffer.String(), stderrBuffer.String(), err
-}
-
-// MkdirAll wraps Host.Mkdir and behavess similar to os.MkdirAll.
-func MkdirAll(ctx context.Context, hst Host, name string, mode FileMode) error {
-	stat_t, err := hst.Lstat(ctx, name)
-	if err == nil {
-		if stat_t.Mode&syscall.S_IFMT == syscall.S_IFDIR {
-			return nil
-		}
-		return &fs.PathError{
-			Op:   "MkdirAll",
-			Path: name,
-			Err:  syscall.ENOTDIR,
-		}
-	}
-
-	name = filepath.Clean(name)
-	parent := filepath.Dir(name)
-
-	if parent != name {
-		if err := MkdirAll(ctx, hst, parent, mode); err != nil {
-			return err
-		}
-	}
-
-	if err := hst.Mkdir(ctx, name, mode); err != nil {
-		return err
-	}
-
-	return nil
 }

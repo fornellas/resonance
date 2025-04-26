@@ -1,10 +1,13 @@
 package main
 
 import (
-	"github.com/fornellas/resonance/host/types"
+	"github.com/spf13/cobra"
+
 	storePkg "github.com/fornellas/resonance/store"
 )
 
-func getStoreArch(hst types.Host) storePkg.Store {
-	return nil
+func addStoreFlagsArch(cmd *cobra.Command) {}
+
+func getStoreArch(_ string) (storePkg.Store, string) {
+	return nil, ""
 }

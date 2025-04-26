@@ -16,9 +16,9 @@ import (
 	"github.com/fornellas/resonance/log"
 )
 
-func LoadFile(ctx context.Context, path string) (Resources, error) {
-	_, _ = log.MustContextLoggerWithSection(ctx, "📝 Loading resources from file", "path", path)
-
+func loadFile(ctx context.Context, path string) (Resources, error) {
+	_, logger := log.MustWithGroupAttrs(ctx, "📄 Resources File", "path", path)
+	logger.Info("Loading")
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load resource file: %w", err)
@@ -86,7 +86,7 @@ func LoadFile(ctx context.Context, path string) (Resources, error) {
 }
 
 func LoadDir(ctx context.Context, dir string) (Resources, error) {
-	ctx, logger := log.MustContextLoggerWithSection(ctx, "🗃️ Loading resources from directory", "dir", dir)
+	ctx, logger := log.MustWithGroupAttrs(ctx, "📂 Resources load", "path", dir)
 
 	resources := Resources{}
 
@@ -95,8 +95,16 @@ func LoadDir(ctx context.Context, dir string) (Resources, error) {
 		if err != nil {
 			return err
 		}
-		if fileInfo.IsDir() || !strings.HasSuffix(fileInfo.Name(), ".yaml") {
-			logger.Debug("Skipping", "path", path)
+		if fileInfo.IsDir() {
+			logger.Debug("Skipping", "path", path, "reason", "is directory")
+			return nil
+		}
+		if !strings.HasSuffix(fileInfo.Name(), ".yaml") {
+			logger.Debug("Skipping", "path", path, "reason", "not .yaml")
+			return nil
+		}
+		if !fileInfo.Mode().IsRegular() {
+			logger.Debug("Skipping", "path", path, "reason", "not a regular file")
 			return nil
 		}
 		logger.Debug("Found resources file", "path", path)
@@ -111,16 +119,19 @@ func LoadDir(ctx context.Context, dir string) (Resources, error) {
 	sort.Strings(paths)
 
 	for _, path := range paths {
-		fileResources, err := LoadFile(ctx, path)
+		fileResources, err := loadFile(ctx, path)
 		if err != nil {
 			return nil, err
 		}
 		resources = append(resources, fileResources...)
 	}
 
+	logger.Debug("Validating")
 	if err := resources.Validate(); err != nil {
 		return resources, err
 	}
+
+	logger.Info("Loaded", "resources", len(resources))
 
 	return resources, nil
 }
@@ -139,7 +150,7 @@ func LoadPath(ctx context.Context, path string) (Resources, error) {
 			return nil, err
 		}
 	} else {
-		resources, err = LoadFile(ctx, path)
+		resources, err = loadFile(ctx, path)
 		if err != nil {
 			return nil, err
 		}
