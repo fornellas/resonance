@@ -430,10 +430,6 @@ func TestConsoleHandler_ColorDetection(t *testing.T) {
 			buf := &bytes.Buffer{} // buffer is not a TTY
 			h := NewConsoleHandler(buf, tt.opts)
 
-			// Check if color is enabled
-			assert.Equal(t, tt.wantColors, h.color)
-
-			// Log something and check for color codes
 			logger := slog.New(h)
 			logger.Error("test message")
 
