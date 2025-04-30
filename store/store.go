@@ -1,3 +1,4 @@
+// Host state definition storage utilities.
 package store
 
 import (
@@ -7,7 +8,7 @@ import (
 	resourcesPkg "github.com/fornellas/resonance/resources"
 )
 
-// Store defines an interface for storage of Blueprint.
+// Store defines an interface for storage of host state.
 type Store interface {
 	// SaveOriginalResource saves given resource as its original state.
 	SaveOriginalResource(ctx context.Context, resource resourcesPkg.Resource) error

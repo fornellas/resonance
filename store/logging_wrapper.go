@@ -13,7 +13,7 @@ type LoggingWrapper struct {
 	store Store
 }
 
-func NewLoggingWrapper(store Store) Store {
+func NewLoggingWrapper(store Store) *LoggingWrapper {
 	return &LoggingWrapper{
 		store: store,
 	}

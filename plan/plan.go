@@ -208,11 +208,11 @@ func loadOrCreateAndSaveLastBlueprintWithValidation(
 			return nil, err
 		}
 
-		chunks := currentBlueprint.Satisfies(lastBlueprint)
-		if chunks.HaveChanges() {
+		diff := currentBlueprint.Satisfies(lastBlueprint)
+		if diff.HasChanges() {
 			return nil, fmt.Errorf(
 				"host state has changed:\n%s",
-				chunks.String(),
+				diff.String(),
 			)
 		}
 	}

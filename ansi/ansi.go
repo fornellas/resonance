@@ -1,3 +1,4 @@
+// ANSI terminal escape sequences utilities.
 package ansi
 
 import (
@@ -5,18 +6,21 @@ import (
 	"fmt"
 )
 
-// ANSI terminal escape sequences utilities.
-
 // Control Sequence Introducer
 const CSI = "\033["
 
 // Select Graphic Rendition display attribute.
 type SGR uint
 
+// String returns the ANSI escape sequence as a string for this SGR code.
+// For example, SGR code 31 (FgRed) returns "\033[31m".
 func (s SGR) String() string {
 	return fmt.Sprintf("%s%dm", CSI, s)
 }
 
+// Sprintf returns a string colorized with this SGR (Select Graphic Rendition) code.
+// The text is formatted according to the provided format and arguments,
+// and is wrapped with this SGR code and the Reset code.
 func (s SGR) Sprintf(format string, a ...any) string {
 	a = append(
 		[]any{
@@ -83,6 +87,8 @@ const (
 // Select Graphic Rendition display attributes.
 type SGRs []SGR
 
+// String returns the ANSI escape sequence as a string for these SGR codes combined.
+// For example, []SGR{FgRed, Bold} returns "\033[31;1m".
 func (s SGRs) String() string {
 	var buff bytes.Buffer
 	buff.Write([]byte(CSI))
@@ -97,6 +103,10 @@ func (s SGRs) String() string {
 	return buff.String()
 }
 
+// Sprintf returns a string colorized with these SGR (Select Graphic Rendition) codes.
+// The text is formatted according to the provided format and arguments,
+// and is wrapped with these SGR codes and the Reset code.
+// If the SGRs slice is empty, it returns the unmodified formatted string.
 func (s SGRs) Sprintf(format string, a ...any) string {
 	if len(s) == 0 {
 		return fmt.Sprintf(format, a...)
