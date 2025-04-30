@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	blueprintPkg "github.com/fornellas/resonance/blueprint"
-	"github.com/fornellas/resonance/diff"
+	diffPkg "github.com/fornellas/resonance/diff"
 	"github.com/fornellas/resonance/host/types"
 	"github.com/fornellas/resonance/log"
 	resourcesPkg "github.com/fornellas/resonance/resources"
@@ -21,7 +21,7 @@ type ResourceDiff struct {
 	// The resource Id
 	Id string
 	// The diff to apply the resource.
-	Chunks diff.Chunks
+	Diff diffPkg.Diff
 }
 
 func (r *ResourceDiff) String() string {
@@ -29,11 +29,11 @@ func (r *ResourceDiff) String() string {
 }
 
 // NewResourceDiff creates a new ResourceDiff
-func NewResourceDiff(emoji rune, planResource resourcesPkg.Resource, chunks diff.Chunks) *ResourceDiff {
+func NewResourceDiff(emoji rune, planResource resourcesPkg.Resource, diff diffPkg.Diff) *ResourceDiff {
 	return &ResourceDiff{
-		Emoji:  emoji,
-		Id:     resourcesPkg.GetResourceId(planResource),
-		Chunks: chunks,
+		Emoji: emoji,
+		Id:    resourcesPkg.GetResourceId(planResource),
+		Diff:  diff,
 	}
 }
 
@@ -76,7 +76,7 @@ func NewAction(step *blueprintPkg.Step, beforeResourceMap resourcesPkg.ResourceM
 					emoji = '🔄'
 				}
 			}
-			resourceAction = NewResourceDiff(emoji, planResource, diff.DiffAsYaml(
+			resourceAction = NewResourceDiff(emoji, planResource, diffPkg.DiffAsYaml(
 				beforeResource, planResource,
 			))
 		}
@@ -106,17 +106,17 @@ func (a *Action) DiffString() string {
 
 	if len(a.ResourceDiffs) == 1 {
 		resourceDiffs := a.ResourceDiffs[0]
-		if len(resourceDiffs.Chunks) > 0 {
-			fmt.Fprintf(&buff, "%s", resourceDiffs.Chunks.String())
+		if len(resourceDiffs.Diff) > 0 {
+			fmt.Fprintf(&buff, "%s", resourceDiffs.Diff.String())
 		}
 	} else {
 		for _, resourceDiffs := range a.ResourceDiffs {
-			if len(resourceDiffs.Chunks) > 0 {
+			if len(resourceDiffs.Diff) > 0 {
 				fmt.Fprintf(&buff, "%s:\n", resourceDiffs.Id)
 				fmt.Fprintf(&buff, "  %s\n",
 					strings.Join(
 						strings.Split(
-							strings.TrimSuffix(resourceDiffs.Chunks.String(), "\n"),
+							strings.TrimSuffix(resourceDiffs.Diff.String(), "\n"),
 							"\n",
 						),
 						"\n  ",

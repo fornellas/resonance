@@ -19,11 +19,11 @@ import (
 	"github.com/fornellas/resonance/log"
 )
 
-// StdinSudo prevents stdin from being read, before we can detect output
+// stdinSudo prevents stdin from being read, before we can detect output
 // from sudo on stdout. This is required because os/exec and ssh buffer stdin
 // before there's any read, meaning we can't intercept the sudo prompt
 // reliably
-type StdinSudo struct {
+type stdinSudo struct {
 	Unlock   chan struct{}
 	SendPass chan string
 	Reader   io.Reader
@@ -31,7 +31,7 @@ type StdinSudo struct {
 	unlocked bool
 }
 
-func (r *StdinSudo) Read(p []byte) (int, error) {
+func (r *stdinSudo) Read(p []byte) (int, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -55,10 +55,10 @@ func (r *StdinSudo) Read(p []byte) (int, error) {
 	return r.Reader.Read(p)
 }
 
-// StderrSudo waits for either write:
+// stderrSudo waits for either write:
 // - sudo prompt: asks for password, caches it, and send to stdin.
 // - sudo ok: unlocks stdin.
-type StderrSudo struct {
+type stderrSudo struct {
 	Unlock          chan struct{}
 	SendPass        chan string
 	Prompt          []byte
@@ -70,7 +70,7 @@ type StderrSudo struct {
 	passwordAttempt *string
 }
 
-func (w *StderrSudo) Write(p []byte) (int, error) {
+func (w *stderrSudo) Write(p []byte) (int, error) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 
@@ -215,7 +215,7 @@ func (h *SudoWrapper) runEnv(ctx context.Context, cmd types.Cmd, ignoreCmdEnv bo
 	} else {
 		stdin = &bytes.Buffer{}
 	}
-	cmd.Stdin = &StdinSudo{
+	cmd.Stdin = &stdinSudo{
 		Unlock:   unlockStdin,
 		SendPass: sendPassStdin,
 		Reader:   stdin,
@@ -227,7 +227,7 @@ func (h *SudoWrapper) runEnv(ctx context.Context, cmd types.Cmd, ignoreCmdEnv bo
 	} else {
 		stderr = io.Discard
 	}
-	cmd.Stderr = &StderrSudo{
+	cmd.Stderr = &stderrSudo{
 		Unlock:   unlockStdin,
 		SendPass: sendPassStdin,
 		Prompt:   []byte(prompt),

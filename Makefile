@@ -597,7 +597,7 @@ build-agent-%: go-generate gen-protofiles
 	//go:embed agent_server/agent_server_linux_$*.gz
 	var agent_server_linux_$* []byte
 	func init() {
-		AgentBinGz["linux.$*"] = agent_server_linux_$*
+		agentBinGzMap["linux.$*"] = agent_server_linux_$*
 	}
 	EOF
 build-agent: $(foreach GOARCH,$(GO_BUILD_AGENT_GOARCHS),build-agent-$(GOARCH))

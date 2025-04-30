@@ -1,3 +1,4 @@
+// Diff related utilities.
 package diff
 
 import (
@@ -10,10 +11,15 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type Chunks []diff.Chunk
+// Diff represents a collection of chunks that describe the difference between two
+// texts. Each chunk describes a series of added, deleted, and equal lines.
+// The primary purpose of Diff is to display text differences in a readable format,
+// with added lines prefixed with '+' and deleted lines prefixed with '-'.
+// ANSI colors are used unless color.NoColor is set.
+type Diff []diff.Chunk
 
-// HaveChanges return true when the chunks contains changes.
-func (cs Chunks) HaveChanges() bool {
+// HasChanges return true when the chunks contains changes.
+func (cs Diff) HasChanges() bool {
 	for _, chunk := range cs {
 		if len(chunk.Added) > 0 {
 			return true
@@ -25,7 +31,7 @@ func (cs Chunks) HaveChanges() bool {
 	return false
 }
 
-func (cs Chunks) added(i int, lines []string, buff *bytes.Buffer) {
+func (cs Diff) added(i int, lines []string, buff *bytes.Buffer) {
 	for _, line := range lines {
 		if (i == 0 || i == len(cs)-1) && line == "" {
 			continue
@@ -42,7 +48,7 @@ func (cs Chunks) added(i int, lines []string, buff *bytes.Buffer) {
 	}
 }
 
-func (cs Chunks) deleted(i int, lines []string, buff *bytes.Buffer) {
+func (cs Diff) deleted(i int, lines []string, buff *bytes.Buffer) {
 	for _, line := range lines {
 		if (i == 0 || i == len(cs)-1) && line == "" {
 			continue
@@ -59,7 +65,7 @@ func (cs Chunks) deleted(i int, lines []string, buff *bytes.Buffer) {
 	}
 }
 
-func (cs Chunks) equal(i int, lines []string, buff *bytes.Buffer) {
+func (cs Diff) equal(i int, lines []string, buff *bytes.Buffer) {
 	for _, line := range lines {
 		if (i == 0 || i == len(cs)-1) && line == "" {
 			continue
@@ -68,7 +74,7 @@ func (cs Chunks) equal(i int, lines []string, buff *bytes.Buffer) {
 	}
 }
 
-func (cs Chunks) String() string {
+func (cs Diff) String() string {
 	var buff bytes.Buffer
 	for i, chunk := range cs {
 		cs.added(i, chunk.Added, &buff)
@@ -79,7 +85,7 @@ func (cs Chunks) String() string {
 }
 
 // DiffAsYaml converts both interfaces to yaml and diffs them.
-func DiffAsYaml(a, b any) Chunks {
+func DiffAsYaml(a, b any) Diff {
 	var aStr string
 	if a != nil {
 		aBytes, err := yaml.Marshal(a)

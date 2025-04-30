@@ -730,12 +730,10 @@ func (s *HostService) Shutdown(ctx context.Context, _ *proto.Empty) (*proto.Empt
 }
 
 func main() {
-	ioConn := hostNet.IOConn{
+	pipeListener := NewListener(hostNet.IOConn{
 		Reader: os.Stdin,
 		Writer: os.Stdout,
-	}
-
-	pipeListener := hostNet.NewListener(ioConn)
+	})
 
 	grpcServer := grpc.NewServer()
 

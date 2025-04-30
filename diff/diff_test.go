@@ -20,6 +20,6 @@ var d = `|-
 `
 
 func TestDiffAsYaml(t *testing.T) {
-	chunks := DiffAsYaml(a, b)
-	require.Equal(t, d, chunks.String())
+	diff := DiffAsYaml(a, b)
+	require.Equal(t, d, diff.String())
 }

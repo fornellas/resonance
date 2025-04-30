@@ -14,7 +14,7 @@ type LoggingWrapper struct {
 	host types.Host
 }
 
-func NewLoggingWrapper(host types.Host) types.Host {
+func NewLoggingWrapper(host types.Host) *LoggingWrapper {
 	return &LoggingWrapper{host: host}
 }
 

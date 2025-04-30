@@ -289,7 +289,7 @@ File:🔄/bar
 				fmt.Fprintf(&buff, "%s\n", action.DetailedString())
 				idsWithDiff := []string{}
 				for _, resourceDiff := range action.ResourceDiffs {
-					if len(resourceDiff.Chunks) > 0 {
+					if len(resourceDiff.Diff) > 0 {
 						idsWithDiff = append(idsWithDiff, resourceDiff.Id)
 					}
 				}

@@ -41,7 +41,7 @@ func unwrapGrpcStatusErrno(err error) error {
 	return err
 }
 
-type AgentClientWrapperReadFileReadCloser struct {
+type agentClientWrapperReadFileReadCloser struct {
 	Op         string
 	Path       string
 	Stream     grpc.ServerStreamingClient[proto.ReadFileResponse]
@@ -49,7 +49,7 @@ type AgentClientWrapperReadFileReadCloser struct {
 	Data       []byte
 }
 
-func (rc *AgentClientWrapperReadFileReadCloser) Read(p []byte) (int, error) {
+func (rc *agentClientWrapperReadFileReadCloser) Read(p []byte) (int, error) {
 	if len(rc.Data) > 0 {
 		n := copy(p, rc.Data)
 		if n < len(rc.Data) {
@@ -82,18 +82,16 @@ func (rc *AgentClientWrapperReadFileReadCloser) Read(p []byte) (int, error) {
 	return n, nil
 }
 
-func (rc *AgentClientWrapperReadFileReadCloser) Close() error {
+func (rc *agentClientWrapperReadFileReadCloser) Close() error {
 	rc.CancelFunc()
 	return nil
 }
 
-var AgentGrpcBinGz = map[string][]byte{}
-
-type WriterLogger struct {
+type writerLogger struct {
 	Logger *slog.Logger
 }
 
-func (wl WriterLogger) Write(b []byte) (int, error) {
+func (wl writerLogger) Write(b []byte) (int, error) {
 	lines := strings.Split(string(b), "\n")
 	for i, line := range lines {
 		if len(line) == 0 && i+1 == len(lines) {
@@ -104,7 +102,7 @@ func (wl WriterLogger) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
-var AgentBinGz = map[string][]byte{}
+var agentBinGzMap = map[string][]byte{}
 
 // AgentClientWrapper wraps a BaseHost and provides a full Host implementation with the
 // use of an ephemeral agent.
@@ -238,10 +236,10 @@ func getAgentBinGz(ctx context.Context, baseHost types.BaseHost) ([]byte, error)
 	}
 	osArch := fmt.Sprintf("%s.%s", goos, goarch)
 
-	agentBinGz, ok := AgentBinGz[osArch]
+	agentBinGz, ok := agentBinGzMap[osArch]
 	if !ok {
 		vaildOsArch := []string{}
-		for osArch := range AgentBinGz {
+		for osArch := range agentBinGzMap {
 			vaildOsArch = append(vaildOsArch, osArch)
 		}
 		sort.Strings(vaildOsArch)
@@ -339,7 +337,7 @@ func (h *AgentClientWrapper) spawn(ctx context.Context) error {
 			Path:   h.path,
 			Stdin:  stdinReader,
 			Stdout: stdoutWriter,
-			Stderr: WriterLogger{
+			Stderr: writerLogger{
 				Logger: log.MustLogger(ctx).WithGroup("🔗 Agent Server"),
 			},
 		})
@@ -612,7 +610,7 @@ func (h *AgentClientWrapper) ReadFile(ctx context.Context, name string) (io.Read
 		}
 	}
 
-	return &AgentClientWrapperReadFileReadCloser{
+	return &agentClientWrapperReadFileReadCloser{
 		Stream:     stream,
 		CancelFunc: cancel,
 		Data:       readFileResponse.Chunk,
