@@ -874,6 +874,78 @@ func (h *AgentClientWrapper) WriteFile(ctx context.Context, name string, data io
 	return nil
 }
 
+func (h *AgentClientWrapper) AppendFile(ctx context.Context, name string, data io.Reader, perm types.FileMode) error {
+	stream, err := h.hostServiceClient.AppendFile(ctx)
+	if err != nil {
+		return &fs.PathError{
+			Op:   "AppendFile",
+			Path: name,
+			Err:  unwrapGrpcStatusErrno(err),
+		}
+	}
+
+	err = stream.Send(
+		&proto.AppendFileRequest{
+			Data: &proto.AppendFileRequest_Metadata{
+				Metadata: &proto.FileMetadata{
+					Name: name,
+					Perm: uint32(perm),
+				},
+			},
+		},
+	)
+	if err != nil {
+		_, closeAndRecvErr := stream.CloseAndRecv()
+		return &fs.PathError{
+			Op:   "AppendFile",
+			Path: name,
+			Err: errors.Join(
+				unwrapGrpcStatusErrno(err),
+				closeAndRecvErr,
+			),
+		}
+	}
+
+	var sendErr error
+	buffer := make([]byte, 1024)
+	for {
+		n, err := data.Read(buffer)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			sendErr = unwrapGrpcStatusErrno(err)
+			break
+		}
+
+		err = stream.Send(
+			&proto.AppendFileRequest{
+				Data: &proto.AppendFileRequest_Chunk{
+					Chunk: buffer[:n],
+				},
+			},
+		)
+		if err != nil {
+			sendErr = unwrapGrpcStatusErrno(err)
+			break
+		}
+	}
+
+	_, closeAndRecvErr := stream.CloseAndRecv()
+	err = errors.Join(
+		sendErr,
+		unwrapGrpcStatusErrno(closeAndRecvErr),
+	)
+	if err != nil {
+		return &fs.PathError{
+			Op:   "AppendFile",
+			Path: name,
+			Err:  err,
+		}
+	}
+	return nil
+}
+
 func (h *AgentClientWrapper) String() string {
 	return h.BaseHost.String()
 }

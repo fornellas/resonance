@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"io"
 
 	blueprintPkg "github.com/fornellas/resonance/blueprint"
 	"github.com/fornellas/resonance/log"
@@ -77,4 +78,8 @@ func (s *LoggingWrapper) DeleteTargetBlueprint(ctx context.Context) error {
 	ctx, logger := log.MustWithGroupAttrs(ctx, "🗄️ Store")
 	logger.Debug("DeleteTargetBlueprint")
 	return s.store.DeleteTargetBlueprint(ctx)
+}
+
+func (s *LoggingWrapper) GetLogWriterCloser(name string) io.WriteCloser {
+	return s.store.GetLogWriterCloser(name)
 }

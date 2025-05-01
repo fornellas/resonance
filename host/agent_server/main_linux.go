@@ -719,6 +719,76 @@ func (s *HostService) WriteFile(
 	return nil
 }
 
+func (s *HostService) AppendFile(
+	stream grpc.ClientStreamingServer[proto.AppendFileRequest, proto.Empty],
+) error {
+	req, err := stream.Recv()
+	if err != nil {
+		return s.getGrpcStatusErrnoErr(err)
+	}
+
+	appendFileRequest_Metadata, ok := req.Data.(*proto.AppendFileRequest_Metadata)
+	if !ok {
+		return status.Errorf(codes.InvalidArgument, "first message must be 'metadata'")
+	}
+	metadata := appendFileRequest_Metadata.Metadata
+
+	if !filepath.IsAbs(metadata.Name) {
+		return status.Errorf(codes.InvalidArgument, "path must be absolute")
+	}
+
+	file, err := os.OpenFile(
+		metadata.Name,
+		os.O_WRONLY|os.O_CREATE|os.O_APPEND,
+		os.FileMode(metadata.Perm),
+	)
+	if err != nil {
+		return s.getGrpcStatusErrnoErr(err)
+	}
+
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return errors.Join(
+				s.getGrpcStatusErrnoErr(err),
+				s.getGrpcStatusErrnoErr(file.Close()),
+			)
+		}
+
+		chunk, ok := req.Data.(*proto.AppendFileRequest_Chunk)
+		if !ok {
+			return errors.Join(
+				status.Errorf(codes.InvalidArgument, "second message onwards must be 'chunk'"),
+				s.getGrpcStatusErrnoErr(file.Close()),
+			)
+		}
+
+		if _, err := file.Write(chunk.Chunk); err != nil {
+			return errors.Join(
+				s.getGrpcStatusErrnoErr(err),
+				s.getGrpcStatusErrnoErr(file.Close()),
+			)
+		}
+	}
+
+	if err := file.Close(); err != nil {
+		return s.getGrpcStatusErrnoErr(err)
+	}
+
+	if err = syscall.Chmod(metadata.Name, metadata.Perm); err != nil {
+		return s.getGrpcStatusErrnoErr(err)
+	}
+
+	if err := stream.SendAndClose(&proto.Empty{}); err != nil {
+		return s.getGrpcStatusErrnoErr(err)
+	}
+
+	return nil
+}
+
 func (s *HostService) Shutdown(ctx context.Context, _ *proto.Empty) (*proto.Empty, error) {
 	go func() {
 		// When GracefulStop() is executed, it'll close the connection (and the pipe), generating

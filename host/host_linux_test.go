@@ -715,7 +715,10 @@ func testHost(
 		})
 	})
 
-	t.Run("WriteFile", func(t *testing.T) {
+	testFileCommon := func(
+		t *testing.T,
+		fileFn func(ctx context.Context, name string, data io.Reader, mode types.FileMode) error,
+	) {
 		for _, modeBits := range allModeBits {
 			t.Run(fmt.Sprintf("Success mode=%#.12o", modeBits), func(t *testing.T) {
 				dir := tempDirWithPrefix(t, tempDirPrefix)
@@ -723,7 +726,7 @@ func testHost(
 				dataBytes := []byte("foo")
 				data := bytes.NewReader(dataBytes)
 
-				err := hst.WriteFile(ctx, name, data, types.FileMode(modeBits))
+				err := fileFn(ctx, name, data, types.FileMode(modeBits))
 				require.NoError(t, err)
 
 				readDataBytes, err := os.ReadFile(name)
@@ -741,42 +744,24 @@ func testHost(
 		}
 
 		t.Run("path must be absolute", func(t *testing.T) {
-			err := hst.WriteFile(ctx, "foo/bar", bytes.NewReader([]byte{}), 0600)
+			err := fileFn(ctx, "foo/bar", bytes.NewReader([]byte{}), 0600)
 			require.ErrorContains(t, err, "path must be absolute")
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
 		})
 		t.Run("syscall.EACCES", func(t *testing.T) {
 			skipIfRoot(t)
-			err := hst.WriteFile(ctx, "/etc/foo", bytes.NewReader([]byte{}), 0600)
+			err := fileFn(ctx, "/etc/foo", bytes.NewReader([]byte{}), 0600)
 			require.ErrorIs(t, err, syscall.EACCES)
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
-		})
-		t.Run("ovewrite file", func(t *testing.T) {
-			dir := tempDirWithPrefix(t, tempDirPrefix)
-			name := filepath.Join(dir, "foo")
-			var fileMode types.FileMode = 01607
-			err := hst.WriteFile(ctx, name, bytes.NewReader([]byte{}), fileMode)
-			require.NoError(t, err)
-			dataBytes := []byte("foo")
-			data := bytes.NewReader(dataBytes)
-			var newFileMode types.FileMode = 02675
-			err = hst.WriteFile(ctx, name, data, newFileMode)
-			require.NoError(t, err)
-			readDataBytes, err := os.ReadFile(name)
-			require.NoError(t, err)
-			require.Equal(t, dataBytes, readDataBytes)
-			var stat_t syscall.Stat_t
-			require.NoError(t, syscall.Lstat(name, &stat_t))
-			require.Equal(t, newFileMode, types.FileMode(stat_t.Mode&07777))
 		})
 		t.Run("is directory", func(t *testing.T) {
 			dir := tempDirWithPrefix(t, tempDirPrefix)
 			name := filepath.Join(dir, "foo")
 			err := os.Mkdir(name, os.FileMode(0700))
 			require.NoError(t, err)
-			err = hst.WriteFile(ctx, name, bytes.NewReader([]byte{}), 0640)
+			err = fileFn(ctx, name, bytes.NewReader([]byte{}), 0640)
 			require.Error(t, err)
 			require.ErrorIs(t, err, syscall.EISDIR)
 			var pathError *fs.PathError
@@ -785,10 +770,60 @@ func testHost(
 		t.Run("syscall.ENOENT", func(t *testing.T) {
 			dir := tempDirWithPrefix(t, tempDirPrefix)
 			name := filepath.Join(dir, "foo", "bar")
-			err := hst.WriteFile(ctx, name, bytes.NewReader([]byte{}), 0600)
+			err := fileFn(ctx, name, bytes.NewReader([]byte{}), 0600)
 			require.ErrorIs(t, err, syscall.ENOENT)
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
+		})
+	}
+
+	t.Run("WriteFile", func(t *testing.T) {
+		testFileCommon(t, hst.WriteFile)
+
+		t.Run("ovewrite file", func(t *testing.T) {
+			dir := tempDirWithPrefix(t, tempDirPrefix)
+			name := filepath.Join(dir, "foo")
+			oldDataBytes := []byte("old")
+			oldData := bytes.NewReader(oldDataBytes)
+			var fileMode types.FileMode = 01607
+			err := hst.WriteFile(ctx, name, oldData, fileMode)
+			require.NoError(t, err)
+			newDataBytes := []byte("new")
+			newData := bytes.NewReader(newDataBytes)
+			var newFileMode types.FileMode = 02675
+			err = hst.WriteFile(ctx, name, newData, newFileMode)
+			require.NoError(t, err)
+			readDataBytes, err := os.ReadFile(name)
+			require.NoError(t, err)
+			require.Equal(t, newDataBytes, readDataBytes)
+			var stat_t syscall.Stat_t
+			require.NoError(t, syscall.Lstat(name, &stat_t))
+			require.Equal(t, newFileMode, types.FileMode(stat_t.Mode&07777))
+		})
+	})
+
+	t.Run("AppendFile", func(t *testing.T) {
+		testFileCommon(t, hst.AppendFile)
+
+		t.Run("append file", func(t *testing.T) {
+			dir := tempDirWithPrefix(t, tempDirPrefix)
+			name := filepath.Join(dir, "foo")
+			oldDataBytes := []byte("old")
+			oldData := bytes.NewReader(oldDataBytes)
+			var fileMode types.FileMode = 01607
+			err := hst.AppendFile(ctx, name, oldData, fileMode)
+			require.NoError(t, err)
+			newDataBytes := []byte("new")
+			newData := bytes.NewReader(newDataBytes)
+			var newFileMode types.FileMode = 02675
+			err = hst.AppendFile(ctx, name, newData, newFileMode)
+			require.NoError(t, err)
+			readDataBytes, err := os.ReadFile(name)
+			require.NoError(t, err)
+			require.Equal(t, append(oldDataBytes, newDataBytes...), readDataBytes)
+			var stat_t syscall.Stat_t
+			require.NoError(t, syscall.Lstat(name, &stat_t))
+			require.Equal(t, newFileMode, types.FileMode(stat_t.Mode&07777))
 		})
 	})
 }

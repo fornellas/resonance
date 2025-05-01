@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -310,4 +311,8 @@ func (s *HostStore) DeleteTargetBlueprint(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+func (s *HostStore) GetLogWriterCloser(name string) io.WriteCloser {
+	panic("TODO")
 }

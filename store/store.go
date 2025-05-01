@@ -3,6 +3,7 @@ package store
 
 import (
 	"context"
+	"io"
 
 	blueprintPkg "github.com/fornellas/resonance/blueprint"
 	resourcesPkg "github.com/fornellas/resonance/resources"
@@ -41,4 +42,8 @@ type Store interface {
 
 	// DeleteTargetBlueprint deletes a target Blueprint previously saved with SaveTargetBlueprint
 	DeleteTargetBlueprint(ctx context.Context) error
+
+	// GetLogWriterCloser returns a io.WriteCloser to be used for logging for the current session,
+	// with given name. On session completion, the object must be closed.
+	GetLogWriterCloser(name string) io.WriteCloser
 }

@@ -74,4 +74,8 @@ type Host interface {
 
 	// WriteFile works similar to os.WriteFile, but receives mode bits (see inode(7)) and ignores umask.
 	WriteFile(ctx context.Context, name string, data io.Reader, mode FileMode) error
+
+	// AppendFile works similar to WriteFile, but instead of truncating if the file exists, it
+	// appends to it.
+	AppendFile(ctx context.Context, name string, data io.Reader, mode FileMode) error
 }

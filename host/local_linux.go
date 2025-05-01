@@ -196,6 +196,24 @@ func (h Local) WriteFile(ctx context.Context, name string, data io.Reader, mode 
 	return h.getPathError("WriteFile", name, errors.Join(syscall.Chmod(name, uint32(mode)), file.Close()))
 }
 
+func (h Local) AppendFile(ctx context.Context, name string, data io.Reader, mode types.FileMode) error {
+	if !filepath.IsAbs(name) {
+		return h.getPathError("AppendFile", name, errors.New("path must be absolute"))
+	}
+
+	file, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_APPEND, os.FileMode(mode))
+	if err != nil {
+		return h.getPathError("AppendFile", name, err)
+	}
+
+	_, err = io.Copy(file, data)
+	if err != nil {
+		return h.getPathError("AppendFile", name, errors.Join(err, file.Close()))
+	}
+
+	return h.getPathError("AppendFile", name, errors.Join(syscall.Chmod(name, uint32(mode)), file.Close()))
+}
+
 func (h Local) String() string {
 	return "localhost"
 }

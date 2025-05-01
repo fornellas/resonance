@@ -22,6 +22,7 @@ service HostService {
   rpc Run(stream RunRequest) returns (stream RunResponse) {}
   rpc Mknod(MknodRequest) returns (Empty) {}
   rpc WriteFile(stream WriteFileRequest) returns (Empty) {}
+  rpc AppendFile(stream AppendFileRequest) returns (Empty) {}
   rpc Shutdown(Empty) returns (Empty) {}
 }
 
@@ -195,6 +196,13 @@ message FileMetadata {
 }
 
 message WriteFileRequest {
+  oneof data {
+    FileMetadata metadata = 1;
+    bytes chunk = 2;
+  }
+}
+
+message AppendFileRequest {
   oneof data {
     FileMetadata metadata = 1;
     bytes chunk = 2;

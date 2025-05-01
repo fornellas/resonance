@@ -127,3 +127,9 @@ func (h *LoggingWrapper) WriteFile(ctx context.Context, name string, data io.Rea
 	logger.Debug("WriteFile", "name", name, "mode", mode)
 	return h.host.WriteFile(ctx, name, data, mode)
 }
+
+func (h *LoggingWrapper) AppendFile(ctx context.Context, name string, data io.Reader, mode types.FileMode) error {
+	ctx, logger := log.MustWithGroupAttrs(ctx, "🖥️ Host", "type", h.host.Type(), "name", h.host.String())
+	logger.Debug("AppendFile", "name", name, "mode", mode)
+	return h.host.AppendFile(ctx, name, data, mode)
+}
