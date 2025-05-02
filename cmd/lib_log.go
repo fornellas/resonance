@@ -7,6 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/spf13/cobra"
+
+	"github.com/fornellas/resonance"
 	"github.com/fornellas/resonance/log"
 )
 
@@ -45,6 +48,8 @@ func (l LogLevelValue) Type() string {
 func (l LogLevelValue) Level() slog.Level {
 	return slog.Level(l)
 }
+
+var logLevelValue = NewLogLevelValue()
 
 type LogHandlerValueOptions struct {
 	Level             slog.Level
@@ -123,4 +128,59 @@ func (h *LogHandlerValue) GetHandler(
 		panic("bug detected: invalid handler name")
 	}
 	return fn(writer, options)
+}
+
+var logHandlerValue = NewLogHandlerValue()
+
+var defaultLogHandlerAddSource = false
+var logHandlerAddSource = defaultLogHandlerAddSource
+
+var defaultLogHandlerConsoleTime = false
+var logHandlerConsoleTime = defaultLogHandlerConsoleTime
+
+var defaultLogHandlerConsoleForceColor = false
+var logHandlerConsoleForceColor = defaultLogHandlerConsoleForceColor
+
+func AddLoggerFlags(cmd *cobra.Command) {
+	RootCmd.PersistentFlags().VarP(logLevelValue, "log-level", "l", "Logging level")
+
+	RootCmd.PersistentFlags().VarP(logHandlerValue, "log-handler", "", "Logging handler")
+
+	RootCmd.PersistentFlags().BoolVarP(
+		&logHandlerAddSource, "log-handler-add-source", "", defaultLogHandlerAddSource,
+		"Include source code position of the log statement when logging",
+	)
+
+	RootCmd.PersistentFlags().BoolVarP(
+		&logHandlerConsoleTime, "log-handler-console-time", "", defaultLogHandlerConsoleTime,
+		"Enable time for console handler",
+	)
+
+	RootCmd.PersistentFlags().BoolVarP(
+		&logHandlerConsoleForceColor, "log-handler-console-force-color", "", defaultLogHandlerConsoleForceColor,
+		"Force ANSI colors even when terminal is not detected",
+	)
+}
+
+func GetLogger(writer io.Writer) *slog.Logger {
+	handler := logHandlerValue.GetHandler(
+		writer,
+		LogHandlerValueOptions{
+			Level:             logLevelValue.Level(),
+			AddSource:         logHandlerAddSource,
+			ConsoleTime:       logHandlerConsoleTime,
+			ConsoleForceColor: logHandlerConsoleForceColor,
+		},
+	)
+	return slog.New(handler).With("version", resonance.Version)
+}
+
+func init() {
+	resetFlagsFns = append(resetFlagsFns, func() {
+		logLevelValue.Reset()
+		logHandlerValue.Reset()
+		logHandlerAddSource = defaultLogHandlerAddSource
+		logHandlerConsoleTime = defaultLogHandlerConsoleTime
+		logHandlerConsoleForceColor = defaultLogHandlerConsoleForceColor
+	})
 }
