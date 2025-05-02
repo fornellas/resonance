@@ -54,12 +54,7 @@ var ApplyCmd = &cobra.Command{
 			AddSource: true,
 			Level:     slog.LevelDebug,
 		}).WithAttrs([]slog.Attr{slog.String("version", resonance.Version)})
-		ctx = log.WithLogger(
-			ctx,
-			slog.New(
-				log.NewMultiHandler(logHandler, storeHandler),
-			),
-		)
+		ctx = log.WithLogger(ctx, slog.New(log.NewMultiHandler(logHandler, storeHandler)))
 		cmd.SetContext(ctx)
 
 		var targetResources resourcesPkg.Resources

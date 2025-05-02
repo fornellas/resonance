@@ -100,6 +100,33 @@ func TestMultiHandler(t *testing.T) {
 	})
 
 	t.Run("Handle", func(t *testing.T) {
+		t.Run("different levels", func(t *testing.T) {
+			h1 := newTestHandler(true, nil)
+			h2 := newTestHandler(false, nil)
+
+			multiHandler := NewMultiHandler(h1, h2)
+			ctx := context.Background()
+			record := slog.Record{}
+			record.AddAttrs(slog.String("key", "value"))
+
+			err := multiHandler.Handle(ctx, record)
+			assert.NoError(t, err)
+
+			assert.True(t, h1.handleCalled)
+			assert.False(t, h2.handleCalled)
+
+			assert.NotNil(t, h1.lastRecord)
+			var gotValue string
+			h1.lastRecord.Attrs(func(attr slog.Attr) bool {
+				if attr.Key == "key" {
+					gotValue = attr.Value.String()
+					return false
+				}
+				return true
+			})
+			assert.Equal(t, "value", gotValue)
+		})
+
 		tests := []struct {
 			name          string
 			handlerErrors []error

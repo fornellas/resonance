@@ -32,7 +32,9 @@ func (h *MultiHandler) Enabled(ctx context.Context, level slog.Level) bool {
 func (h *MultiHandler) Handle(ctx context.Context, record slog.Record) error {
 	var err error
 	for _, handler := range h.handlers {
-		err = errors.Join(err, handler.Handle(ctx, record))
+		if handler.Enabled(ctx, record.Level) {
+			err = errors.Join(err, handler.Handle(ctx, record))
+		}
 	}
 	return err
 }
