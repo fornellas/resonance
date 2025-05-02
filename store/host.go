@@ -318,7 +318,13 @@ func (s *HostStore) DeleteTargetBlueprint(ctx context.Context) error {
 
 func (s *HostStore) GetLogWriterCloser(ctx context.Context, name string) (io.WriteCloser, error) {
 	// TODO rotate & purge
-	return gzip.NewWriterLevel(
+	// TODO handle write errors: cancel context
+
+	if err := lib.MkdirAll(ctx, s.Host, s.logPath, 0700); err != nil {
+		return nil, err
+	}
+
+	gzipWriter, err := gzip.NewWriterLevel(
 		&lib.HostFileWriter{
 			Context: ctx,
 			Host:    s.Host,
@@ -329,4 +335,11 @@ func (s *HostStore) GetLogWriterCloser(ctx context.Context, name string) (io.Wri
 		},
 		gzip.BestSpeed,
 	)
+	if err != nil {
+		return nil, err
+	}
+	if err := gzipWriter.Flush(); err != nil {
+		return nil, err
+	}
+	return gzipWriter, nil
 }
