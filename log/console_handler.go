@@ -79,7 +79,7 @@ var DefaultColorScheme = &ColorScheme{
 	AttrValue:    ansi.SGRs{ansi.Dim},
 	Time:         ansi.SGRs{ansi.Dim},
 	LevelDebug:   ansi.SGRs{},
-	MessageDebug: ansi.SGRs{ansi.Dim},
+	MessageDebug: ansi.SGRs{ansi.FgCyan},
 	LevelInfo:    ansi.SGRs{},
 	MessageInfo:  ansi.SGRs{ansi.Bold},
 	LevelWarn:    ansi.SGRs{ansi.FgYellow, ansi.Bold},
