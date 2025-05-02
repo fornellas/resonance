@@ -53,3 +53,7 @@ func ResetFlags() {
 		resetFlagFn()
 	}
 }
+
+func init() {
+	AddLoggerFlags(RootCmd)
+}

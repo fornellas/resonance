@@ -53,12 +53,12 @@ var ApplyCmd = &cobra.Command{
 		storeHandler := slog.NewJSONHandler(storelogWriterCloser, &slog.HandlerOptions{
 			AddSource: true,
 			Level:     slog.LevelDebug,
-		})
+		}).WithAttrs([]slog.Attr{slog.String("version", resonance.Version)})
 		ctx = log.WithLogger(
 			ctx,
 			slog.New(
 				log.NewMultiHandler(logHandler, storeHandler),
-			).With("version", resonance.Version),
+			),
 		)
 		cmd.SetContext(ctx)
 

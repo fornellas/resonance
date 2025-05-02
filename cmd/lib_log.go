@@ -142,21 +142,21 @@ var defaultLogHandlerConsoleForceColor = false
 var logHandlerConsoleForceColor = defaultLogHandlerConsoleForceColor
 
 func AddLoggerFlags(cmd *cobra.Command) {
-	RootCmd.PersistentFlags().VarP(logLevelValue, "log-level", "l", "Logging level")
+	cmd.PersistentFlags().VarP(logLevelValue, "log-level", "l", "Logging level")
 
-	RootCmd.PersistentFlags().VarP(logHandlerValue, "log-handler", "", "Logging handler")
+	cmd.PersistentFlags().VarP(logHandlerValue, "log-handler", "", "Logging handler")
 
-	RootCmd.PersistentFlags().BoolVarP(
+	cmd.PersistentFlags().BoolVarP(
 		&logHandlerAddSource, "log-handler-add-source", "", defaultLogHandlerAddSource,
 		"Include source code position of the log statement when logging",
 	)
 
-	RootCmd.PersistentFlags().BoolVarP(
+	cmd.PersistentFlags().BoolVarP(
 		&logHandlerConsoleTime, "log-handler-console-time", "", defaultLogHandlerConsoleTime,
 		"Enable time for console handler",
 	)
 
-	RootCmd.PersistentFlags().BoolVarP(
+	cmd.PersistentFlags().BoolVarP(
 		&logHandlerConsoleForceColor, "log-handler-console-force-color", "", defaultLogHandlerConsoleForceColor,
 		"Force ANSI colors even when terminal is not detected",
 	)
@@ -172,7 +172,7 @@ func GetLogger(writer io.Writer) *slog.Logger {
 			ConsoleForceColor: logHandlerConsoleForceColor,
 		},
 	)
-	return slog.New(handler).With("version", resonance.Version)
+	return slog.New(handler).With("((o)) Resonance", resonance.Version)
 }
 
 func init() {
