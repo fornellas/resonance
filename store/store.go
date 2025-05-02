@@ -45,5 +45,7 @@ type Store interface {
 
 	// GetLogWriterCloser returns a io.WriteCloser to be used for logging for the current session,
 	// with given name. On session completion, the object must be closed.
-	GetLogWriterCloser(name string) io.WriteCloser
+	// The implementation is responsible for doing log rotation and purge when this function is
+	// called.
+	GetLogWriterCloser(ctx context.Context, name string) (io.WriteCloser, error)
 }

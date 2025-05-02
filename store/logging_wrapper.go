@@ -80,6 +80,6 @@ func (s *LoggingWrapper) DeleteTargetBlueprint(ctx context.Context) error {
 	return s.store.DeleteTargetBlueprint(ctx)
 }
 
-func (s *LoggingWrapper) GetLogWriterCloser(name string) io.WriteCloser {
-	return s.store.GetLogWriterCloser(name)
+func (s *LoggingWrapper) GetLogWriterCloser(ctx context.Context, name string) (io.WriteCloser, error) {
+	return s.store.GetLogWriterCloser(ctx, name)
 }
