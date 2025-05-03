@@ -277,19 +277,28 @@ func (h *TerminalTreeHandler) writeLevelMessage(
 func (h *TerminalTreeHandler) Handle(_ context.Context, record slog.Record) error {
 	var buff bytes.Buffer
 
+	// Handler: Group + Attr
 	h.currHandlerChain.writeHandlerGroupAttrs(&buff, h.handlerChain)
 
+	// Indent
 	indentStr := strings.Repeat("  ", len(h.groups))
 	buff.Write([]byte(indentStr))
 
-	if h.opts.TimeLayout != "" && !record.Time.IsZero() {
-		timeStr := record.Time.Round(0).Format(h.opts.TimeLayout)
-		h.opts.ColorScheme.AttrValue.Fprintf(&buff, "%s", timeStr)
-		buff.Write([]byte(" "))
+	// Record: Time
+	n, err := writeTime(&buff, h.opts.TimeLayout, record.Time, h.opts.ColorScheme)
+	if err != nil {
+		return err
+	}
+	if n > 0 {
+		if _, err = buff.Write([]byte(" ")); err != nil {
+			return err
+		}
 	}
 
+	// Record: Level + Message
 	h.writeLevelMessage(&buff, record.Level, record.Message)
 
+	// Record: PC
 	if h.opts.HandlerOptions.AddSource && record.PC != 0 {
 		frames := runtime.CallersFrames([]uintptr{record.PC})
 		frame, _ := frames.Next()
@@ -306,6 +315,7 @@ func (h *TerminalTreeHandler) Handle(_ context.Context, record slog.Record) erro
 		buff.Write([]byte("\n"))
 	}
 
+	// Record: Attr
 	if record.NumAttrs() > 0 {
 		record.Attrs(func(attr slog.Attr) bool {
 			h.writeAttr(&buff, len(h.groups)+1, attr)
@@ -313,6 +323,7 @@ func (h *TerminalTreeHandler) Handle(_ context.Context, record slog.Record) erro
 		})
 	}
 
+	// Flush
 	h.writerMutex.Lock()
 	defer h.writerMutex.Unlock()
 	h.writer.Write(buff.Bytes())

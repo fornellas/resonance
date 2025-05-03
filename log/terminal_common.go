@@ -4,6 +4,7 @@ import (
 	"io"
 	"log/slog"
 	"strconv"
+	"time"
 
 	"github.com/fornellas/resonance/ansi"
 )
@@ -108,4 +109,13 @@ func writeMessage(
 	} else {
 		return colorScheme.MessageDebug.Fprintf(w, "%s", message)
 	}
+}
+
+func writeTime(
+	w io.Writer, timeLayout string, t time.Time, colorScheme *TerminalHandlerColorScheme,
+) (int, error) {
+	if timeLayout != "" && !t.IsZero() {
+		return colorScheme.Time.Fprintf(w, "%s", t.Round(0).Format(timeLayout))
+	}
+	return 0, nil
 }
