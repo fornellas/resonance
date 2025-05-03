@@ -67,7 +67,6 @@ type TerminalTreeHandler struct {
 	opts             *TerminalHandlerOptions
 	writer           io.Writer
 	writerMutex      *sync.Mutex
-	color            bool
 	groups           []string
 	attrs            []slog.Attr
 	handlerChain     []*TerminalTreeHandler
@@ -90,8 +89,7 @@ func NewTerminalTreeHandler(w io.Writer, opts *TerminalHandlerOptions) *Terminal
 		isTTY = term.IsTerminal(int(f.Fd()))
 	}
 
-	color := !optsValue.NoColor && (optsValue.ForceColor || isTTY)
-	if !color {
+	if !(!optsValue.NoColor && (optsValue.ForceColor || isTTY)) {
 		optsValue.ColorScheme = &TerminalHandlerColorScheme{}
 	}
 
@@ -99,7 +97,6 @@ func NewTerminalTreeHandler(w io.Writer, opts *TerminalHandlerOptions) *Terminal
 		opts:             &optsValue,
 		writer:           w,
 		writerMutex:      &sync.Mutex{},
-		color:            color,
 		groups:           []string{},
 		attrs:            []slog.Attr{},
 		currHandlerChain: newCurrHandlerChain(),
@@ -297,7 +294,7 @@ func (h *TerminalTreeHandler) writeLevelMessage(
 ) (int, error) {
 	var n int
 
-	np, err := writeLevel(w, h.color, h.opts.ColorScheme, level)
+	np, err := writeLevel(w, h.opts.ColorScheme, level)
 	n += np
 	if err != nil {
 		return n, err

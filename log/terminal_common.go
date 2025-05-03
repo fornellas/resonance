@@ -60,26 +60,17 @@ type TerminalHandlerOptions struct {
 }
 
 func writeLevel(
-	w io.Writer, color bool, colorScheme *TerminalHandlerColorScheme, level slog.Level,
+	w io.Writer, colorScheme *TerminalHandlerColorScheme, level slog.Level,
 ) (int, error) {
 	if level >= slog.LevelError {
-		if len(colorScheme.LevelError) > 0 || !color {
-			return colorScheme.LevelError.Fprintf(w, "%s", level.String())
-		}
+		return colorScheme.LevelError.Fprintf(w, "%s", level.String())
 	} else if level >= slog.LevelWarn {
-		if len(colorScheme.LevelWarn) > 0 || !color {
-			return colorScheme.LevelWarn.Fprintf(w, "%s", level.String())
-		}
+		return colorScheme.LevelWarn.Fprintf(w, "%s", level.String())
 	} else if level >= slog.LevelInfo {
-		if len(colorScheme.LevelInfo) > 0 || !color {
-			return colorScheme.LevelInfo.Fprintf(w, "%s", level.String())
-		}
+		return colorScheme.LevelInfo.Fprintf(w, "%s", level.String())
 	} else {
-		if len(colorScheme.LevelDebug) > 0 || !color {
-			return colorScheme.LevelDebug.Fprintf(w, "%s", level.String())
-		}
+		return colorScheme.LevelDebug.Fprintf(w, "%s", level.String())
 	}
-	return 0, nil
 }
 
 func escape(s string) string {
