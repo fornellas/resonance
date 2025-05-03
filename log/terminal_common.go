@@ -38,7 +38,7 @@ var DefaultTerminalHandlerColorScheme = &TerminalHandlerColorScheme{
 	AttrValue:    ansi.SGRs{ansi.Dim},
 	Time:         ansi.SGRs{ansi.Dim},
 	LevelDebug:   ansi.SGRs{ansi.FgCyan, ansi.Bold},
-	MessageDebug: ansi.SGRs{ansi.FgCyan},
+	MessageDebug: ansi.SGRs{ansi.Bold},
 	LevelInfo:    ansi.SGRs{ansi.FgGreen, ansi.Bold},
 	MessageInfo:  ansi.SGRs{ansi.Bold},
 	LevelWarn:    ansi.SGRs{ansi.FgYellow, ansi.Bold},
