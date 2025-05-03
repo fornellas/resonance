@@ -161,12 +161,8 @@ func TestTerminalLineHandler(t *testing.T) {
 					logger2.Info("second message")
 				},
 				check: func(t *testing.T, output string) {
-					expected := "🏷️ group1\n" +
-						"  attr1: value1\n" +
-						"  INFO first message\n" +
-						"🏷️ group2\n" +
-						"  attr2: value2\n" +
-						"  INFO second message\n"
+					expected := "INFO 🏷️ group1 [attr1: value1] first message\n" +
+						"INFO 🏷️ group2 [attr2: value2] second message\n"
 					assert.Equal(t, expected, output)
 				},
 			},
@@ -190,12 +186,8 @@ func TestTerminalLineHandler(t *testing.T) {
 					logger2.Info("second message")
 				},
 				check: func(t *testing.T, output string) {
-					expected := "🏷️ group1\n" +
-						"  attr1: value1\n" +
-						"  INFO first message\n" +
-						"🏷️ group2\n" +
-						"  attr2: value2\n" +
-						"  INFO second message\n"
+					expected := "INFO 🏷️ group1 [attr1: value1] first message\n" +
+						"INFO 🏷️ group2 [attr2: value2] second message\n"
 					assert.Equal(t, expected, output)
 				},
 			},
@@ -216,13 +208,7 @@ func TestTerminalLineHandler(t *testing.T) {
 				check: func(t *testing.T, output string) {
 					assert.Equal(
 						t,
-						"🏷️ app\n"+
-							"  version: 1.0\n"+
-							"  🏷️ database\n"+
-							"    db: sql\n"+
-							"    INFO connected\n"+
-							"      host: localhost\n"+
-							"      port: 5432\n",
+						"INFO 🏷️ app [version: 1.0] > 🏷️ database [db: sql] connected [host: localhost, port: 5432]\n",
 						output,
 					)
 				},
@@ -245,11 +231,7 @@ func TestTerminalLineHandler(t *testing.T) {
 				check: func(t *testing.T, output string) {
 					assert.Equal(
 						t,
-						"INFO user action\n"+
-							"  🏷️ user\n"+
-							"    id: 123\n"+
-							"    name: test\n"+
-							"  action: login\n",
+						"INFO user action [🏷️ user [id: 123, name: test], action: login]\n",
 						output,
 					)
 				},
@@ -266,11 +248,7 @@ func TestTerminalLineHandler(t *testing.T) {
 				check: func(t *testing.T, output string) {
 					assert.Equal(
 						t,
-						"ERROR error occurred\n"+
-							"  stack:\n"+
-							"    line1\n"+
-							"    line2\n"+
-							"    line3\t tab\n",
+						"ERROR error occurred [stack: line1\\nline2\\nline3\t tab]\n",
 						output,
 					)
 				},
@@ -288,9 +266,7 @@ func TestTerminalLineHandler(t *testing.T) {
 					logger.Info("message with time")
 				},
 				check: func(t *testing.T, output string) {
-					assert.Regexp(t, `^INFO message with time
-  ((?:(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2}(?:\.\d+)?))(Z|[\+-]\d{2}:\d{2})?)
-$`, output)
+					assert.Regexp(t, `^((?:(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2}(?:\.\d+)?))(Z|[\+-]\d{2}:\d{2})?) INFO message with time\n$`, output)
 				},
 			},
 			{
@@ -308,7 +284,7 @@ $`, output)
 					logger.Info("message with source")
 				},
 				check: func(t *testing.T, output string) {
-					assert.Regexp(t, `^INFO message with source\n  .+terminal_line_handler_test\.go:\d+ \(.+\)\n$`, output)
+					assert.Regexp(t, `^INFO message with source .+terminal_line_handler_test\.go:\d+ \(.+\)\n$`, output)
 				},
 			},
 			{
@@ -350,9 +326,7 @@ $`, output)
 				check: func(t *testing.T, output string) {
 					assert.Equal(
 						t,
-						"INFO message with sensitive data\n"+
-							"  sensitive: REDACTED\n"+
-							"  normal: visible\n",
+						"INFO message with sensitive data [sensitive: REDACTED, normal: visible]\n",
 						output,
 					)
 				},
@@ -387,8 +361,7 @@ $`, output)
 		output := buf.String()
 		assert.Equal(
 			t,
-			"🏷️ test\n"+
-				"  INFO grouped message\n",
+			"INFO 🏷️ test grouped message\n",
 			output,
 		)
 	})
