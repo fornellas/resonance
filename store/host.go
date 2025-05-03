@@ -64,7 +64,7 @@ func NewHostStore(hst types.Host, path string) *HostStore {
 	basePath := filepath.Join(path, "state", "v1")
 	return &HostStore{
 		Host:                  hst,
-		logPath:               filepath.Join(path, "log"),
+		logPath:               filepath.Join(path, "logs"),
 		statePath:             basePath,
 		originalResourcesPath: filepath.Join(basePath, "original"),
 	}
