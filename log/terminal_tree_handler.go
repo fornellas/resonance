@@ -33,23 +33,28 @@ func newCurrHandlerChain() *currHandlerChain {
 	}
 }
 
-func (s *currHandlerChain) writeHandlerGroupAttrs(writer io.Writer, handlerChain []*TerminalTreeHandler) {
+func (s *currHandlerChain) writeHandlerGroupAttrs(writer io.Writer, handlerChain []*TerminalTreeHandler) error {
 	s.m.Lock()
 	defer s.m.Unlock()
 
 	for i, h := range handlerChain {
 		if i+1 > len(s.chain) {
-			h.writeHandlerGroupAttrs(writer, nil)
+			if err := h.writeHandlerGroupAttrs(writer, nil); err != nil {
+				return err
+			}
 		} else {
 			ch := s.chain[i]
 			if h != ch {
-				h.writeHandlerGroupAttrs(writer, ch)
+				if err := h.writeHandlerGroupAttrs(writer, ch); err != nil {
+					return err
+				}
 			}
 		}
 	}
 
 	s.chain = make([]*TerminalTreeHandler, len(handlerChain))
 	copy(s.chain, handlerChain)
+	return nil
 }
 
 // TerminalTreeHandler implements slog.Handler interface with enhanced console output features.
@@ -141,7 +146,71 @@ func (h *TerminalTreeHandler) WithGroup(name string) slog.Handler {
 	return h2
 }
 
-func (h *TerminalTreeHandler) writeAttr(w io.Writer, indent int, attr slog.Attr) {
+func (h *TerminalTreeHandler) writeAttrGroupValue(w io.Writer, indent int, attr slog.Attr) error {
+	groupAttrs := attr.Value.Group()
+	if len(attr.Key) == 0 {
+		for _, groupAttr := range groupAttrs {
+			if err := h.writeAttr(w, indent, groupAttr); err != nil {
+				return err
+			}
+		}
+	} else {
+		emoji := ""
+		r, _ := utf8.DecodeRuneInString(attr.Key)
+		if !unicode.IsEmojiStartCodePoint(r) {
+			emoji = "🏷️ "
+		}
+		if _, err := fmt.Fprintf(w, "%s%s", strings.Repeat("  ", indent), emoji); err != nil {
+			return err
+		}
+		if _, err := h.opts.ColorScheme.GroupName.Fprintf(w, "%s\n", escape(attr.Key)); err != nil {
+			return err
+		}
+		for _, groupAttr := range groupAttrs {
+			if err := h.writeAttr(w, indent+1, groupAttr); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (h *TerminalTreeHandler) writeAttrNonGroupValue(w io.Writer, indent int, attr slog.Attr) error {
+	indentStr := strings.Repeat("  ", indent)
+	if _, err := fmt.Fprintf(w, "%s", indentStr); err != nil {
+		return err
+	}
+	if _, err := h.opts.ColorScheme.AttrKey.Fprintf(w, "%s:", escape(attr.Key)); err != nil {
+		return err
+	}
+	valueStr := attr.Value.String()
+	if len(valueStr) > 0 && bytes.ContainsRune([]byte(valueStr), '\n') {
+		var fnErr error
+		strings.SplitSeq(valueStr, "\n")(func(line string) bool {
+			if _, fnErr = fmt.Fprintf(w, "\n  %s", indentStr); fnErr != nil {
+				return false
+			}
+			_, fnErr = h.opts.ColorScheme.AttrValue.Fprintf(w, "%s", escape(line))
+			return fnErr == nil
+		})
+		if fnErr != nil {
+			return fnErr
+		}
+		if _, err := w.Write([]byte("\n")); err != nil {
+			return err
+		}
+	} else {
+		if _, err := h.opts.ColorScheme.AttrValue.Fprintf(w, " %s", escape(valueStr)); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(w, "\n"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (h *TerminalTreeHandler) writeAttr(w io.Writer, indent int, attr slog.Attr) error {
 	attr.Value = attr.Value.Resolve()
 	if h.opts.ReplaceAttr != nil && attr.Value.Kind() != slog.KindGroup {
 		attr = h.opts.ReplaceAttr(h.groups, attr)
@@ -149,45 +218,20 @@ func (h *TerminalTreeHandler) writeAttr(w io.Writer, indent int, attr slog.Attr)
 	}
 
 	if attr.Equal(slog.Attr{}) {
-		return
+		return nil
 	}
-
-	indentStr := strings.Repeat("  ", indent)
 
 	if attr.Value.Kind() == slog.KindGroup {
-		groupAttrs := attr.Value.Group()
-		if len(attr.Key) == 0 {
-			for _, groupAttr := range groupAttrs {
-				h.writeAttr(w, indent, groupAttr)
-			}
-		} else {
-			emoji := ""
-			r, _ := utf8.DecodeRuneInString(attr.Key)
-			if !unicode.IsEmojiStartCodePoint(r) {
-				emoji = "🏷️ "
-			}
-			fmt.Fprintf(w, "%s%s", indentStr, emoji)
-			h.opts.ColorScheme.GroupName.Fprintf(w, "%s\n", escape(attr.Key))
-			for _, groupAttr := range groupAttrs {
-				h.writeAttr(w, indent+1, groupAttr)
-			}
+		if err := h.writeAttrGroupValue(w, indent, attr); err != nil {
+			return err
 		}
 	} else {
-		fmt.Fprintf(w, "%s", indentStr)
-		h.opts.ColorScheme.AttrKey.Fprintf(w, "%s:", escape(attr.Key))
-		valueStr := attr.Value.String()
-		if len(valueStr) > 0 && bytes.ContainsRune([]byte(valueStr), '\n') {
-			strings.SplitSeq(valueStr, "\n")(func(line string) bool {
-				fmt.Fprintf(w, "\n  %s", indentStr)
-				h.opts.ColorScheme.AttrValue.Fprintf(w, "%s", escape(line))
-				return true
-			})
-			w.Write([]byte("\n"))
-		} else {
-			h.opts.ColorScheme.AttrValue.Fprintf(w, " %s", escape(valueStr))
-			fmt.Fprintf(w, "\n")
+		if err := h.writeAttrNonGroupValue(w, indent, attr); err != nil {
+			return err
 		}
 	}
+
+	return nil
 }
 
 func (h *TerminalTreeHandler) sameGroups(h2 *TerminalTreeHandler) bool {
@@ -204,7 +248,7 @@ func (h *TerminalTreeHandler) sameGroups(h2 *TerminalTreeHandler) bool {
 
 // write handler group & attrs, as a function of the current handler at the chain, preventing
 // duplicate attrs
-func (h *TerminalTreeHandler) writeHandlerGroupAttrs(writer io.Writer, ch *TerminalTreeHandler) {
+func (h *TerminalTreeHandler) writeHandlerGroupAttrs(writer io.Writer, ch *TerminalTreeHandler) error {
 	var attrs []slog.Attr
 	var sameGroups bool
 	if ch != nil {
@@ -225,20 +269,27 @@ func (h *TerminalTreeHandler) writeHandlerGroupAttrs(writer io.Writer, ch *Termi
 	if len(h.groups) > 0 {
 		if sameGroups {
 			for _, attr := range attrs {
-				h.writeAttr(writer, len(h.groups), attr)
+				if err := h.writeAttr(writer, len(h.groups), attr); err != nil {
+					return err
+				}
 			}
 		} else {
 			attrAny := make([]any, len(attrs))
 			for i, attr := range attrs {
 				attrAny[i] = attr
 			}
-			h.writeAttr(writer, len(h.groups)-1, slog.Group(h.groups[len(h.groups)-1], attrAny...))
+			if err := h.writeAttr(writer, len(h.groups)-1, slog.Group(h.groups[len(h.groups)-1], attrAny...)); err != nil {
+				return err
+			}
 		}
 	} else {
 		for _, attr := range attrs {
-			h.writeAttr(writer, 0, attr)
+			if err := h.writeAttr(writer, 0, attr); err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
 
 func (h *TerminalTreeHandler) writeLevelMessage(
@@ -273,16 +324,54 @@ func (h *TerminalTreeHandler) writeLevelMessage(
 	return n, nil
 }
 
+func (h *TerminalTreeHandler) writePC(w io.Writer, pc uintptr) error {
+	if h.opts.HandlerOptions.AddSource && pc != 0 {
+		frames := runtime.CallersFrames([]uintptr{pc})
+		frame, _ := frames.Next()
+
+		if _, err := fmt.Fprintf(w, "%s  ", strings.Repeat("  ", len(h.groups))); err != nil {
+			return err
+		}
+		if _, err := h.opts.ColorScheme.File.Fprintf(w, "%s", frame.File); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(w, ":"); err != nil {
+			return err
+		}
+		if _, err := h.opts.ColorScheme.Line.Fprintf(w, "%d", frame.Line); err != nil {
+			return err
+		}
+		if len(frame.Function) > 0 {
+			if _, err := fmt.Fprintf(w, " ("); err != nil {
+				return err
+			}
+			if _, err := h.opts.ColorScheme.Function.Fprintf(w, "%s", frame.Function); err != nil {
+				return err
+			}
+			if _, err := fmt.Fprintf(w, ")"); err != nil {
+				return err
+			}
+		}
+		if _, err := w.Write([]byte("\n")); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Handle implements slog.Handler.Handle
 func (h *TerminalTreeHandler) Handle(_ context.Context, record slog.Record) error {
 	var buff bytes.Buffer
 
 	// Handler: Group + Attr
-	h.currHandlerChain.writeHandlerGroupAttrs(&buff, h.handlerChain)
+	if err := h.currHandlerChain.writeHandlerGroupAttrs(&buff, h.handlerChain); err != nil {
+		return err
+	}
 
 	// Indent
-	indentStr := strings.Repeat("  ", len(h.groups))
-	buff.Write([]byte(indentStr))
+	if _, err := buff.WriteString(strings.Repeat("  ", len(h.groups))); err != nil {
+		return err
+	}
 
 	// Record: Time
 	n, err := writeTime(&buff, h.opts.TimeLayout, record.Time, h.opts.ColorScheme)
@@ -290,43 +379,36 @@ func (h *TerminalTreeHandler) Handle(_ context.Context, record slog.Record) erro
 		return err
 	}
 	if n > 0 {
-		if _, err = buff.Write([]byte(" ")); err != nil {
+		if _, err = buff.WriteString(" "); err != nil {
 			return err
 		}
 	}
 
 	// Record: Level + Message
-	h.writeLevelMessage(&buff, record.Level, record.Message)
+	if _, err := h.writeLevelMessage(&buff, record.Level, record.Message); err != nil {
+		return err
+	}
 
 	// Record: PC
-	if h.opts.HandlerOptions.AddSource && record.PC != 0 {
-		frames := runtime.CallersFrames([]uintptr{record.PC})
-		frame, _ := frames.Next()
-
-		fmt.Fprintf(&buff, "%s  ", indentStr)
-		h.opts.ColorScheme.File.Fprintf(&buff, "%s", frame.File)
-		fmt.Fprintf(&buff, ":")
-		h.opts.ColorScheme.Line.Fprintf(&buff, "%d", frame.Line)
-		if len(frame.Function) > 0 {
-			fmt.Fprintf(&buff, " (")
-			h.opts.ColorScheme.Function.Fprintf(&buff, "%s", frame.Function)
-			fmt.Fprintf(&buff, ")")
-		}
-		buff.Write([]byte("\n"))
+	if err := h.writePC(&buff, record.PC); err != nil {
+		return err
 	}
 
 	// Record: Attr
 	if record.NumAttrs() > 0 {
+		var attrErr error
 		record.Attrs(func(attr slog.Attr) bool {
-			h.writeAttr(&buff, len(h.groups)+1, attr)
-			return true
+			attrErr = h.writeAttr(&buff, len(h.groups)+1, attr)
+			return attrErr == nil
 		})
+		if attrErr != nil {
+			return attrErr
+		}
 	}
 
 	// Flush
 	h.writerMutex.Lock()
 	defer h.writerMutex.Unlock()
-	h.writer.Write(buff.Bytes())
-
-	return nil
+	_, err = h.writer.Write(buff.Bytes())
+	return err
 }

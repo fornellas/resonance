@@ -115,7 +115,7 @@ func (s SGRs) String() string {
 			fmt.Fprintf(&buff, "%d", sgr)
 		}
 	}
-	buff.Write([]byte("m"))
+	buff.WriteString("m")
 	return buff.String()
 }
 
