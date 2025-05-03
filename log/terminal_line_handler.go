@@ -12,12 +12,15 @@ import (
 	"golang.org/x/term"
 )
 
-func terminalLineHandlerWriteAttrGroupValue(
+type terminalLineHandlerAttrWriter struct {
+	colorScheme *TerminalHandlerColorScheme
+	replaceAttr func(groups []string, a slog.Attr) slog.Attr
+}
+
+func (aw *terminalLineHandlerAttrWriter) writeAttrGroupValue(
 	w io.Writer,
-	colorScheme *TerminalHandlerColorScheme,
 	groups []string,
 	attr slog.Attr,
-	replaceAttr func(groups []string, a slog.Attr) slog.Attr,
 ) (int, error) {
 	var n, nt int
 	var err error
@@ -25,12 +28,10 @@ func terminalLineHandlerWriteAttrGroupValue(
 	attrs := attr.Value.Group()
 	if len(attr.Key) == 0 {
 		for _, groupAttr := range attrs {
-			if n, err = terminalLineHandlerWriteAttr(
+			if n, err = aw.writeAttr(
 				w,
-				colorScheme,
 				groups,
 				groupAttr,
-				replaceAttr,
 			); err != nil {
 				return nt + n, err
 			}
@@ -38,8 +39,8 @@ func terminalLineHandlerWriteAttrGroupValue(
 		}
 	} else {
 		ga := &groupAttrs{
-			ColorScheme: colorScheme,
-			ReplaceAttr: replaceAttr,
+			ColorScheme: aw.colorScheme,
+			ReplaceAttr: aw.replaceAttr,
 			Group:       attr.Key,
 			Groups:      append(groups, attr.Key),
 			Attrs:       attrs,
@@ -54,16 +55,14 @@ func terminalLineHandlerWriteAttrGroupValue(
 	return nt, nil
 }
 
-func terminalLineHandlerWriteAttr(
+func (aw *terminalLineHandlerAttrWriter) writeAttr(
 	w io.Writer,
-	colorScheme *TerminalHandlerColorScheme,
 	groups []string,
 	attr slog.Attr,
-	replaceAttr func(groups []string, a slog.Attr) slog.Attr,
 ) (int, error) {
 	attr.Value = attr.Value.Resolve()
-	if replaceAttr != nil && attr.Value.Kind() != slog.KindGroup {
-		attr = replaceAttr(groups, attr)
+	if aw.replaceAttr != nil && attr.Value.Kind() != slog.KindGroup {
+		attr = aw.replaceAttr(groups, attr)
 		attr.Value = attr.Value.Resolve()
 	}
 
@@ -75,18 +74,16 @@ func terminalLineHandlerWriteAttr(
 	var err error
 
 	if attr.Value.Kind() == slog.KindGroup {
-		if n, err = terminalLineHandlerWriteAttrGroupValue(
+		if n, err = aw.writeAttrGroupValue(
 			w,
-			colorScheme,
 			groups,
 			attr,
-			replaceAttr,
 		); err != nil {
 			return nt + n, err
 		}
 		nt += n
 	} else {
-		if n, err = colorScheme.AttrKey.Fprintf(w, "%s", escape(attr.Key)); err != nil {
+		if n, err = aw.colorScheme.AttrKey.Fprintf(w, "%s", escape(attr.Key)); err != nil {
 			return nt + n, err
 		}
 		nt += n
@@ -95,7 +92,7 @@ func terminalLineHandlerWriteAttr(
 			return nt + n, err
 		}
 
-		if n, err = colorScheme.AttrValue.Fprintf(w, "%s", escape(attr.Value.String())); err != nil {
+		if n, err = aw.colorScheme.AttrValue.Fprintf(w, "%s", escape(attr.Value.String())); err != nil {
 			return nt + n, err
 		}
 		nt += n
@@ -104,12 +101,10 @@ func terminalLineHandlerWriteAttr(
 	return nt, err
 }
 
-func terminalLineHandlerWriteAttrs(
+func (aw *terminalLineHandlerAttrWriter) writeAttrs(
 	w io.Writer,
-	colorScheme *TerminalHandlerColorScheme,
 	groups []string,
 	attrs []slog.Attr,
-	replaceAttr func(groups []string, a slog.Attr) slog.Attr,
 ) (int, error) {
 	if len(attrs) == 0 {
 		return 0, nil
@@ -131,7 +126,7 @@ func terminalLineHandlerWriteAttrs(
 			nt += n
 		}
 
-		if n, err := terminalLineHandlerWriteAttr(w, colorScheme, groups, attr, replaceAttr); err != nil {
+		if n, err := aw.writeAttr(w, groups, attr); err != nil {
 			return nt + n, err
 		}
 		nt += n
@@ -172,12 +167,14 @@ func (ga *groupAttrs) write(w io.Writer) (int, error) {
 			nt += n
 		}
 
-		if n, err = terminalLineHandlerWriteAttrs(
+		attrWriter := &terminalLineHandlerAttrWriter{
+			colorScheme: ga.ColorScheme,
+			replaceAttr: ga.ReplaceAttr,
+		}
+		if n, err = attrWriter.writeAttrs(
 			w,
-			ga.ColorScheme,
 			ga.Groups,
 			ga.Attrs,
-			ga.ReplaceAttr,
 		); err != nil {
 			return nt + n, err
 		}
@@ -320,12 +317,14 @@ func (h *TerminalLineHandler) Handle(ctx context.Context, record slog.Record) er
 			return true
 		})
 
-		if _, err := terminalLineHandlerWriteAttrs(
+		attrWriter := &terminalLineHandlerAttrWriter{
+			colorScheme: h.opts.ColorScheme,
+			replaceAttr: h.opts.ReplaceAttr,
+		}
+		if _, err := attrWriter.writeAttrs(
 			&buff,
-			h.opts.ColorScheme,
 			h.groups(),
 			attrs,
-			h.opts.ReplaceAttr,
 		); err != nil {
 			return err
 		}
