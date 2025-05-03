@@ -370,20 +370,22 @@ func (h *TerminalTreeHandler) Handle(_ context.Context, record slog.Record) erro
 		return err
 	}
 
-	// Record: Time
-	n, err := writeTime(&buff, h.opts.TimeLayout, record.Time, h.opts.ColorScheme)
-	if err != nil {
-		return err
-	}
-	if n > 0 {
-		if _, err = buff.WriteString(" "); err != nil {
-			return err
-		}
-	}
-
 	// Record: Level + Message
 	if _, err := h.writeLevelMessage(&buff, record.Level, record.Message); err != nil {
 		return err
+	}
+
+	// Record: Time
+	if h.opts.TimeLayout != "" && !record.Time.IsZero() {
+		if _, err := buff.WriteString(strings.Repeat("  ", len(h.groups)+1)); err != nil {
+			return err
+		}
+		if _, err := writeTime(&buff, h.opts.TimeLayout, record.Time, h.opts.ColorScheme); err != nil {
+			return err
+		}
+		if _, err := buff.WriteString("\n"); err != nil {
+			return err
+		}
 	}
 
 	// Record: PC
@@ -406,6 +408,6 @@ func (h *TerminalTreeHandler) Handle(_ context.Context, record slog.Record) erro
 	// Flush
 	h.writerMutex.Lock()
 	defer h.writerMutex.Unlock()
-	_, err = h.writer.Write(buff.Bytes())
+	_, err := h.writer.Write(buff.Bytes())
 	return err
 }
