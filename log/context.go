@@ -18,7 +18,7 @@ func WithLogger(ctx context.Context, logger *slog.Logger) context.Context {
 
 // Similar to [WithLogger], but constructs a new logger suitable for using during testss.
 func WithTestLogger(ctx context.Context) context.Context {
-	handler := NewConsoleHandler(os.Stderr, &ConsoleHandlerOptions{
+	handler := NewTerminalTreeHandler(os.Stderr, &TerminalHandlerOptions{
 		HandlerOptions: slog.HandlerOptions{
 			Level:     slog.LevelDebug,
 			AddSource: true,

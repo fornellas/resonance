@@ -12,12 +12,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestConsoleHandler_Compliance(t *testing.T) {
-	// Test that ConsoleHandler implements slog.Handler
-	var _ slog.Handler = &ConsoleHandler{}
+func TestTerminalHandler_Compliance(t *testing.T) {
+	// Test that TerminalTreeHandler implements slog.Handler
+	var _ slog.Handler = &TerminalTreeHandler{}
 }
 
-func TestConsoleHandler_Enabled(t *testing.T) {
+func TestTerminalTreeHandler_Enabled(t *testing.T) {
 	tests := []struct {
 		name     string
 		level    slog.Level
@@ -37,7 +37,7 @@ func TestConsoleHandler_Enabled(t *testing.T) {
 			var levelVar slog.LevelVar
 			levelVar.Set(tt.minLevel)
 
-			h := NewConsoleHandler(&bytes.Buffer{}, &ConsoleHandlerOptions{
+			h := NewTerminalTreeHandler(&bytes.Buffer{}, &TerminalHandlerOptions{
 				HandlerOptions: slog.HandlerOptions{
 					Level: &levelVar,
 				},
@@ -49,7 +49,7 @@ func TestConsoleHandler_Enabled(t *testing.T) {
 	}
 }
 
-func TestConsoleHandler_Handle(t *testing.T) {
+func TestTerminalTreeHandler_Handle(t *testing.T) {
 	tests := []struct {
 		name        string
 		setupLogger func(buf *bytes.Buffer) *slog.Logger
@@ -59,7 +59,7 @@ func TestConsoleHandler_Handle(t *testing.T) {
 		{
 			name: "simple_message",
 			setupLogger: func(buf *bytes.Buffer) *slog.Logger {
-				h := NewConsoleHandler(buf, &ConsoleHandlerOptions{NoColor: true})
+				h := NewTerminalTreeHandler(buf, &TerminalHandlerOptions{NoColor: true})
 				return slog.New(h)
 			},
 			logFunc: func(logger *slog.Logger) {
@@ -72,7 +72,7 @@ func TestConsoleHandler_Handle(t *testing.T) {
 		{
 			name: "with_attrs",
 			setupLogger: func(buf *bytes.Buffer) *slog.Logger {
-				h := NewConsoleHandler(buf, &ConsoleHandlerOptions{NoColor: true})
+				h := NewTerminalTreeHandler(buf, &TerminalHandlerOptions{NoColor: true})
 				return slog.New(h.WithAttrs([]slog.Attr{
 					slog.String("service", "test"),
 					slog.Int("version", 1),
@@ -100,7 +100,7 @@ func TestConsoleHandler_Handle(t *testing.T) {
 		{
 			name: "with_groups",
 			setupLogger: func(buf *bytes.Buffer) *slog.Logger {
-				h := NewConsoleHandler(buf, &ConsoleHandlerOptions{NoColor: true})
+				h := NewTerminalTreeHandler(buf, &TerminalHandlerOptions{NoColor: true})
 				return slog.New(h.WithGroup("server").WithAttrs([]slog.Attr{
 					slog.String("type", "api"),
 				}))
@@ -127,7 +127,7 @@ func TestConsoleHandler_Handle(t *testing.T) {
 		{
 			name: "with_similar_groups",
 			setupLogger: func(buf *bytes.Buffer) *slog.Logger {
-				h := NewConsoleHandler(buf, &ConsoleHandlerOptions{NoColor: true})
+				h := NewTerminalTreeHandler(buf, &TerminalHandlerOptions{NoColor: true})
 				return slog.New(h)
 			},
 			logFunc: func(logger *slog.Logger) {
@@ -151,13 +151,13 @@ func TestConsoleHandler_Handle(t *testing.T) {
 			// This tests the code path marked with "FIXME add test" in writeHandlerGroupAttrs
 			name: "different_groups",
 			setupLogger: func(buf *bytes.Buffer) *slog.Logger {
-				h := NewConsoleHandler(buf, &ConsoleHandlerOptions{NoColor: true})
+				h := NewTerminalTreeHandler(buf, &TerminalHandlerOptions{NoColor: true})
 				// Just return the base handler, as we'll create multiple loggers in logFunc
 				return slog.New(h)
 			},
 			logFunc: func(logger *slog.Logger) {
 				// Get the base handler from the logger
-				h := logger.Handler().(*ConsoleHandler)
+				h := logger.Handler().(*TerminalTreeHandler)
 
 				// First log with one group
 				logger1 := slog.New(h.WithGroup("group1").WithAttrs([]slog.Attr{
@@ -184,11 +184,11 @@ func TestConsoleHandler_Handle(t *testing.T) {
 		{
 			name: "different_groups",
 			setupLogger: func(buf *bytes.Buffer) *slog.Logger {
-				h := NewConsoleHandler(buf, &ConsoleHandlerOptions{NoColor: true})
+				h := NewTerminalTreeHandler(buf, &TerminalHandlerOptions{NoColor: true})
 				return slog.New(h)
 			},
 			logFunc: func(logger *slog.Logger) {
-				h := logger.Handler().(*ConsoleHandler)
+				h := logger.Handler().(*TerminalTreeHandler)
 
 				logger1 := slog.New(h.WithGroup("group1").WithAttrs([]slog.Attr{
 					slog.String("attr1", "value1"),
@@ -213,7 +213,7 @@ func TestConsoleHandler_Handle(t *testing.T) {
 		{
 			name: "nested_groups",
 			setupLogger: func(buf *bytes.Buffer) *slog.Logger {
-				h := NewConsoleHandler(buf, &ConsoleHandlerOptions{NoColor: true})
+				h := NewTerminalTreeHandler(buf, &TerminalHandlerOptions{NoColor: true})
 				return slog.New(
 					h.WithGroup("app").
 						WithAttrs([]slog.Attr{slog.String("version", "1.0")}).
@@ -241,7 +241,7 @@ func TestConsoleHandler_Handle(t *testing.T) {
 		{
 			name: "group_in_record",
 			setupLogger: func(buf *bytes.Buffer) *slog.Logger {
-				h := NewConsoleHandler(buf, &ConsoleHandlerOptions{NoColor: true})
+				h := NewTerminalTreeHandler(buf, &TerminalHandlerOptions{NoColor: true})
 				return slog.New(h)
 			},
 			logFunc: func(logger *slog.Logger) {
@@ -268,7 +268,7 @@ func TestConsoleHandler_Handle(t *testing.T) {
 		{
 			name: "multiline_string",
 			setupLogger: func(buf *bytes.Buffer) *slog.Logger {
-				h := NewConsoleHandler(buf, &ConsoleHandlerOptions{NoColor: true})
+				h := NewTerminalTreeHandler(buf, &TerminalHandlerOptions{NoColor: true})
 				return slog.New(h)
 			},
 			logFunc: func(logger *slog.Logger) {
@@ -289,7 +289,7 @@ func TestConsoleHandler_Handle(t *testing.T) {
 		{
 			name: "with_timestamp",
 			setupLogger: func(buf *bytes.Buffer) *slog.Logger {
-				h := NewConsoleHandler(buf, &ConsoleHandlerOptions{
+				h := NewTerminalTreeHandler(buf, &TerminalHandlerOptions{
 					NoColor:    true,
 					TimeLayout: time.RFC3339,
 				})
@@ -305,7 +305,7 @@ func TestConsoleHandler_Handle(t *testing.T) {
 		{
 			name: "with_source",
 			setupLogger: func(buf *bytes.Buffer) *slog.Logger {
-				h := NewConsoleHandler(buf, &ConsoleHandlerOptions{
+				h := NewTerminalTreeHandler(buf, &TerminalHandlerOptions{
 					NoColor: true,
 					HandlerOptions: slog.HandlerOptions{
 						AddSource: true,
@@ -317,13 +317,13 @@ func TestConsoleHandler_Handle(t *testing.T) {
 				logger.Info("message with source")
 			},
 			check: func(t *testing.T, output string) {
-				assert.Regexp(t, `^INFO message with source\n  .+console_handler_test\.go:\d+ \(.+\)\n$`, output)
+				assert.Regexp(t, `^INFO message with source\n  .+terminal_tree_handler_test\.go:\d+ \(.+\)\n$`, output)
 			},
 		},
 		{
 			name: "empty_group",
 			setupLogger: func(buf *bytes.Buffer) *slog.Logger {
-				h := NewConsoleHandler(buf, &ConsoleHandlerOptions{NoColor: true})
+				h := NewTerminalTreeHandler(buf, &TerminalHandlerOptions{NoColor: true})
 				return slog.New(h.WithGroup(""))
 			},
 			logFunc: func(logger *slog.Logger) {
@@ -340,7 +340,7 @@ func TestConsoleHandler_Handle(t *testing.T) {
 		{
 			name: "replace_attr",
 			setupLogger: func(buf *bytes.Buffer) *slog.Logger {
-				h := NewConsoleHandler(buf, &ConsoleHandlerOptions{
+				h := NewTerminalTreeHandler(buf, &TerminalHandlerOptions{
 					NoColor: true,
 					HandlerOptions: slog.HandlerOptions{
 						ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
@@ -378,9 +378,9 @@ func TestConsoleHandler_Handle(t *testing.T) {
 	}
 }
 
-func TestConsoleHandler_WithGroup(t *testing.T) {
+func TestTerminalTreeHandler_WithGroup(t *testing.T) {
 	buf := &bytes.Buffer{}
-	h := NewConsoleHandler(buf, &ConsoleHandlerOptions{NoColor: true})
+	h := NewTerminalTreeHandler(buf, &TerminalHandlerOptions{NoColor: true})
 
 	// Empty group name should return same handler
 	h2 := h.WithGroup("")
@@ -402,10 +402,10 @@ func TestConsoleHandler_WithGroup(t *testing.T) {
 	)
 }
 
-func TestConsoleHandler_ColorDetection(t *testing.T) {
+func TestTerminalTreeHandler_ColorDetection(t *testing.T) {
 	tests := []struct {
 		name       string
-		opts       *ConsoleHandlerOptions
+		opts       *TerminalHandlerOptions
 		wantColors bool
 	}{
 		{
@@ -415,12 +415,12 @@ func TestConsoleHandler_ColorDetection(t *testing.T) {
 		},
 		{
 			name:       "force_color",
-			opts:       &ConsoleHandlerOptions{ForceColor: true},
+			opts:       &TerminalHandlerOptions{ForceColor: true},
 			wantColors: true,
 		},
 		{
 			name:       "no_color_takes_precedence",
-			opts:       &ConsoleHandlerOptions{ForceColor: true, NoColor: true},
+			opts:       &TerminalHandlerOptions{ForceColor: true, NoColor: true},
 			wantColors: false,
 		},
 	}
@@ -428,7 +428,7 @@ func TestConsoleHandler_ColorDetection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := &bytes.Buffer{} // buffer is not a TTY
-			h := NewConsoleHandler(buf, tt.opts)
+			h := NewTerminalTreeHandler(buf, tt.opts)
 
 			logger := slog.New(h)
 			logger.Error("test message")

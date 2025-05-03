@@ -16,26 +16,25 @@ import (
 
 	"golang.org/x/term"
 
-	"github.com/fornellas/resonance/ansi"
 	"github.com/fornellas/resonance/unicode"
 )
 
-// currHandlerChain tracks the chain of ConsoleHandler instances to avoid
+// currHandlerChain tracks the chain of TerminalTreeHandler instances to avoid
 // duplicating output of handler attributes. It maintains the last written
 // handler chain to determine which parts of the chain need to be written
 // for subsequent log entries.
 type currHandlerChain struct {
-	chain []*ConsoleHandler
+	chain []*TerminalTreeHandler
 	m     sync.Mutex
 }
 
 func newCurrHandlerChain() *currHandlerChain {
 	return &currHandlerChain{
-		chain: []*ConsoleHandler{},
+		chain: []*TerminalTreeHandler{},
 	}
 }
 
-func (s *currHandlerChain) writeHandlerGroupAttrs(writer io.Writer, handlerChain []*ConsoleHandler) {
+func (s *currHandlerChain) writeHandlerGroupAttrs(writer io.Writer, handlerChain []*TerminalTreeHandler) {
 	s.m.Lock()
 	defer s.m.Unlock()
 
@@ -50,86 +49,36 @@ func (s *currHandlerChain) writeHandlerGroupAttrs(writer io.Writer, handlerChain
 		}
 	}
 
-	s.chain = make([]*ConsoleHandler, len(handlerChain))
+	s.chain = make([]*TerminalTreeHandler, len(handlerChain))
 	copy(s.chain, handlerChain)
 }
 
-// ANSI color scheme
-type ColorScheme struct {
-	GroupName    ansi.SGRs
-	AttrKey      ansi.SGRs
-	AttrValue    ansi.SGRs
-	Time         ansi.SGRs
-	LevelDebug   ansi.SGRs
-	MessageDebug ansi.SGRs
-	LevelInfo    ansi.SGRs
-	MessageInfo  ansi.SGRs
-	LevelWarn    ansi.SGRs
-	MessageWarn  ansi.SGRs
-	LevelError   ansi.SGRs
-	MessageError ansi.SGRs
-	File         ansi.SGRs
-	Line         ansi.SGRs
-	Function     ansi.SGRs
-}
-
-var DefaultColorScheme = &ColorScheme{
-	GroupName:    ansi.SGRs{},
-	AttrKey:      ansi.SGRs{ansi.FgCyan, ansi.Dim},
-	AttrValue:    ansi.SGRs{ansi.Dim},
-	Time:         ansi.SGRs{ansi.Dim},
-	LevelDebug:   ansi.SGRs{},
-	MessageDebug: ansi.SGRs{ansi.FgCyan},
-	LevelInfo:    ansi.SGRs{},
-	MessageInfo:  ansi.SGRs{ansi.Bold},
-	LevelWarn:    ansi.SGRs{ansi.FgYellow, ansi.Bold},
-	MessageWarn:  ansi.SGRs{ansi.Bold},
-	LevelError:   ansi.SGRs{ansi.FgRed, ansi.Bold},
-	MessageError: ansi.SGRs{ansi.Bold},
-	File:         ansi.SGRs{ansi.Dim},
-	Line:         ansi.SGRs{ansi.Dim},
-	Function:     ansi.SGRs{ansi.Dim},
-}
-
-// ConsoleHandlerOptions extends HandlerOptions with ConsoleHandler specific options.
-type ConsoleHandlerOptions struct {
-	slog.HandlerOptions
-	// Time layout for timestamps; if empty, time is not included in output.
-	TimeLayout string
-	// If true, force ANSI escape sequences for color, even when no TTY detected.
-	ForceColor bool
-	// If true, disable color, even when TTY detected; takes precedence over ForceColor.
-	NoColor bool
-	// ANSI color scheme. Default to DefaultColorScheme if unset.
-	ColorScheme *ColorScheme
-}
-
-// ConsoleHandler implements slog.Handler interface with enhanced console output features.
+// TerminalTreeHandler implements slog.Handler interface with enhanced console output features.
 // It provides colorized logging with level-appropriate colors, proper indentation for
-// nested groups, and smart handling of multiline content. ConsoleHandler automatically
+// nested groups, and smart handling of multiline content. TerminalTreeHandler automatically
 // detects terminal capabilities and enables or disables ANSI color codes accordingly,
 // though this behavior can be overridden through options. The handler also supports
 // customizable timestamp formats and sophisticated attribute formatting.
-type ConsoleHandler struct {
-	opts             *ConsoleHandlerOptions
+type TerminalTreeHandler struct {
+	opts             *TerminalHandlerOptions
 	writer           io.Writer
 	writerMutex      *sync.Mutex
 	color            bool
 	groups           []string
 	attrs            []slog.Attr
-	handlerChain     []*ConsoleHandler
+	handlerChain     []*TerminalTreeHandler
 	currHandlerChain *currHandlerChain
 }
 
-// NewConsoleHandler creates a new ConsoleHandler
-func NewConsoleHandler(w io.Writer, opts *ConsoleHandlerOptions) *ConsoleHandler {
-	var optsValue ConsoleHandlerOptions
+// NewTerminalTreeHandler creates a new TerminalTreeHandler
+func NewTerminalTreeHandler(w io.Writer, opts *TerminalHandlerOptions) *TerminalTreeHandler {
+	var optsValue TerminalHandlerOptions
 	if opts != nil {
 		optsValue = *opts
 	}
 
 	if optsValue.ColorScheme == nil {
-		optsValue.ColorScheme = DefaultColorScheme
+		optsValue.ColorScheme = DefaultTerminalHandlerColorScheme
 	}
 
 	isTTY := false
@@ -139,10 +88,10 @@ func NewConsoleHandler(w io.Writer, opts *ConsoleHandlerOptions) *ConsoleHandler
 
 	color := !optsValue.NoColor && (optsValue.ForceColor || isTTY)
 	if !color {
-		optsValue.ColorScheme = &ColorScheme{}
+		optsValue.ColorScheme = &TerminalHandlerColorScheme{}
 	}
 
-	h := &ConsoleHandler{
+	h := &TerminalTreeHandler{
 		opts:             &optsValue,
 		writer:           w,
 		writerMutex:      &sync.Mutex{},
@@ -151,20 +100,12 @@ func NewConsoleHandler(w io.Writer, opts *ConsoleHandlerOptions) *ConsoleHandler
 		attrs:            []slog.Attr{},
 		currHandlerChain: newCurrHandlerChain(),
 	}
-	h.handlerChain = []*ConsoleHandler{h}
+	h.handlerChain = []*TerminalTreeHandler{h}
 	return h
 }
 
-func (h *ConsoleHandler) clone() *ConsoleHandler {
-	h2 := *h
-	h2.groups = slices.Clip(h.groups)
-	h2.attrs = slices.Clip(h.attrs)
-	h2.handlerChain = slices.Clip(h.handlerChain)
-	return &h2
-}
-
 // Enabled implements slog.Handler.Enabled
-func (h *ConsoleHandler) Enabled(_ context.Context, level slog.Level) bool {
+func (h *TerminalTreeHandler) Enabled(_ context.Context, level slog.Level) bool {
 	minLevel := slog.LevelInfo
 	if h.opts.Level != nil {
 		minLevel = h.opts.Level.Level()
@@ -172,8 +113,16 @@ func (h *ConsoleHandler) Enabled(_ context.Context, level slog.Level) bool {
 	return level >= minLevel
 }
 
+func (h *TerminalTreeHandler) clone() *TerminalTreeHandler {
+	h2 := *h
+	h2.groups = slices.Clip(h.groups)
+	h2.attrs = slices.Clip(h.attrs)
+	h2.handlerChain = slices.Clip(h.handlerChain)
+	return &h2
+}
+
 // WithAttrs implements slog.Handler.WithAttrs
-func (h *ConsoleHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+func (h *TerminalTreeHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	h2 := h.clone()
 	h2.attrs = append(h2.attrs, attrs...)
 	h2.handlerChain[len(h2.handlerChain)-1] = h2
@@ -181,7 +130,7 @@ func (h *ConsoleHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 }
 
 // WithGroup implements slog.Handler.WithGroup
-func (h *ConsoleHandler) WithGroup(name string) slog.Handler {
+func (h *TerminalTreeHandler) WithGroup(name string) slog.Handler {
 	if len(name) == 0 {
 		return h
 	}
@@ -193,7 +142,7 @@ func (h *ConsoleHandler) WithGroup(name string) slog.Handler {
 	return h2
 }
 
-func (h *ConsoleHandler) escape(s string) string {
+func (h *TerminalTreeHandler) escape(s string) string {
 	rs := []rune{}
 	for _, r := range s {
 		if r == '\t' || strconv.IsPrint(r) {
@@ -207,7 +156,7 @@ func (h *ConsoleHandler) escape(s string) string {
 	return string(rs)
 }
 
-func (h *ConsoleHandler) writeAttr(writer io.Writer, indent int, attr slog.Attr) {
+func (h *TerminalTreeHandler) writeAttr(writer io.Writer, indent int, attr slog.Attr) {
 	attr.Value = attr.Value.Resolve()
 	if h.opts.ReplaceAttr != nil && attr.Value.Kind() != slog.KindGroup {
 		attr = h.opts.ReplaceAttr(h.groups, attr)
@@ -260,7 +209,7 @@ func (h *ConsoleHandler) writeAttr(writer io.Writer, indent int, attr slog.Attr)
 	}
 }
 
-func (h *ConsoleHandler) sameGroups(h2 *ConsoleHandler) bool {
+func (h *TerminalTreeHandler) sameGroups(h2 *TerminalTreeHandler) bool {
 	if len(h.groups) != len(h2.groups) {
 		return false
 	}
@@ -274,7 +223,7 @@ func (h *ConsoleHandler) sameGroups(h2 *ConsoleHandler) bool {
 
 // write handler group & attrs, as a function of the current handler at the chain, preventing
 // duplicate attrs
-func (h *ConsoleHandler) writeHandlerGroupAttrs(writer io.Writer, ch *ConsoleHandler) {
+func (h *TerminalTreeHandler) writeHandlerGroupAttrs(writer io.Writer, ch *TerminalTreeHandler) {
 	var attrs []slog.Attr
 	var sameGroups bool
 	if ch != nil {
@@ -311,7 +260,7 @@ func (h *ConsoleHandler) writeHandlerGroupAttrs(writer io.Writer, ch *ConsoleHan
 	}
 }
 
-func (h *ConsoleHandler) printLevelMessage(w io.Writer, level slog.Level, message string) {
+func (h *TerminalTreeHandler) printLevelMessage(w io.Writer, level slog.Level, message string) {
 	message = h.escape(message)
 	if level >= slog.LevelError {
 		if len(h.opts.ColorScheme.LevelError) > 0 || !h.color {
@@ -345,7 +294,7 @@ func (h *ConsoleHandler) printLevelMessage(w io.Writer, level slog.Level, messag
 }
 
 // Handle implements slog.Handler.Handle
-func (h *ConsoleHandler) Handle(_ context.Context, record slog.Record) error {
+func (h *TerminalTreeHandler) Handle(_ context.Context, record slog.Record) error {
 	var buff bytes.Buffer
 
 	h.currHandlerChain.writeHandlerGroupAttrs(&buff, h.handlerChain)

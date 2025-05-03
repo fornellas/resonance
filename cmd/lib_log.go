@@ -52,25 +52,25 @@ func (l LogLevelValue) Level() slog.Level {
 var logLevelValue = NewLogLevelValue()
 
 type LogHandlerValueOptions struct {
-	Level             slog.Level
-	AddSource         bool
-	ConsoleTime       bool
-	ConsoleForceColor bool
+	Level              slog.Level
+	AddSource          bool
+	TerminalTime       bool
+	TerminalForceColor bool
 }
 
 var logHandlerNameFnMap = map[string]func(io.Writer, LogHandlerValueOptions) slog.Handler{
-	"console": func(writer io.Writer, options LogHandlerValueOptions) slog.Handler {
+	"terminal-tree": func(writer io.Writer, options LogHandlerValueOptions) slog.Handler {
 		var timeLayout string
-		if options.ConsoleTime {
+		if options.TerminalTime {
 			timeLayout = time.DateTime
 		}
-		return log.NewConsoleHandler(writer, &log.ConsoleHandlerOptions{
+		return log.NewTerminalTreeHandler(writer, &log.TerminalHandlerOptions{
 			HandlerOptions: slog.HandlerOptions{
 				Level:     options.Level,
 				AddSource: options.AddSource,
 			},
 			TimeLayout: timeLayout,
-			ForceColor: options.ConsoleForceColor,
+			ForceColor: options.TerminalForceColor,
 		})
 	},
 	"json": func(writer io.Writer, options LogHandlerValueOptions) slog.Handler {
@@ -88,7 +88,7 @@ func logHandlerNames() (names []string) {
 	return names
 }
 
-var defaultLogHandlerValue = "console"
+var defaultLogHandlerValue = "terminal-tree"
 
 type LogHandlerValue struct {
 	name string
@@ -135,11 +135,11 @@ var logHandlerValue = NewLogHandlerValue()
 var defaultLogHandlerAddSource = false
 var logHandlerAddSource = defaultLogHandlerAddSource
 
-var defaultLogHandlerConsoleTime = false
-var logHandlerConsoleTime = defaultLogHandlerConsoleTime
+var defaultLogHandlerTerminlTime = false
+var logHandlerTerminalTime = defaultLogHandlerTerminlTime
 
-var defaultLogHandlerConsoleForceColor = false
-var logHandlerConsoleForceColor = defaultLogHandlerConsoleForceColor
+var defaultLogHandlerTerminalForceColor = false
+var logHandlerTerminalForceColor = defaultLogHandlerTerminalForceColor
 
 func AddLoggerFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().VarP(logLevelValue, "log-level", "l", "Logging level")
@@ -152,12 +152,12 @@ func AddLoggerFlags(cmd *cobra.Command) {
 	)
 
 	cmd.PersistentFlags().BoolVarP(
-		&logHandlerConsoleTime, "log-handler-console-time", "", defaultLogHandlerConsoleTime,
-		"Enable time for console handler",
+		&logHandlerTerminalTime, "log-handler-terminal-time", "", defaultLogHandlerTerminlTime,
+		"Enable time for terminal handlers",
 	)
 
 	cmd.PersistentFlags().BoolVarP(
-		&logHandlerConsoleForceColor, "log-handler-console-force-color", "", defaultLogHandlerConsoleForceColor,
+		&logHandlerTerminalForceColor, "log-handler-terminal-force-color", "", defaultLogHandlerTerminalForceColor,
 		"Force ANSI colors even when terminal is not detected",
 	)
 }
@@ -166,10 +166,10 @@ func GetLogger(writer io.Writer) *slog.Logger {
 	handler := logHandlerValue.GetHandler(
 		writer,
 		LogHandlerValueOptions{
-			Level:             logLevelValue.Level(),
-			AddSource:         logHandlerAddSource,
-			ConsoleTime:       logHandlerConsoleTime,
-			ConsoleForceColor: logHandlerConsoleForceColor,
+			Level:              logLevelValue.Level(),
+			AddSource:          logHandlerAddSource,
+			TerminalTime:       logHandlerTerminalTime,
+			TerminalForceColor: logHandlerTerminalForceColor,
 		},
 	)
 	return slog.New(handler).With("((o)) Resonance", resonance.Version)
@@ -180,7 +180,7 @@ func init() {
 		logLevelValue.Reset()
 		logHandlerValue.Reset()
 		logHandlerAddSource = defaultLogHandlerAddSource
-		logHandlerConsoleTime = defaultLogHandlerConsoleTime
-		logHandlerConsoleForceColor = defaultLogHandlerConsoleForceColor
+		logHandlerTerminalTime = defaultLogHandlerTerminlTime
+		logHandlerTerminalForceColor = defaultLogHandlerTerminalForceColor
 	})
 }
