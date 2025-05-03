@@ -358,8 +358,6 @@ func (s *HostStore) GetLogWriterCloser(ctx context.Context, name string) (io.Wri
 		return nil, err
 	}
 
-	// TODO handle write errors: cancel context
-
 	if err := lib.MkdirAll(ctx, s.Host, s.logPath, 0700); err != nil {
 		return nil, err
 	}
