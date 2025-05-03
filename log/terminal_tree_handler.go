@@ -7,7 +7,6 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -321,41 +320,6 @@ func (h *TerminalTreeHandler) writeLevelMessage(
 	return n, nil
 }
 
-func (h *TerminalTreeHandler) writePC(w io.Writer, pc uintptr) error {
-	if h.opts.HandlerOptions.AddSource && pc != 0 {
-		frames := runtime.CallersFrames([]uintptr{pc})
-		frame, _ := frames.Next()
-
-		if _, err := fmt.Fprintf(w, "%s  ", strings.Repeat("  ", len(h.groups))); err != nil {
-			return err
-		}
-		if _, err := h.opts.ColorScheme.File.Fprintf(w, "%s", frame.File); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(w, ":"); err != nil {
-			return err
-		}
-		if _, err := h.opts.ColorScheme.Line.Fprintf(w, "%d", frame.Line); err != nil {
-			return err
-		}
-		if len(frame.Function) > 0 {
-			if _, err := fmt.Fprintf(w, " ("); err != nil {
-				return err
-			}
-			if _, err := h.opts.ColorScheme.Function.Fprintf(w, "%s", frame.Function); err != nil {
-				return err
-			}
-			if _, err := fmt.Fprintf(w, ")"); err != nil {
-				return err
-			}
-		}
-		if _, err := w.Write([]byte("\n")); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // Handle implements slog.Handler.Handle
 func (h *TerminalTreeHandler) Handle(_ context.Context, record slog.Record) error {
 	var buff bytes.Buffer
@@ -389,8 +353,14 @@ func (h *TerminalTreeHandler) Handle(_ context.Context, record slog.Record) erro
 	}
 
 	// Record: PC
-	if err := h.writePC(&buff, record.PC); err != nil {
-		return err
+	if h.opts.HandlerOptions.AddSource {
+		if _, err := fmt.Fprintf(&buff, "%s  ", strings.Repeat("  ", len(h.groups))); err != nil {
+			return err
+		}
+		writePC(&buff, h.opts.ColorScheme, record.PC)
+		if _, err := buff.WriteString("\n"); err != nil {
+			return err
+		}
 	}
 
 	// Record: Attr

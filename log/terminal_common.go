@@ -105,10 +105,46 @@ func writeMessage(
 }
 
 func writeTime(
-	w io.Writer, timeLayout string, t time.Time, colorScheme *TerminalHandlerColorScheme,
+	w io.Writer,
+	timeLayout string,
+	t time.Time,
+	colorScheme *TerminalHandlerColorScheme,
 ) (int, error) {
 	if timeLayout != "" && !t.IsZero() {
 		return colorScheme.Time.Fprintf(w, "%s", t.Round(0).Format(timeLayout))
 	}
 	return 0, nil
+}
+
+func writePC(
+	w io.Writer,
+	colorScheme *TerminalHandlerColorScheme,
+	pc uintptr,
+) error {
+	if pc == 0 {
+		return nil
+	}
+	frames := runtime.CallersFrames([]uintptr{pc})
+	frame, _ := frames.Next()
+	if _, err := colorScheme.File.Fprintf(w, "%s", frame.File); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(w, ":"); err != nil {
+		return err
+	}
+	if _, err := colorScheme.Line.Fprintf(w, "%d", frame.Line); err != nil {
+		return err
+	}
+	if len(frame.Function) > 0 {
+		if _, err := fmt.Fprintf(w, " ("); err != nil {
+			return err
+		}
+		if _, err := colorScheme.Function.Fprintf(w, "%s", frame.Function); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(w, ")"); err != nil {
+			return err
+		}
+	}
+	return nil
 }
