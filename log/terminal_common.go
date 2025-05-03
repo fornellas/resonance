@@ -1,7 +1,9 @@
 package log
 
 import (
+	"io"
 	"log/slog"
+	"strconv"
 
 	"github.com/fornellas/resonance/ansi"
 )
@@ -54,4 +56,56 @@ type TerminalHandlerOptions struct {
 	NoColor bool
 	// ANSI color scheme. Default to DefaultColorScheme if unset.
 	ColorScheme *TerminalHandlerColorScheme
+}
+
+func writeLevel(
+	w io.Writer, color bool, colorScheme *TerminalHandlerColorScheme, level slog.Level,
+) (int, error) {
+	if level >= slog.LevelError {
+		if len(colorScheme.LevelError) > 0 || !color {
+			return colorScheme.LevelError.Fprintf(w, "%s", level.String())
+		}
+	} else if level >= slog.LevelWarn {
+		if len(colorScheme.LevelWarn) > 0 || !color {
+			return colorScheme.LevelWarn.Fprintf(w, "%s", level.String())
+		}
+	} else if level >= slog.LevelInfo {
+		if len(colorScheme.LevelInfo) > 0 || !color {
+			return colorScheme.LevelInfo.Fprintf(w, "%s", level.String())
+		}
+	} else {
+		if len(colorScheme.LevelDebug) > 0 || !color {
+			return colorScheme.LevelDebug.Fprintf(w, "%s", level.String())
+		}
+	}
+	return 0, nil
+}
+
+func escape(s string) string {
+	rs := []rune{}
+	for _, r := range s {
+		if r == '\t' || strconv.IsPrint(r) {
+			rs = append(rs, r)
+		} else {
+			e := strconv.QuoteRune(r)
+			e = e[1 : len(e)-1]
+			rs = append(rs, []rune(e)...)
+		}
+	}
+	return string(rs)
+}
+
+func writeMessage(
+	w io.Writer, colorScheme *TerminalHandlerColorScheme, level slog.Level, message string,
+) (int, error) {
+	message = escape(message)
+	if level >= slog.LevelError {
+		return colorScheme.MessageError.Fprintf(w, "%s", message)
+	} else if level >= slog.LevelWarn {
+		return colorScheme.MessageWarn.Fprintf(w, "%s", message)
+	} else if level >= slog.LevelInfo {
+		return colorScheme.MessageInfo.Fprintf(w, "%s", message)
+	} else {
+		return colorScheme.MessageDebug.Fprintf(w, "%s", message)
+	}
 }

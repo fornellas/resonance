@@ -9,7 +9,6 @@ import (
 	"os"
 	"runtime"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -142,20 +141,6 @@ func (h *TerminalTreeHandler) WithGroup(name string) slog.Handler {
 	return h2
 }
 
-func (h *TerminalTreeHandler) escape(s string) string {
-	rs := []rune{}
-	for _, r := range s {
-		if r == '\t' || strconv.IsPrint(r) {
-			rs = append(rs, r)
-		} else {
-			e := strconv.QuoteRune(r)
-			e = e[1 : len(e)-1]
-			rs = append(rs, []rune(e)...)
-		}
-	}
-	return string(rs)
-}
-
 func (h *TerminalTreeHandler) writeAttr(writer io.Writer, indent int, attr slog.Attr) {
 	attr.Value = attr.Value.Resolve()
 	if h.opts.ReplaceAttr != nil && attr.Value.Kind() != slog.KindGroup {
@@ -182,7 +167,7 @@ func (h *TerminalTreeHandler) writeAttr(writer io.Writer, indent int, attr slog.
 				emoji = "🏷️ "
 			}
 			fmt.Fprintf(writer, "%s%s%s\n", indentStr, emoji, h.opts.ColorScheme.GroupName.Sprintf(
-				"%s", h.escape(attr.Key),
+				"%s", escape(attr.Key),
 			))
 			for _, groupAttr := range groupAttrs {
 				h.writeAttr(writer, indent+1, groupAttr)
@@ -190,20 +175,20 @@ func (h *TerminalTreeHandler) writeAttr(writer io.Writer, indent int, attr slog.
 		}
 	} else {
 		fmt.Fprintf(writer, "%s%s:", indentStr, h.opts.ColorScheme.AttrKey.Sprintf(
-			"%s", h.escape(attr.Key),
+			"%s", escape(attr.Key),
 		))
 		valueStr := attr.Value.String()
 		if len(valueStr) > 0 && bytes.ContainsRune([]byte(valueStr), '\n') {
 			strings.SplitSeq(valueStr, "\n")(func(line string) bool {
 				fmt.Fprintf(writer, "\n  %s%s", indentStr, h.opts.ColorScheme.AttrValue.Sprintf(
-					"%s", h.escape(line),
+					"%s", escape(line),
 				))
 				return true
 			})
 			writer.Write([]byte("\n"))
 		} else {
 			fmt.Fprintf(writer, " %s\n", h.opts.ColorScheme.AttrValue.Sprintf(
-				"%s", h.escape(valueStr),
+				"%s", escape(valueStr),
 			))
 		}
 	}
@@ -260,37 +245,36 @@ func (h *TerminalTreeHandler) writeHandlerGroupAttrs(writer io.Writer, ch *Termi
 	}
 }
 
-func (h *TerminalTreeHandler) printLevelMessage(w io.Writer, level slog.Level, message string) {
-	message = h.escape(message)
-	if level >= slog.LevelError {
-		if len(h.opts.ColorScheme.LevelError) > 0 || !h.color {
-			fmt.Fprintf(w, "%s ", h.opts.ColorScheme.LevelError.Sprintf(
-				"%s", level.String(),
-			))
-		}
-		fmt.Fprintf(w, "%s\n", h.opts.ColorScheme.MessageError.Sprintf("%s", message))
-	} else if level >= slog.LevelWarn {
-		if len(h.opts.ColorScheme.LevelWarn) > 0 || !h.color {
-			fmt.Fprintf(w, "%s ", h.opts.ColorScheme.LevelWarn.Sprintf(
-				"%s", level.String(),
-			))
-		}
-		fmt.Fprintf(w, "%s\n", h.opts.ColorScheme.MessageWarn.Sprintf("%s", message))
-	} else if level >= slog.LevelInfo {
-		if len(h.opts.ColorScheme.LevelInfo) > 0 || !h.color {
-			fmt.Fprintf(w, "%s ", h.opts.ColorScheme.LevelInfo.Sprintf(
-				"%s", level.String(),
-			))
-		}
-		fmt.Fprintf(w, "%s\n", h.opts.ColorScheme.MessageInfo.Sprintf("%s", message))
-	} else {
-		if len(h.opts.ColorScheme.LevelDebug) > 0 || !h.color {
-			fmt.Fprintf(w, "%s ", h.opts.ColorScheme.LevelDebug.Sprintf(
-				"%s", level.String(),
-			))
-		}
-		fmt.Fprintf(w, "%s\n", h.opts.ColorScheme.MessageDebug.Sprintf("%s", message))
+func (h *TerminalTreeHandler) writeLevelMessage(
+	w io.Writer, level slog.Level, message string,
+) (int, error) {
+	var n int
+
+	np, err := writeLevel(w, h.color, h.opts.ColorScheme, level)
+	n += np
+	if err != nil {
+		return n, err
 	}
+
+	np, err = w.Write([]byte(" "))
+	n += np
+	if err != nil {
+		return n, err
+	}
+
+	np, err = writeMessage(w, h.opts.ColorScheme, level, message)
+	n += np
+	if err != nil {
+		return n, err
+	}
+
+	np, err = w.Write([]byte("\n"))
+	n += np
+	if err != nil {
+		return n, err
+	}
+
+	return n, nil
 }
 
 // Handle implements slog.Handler.Handle
@@ -309,7 +293,7 @@ func (h *TerminalTreeHandler) Handle(_ context.Context, record slog.Record) erro
 		))
 	}
 
-	h.printLevelMessage(&buff, record.Level, record.Message)
+	h.writeLevelMessage(&buff, record.Level, record.Message)
 
 	if h.opts.HandlerOptions.AddSource && record.PC != 0 {
 		frames := runtime.CallersFrames([]uintptr{record.PC})

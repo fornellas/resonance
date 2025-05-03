@@ -4,6 +4,7 @@ package ansi
 import (
 	"bytes"
 	"fmt"
+	"io"
 )
 
 // Control Sequence Introducer
@@ -103,10 +104,8 @@ func (s SGRs) String() string {
 	return buff.String()
 }
 
-// Sprintf returns a string colorized with these SGR (Select Graphic Rendition) codes.
-// The text is formatted according to the provided format and arguments,
-// and is wrapped with these SGR codes and the Reset code.
-// If the SGRs slice is empty, it returns the unmodified formatted string.
+// Sprintf works similar to fmt.Sprintf, but it wraaps the formatted text with the SGR codes and
+// the Reset code. If the SGRs slice is empty, it behaves as fmt.Sprintf.
 func (s SGRs) Sprintf(format string, a ...any) string {
 	if len(s) == 0 {
 		return fmt.Sprintf(format, a...)
@@ -119,4 +118,20 @@ func (s SGRs) Sprintf(format string, a ...any) string {
 		append(a, Reset.String())...,
 	)
 	return fmt.Sprintf("%s"+format+"%s", a...)
+}
+
+// Fprintf works similar to fmt.Fprintf, but it wraaps the formatted text with the SGR codes and
+// the Reset code. If the SGRs slice is empty, it behaves as fmt.Fprintf.
+func (s SGRs) Fprintf(w io.Writer, format string, a ...any) (int, error) {
+	if len(s) == 0 {
+		return fmt.Fprintf(w, format, a...)
+	}
+
+	a = append(
+		[]any{
+			s.String(),
+		},
+		append(a, Reset.String())...,
+	)
+	return fmt.Fprintf(w, "%s"+format+"%s", a...)
 }
