@@ -58,7 +58,11 @@ var ApplyCmd = &cobra.Command{
 			},
 			TimeLayout: time.RFC3339,
 			NoColor:    true,
-		}).WithAttrs([]slog.Attr{slog.String("version", resonance.Version)})
+		}).
+			WithAttrs([]slog.Attr{slog.String("version", resonance.Version)}).
+			WithGroup("✏️ Apply").WithAttrs([]slog.Attr{slog.String("path", path)}).
+			WithAttrs([]slog.Attr{slog.String("host", fmt.Sprintf("%s => %s", host.Type(), host.String()))}).
+			WithAttrs([]slog.Attr{slog.String("store", fmt.Sprintf("%s %s", storeValue.String(), storeConfig))})
 		logger = slog.New(log.NewMultiHandler(logHandler, storeHandler))
 		ctx = log.WithLogger(ctx, logger)
 		cmd.SetContext(ctx)
