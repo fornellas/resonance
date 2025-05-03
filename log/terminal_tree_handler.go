@@ -152,7 +152,7 @@ func (h *TerminalTreeHandler) writeAttrGroupValue(w io.Writer, indent int, attr 
 		if _, err := w.Write([]byte(indentStr)); err != nil {
 			return err
 		}
-		if err := writeGroup(w, h.opts.ColorScheme, attr.Key); err != nil {
+		if _, err := writeGroup(w, h.opts.ColorScheme, attr.Key); err != nil {
 			return err
 		}
 		if _, err := w.Write([]byte("\n")); err != nil {

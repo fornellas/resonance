@@ -155,17 +155,25 @@ func writeGroup(
 	w io.Writer,
 	colorScheme *TerminalHandlerColorScheme,
 	name string,
-) error {
+) (int, error) {
 	emoji := ""
 	r, _ := utf8.DecodeRuneInString(name)
 	if !unicode.IsEmojiStartCodePoint(r) {
 		emoji = "🏷️ "
 	}
-	if _, err := fmt.Fprintf(w, "%s", emoji); err != nil {
-		return err
+
+	var n, nt int
+	var err error
+
+	if n, err = fmt.Fprintf(w, "%s", emoji); err != nil {
+		return n, err
 	}
-	if _, err := colorScheme.GroupName.Fprintf(w, "%s", escape(name)); err != nil {
-		return err
+	nt += n
+
+	if n, err = colorScheme.GroupName.Fprintf(w, "%s", escape(name)); err != nil {
+		return nt + n, err
 	}
-	return nil
+	nt += n
+
+	return nt, nil
 }
