@@ -86,8 +86,8 @@ func TestTerminalLineHandler(t *testing.T) {
 				check: func(t *testing.T, output string) {
 					assert.Equal(
 						t,
-						"INFO [service: test, version: 1] hello with attrs [user: tester]\n"+
-							"INFO [service: test, version: 1, extra: attr] hello with extra attrs [something: else]\n",
+						"INFO [service: test, version: 1]: hello with attrs [user: tester]\n"+
+							"INFO [service: test, version: 1, extra: attr]: hello with extra attrs [something: else]\n",
 						output,
 					)
 				},
@@ -108,8 +108,8 @@ func TestTerminalLineHandler(t *testing.T) {
 				check: func(t *testing.T, output string) {
 					assert.Equal(
 						t,
-						"INFO 🏷️ server [type: api] started server [port: 8080]\n"+
-							"INFO 🏷️ server [type: api, extra: attr] with extra attrs [something: else]\n",
+						"INFO 🏷️ server [type: api]: started server [port: 8080]\n"+
+							"INFO 🏷️ server [type: api, extra: attr]: with extra attrs [something: else]\n",
 						output,
 					)
 				},
@@ -129,8 +129,8 @@ func TestTerminalLineHandler(t *testing.T) {
 				check: func(t *testing.T, output string) {
 					assert.Equal(
 						t,
-						"INFO 🏷️ Same Group first\n"+
-							"INFO 🏷️ Same Group second\n",
+						"INFO 🏷️ Same Group: first\n"+
+							"INFO 🏷️ Same Group: second\n",
 						output,
 					)
 				},
@@ -161,8 +161,8 @@ func TestTerminalLineHandler(t *testing.T) {
 					logger2.Info("second message")
 				},
 				check: func(t *testing.T, output string) {
-					expected := "INFO 🏷️ group1 [attr1: value1] first message\n" +
-						"INFO 🏷️ group2 [attr2: value2] second message\n"
+					expected := "INFO 🏷️ group1 [attr1: value1]: first message\n" +
+						"INFO 🏷️ group2 [attr2: value2]: second message\n"
 					assert.Equal(t, expected, output)
 				},
 			},
@@ -186,8 +186,8 @@ func TestTerminalLineHandler(t *testing.T) {
 					logger2.Info("second message")
 				},
 				check: func(t *testing.T, output string) {
-					expected := "INFO 🏷️ group1 [attr1: value1] first message\n" +
-						"INFO 🏷️ group2 [attr2: value2] second message\n"
+					expected := "INFO 🏷️ group1 [attr1: value1]: first message\n" +
+						"INFO 🏷️ group2 [attr2: value2]: second message\n"
 					assert.Equal(t, expected, output)
 				},
 			},
@@ -208,7 +208,7 @@ func TestTerminalLineHandler(t *testing.T) {
 				check: func(t *testing.T, output string) {
 					assert.Equal(
 						t,
-						"INFO 🏷️ app [version: 1.0] > 🏷️ database [db: sql] connected [host: localhost, port: 5432]\n",
+						"INFO 🏷️ app [version: 1.0] > 🏷️ database [db: sql]: connected [host: localhost, port: 5432]\n",
 						output,
 					)
 				},
@@ -361,7 +361,7 @@ func TestTerminalLineHandler(t *testing.T) {
 		output := buf.String()
 		assert.Equal(
 			t,
-			"INFO 🏷️ test grouped message\n",
+			"INFO 🏷️ test: grouped message\n",
 			output,
 		)
 	})

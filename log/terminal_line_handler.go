@@ -298,7 +298,7 @@ func (h *TerminalLineHandler) Handle(ctx context.Context, record slog.Record) er
 		nt += n
 	}
 	if nt > 0 {
-		if _, err = buff.WriteString(" "); err != nil {
+		if _, err = buff.WriteString(": "); err != nil {
 			return err
 		}
 	}
