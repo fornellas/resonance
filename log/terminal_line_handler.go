@@ -187,6 +187,21 @@ func (ga *groupAttrs) write(w io.Writer) (int, error) {
 	return nt, nil
 }
 
+// TerminalLineHandler is a slog.Handler implementation that formats log records
+// as lines of text suitable for terminal output, with optional colorization.
+// It provides a structured, human-readable output format with customizable styling
+// through color schemes.
+//
+// Features:
+// - Terminal-aware colorized output (auto-detects terminal capabilities)
+// - Custom time formatting
+// - Formatted level indicators
+// - Hierarchical group support
+// - Structured attribute rendering
+// - Source code location reporting (when enabled)
+//
+// The handler will automatically detect if the output is a terminal and
+// enable/disable colors accordingly, unless explicitly configured otherwise.
 type TerminalLineHandler struct {
 	opts        *TerminalHandlerOptions
 	writer      io.Writer
