@@ -43,6 +43,6 @@ func TestBufferedHandler(t *testing.T) {
 	logger = slog.New(bufferedHandler)
 	log(logger)
 	require.Equal(t, buff.String(), "")
-	require.NoError(t, bufferedHandler.Dispatch())
+	require.NoError(t, bufferedHandler.Flush())
 	require.Equal(t, expectedWritten, buff.String())
 }

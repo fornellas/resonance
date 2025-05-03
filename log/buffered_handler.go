@@ -13,7 +13,7 @@ type handleCall struct {
 	record  slog.Record
 }
 
-func (h *handleCall) dispatch() error {
+func (h *handleCall) flush() error {
 	return h.handler.Handle(h.context, h.record)
 }
 
@@ -32,12 +32,12 @@ func (s *sharedBuffer) appendHandleCall(handler slog.Handler, ctx context.Contex
 	})
 }
 
-func (s *sharedBuffer) dispatch() error {
+func (s *sharedBuffer) flush() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var errs error
 	for _, handleCall := range s.handleCalls {
-		if err := handleCall.dispatch(); err != nil {
+		if err := handleCall.flush(); err != nil {
 			errs = errors.Join(errs, err)
 		}
 	}
@@ -93,12 +93,12 @@ func (h *BufferedHandler) WithGroup(name string) slog.Handler {
 	}
 }
 
-// Dispatch processes all buffered log records by sending them to the underlying handler.
+// Flush processes all buffered log records by sending them to the underlying handler.
 // After a successful dispatch, the buffer is cleared.
 // Returns an error if any of the buffered records fail to process.
 //
-// It is safe to call Dispatch() multiple times, though subsequent calls will have
+// It is safe to call Flush() multiple times, though subsequent calls will have
 // no effect until new log records are buffered.
-func (h *BufferedHandler) Dispatch() error {
-	return h.sharedBuffer.dispatch()
+func (h *BufferedHandler) Flush() error {
+	return h.sharedBuffer.flush()
 }
