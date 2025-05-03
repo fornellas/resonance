@@ -73,6 +73,20 @@ var logHandlerNameFnMap = map[string]func(io.Writer, LogHandlerValueOptions) slo
 			ForceColor: options.TerminalForceColor,
 		})
 	},
+	"terminal-line": func(writer io.Writer, options LogHandlerValueOptions) slog.Handler {
+		var timeLayout string
+		if options.TerminalTime {
+			timeLayout = time.DateTime
+		}
+		return log.NewTerminalLineHandler(writer, &log.TerminalHandlerOptions{
+			HandlerOptions: slog.HandlerOptions{
+				Level:     options.Level,
+				AddSource: options.AddSource,
+			},
+			TimeLayout: timeLayout,
+			ForceColor: options.TerminalForceColor,
+		})
+	},
 	"json": func(writer io.Writer, options LogHandlerValueOptions) slog.Handler {
 		return slog.NewJSONHandler(writer, &slog.HandlerOptions{
 			AddSource: options.AddSource,
