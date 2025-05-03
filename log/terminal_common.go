@@ -1,8 +1,10 @@
 package log
 
 import (
+	"fmt"
 	"io"
 	"log/slog"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -41,9 +43,9 @@ var DefaultTerminalHandlerColorScheme = &TerminalHandlerColorScheme{
 	MessageWarn:  ansi.SGRs{ansi.Bold},
 	LevelError:   ansi.SGRs{ansi.FgRed, ansi.Bold},
 	MessageError: ansi.SGRs{ansi.Bold},
-	File:         ansi.SGRs{ansi.Dim},
-	Line:         ansi.SGRs{ansi.Dim},
-	Function:     ansi.SGRs{ansi.Dim},
+	File:         ansi.SGRs{ansi.Dim, ansi.FgBlue},
+	Line:         ansi.SGRs{ansi.Dim, ansi.FgBlue},
+	Function:     ansi.SGRs{ansi.Dim, ansi.FgBlue},
 }
 
 // TerminalHandlerOptions extends HandlerOptions with specific options.
