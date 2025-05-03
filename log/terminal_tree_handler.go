@@ -10,11 +10,8 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"unicode/utf8"
 
 	"golang.org/x/term"
-
-	"github.com/fornellas/resonance/unicode"
 )
 
 // currHandlerChain tracks the chain of TerminalTreeHandler instances to avoid
@@ -151,15 +148,14 @@ func (h *TerminalTreeHandler) writeAttrGroupValue(w io.Writer, indent int, attr 
 			}
 		}
 	} else {
-		emoji := ""
-		r, _ := utf8.DecodeRuneInString(attr.Key)
-		if !unicode.IsEmojiStartCodePoint(r) {
-			emoji = "🏷️ "
-		}
-		if _, err := fmt.Fprintf(w, "%s%s", strings.Repeat("  ", indent), emoji); err != nil {
+		indentStr := strings.Repeat("  ", indent)
+		if _, err := w.Write([]byte(indentStr)); err != nil {
 			return err
 		}
-		if _, err := h.opts.ColorScheme.GroupName.Fprintf(w, "%s\n", escape(attr.Key)); err != nil {
+		if err := writeGroup(w, h.opts.ColorScheme, attr.Key); err != nil {
+			return err
+		}
+		if _, err := w.Write([]byte("\n")); err != nil {
 			return err
 		}
 		for _, groupAttr := range groupAttrs {

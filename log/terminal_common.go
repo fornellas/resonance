@@ -7,8 +7,10 @@ import (
 	"runtime"
 	"strconv"
 	"time"
+	"unicode/utf8"
 
 	"github.com/fornellas/resonance/ansi"
+	"github.com/fornellas/resonance/unicode"
 )
 
 // ANSI color scheme
@@ -145,6 +147,25 @@ func writePC(
 		if _, err := fmt.Fprintf(w, ")"); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func writeGroup(
+	w io.Writer,
+	colorScheme *TerminalHandlerColorScheme,
+	name string,
+) error {
+	emoji := ""
+	r, _ := utf8.DecodeRuneInString(name)
+	if !unicode.IsEmojiStartCodePoint(r) {
+		emoji = "🏷️ "
+	}
+	if _, err := fmt.Fprintf(w, "%s", emoji); err != nil {
+		return err
+	}
+	if _, err := colorScheme.GroupName.Fprintf(w, "%s", escape(name)); err != nil {
+		return err
 	}
 	return nil
 }
