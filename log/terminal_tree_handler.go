@@ -141,7 +141,7 @@ func (h *TerminalTreeHandler) WithGroup(name string) slog.Handler {
 	return h2
 }
 
-func (h *TerminalTreeHandler) writeAttr(writer io.Writer, indent int, attr slog.Attr) {
+func (h *TerminalTreeHandler) writeAttr(w io.Writer, indent int, attr slog.Attr) {
 	attr.Value = attr.Value.Resolve()
 	if h.opts.ReplaceAttr != nil && attr.Value.Kind() != slog.KindGroup {
 		attr = h.opts.ReplaceAttr(h.groups, attr)
@@ -158,7 +158,7 @@ func (h *TerminalTreeHandler) writeAttr(writer io.Writer, indent int, attr slog.
 		groupAttrs := attr.Value.Group()
 		if len(attr.Key) == 0 {
 			for _, groupAttr := range groupAttrs {
-				h.writeAttr(writer, indent, groupAttr)
+				h.writeAttr(w, indent, groupAttr)
 			}
 		} else {
 			emoji := ""
@@ -166,30 +166,26 @@ func (h *TerminalTreeHandler) writeAttr(writer io.Writer, indent int, attr slog.
 			if !unicode.IsEmojiStartCodePoint(r) {
 				emoji = "🏷️ "
 			}
-			fmt.Fprintf(writer, "%s%s%s\n", indentStr, emoji, h.opts.ColorScheme.GroupName.Sprintf(
-				"%s", escape(attr.Key),
-			))
+			fmt.Fprintf(w, "%s%s", indentStr, emoji)
+			h.opts.ColorScheme.GroupName.Fprintf(w, "%s\n", escape(attr.Key))
 			for _, groupAttr := range groupAttrs {
-				h.writeAttr(writer, indent+1, groupAttr)
+				h.writeAttr(w, indent+1, groupAttr)
 			}
 		}
 	} else {
-		fmt.Fprintf(writer, "%s%s:", indentStr, h.opts.ColorScheme.AttrKey.Sprintf(
-			"%s", escape(attr.Key),
-		))
+		fmt.Fprintf(w, "%s", indentStr)
+		h.opts.ColorScheme.AttrKey.Fprintf(w, "%s:", escape(attr.Key))
 		valueStr := attr.Value.String()
 		if len(valueStr) > 0 && bytes.ContainsRune([]byte(valueStr), '\n') {
 			strings.SplitSeq(valueStr, "\n")(func(line string) bool {
-				fmt.Fprintf(writer, "\n  %s%s", indentStr, h.opts.ColorScheme.AttrValue.Sprintf(
-					"%s", escape(line),
-				))
+				fmt.Fprintf(w, "\n  %s", indentStr)
+				h.opts.ColorScheme.AttrValue.Fprintf(w, "%s", escape(line))
 				return true
 			})
-			writer.Write([]byte("\n"))
+			w.Write([]byte("\n"))
 		} else {
-			fmt.Fprintf(writer, " %s\n", h.opts.ColorScheme.AttrValue.Sprintf(
-				"%s", escape(valueStr),
-			))
+			h.opts.ColorScheme.AttrValue.Fprintf(w, " %s", escape(valueStr))
+			fmt.Fprintf(w, "\n")
 		}
 	}
 }
@@ -288,9 +284,8 @@ func (h *TerminalTreeHandler) Handle(_ context.Context, record slog.Record) erro
 
 	if h.opts.TimeLayout != "" && !record.Time.IsZero() {
 		timeStr := record.Time.Round(0).Format(h.opts.TimeLayout)
-		fmt.Fprintf(&buff, "%s ", h.opts.ColorScheme.AttrValue.Sprintf(
-			"%s", timeStr,
-		))
+		h.opts.ColorScheme.AttrValue.Fprintf(&buff, "%s", timeStr)
+		buff.Write([]byte(" "))
 	}
 
 	h.writeLevelMessage(&buff, record.Level, record.Message)
@@ -299,12 +294,14 @@ func (h *TerminalTreeHandler) Handle(_ context.Context, record slog.Record) erro
 		frames := runtime.CallersFrames([]uintptr{record.PC})
 		frame, _ := frames.Next()
 
-		fmt.Fprintf(&buff, "%s  %s:%s", indentStr,
-			h.opts.ColorScheme.File.Sprintf("%s", frame.File),
-			h.opts.ColorScheme.Line.Sprintf("%d", frame.Line),
-		)
+		fmt.Fprintf(&buff, "%s  ", indentStr)
+		h.opts.ColorScheme.File.Fprintf(&buff, "%s", frame.File)
+		fmt.Fprintf(&buff, ":")
+		h.opts.ColorScheme.Line.Fprintf(&buff, "%d", frame.Line)
 		if len(frame.Function) > 0 {
-			fmt.Fprintf(&buff, " (%s)", h.opts.ColorScheme.Function.Sprintf("%s", frame.Function))
+			fmt.Fprintf(&buff, " (")
+			h.opts.ColorScheme.Function.Fprintf(&buff, "%s", frame.Function)
+			fmt.Fprintf(&buff, ")")
 		}
 		buff.Write([]byte("\n"))
 	}
