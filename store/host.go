@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 
@@ -316,8 +317,47 @@ func (s *HostStore) DeleteTargetBlueprint(ctx context.Context) error {
 	return nil
 }
 
+func (s *HostStore) deleteOldLogs(ctx context.Context) error {
+	dirEntResultCh, cancel := s.Host.ReadDir(ctx, s.logPath)
+	defer cancel()
+
+	var names []string
+	for dirEntResult := range dirEntResultCh {
+		if dirEntResult.Error != nil {
+			if errors.Is(dirEntResult.Error, os.ErrNotExist) {
+				return nil
+			}
+			return dirEntResult.Error
+		}
+		dirEnt := dirEntResult.DirEnt
+		if filepath.Ext(dirEnt.Name) == ".gz" {
+			names = append(names, dirEnt.Name)
+		}
+	}
+
+	if len(names) <= 10 {
+		return nil
+	}
+
+	sort.Strings(names)
+
+	namesToDelete := names[:len(names)-10]
+
+	for _, name := range namesToDelete {
+		path := filepath.Join(s.logPath, name)
+		if err := s.Host.Remove(ctx, path); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (s *HostStore) GetLogWriterCloser(ctx context.Context, name string) (io.WriteCloser, error) {
-	// TODO rotate & purge
+	if err := s.deleteOldLogs(ctx); err != nil {
+		return nil, err
+	}
+
 	// TODO handle write errors: cancel context
 
 	if err := lib.MkdirAll(ctx, s.Host, s.logPath, 0700); err != nil {
