@@ -19,9 +19,8 @@ func (s SGR) String() string {
 	return fmt.Sprintf("%s%dm", CSI, s)
 }
 
-// Sprintf returns a string colorized with this SGR (Select Graphic Rendition) code.
-// The text is formatted according to the provided format and arguments,
-// and is wrapped with this SGR code and the Reset code.
+// Sprintf works similar to fmt.Sprintf, but it wraps the formatted text with the SGR codes and
+// the Reset code.
 func (s SGR) Sprintf(format string, a ...any) string {
 	a = append(
 		[]any{
@@ -31,6 +30,18 @@ func (s SGR) Sprintf(format string, a ...any) string {
 	)
 
 	return fmt.Sprintf("%s"+format+"%s", a...)
+}
+
+// Fprintf works similar to fmt.Fprintf, but it wraps the formatted text with the SGR codes and
+// the Reset code.
+func (s SGR) Fprintf(w io.Writer, format string, a ...any) (int, error) {
+	a = append(
+		[]any{
+			s.String(),
+		},
+		append(a, Reset.String())...,
+	)
+	return fmt.Fprintf(w, "%s"+format+"%s", a...)
 }
 
 const (
@@ -90,7 +101,11 @@ type SGRs []SGR
 
 // String returns the ANSI escape sequence as a string for these SGR codes combined.
 // For example, []SGR{FgRed, Bold} returns "\033[31;1m".
+// If the SGRs slice is empty, it returns an empty string.
 func (s SGRs) String() string {
+	if len(s) == 0 {
+		return ""
+	}
 	var buff bytes.Buffer
 	buff.Write([]byte(CSI))
 	for i, sgr := range s {
@@ -104,8 +119,9 @@ func (s SGRs) String() string {
 	return buff.String()
 }
 
-// Sprintf works similar to fmt.Sprintf, but it wraaps the formatted text with the SGR codes and
-// the Reset code. If the SGRs slice is empty, it behaves as fmt.Sprintf.
+// Sprintf works similar to fmt.Sprintf, but it wraps the formatted text with the SGR codes and
+// the Reset code.
+// If the SGRs slice is empty, it behaves as fmt.Sprintf.
 func (s SGRs) Sprintf(format string, a ...any) string {
 	if len(s) == 0 {
 		return fmt.Sprintf(format, a...)
@@ -120,8 +136,9 @@ func (s SGRs) Sprintf(format string, a ...any) string {
 	return fmt.Sprintf("%s"+format+"%s", a...)
 }
 
-// Fprintf works similar to fmt.Fprintf, but it wraaps the formatted text with the SGR codes and
-// the Reset code. If the SGRs slice is empty, it behaves as fmt.Fprintf.
+// Fprintf works similar to fmt.Fprintf, but it wraps the formatted text with the SGR codes and
+// the Reset code.
+// If the SGRs slice is empty, it behaves as fmt.Fprintf.
 func (s SGRs) Fprintf(w io.Writer, format string, a ...any) (int, error) {
 	if len(s) == 0 {
 		return fmt.Fprintf(w, format, a...)
