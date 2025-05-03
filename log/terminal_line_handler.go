@@ -353,7 +353,7 @@ func (h *TerminalLineHandler) Handle(ctx context.Context, record slog.Record) er
 
 func (h *TerminalLineHandler) clone() *TerminalLineHandler {
 	h2 := *h
-	h2.groupAttrs = slices.Clip(h.groupAttrs)
+	h2.groupAttrs = slices.Clone(h.groupAttrs)
 	return &h2
 }
 

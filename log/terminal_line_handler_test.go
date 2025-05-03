@@ -86,13 +86,8 @@ func TestTerminalLineHandler(t *testing.T) {
 				check: func(t *testing.T, output string) {
 					assert.Equal(
 						t,
-						"service: test\n"+
-							"version: 1\n"+
-							"INFO hello with attrs\n"+
-							"  user: tester\n"+
-							"extra: attr\n"+
-							"INFO hello with extra attrs\n"+
-							"  something: else\n",
+						"INFO [service: test, version: 1] hello with attrs [user: tester]\n"+
+							"INFO [service: test, version: 1, extra: attr] hello with extra attrs [something: else]\n",
 						output,
 					)
 				},
@@ -113,13 +108,8 @@ func TestTerminalLineHandler(t *testing.T) {
 				check: func(t *testing.T, output string) {
 					assert.Equal(
 						t,
-						"🏷️ server\n"+
-							"  type: api\n"+
-							"  INFO started server\n"+
-							"    port: 8080\n"+
-							"  extra: attr\n"+
-							"  INFO with extra attrs\n"+
-							"    something: else\n",
+						"INFO 🏷️ server [type: api] started server [port: 8080]\n"+
+							"INFO 🏷️ server [type: api, extra: attr] with extra attrs [something: else]\n",
 						output,
 					)
 				},
@@ -139,9 +129,8 @@ func TestTerminalLineHandler(t *testing.T) {
 				check: func(t *testing.T, output string) {
 					assert.Equal(
 						t,
-						"🏷️ Same Group\n"+
-							"  INFO first\n"+
-							"  INFO second\n",
+						"INFO 🏷️ Same Group first\n"+
+							"INFO 🏷️ Same Group second\n",
 						output,
 					)
 				},

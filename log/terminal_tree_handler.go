@@ -112,9 +112,9 @@ func (h *TerminalTreeHandler) Enabled(_ context.Context, level slog.Level) bool 
 
 func (h *TerminalTreeHandler) clone() *TerminalTreeHandler {
 	h2 := *h
-	h2.groups = slices.Clip(h.groups)
-	h2.attrs = slices.Clip(h.attrs)
-	h2.handlerChain = slices.Clip(h.handlerChain)
+	h2.groups = slices.Clone(h.groups)
+	h2.attrs = slices.Clone(h.attrs)
+	h2.handlerChain = slices.Clone(h.handlerChain)
 	return &h2
 }
 
