@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -50,11 +51,16 @@ var ApplyCmd = &cobra.Command{
 		}()
 
 		logHandler := logger.Handler()
-		storeHandler := slog.NewJSONHandler(storelogWriterCloser, &slog.HandlerOptions{
-			AddSource: true,
-			Level:     slog.LevelDebug,
+		storeHandler := log.NewTerminalLineHandler(storelogWriterCloser, &log.TerminalHandlerOptions{
+			HandlerOptions: slog.HandlerOptions{
+				AddSource: true,
+				Level:     slog.LevelDebug,
+			},
+			TimeLayout: time.RFC3339,
+			NoColor:    true,
 		}).WithAttrs([]slog.Attr{slog.String("version", resonance.Version)})
-		ctx = log.WithLogger(ctx, slog.New(log.NewMultiHandler(logHandler, storeHandler)))
+		logger = slog.New(log.NewMultiHandler(logHandler, storeHandler))
+		ctx = log.WithLogger(ctx, logger)
 		cmd.SetContext(ctx)
 
 		var targetResources resourcesPkg.Resources
