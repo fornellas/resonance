@@ -2,9 +2,12 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
+	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/fornellas/resonance"
 	blueprintPkg "github.com/fornellas/resonance/blueprint"
 	"github.com/fornellas/resonance/log"
 	planPkg "github.com/fornellas/resonance/plan"
@@ -35,6 +38,34 @@ var ApplyCmd = &cobra.Command{
 
 		store, storeConfig := GetStore(host)
 		ctx, logger = log.MustWithAttrs(ctx, "store", fmt.Sprintf("%s %s", storeValue.String(), storeConfig))
+
+		storelogWriterCloser, err := store.GetLogWriterCloser(ctx, "apply")
+		if err != nil {
+			logger.Error("failed to get store log writer", "error", err)
+			Exit(1)
+		}
+		defer func() {
+			if err := storelogWriterCloser.Close(); err != nil {
+				logger.Error("failed to close store log", "error", err)
+			}
+		}()
+
+		logHandler := logger.Handler()
+		storeHandler := log.NewTerminalLineHandler(storelogWriterCloser, &log.TerminalHandlerOptions{
+			HandlerOptions: slog.HandlerOptions{
+				AddSource: true,
+				Level:     slog.LevelDebug,
+			},
+			TimeLayout: time.RFC3339,
+			NoColor:    true,
+		}).
+			WithAttrs([]slog.Attr{slog.String("version", resonance.Version)}).
+			WithGroup("✏️ Apply").WithAttrs([]slog.Attr{slog.String("path", path)}).
+			WithAttrs([]slog.Attr{slog.String("host", fmt.Sprintf("%s => %s", host.Type(), host.String()))}).
+			WithAttrs([]slog.Attr{slog.String("store", fmt.Sprintf("%s %s", storeValue.String(), storeConfig))})
+		logger = slog.New(log.NewMultiHandler(logHandler, storeHandler))
+		ctx = log.WithLogger(ctx, logger)
+		cmd.SetContext(ctx)
 
 		var targetResources resourcesPkg.Resources
 		{

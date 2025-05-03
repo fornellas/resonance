@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 	"strings"
 
@@ -10,25 +9,11 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"github.com/fornellas/resonance"
 	"github.com/fornellas/resonance/log"
 )
 
 // This is to be used in place of os.Exit() to aid writing test assertions on exit code.
 var Exit func(int) = func(code int) { os.Exit(code) }
-
-var logLevelValue = NewLogLevelValue()
-
-var logHandlerValue = NewLogHandlerValue()
-
-var defaultLogHandlerAddSource = false
-var logHandlerAddSource = defaultLogHandlerAddSource
-
-var defaultLogHandlerConsoleTime = false
-var logHandlerConsoleTime = defaultLogHandlerConsoleTime
-
-var defaultLogHandlerConsoleForceColor = false
-var logHandlerConsoleForceColor = defaultLogHandlerConsoleForceColor
 
 var RootCmd = &cobra.Command{
 	Use:   "resonance",
@@ -46,20 +31,9 @@ var RootCmd = &cobra.Command{
 			}
 		})
 
-		handler := logHandlerValue.GetHandler(
-			cmd.OutOrStderr(),
-			LogHandlerValueOptions{
-				Level:             logLevelValue.Level(),
-				AddSource:         logHandlerAddSource,
-				ConsoleTime:       logHandlerConsoleTime,
-				ConsoleForceColor: logHandlerConsoleForceColor,
-			},
-		)
-		logger := slog.New(handler).With("((o)) Resonance", resonance.Version)
-		ctx := cmd.Context()
-		ctx = log.WithLogger(
-			ctx,
-			logger,
+		ctx := log.WithLogger(
+			cmd.Context(),
+			GetLogger(cmd.OutOrStderr()),
 		)
 		cmd.SetContext(ctx)
 	},
@@ -75,38 +49,11 @@ var RootCmd = &cobra.Command{
 var resetFlagsFns []func()
 
 func ResetFlags() {
-	logLevelValue.Reset()
-
-	logHandlerValue.Reset()
-
-	logHandlerAddSource = defaultLogHandlerAddSource
-
-	logHandlerConsoleTime = defaultLogHandlerConsoleTime
-
-	logHandlerConsoleForceColor = defaultLogHandlerConsoleForceColor
-
 	for _, resetFlagFn := range resetFlagsFns {
 		resetFlagFn()
 	}
 }
 
 func init() {
-	RootCmd.PersistentFlags().VarP(logLevelValue, "log-level", "l", "Logging level")
-
-	RootCmd.PersistentFlags().VarP(logHandlerValue, "log-handler", "", "Logging handler")
-
-	RootCmd.PersistentFlags().BoolVarP(
-		&logHandlerAddSource, "log-handler-add-source", "", defaultLogHandlerAddSource,
-		"Include source code position of the log statement when logging",
-	)
-
-	RootCmd.PersistentFlags().BoolVarP(
-		&logHandlerConsoleTime, "log-handler-console-time", "", defaultLogHandlerConsoleTime,
-		"Enable time for console handler",
-	)
-
-	RootCmd.PersistentFlags().BoolVarP(
-		&logHandlerConsoleForceColor, "log-handler-console-force-color", "", defaultLogHandlerConsoleForceColor,
-		"Force ANSI colors even when terminal is not detected",
-	)
+	AddLoggerFlags(RootCmd)
 }
