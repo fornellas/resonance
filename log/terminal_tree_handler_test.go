@@ -13,8 +13,7 @@ import (
 )
 
 func TestTerminalTreeHandler(t *testing.T) {
-	t.Run("Compliance", func(t *testing.T) {
-		// Test that TerminalTreeHandler implements slog.Handler
+	t.Run("Interface", func(t *testing.T) {
 		var _ slog.Handler = &TerminalTreeHandler{}
 	})
 
