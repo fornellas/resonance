@@ -1,0 +1,57 @@
+resources
+Vars
+    var HashResource = func(resource Resource) string
+Functions
+    func GetGroupResourceTypeName(groupResource GroupResource) string
+    func GetResourceAbsent(resource Resource) bool
+    func GetResourceId(resource Resource) string
+    func GetResourceTypeId(resource Resource) string
+    func GetResourceTypeName(resource Resource) string
+    func GetResourceTypeNames() []string
+    func GetResourceYaml(resource Resource) string
+    func GetResourcesYaml(resources Resources) string
+    func IsGroupResource(name string) bool
+    func RegisterGroupResource(resourceType, groupResourceType reflect.Type)
+    func RegisterSingleResource(singleResourceType reflect.Type)
+    func Satisfies(a, b Resource) bool
+    func ValidateResource(resource Resource) error
+type GroupResource interface
+    -- New
+    func GetGroupResourceByTypeName(name string) GroupResource
+    -- Interface
+	Load(context.Context, types.Host, Resources) error
+	Resolve(context.Context, types.Host, Resources) error
+	Apply(context.Context, types.Host, Resources) error
+type Resource interface
+    -- New
+    func GetResourceByTypeName(name string) Resource
+    func NewResourceWithSameId(resource Resource) Resource
+    func SetResourceAbsent(resource Resource) Resource
+    -- Interface
+    Validate() error
+type ResourceMap map[string]map[string]Resource
+    -- New
+    func NewResourceMap(resources Resources) ResourceMap
+    -- Type
+    func (m ResourceMap) GetResourceWithSameTypeId(resource Resource) Resource
+    func (m ResourceMap) HasResourceWithSameTypeId(resource Resource) bool
+type Resources []Resource
+    -- New
+    func LoadPath(ctx context.Context, path string) (Resources, error)
+    func NewResourcesWithSameIds(resources Resources) Resources
+    -- Type
+    func (r Resources) Ids() string
+    func (r Resources) MarshalYAML() (any, error)
+    func (r *Resources) UnmarshalYAML(node *yaml.Node) error
+    func (r Resources) Validate() error
+type Satisfiable interface
+    -- Interface
+    Satisfies(resource Resource) bool
+type SingleResource interface
+    -- New
+    func GetSingleResourceByTypeName(name string) SingleResource
+    -- Interface
+	Resource
+	Load(context.Context, types.Host) error
+	Resolve(context.Context, types.Host) error
+	Apply(context.Context, types.Host) error
