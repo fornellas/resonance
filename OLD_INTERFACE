@@ -5,10 +5,8 @@ resources
         func RegisterGroupResource(resourceType, groupResourceType reflect.Type)
         func RegisterSingleResource(singleResourceType reflect.Type)
     type Resource interface
-        -- New
+        -- Registry
         func GetResourceByTypeName(name string) Resource
-        func NewResourceWithSameId(resource Resource) Resource
-        func SetResourceAbsent(resource Resource) Resource
         -- Interface
         Validate() error
         -- Extra
@@ -17,11 +15,13 @@ resources
         func GetResourceTypeId(resource Resource) string
         func GetResourceTypeName(resource Resource) string
         func GetResourceYaml(resource Resource) string
+        func NewResourceWithSameId(resource Resource) Resource
         func Satisfies(a, b Resource) bool
+        func SetResourceAbsent(resource Resource) Resource
         func ValidateResource(resource Resource) error
         var HashResource = func(resource Resource) string
     type SingleResource interface
-        -- New
+        -- Registry
         func GetSingleResourceByTypeName(name string) SingleResource
         -- Interface
     	Resource
@@ -130,6 +130,12 @@ cmd
 		var targetBlueprint *blueprintPkg.Blueprint
 		var lastBlueprint *blueprintPkg.Blueprint
 		plan, targetBlueprint, lastBlueprint, err = planPkg.CraftPlan(ctx, host, store, targetResources)
+		    for resource in targetResources
+				if !store.HasOriginalResource(ctx, resource)
+				    resource.Load
+					store.SaveOriginalResource(ctx, resource)
+			TODO loadOrCreateAndSaveLastBlueprintWithValidation
+			TODO compilePlan
 		-- Save Target Blueprint
 		store.SaveTargetBlueprint(ctx, targetBlueprint)
 		-- Apply
