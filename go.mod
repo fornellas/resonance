@@ -1,6 +1,6 @@
 module github.com/fornellas/resonance
 
-go 1.24.2
+go 1.24.3
 
 replace gopkg.in/yaml.v3 v3.0.1 => github.com/fornellas/yaml v0.0.0-20230305130802-4e6a4cc61a50
 
@@ -29,9 +29,9 @@ require (
 	github.com/spf13/pflag v1.0.6
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/crypto v0.37.0
-	golang.org/x/sys v0.32.0
-	golang.org/x/term v0.31.0
+	golang.org/x/crypto v0.38.0
+	golang.org/x/sys v0.33.0
+	golang.org/x/term v0.32.0
 	google.golang.org/grpc v1.72.0
 	google.golang.org/protobuf v1.36.6
 	gopkg.in/yaml.v3 v3.0.1
@@ -79,13 +79,13 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20250207012021-f9890c6ad9f3 // indirect
 	golang.org/x/mod v0.24.0 // indirect
-	golang.org/x/net v0.39.0 // indirect
-	golang.org/x/sync v0.13.0 // indirect
+	golang.org/x/net v0.40.0 // indirect
+	golang.org/x/sync v0.14.0 // indirect
 	golang.org/x/telemetry v0.0.0-20240522233618-39ace7a40ae7 // indirect
-	golang.org/x/text v0.24.0 // indirect
+	golang.org/x/text v0.25.0 // indirect
 	golang.org/x/tools v0.32.0 // indirect
 	golang.org/x/vuln v1.1.4 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250428153025-10db94c68c34 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250505200425-f936aa4a68b2 // indirect
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	honnef.co/go/tools v0.6.1 // indirect
