@@ -7,8 +7,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/fornellas/slogxt/log"
+
 	"github.com/fornellas/resonance/host/types"
-	"github.com/fornellas/resonance/log"
 )
 
 type HostLocalRunSudoOnlyTest struct {

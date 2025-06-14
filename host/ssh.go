@@ -21,8 +21,9 @@ import (
 	"golang.org/x/crypto/ssh/knownhosts"
 	"golang.org/x/term"
 
+	"github.com/fornellas/slogxt/log"
+
 	"github.com/fornellas/resonance/host/types"
-	"github.com/fornellas/resonance/log"
 )
 
 type SshClientConfig struct {

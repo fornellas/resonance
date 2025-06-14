@@ -11,8 +11,9 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/fornellas/slogxt/log"
+
 	"github.com/fornellas/resonance/host/types"
-	"github.com/fornellas/resonance/log"
 	resourcesPkg "github.com/fornellas/resonance/resources"
 )
 

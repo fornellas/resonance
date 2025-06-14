@@ -7,9 +7,10 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/fornellas/slogxt/log"
+
 	"github.com/fornellas/resonance"
 	blueprintPkg "github.com/fornellas/resonance/blueprint"
-	"github.com/fornellas/resonance/log"
 	planPkg "github.com/fornellas/resonance/plan"
 	resourcesPkg "github.com/fornellas/resonance/resources"
 )

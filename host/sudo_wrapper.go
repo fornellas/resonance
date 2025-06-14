@@ -15,8 +15,9 @@ import (
 	"al.essio.dev/pkg/shellescape"
 	"golang.org/x/term"
 
+	"github.com/fornellas/slogxt/log"
+
 	"github.com/fornellas/resonance/host/types"
-	"github.com/fornellas/resonance/log"
 )
 
 // stdinSudo prevents stdin from being read, before we can detect output
