@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	goSsh "golang.org/x/crypto/ssh"
 
-	"github.com/fornellas/resonance/log"
+	"github.com/fornellas/slogxt/log"
 )
 
 func getUsername() string {

@@ -5,9 +5,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/fornellas/slogxt/log"
+
 	diffPkg "github.com/fornellas/resonance/diff"
 	"github.com/fornellas/resonance/host/types"
-	"github.com/fornellas/resonance/log"
 	resourcesPkg "github.com/fornellas/resonance/resources"
 )
 

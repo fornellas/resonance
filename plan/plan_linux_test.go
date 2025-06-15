@@ -13,7 +13,7 @@ import (
 	hostPkg "github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/host/types"
 
-	"github.com/fornellas/resonance/log"
+	"github.com/fornellas/slogxt/log"
 
 	resouresPkg "github.com/fornellas/resonance/resources"
 	storePkg "github.com/fornellas/resonance/store"

@@ -5,7 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fornellas/resonance/log"
+	"github.com/fornellas/slogxt/log"
+
 	planPkg "github.com/fornellas/resonance/plan"
 	resourcesPkg "github.com/fornellas/resonance/resources"
 )

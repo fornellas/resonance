@@ -13,7 +13,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/fornellas/resonance/log"
+	"github.com/fornellas/slogxt/log"
 )
 
 func loadFile(ctx context.Context, path string) (Resources, error) {

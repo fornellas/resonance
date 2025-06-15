@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/fornellas/resonance/log"
+	"github.com/fornellas/slogxt/log"
 )
 
 func TestDocker(t *testing.T) {

@@ -5,9 +5,10 @@ import (
 
 	"fmt"
 
+	"github.com/fornellas/slogxt/log"
+
 	blueprintPkg "github.com/fornellas/resonance/blueprint"
 	"github.com/fornellas/resonance/host/types"
-	"github.com/fornellas/resonance/log"
 	resourcesPkg "github.com/fornellas/resonance/resources"
 	storePkg "github.com/fornellas/resonance/store"
 )

@@ -9,8 +9,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/fornellas/slogxt/log"
+
 	"github.com/fornellas/resonance"
-	"github.com/fornellas/resonance/log"
 )
 
 var defaultLevel = slog.LevelInfo

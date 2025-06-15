@@ -26,9 +26,10 @@ import (
 	"github.com/fornellas/resonance/host/lib"
 	hostNet "github.com/fornellas/resonance/host/net"
 
+	"github.com/fornellas/slogxt/log"
+
 	"github.com/fornellas/resonance/host/agent_server/proto"
 	"github.com/fornellas/resonance/host/types"
-	"github.com/fornellas/resonance/log"
 )
 
 func unwrapGrpcStatusErrno(err error) error {

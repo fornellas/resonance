@@ -7,9 +7,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 
+	"github.com/fornellas/slogxt/log"
+
 	hostPkg "github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/host/types"
-	"github.com/fornellas/resonance/log"
 	resourcesPkg "github.com/fornellas/resonance/resources"
 )
 

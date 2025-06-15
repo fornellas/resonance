@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"github.com/fornellas/resonance/log"
+	"github.com/fornellas/slogxt/log"
 )
 
 // This is to be used in place of os.Exit() to aid writing test assertions on exit code.
