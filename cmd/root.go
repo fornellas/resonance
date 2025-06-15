@@ -9,7 +9,10 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
+	slogxtCobra "github.com/fornellas/slogxt/cobra"
 	"github.com/fornellas/slogxt/log"
+
+	"github.com/fornellas/resonance"
 )
 
 // This is to be used in place of os.Exit() to aid writing test assertions on exit code.
@@ -33,7 +36,8 @@ var RootCmd = &cobra.Command{
 
 		ctx := log.WithLogger(
 			cmd.Context(),
-			GetLogger(cmd.OutOrStderr()),
+			slogxtCobra.GetLogger(cmd.OutOrStderr()).
+				With("((o)) Resonance", resonance.Version),
 		)
 		cmd.SetContext(ctx)
 	},
@@ -46,7 +50,9 @@ var RootCmd = &cobra.Command{
 	},
 }
 
-var resetFlagsFns []func()
+var resetFlagsFns = []func(){
+	func() { slogxtCobra.Reset() },
+}
 
 func ResetFlags() {
 	for _, resetFlagFn := range resetFlagsFns {
@@ -55,5 +61,5 @@ func ResetFlags() {
 }
 
 func init() {
-	AddLoggerFlags(RootCmd)
+	slogxtCobra.AddLoggerFlags(RootCmd)
 }
