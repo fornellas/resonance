@@ -369,11 +369,7 @@ func (s *HostService) ReadFile(
 		return s.getGrpcStatusErrnoErr(err)
 	}
 
-	defer func() {
-		if err := file.Close(); err != nil {
-			retErr = errors.Join(retErr, err)
-		}
-	}()
+	defer func() { retErr = errors.Join(retErr, file.Close()) }()
 
 	buf := make([]byte, 8192)
 
