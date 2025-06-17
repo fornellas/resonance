@@ -368,8 +368,7 @@ func (h *AgentClientWrapper) spawn(ctx context.Context) error {
 	}
 
 	if resp.Message != "Pong" {
-		defer h.Close(ctx)
-		return fmt.Errorf("unexpected response from agent: %s", resp.Message)
+		return errors.Join(fmt.Errorf("unexpected response from agent: %s", resp.Message), h.Close(ctx))
 	}
 
 	return nil

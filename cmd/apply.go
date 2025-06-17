@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -25,14 +26,22 @@ var ApplyCmd = &cobra.Command{
 
 		ctx, logger := log.MustWithGroupAttrs(cmd.Context(), "✏️ Apply", "path", path)
 
+		var retErr error
+		defer func() {
+			if retErr != nil {
+				logger.Error("Failed", "err", retErr)
+				Exit(1)
+			}
+		}()
+
 		host, err := GetHost(ctx)
 		if err != nil {
-			logger.Error(err.Error())
-			Exit(1)
+			retErr = errors.Join(retErr, fmt.Errorf("failed to get host: %w", err))
+			return
 		}
 		defer func() {
 			if err := host.Close(ctx); err != nil {
-				logger.Error("failed to close host", "error", err)
+				retErr = errors.Join(retErr, fmt.Errorf("failed to close host: %w", err))
 			}
 		}()
 		ctx, _ = log.MustWithAttrs(ctx, "host", fmt.Sprintf("%s => %s", host.Type(), host.String()))
@@ -42,12 +51,12 @@ var ApplyCmd = &cobra.Command{
 
 		storelogWriterCloser, err := store.GetLogWriterCloser(ctx, "apply")
 		if err != nil {
-			logger.Error("failed to get store log writer", "error", err)
-			Exit(1)
+			retErr = errors.Join(retErr, fmt.Errorf("failed to get store log writer: %w", err))
+			return
 		}
 		defer func() {
 			if err := storelogWriterCloser.Close(); err != nil {
-				logger.Error("failed to close store log", "error", err)
+				retErr = errors.Join(retErr, fmt.Errorf("failed to close stotre log: %w", err))
 			}
 		}()
 
@@ -73,8 +82,8 @@ var ApplyCmd = &cobra.Command{
 			var err error
 			targetResources, err = resourcesPkg.LoadPath(ctx, path)
 			if err != nil {
-				logger.Error(err.Error())
-				Exit(1)
+				retErr = errors.Join(retErr, fmt.Errorf("failed to load resources: %w", err))
+				return
 			}
 			_, logger := log.MustWithGroup(ctx, "📚 Target resources")
 			for _, resource := range targetResources {
@@ -87,54 +96,54 @@ var ApplyCmd = &cobra.Command{
 		var lastBlueprint *blueprintPkg.Blueprint
 		plan, targetBlueprint, lastBlueprint, err = planPkg.CraftPlan(ctx, host, store, targetResources)
 		if err != nil {
-			logger.Error(err.Error())
-			Exit(1)
+			retErr = errors.Join(retErr, fmt.Errorf("failed to plan: %w", err))
+			return
 		}
 
 		{
 			ctx, _ := log.MustWithGroup(ctx, "💾 Saving target Blueprint")
 			hasTargetBlueprint, err := store.HasTargetBlueprint(ctx)
 			if err != nil {
-				logger.Error(err.Error())
-				Exit(1)
+				retErr = errors.Join(retErr, fmt.Errorf("failed save blueprint: %w", err))
+				return
 			}
 			if hasTargetBlueprint {
-				logger.Error("a previous apply was interrupted")
-				Exit(1)
+				retErr = errors.Join(retErr, fmt.Errorf("a previous apply was interrupted"))
+				return
 			} else {
 				if err := store.SaveTargetBlueprint(ctx, targetBlueprint); err != nil {
-					logger.Error(err.Error())
-					Exit(1)
+					retErr = errors.Join(retErr, fmt.Errorf("failed save target blueprint: %w", err))
+					return
 				}
 			}
 		}
 
 		if err := plan.Apply(ctx, host); err != nil {
-			logger.Error(err.Error())
-			Exit(1)
+			retErr = errors.Join(retErr, fmt.Errorf("failed to apply: %w", err))
+			return
 		}
 
 		{
-			ctx, logger := log.MustWithGroup(ctx, "🧹 State cleanup")
+			ctx, _ := log.MustWithGroup(ctx, "🧹 State cleanup")
 
 			targetResourcesMap := resourcesPkg.NewResourceMap(targetResources)
 			for _, lastResource := range lastBlueprint.Resources() {
 				if !targetResourcesMap.HasResourceWithSameTypeId(lastResource) {
 					if err := store.DeleteOriginalResource(ctx, lastResource); err != nil {
-						logger.Error(err.Error())
-						Exit(1)
+						retErr = errors.Join(retErr, fmt.Errorf("failed to delete original resource: %w", err))
+						return
 					}
 				}
 			}
 
 			if err := store.SaveLastBlueprint(ctx, targetBlueprint); err != nil {
-				logger.Error(err.Error())
-				Exit(1)
+				retErr = errors.Join(retErr, fmt.Errorf("failed to save last blueprint: %w", err))
+				return
 			}
 
 			if err := store.DeleteTargetBlueprint(ctx); err != nil {
-				logger.Error(err.Error())
-				Exit(1)
+				retErr = errors.Join(retErr, fmt.Errorf("failed to delete target blueprint: %w", err))
+				return
 			}
 		}
 

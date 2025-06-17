@@ -58,7 +58,7 @@ type Ssh struct {
 	client   *ssh.Client
 }
 
-func sshGetSigners(ctx context.Context) ([]ssh.Signer, error) {
+func sshGetSigners(ctx context.Context) (_ []ssh.Signer, retErr error) {
 	logger := log.MustLogger(ctx)
 
 	signers := []ssh.Signer{}
@@ -92,7 +92,9 @@ func sshGetSigners(ctx context.Context) ([]ssh.Signer, error) {
 					if err != nil {
 						return nil, err
 					}
-					defer term.Restore(int(os.Stdin.Fd()), state)
+					defer func() {
+						retErr = errors.Join(retErr, term.Restore(int(os.Stdin.Fd()), state))
+					}()
 
 					fmt.Printf("Password for %s: ", privateKeyPath)
 					passphrase, err := term.ReadPassword(int(os.Stdin.Fd()))
@@ -215,13 +217,15 @@ func sshGetHostKeyCallback(ctx context.Context, fingerprint string) (ssh.HostKey
 	return hostKeyCallback, nil
 }
 
-func sshGetPasswordCallbackPromptFn() func() (secret string, err error) {
-	return func() (secret string, err error) {
+func sshGetPasswordCallbackPromptFn() func() (string, error) {
+	return func() (secret string, retErr error) {
 		state, err := term.MakeRaw(int(os.Stdin.Fd()))
 		if err != nil {
 			return "", err
 		}
-		defer term.Restore(int(os.Stdin.Fd()), state)
+		defer func() {
+			retErr = errors.Join(retErr, term.Restore(int(os.Stdin.Fd()), state))
+		}()
 
 		fmt.Printf("Password: ")
 		password, err := term.ReadPassword(int(os.Stdin.Fd()))
@@ -237,7 +241,7 @@ func sshKeyboardInteractiveChallenge(
 	name, instruction string,
 	questions []string,
 	echos []bool,
-) ([]string, error) {
+) (_ []string, retErr error) {
 	answers := make([]string, len(questions))
 	var err error
 
@@ -257,7 +261,9 @@ func sshKeyboardInteractiveChallenge(
 			if err != nil {
 				return nil, err
 			}
-			defer term.Restore(int(os.Stdin.Fd()), state)
+			defer func() {
+				retErr = errors.Join(retErr, term.Restore(int(os.Stdin.Fd()), state))
+			}()
 
 			var answerBytes []byte
 			fmt.Printf("%s", question)
@@ -399,12 +405,19 @@ func NewSshAuthority(ctx context.Context, authority string, sshClientConfig SshC
 	})
 }
 
-func (h Ssh) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
+func (h Ssh) Run(ctx context.Context, cmd types.Cmd) (_ types.WaitStatus, retErr error) {
 	session, err := h.client.NewSession()
 	if err != nil {
 		return types.WaitStatus{}, fmt.Errorf("failed to create session: %w", err)
 	}
-	defer session.Close()
+	defer func() {
+		// Session.Run seems to have the side effect of closing the session, so even though ssh
+		// library's own examples tell to close the session, we seem to hit EOF here, which should
+		// be "safe" to ignore (enabling us to catch other errors).
+		if err := session.Close(); err != nil && err.Error() != "EOF" {
+			retErr = errors.Join(retErr, err)
+		}
+	}()
 
 	session.Stdin = cmd.Stdin
 	session.Stdout = cmd.Stdout

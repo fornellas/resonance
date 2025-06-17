@@ -370,7 +370,7 @@ func testHost(
 			// regular file
 			file, err := os.Create(filepath.Join(dir, "regular"))
 			require.NoError(t, err)
-			defer file.Close()
+			defer func() { require.NoError(t, file.Close()) }()
 			expectedTypeMap["regular"] = syscall.DT_REG
 
 			// block device: can't test without root

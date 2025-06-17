@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -21,15 +22,22 @@ var PlanCmd = &cobra.Command{
 
 		ctx, logger := log.MustWithGroupAttrs(cmd.Context(), "📝 Planning", "path", path)
 
+		var retErr error
+		defer func() {
+			if retErr != nil {
+				logger.Error("Failed", "err", retErr)
+				Exit(1)
+			}
+		}()
+
 		host, err := GetHost(ctx)
 		if err != nil {
-			logger.Error(err.Error())
-			Exit(1)
+			retErr = errors.Join(retErr, fmt.Errorf("failed to get host: %w", err))
+			return
 		}
 		defer func() {
 			if err := host.Close(ctx); err != nil {
-				logger.Error("failed to close host", "error", err)
-				Exit(1)
+				retErr = errors.Join(retErr, fmt.Errorf("failed to close host: %w", err))
 			}
 		}()
 		ctx, _ = log.MustWithAttrs(ctx, "host", fmt.Sprintf("%s => %s", host.Type(), host.String()))
@@ -42,8 +50,8 @@ var PlanCmd = &cobra.Command{
 			var err error
 			targetResources, err = resourcesPkg.LoadPath(ctx, path)
 			if err != nil {
-				logger.Error(err.Error())
-				Exit(1)
+				retErr = errors.Join(retErr, fmt.Errorf("failed to load resources: %w", err))
+				return
 			}
 			_, logger := log.MustWithGroup(ctx, "📚 Target resources")
 			for _, resource := range targetResources {
@@ -54,8 +62,8 @@ var PlanCmd = &cobra.Command{
 		var plan planPkg.Plan
 		plan, _, _, err = planPkg.CraftPlan(ctx, host, store, targetResources)
 		if err != nil {
-			logger.Error(err.Error())
-			Exit(1)
+			retErr = errors.Join(retErr, fmt.Errorf("failed to plan: %w", err))
+			return
 		}
 
 		{
