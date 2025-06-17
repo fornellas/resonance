@@ -590,7 +590,7 @@ build-agent-%: go-generate gen-protofiles
 		./host/agent_server/
 	gzip < host/agent_server/agent_server_linux_$* > host/agent_server/agent_server_linux_$*.gz
 	if ! size=$$(stat -f %z host/agent_server/agent_server_linux_$*.gz  2>/dev/null) ; then size=$$(stat --printf=%s host/agent_server/agent_server_linux_$*.gz) ; fi
-	[ "$$size" -gt $(GO_BUILD_MAX_AGENT_SIZE) ] && { echo "Compressed agent size exceeds $(GO_BUILD_MAX_AGENT_SIZE) bytes" ; exit 1 ; }
+	[ "$$size" -gt $(GO_BUILD_MAX_AGENT_SIZE) ] && { echo "Compressed agent size $$size bytes exceeds $(GO_BUILD_MAX_AGENT_SIZE) bytes" ; exit 1 ; }
 	cat << EOF > host/agent_server_linux_$*_gz.go
 	package host
 	import _ "embed"
