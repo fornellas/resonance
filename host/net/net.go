@@ -30,13 +30,11 @@ type IOConn struct {
 }
 
 func (c IOConn) Read(b []byte) (int, error) {
-	n, err := c.Reader.Read(b)
-	return n, err
+	return c.Reader.Read(b)
 }
 
 func (c IOConn) Write(b []byte) (int, error) {
-	n, err := c.Writer.Write(b)
-	return n, err
+	return c.Writer.Write(b)
 }
 
 func (c IOConn) Close() error {

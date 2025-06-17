@@ -956,21 +956,26 @@ func (h *AgentClientWrapper) Type() string {
 }
 
 func (h *AgentClientWrapper) Close(ctx context.Context) error {
+	grpcClientConnErr := h.grpcClientConn.Close()
 
-	_, shutdownErr := h.hostServiceClient.Shutdown(ctx, &proto.Empty{})
-
-	var spawnErr error
-	if shutdownErr == nil {
-		spawnErr = <-h.spawnErrCh
+	signalWaitStatus, signalStdout, signalStderr, signalErr := lib.SimpleRun(ctx, h.BaseHost, types.Cmd{
+		Path: h.path,
+		Args: []string{"--stop"},
+	})
+	if !signalWaitStatus.Success() {
+		signalErr = errors.Join(signalErr, fmt.Errorf("failed: %s", signalWaitStatus.String()))
+	}
+	if signalErr != nil {
+		signalErr = fmt.Errorf("%w:\nSTDOUT:\n%s\nSTDERR:\n%s\n", signalErr, signalStdout, signalStderr)
 	}
 
-	grpcClientConnErr := h.grpcClientConn.Close()
+	spawnErr := <-h.spawnErrCh
 
 	hostCloseErr := h.BaseHost.Close(ctx)
 
 	return errors.Join(
-		shutdownErr,
 		grpcClientConnErr,
+		signalErr,
 		spawnErr,
 		hostCloseErr,
 	)

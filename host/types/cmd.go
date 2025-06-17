@@ -79,9 +79,9 @@ func (ws *WaitStatus) String() string {
 			str += fmt.Sprintf(" from signal %v", ws.Signal)
 		}
 	} else {
-		str = "Process did not exit:"
+		str = "Process did not exit"
 		if ws.Signal != "" {
-			str += fmt.Sprintf(" received signal: %#v", ws.Signal)
+			str += fmt.Sprintf(": received signal: %#v", ws.Signal)
 		}
 	}
 
