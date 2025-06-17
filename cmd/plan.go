@@ -29,6 +29,7 @@ var PlanCmd = &cobra.Command{
 		defer func() {
 			if err := host.Close(ctx); err != nil {
 				logger.Error("failed to close host", "error", err)
+				Exit(1)
 			}
 		}()
 		ctx, _ = log.MustWithAttrs(ctx, "host", fmt.Sprintf("%s => %s", host.Type(), host.String()))

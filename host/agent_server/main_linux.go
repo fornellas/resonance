@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	userPkg "os/user"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"syscall"
 
@@ -789,17 +790,65 @@ func (s *HostService) AppendFile(
 	return nil
 }
 
-func (s *HostService) Shutdown(ctx context.Context, _ *proto.Empty) (*proto.Empty, error) {
-	go func() {
-		// When GracefulStop() is executed, it'll close the connection (and the pipe), generating
-		// a SIGPIPE, so we need to ignore the signal
-		signal.Ignore(syscall.SIGPIPE)
-		s.grpcServer.GracefulStop()
-	}()
-	return nil, nil
+func stop() {
+
+	procDirEntries, err := os.ReadDir("/proc")
+	if err != nil {
+		panic(err)
+	}
+
+	selfPid := os.Getpid()
+	selfAbsPath, err := filepath.Abs(filepath.Base(os.Args[0]))
+	if err != nil {
+		panic(err)
+	}
+	selfCmdline := selfAbsPath + "\x00"
+
+	for _, procDirEntry := range procDirEntries {
+		if !procDirEntry.IsDir() {
+			continue
+		}
+
+		dirName := procDirEntry.Name()
+		var pid int
+		if pid, err = strconv.Atoi(dirName); err != nil {
+			continue
+		}
+		if pid == selfPid {
+			continue
+		}
+
+		cmdlinePath := filepath.Join("/proc", dirName, "cmdline")
+		cmdlineBytes, err := os.ReadFile(cmdlinePath)
+		if err != nil {
+			continue
+		}
+
+		if selfCmdline == string(cmdlineBytes) {
+			if err := syscall.Kill(pid, syscall.SIGTERM); err != nil {
+				panic(err)
+			}
+		}
+	}
 }
 
 func main() {
+	doStop := len(os.Args) > 1 && os.Args[1] == "--stop"
+
+	defer func() {
+		if doStop {
+			return
+		}
+		if err := os.Remove(os.Args[0]); err != nil {
+			panic(err)
+		}
+	}()
+
+	if doStop {
+		stop()
+		return
+	}
+
 	pipeListener := NewListener(hostNet.IOConn{
 		Reader: os.Stdin,
 		Writer: os.Stdout,
@@ -810,6 +859,13 @@ func main() {
 	proto.RegisterHostServiceServer(grpcServer, &HostService{
 		grpcServer: grpcServer,
 	})
+
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, syscall.SIGTERM)
+	go func() {
+		<-signalCh
+		grpcServer.GracefulStop()
+	}()
 
 	if err := grpcServer.Serve(pipeListener); err != nil {
 		panic(err)

@@ -23,7 +23,6 @@ service HostService {
   rpc Mknod(MknodRequest) returns (Empty) {}
   rpc WriteFile(stream WriteFileRequest) returns (Empty) {}
   rpc AppendFile(stream AppendFileRequest) returns (Empty) {}
-  rpc Shutdown(Empty) returns (Empty) {}
 }
 
 message Errno {
