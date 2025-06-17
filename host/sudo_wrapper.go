@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -71,7 +72,7 @@ type stderrSudo struct {
 	passwordAttempt *string
 }
 
-func (w *stderrSudo) Write(p []byte) (int, error) {
+func (w *stderrSudo) Write(p []byte) (_ int, retErr error) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 
@@ -85,7 +86,9 @@ func (w *stderrSudo) Write(p []byte) (int, error) {
 				if err != nil {
 					return 0, err
 				}
-				defer term.Restore(int(os.Stdin.Fd()), state)
+				defer func() {
+					retErr = errors.Join(retErr, term.Restore(int(os.Stdin.Fd()), state))
+				}()
 
 				var passwordBytes []byte
 				fmt.Printf("sudo password: ")

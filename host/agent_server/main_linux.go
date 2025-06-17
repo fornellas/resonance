@@ -356,7 +356,7 @@ func (s *HostService) Mkdir(ctx context.Context, req *proto.MkdirRequest) (*prot
 
 func (s *HostService) ReadFile(
 	req *proto.ReadFileRequest, stream grpc.ServerStreamingServer[proto.ReadFileResponse],
-) error {
+) (retErr error) {
 	name := req.Name
 
 	if !filepath.IsAbs(name) {
@@ -369,7 +369,7 @@ func (s *HostService) ReadFile(
 		return s.getGrpcStatusErrnoErr(err)
 	}
 
-	defer file.Close()
+	defer func() { retErr = errors.Join(retErr, file.Close()) }()
 
 	buf := make([]byte, 8192)
 

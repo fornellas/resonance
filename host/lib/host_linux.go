@@ -61,6 +61,7 @@ func LocalReadDir(ctx context.Context, name string) (<-chan types.DirEntResult, 
 	dirEntResultCh := make(chan types.DirEntResult, 100)
 
 	go func() {
+		defer func() { close(dirEntResultCh) }()
 		if !filepath.IsAbs(name) {
 			dirEntResultCh <- types.DirEntResult{
 				Error: &fs.PathError{
@@ -69,7 +70,6 @@ func LocalReadDir(ctx context.Context, name string) (<-chan types.DirEntResult, 
 					Err:  errors.New("path must be absolute"),
 				},
 			}
-			close(dirEntResultCh)
 			return
 		}
 
@@ -82,10 +82,19 @@ func LocalReadDir(ctx context.Context, name string) (<-chan types.DirEntResult, 
 					Err:  err,
 				},
 			}
-			close(dirEntResultCh)
 			return
 		}
-		defer syscall.Close(fd)
+		defer func() {
+			if err := syscall.Close(fd); err != nil {
+				dirEntResultCh <- types.DirEntResult{
+					Error: &fs.PathError{
+						Op:   "Close",
+						Path: name,
+						Err:  err,
+					},
+				}
+			}
+		}()
 
 		buf := make([]byte, 8196)
 
@@ -130,11 +139,9 @@ func LocalReadDir(ctx context.Context, name string) (<-chan types.DirEntResult, 
 						Type: dirent.Type,
 						Name: name,
 					}
-
 					select {
 					case dirEntResultCh <- types.DirEntResult{DirEnt: dirEnt}:
 					case <-ctx.Done():
-						close(dirEntResultCh)
 						return
 					}
 				}
@@ -142,8 +149,6 @@ func LocalReadDir(ctx context.Context, name string) (<-chan types.DirEntResult, 
 				offset += int(dirent.Reclen)
 			}
 		}
-
-		close(dirEntResultCh)
 	}()
 
 	return dirEntResultCh, cancel

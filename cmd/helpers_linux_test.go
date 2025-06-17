@@ -49,13 +49,13 @@ func captureOutput(t *testing.T, fn func()) (stdout string, stderr string) {
 		fn()
 
 		defer func() {
-			writeStdout.Close()
+			require.NoError(t, writeStdout.Close())
 			<-stdoutCh
-			readStdout.Close()
+			require.NoError(t, readStdout.Close())
 
-			writeStderr.Close()
+			require.NoError(t, writeStderr.Close())
 			<-stderrCh
-			readStderr.Close()
+			require.NoError(t, readStderr.Close())
 		}()
 	}()
 

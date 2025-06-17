@@ -16,19 +16,19 @@ import (
 	"github.com/fornellas/slogxt/log"
 )
 
-func loadFile(ctx context.Context, path string) (Resources, error) {
+func loadFile(ctx context.Context, path string) (resources Resources, retErr error) {
 	_, logger := log.MustWithGroupAttrs(ctx, "📄 Resources File", "path", path)
 	logger.Info("Loading")
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load resource file: %w", err)
 	}
-	defer f.Close()
+	defer func() { retErr = errors.Join(retErr, f.Close()) }()
 
 	decoder := yaml.NewDecoder(f)
 	decoder.KnownFields(true)
 
-	resources := Resources{}
+	resources = Resources{}
 
 	for {
 		type ResourcesYaml []yaml.Node

@@ -8,6 +8,9 @@ on:
             - "master"
         tags:
             - "v*"
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
 jobs:
     linux_386:
         uses: ./.github/workflows/build-linux.yaml
@@ -59,33 +62,33 @@ jobs:
         steps:
             - uses: actions/download-artifact@v4.1.7
               with:
-                  name: ${{ needs.linux_386.outputs.artifact }}
+                name: ${{ needs.linux_386.outputs.artifact }}
             - uses: actions/download-artifact@v4.1.7
               with:
-                  name: ${{ needs.linux_amd64.outputs.artifact }}
+                name: ${{ needs.linux_amd64.outputs.artifact }}
             - uses: actions/download-artifact@v4.1.7
               with:
-                  name: ${{ needs.linux_arm64.outputs.artifact }}
+                name: ${{ needs.linux_arm64.outputs.artifact }}
             - uses: actions/download-artifact@v4.1.7
               with:
-                  name: ${{ needs.darwin_amd64.outputs.artifact }}
+                name: ${{ needs.darwin_amd64.outputs.artifact }}
             - uses: actions/download-artifact@v4.1.7
               with:
-                  name: ${{ needs.darwin_arm64.outputs.artifact }}
+                name: ${{ needs.darwin_arm64.outputs.artifact }}
             - name: Release
               uses: softprops/action-gh-release@v1
               with:
-                  files: |
-                      ${{ needs.linux_386.outputs.artifact }}
-                      ${{ needs.linux_amd64.outputs.artifact }}
-                      ${{ needs.linux_arm64.outputs.artifact }}
-                      ${{ needs.darwin_amd64.outputs.artifact }}
-                      ${{ needs.darwin_arm64.outputs.artifact }}
+                files: |
+                    ${{ needs.linux_386.outputs.artifact }}
+                    ${{ needs.linux_amd64.outputs.artifact }}
+                    ${{ needs.linux_arm64.outputs.artifact }}
+                    ${{ needs.darwin_amd64.outputs.artifact }}
+                    ${{ needs.darwin_arm64.outputs.artifact }}
             - name: Add to pkg.go.dev
               # https://pkg.go.dev/about#adding-a-package
               run: |
-                  set -e
-                  curl -v https://proxy.golang.org/github.com/fornellas/resonance/@v/$(git describe --tags).info
+                set -e
+                curl -v https://proxy.golang.org/github.com/fornellas/resonance/@v/$(git describe --tags).info
               shell: bash
     coveralls:
         needs:
@@ -99,4 +102,4 @@ jobs:
             - name: Coveralls Finished
               uses: coverallsapp/github-action@v2.3.4
               with:
-                  parallel-finished: true
+                parallel-finished: true
