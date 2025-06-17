@@ -372,25 +372,29 @@ func (s *HostService) ReadFile(
 	defer func() { retErr = errors.Join(retErr, file.Close()) }()
 
 	buf := make([]byte, 8192)
+	ctx := stream.Context()
 
 	for {
-		n, err := file.Read(buf)
-		if err != nil {
-			if err == io.EOF {
-				break
+		select {
+		case <-ctx.Done():
+			return status.Error(codes.Canceled, ctx.Err().Error())
+		default:
+			n, err := file.Read(buf)
+			if err != nil {
+				if err == io.EOF {
+					return nil
+				}
+				return s.getGrpcStatusErrnoErr(err)
 			}
-			return s.getGrpcStatusErrnoErr(err)
-		}
 
-		err = stream.Send(&proto.ReadFileResponse{
-			Chunk: buf[:n],
-		})
-		if err != nil {
-			return s.getGrpcStatusErrnoErr(err)
+			err = stream.Send(&proto.ReadFileResponse{
+				Chunk: buf[:n],
+			})
+			if err != nil {
+				return s.getGrpcStatusErrnoErr(err)
+			}
 		}
 	}
-
-	return nil
 }
 
 func (s *HostService) Symlink(ctx context.Context, req *proto.SymlinkRequest) (*proto.Empty, error) {
