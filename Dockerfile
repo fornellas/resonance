@@ -1,11 +1,11 @@
-FROM debian:bullseye
+FROM debian:bookworm-slim
 RUN apt-get update && apt-get -y --no-install-recommends install \
-	curl \
-	build-essential \
-	ca-certificates \
-	git \
-	less \
-	unzip
+    curl \
+    build-essential \
+    ca-certificates \
+    git \
+    less \
+    unzip
 RUN passwd -d root
 ARG USER
 ARG GROUP
