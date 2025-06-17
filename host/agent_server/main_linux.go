@@ -840,7 +840,7 @@ func main() {
 	doStop := len(os.Args) > 1 && os.Args[1] == "--stop"
 
 	defer func() {
-		if doStop {
+		if !doStop {
 			return
 		}
 		if err := os.Remove(os.Args[0]); err != nil {
@@ -865,7 +865,7 @@ func main() {
 	})
 
 	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, syscall.SIGTERM)
+	signal.Notify(signalCh, syscall.SIGTERM, syscall.SIGPIPE)
 	go func() {
 		<-signalCh
 		grpcServer.GracefulStop()
