@@ -966,7 +966,7 @@ func (h *AgentClientWrapper) Close(ctx context.Context) error {
 		signalErr = errors.Join(signalErr, fmt.Errorf("failed: %s", signalWaitStatus.String()))
 	}
 	if signalErr != nil {
-		signalErr = fmt.Errorf("%w:\nSTDOUT:\n%s\nSTDERR:\n%s\n", signalErr, signalStdout, signalStderr)
+		signalErr = fmt.Errorf("%w:\nSTDOUT:\n%s\nSTDERR:\n%s", signalErr, signalStdout, signalStderr)
 	}
 
 	spawnErr := <-h.spawnErrCh
