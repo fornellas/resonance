@@ -29,17 +29,32 @@ func testBaseHost(
 	baseHostType string,
 ) {
 	t.Run("Run", func(t *testing.T) {
-		t.Run("Args, output and failure", func(t *testing.T) {
+		t.Run("Bad path", func(t *testing.T) {
 			waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, baseHost, types.Cmd{
-				Path: "ls",
-				Args: []string{"-d", "../tmp", "/non-existent"},
+				Path: "/bad-path",
 			})
-			require.NoError(t, err)
 			t.Cleanup(func() {
 				if t.Failed() {
 					t.Logf("\nstdout:\n%s\nstderr:\n%s\n", stdout, stderr)
 				}
 			})
+			require.ErrorIs(t, err, os.ErrNotExist)
+			require.False(t, waitStatus.Success())
+			require.Equal(t, uint32(0), waitStatus.ExitCode)
+			require.False(t, waitStatus.Exited)
+			require.Equal(t, "", waitStatus.Signal)
+		})
+		t.Run("Args, output and failure", func(t *testing.T) {
+			waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, baseHost, types.Cmd{
+				Path: "ls",
+				Args: []string{"-d", "../tmp", "/non-existent"},
+			})
+			t.Cleanup(func() {
+				if t.Failed() {
+					t.Logf("\nstdout:\n%s\nstderr:\n%s\n", stdout, stderr)
+				}
+			})
+			require.NoError(t, err)
 			require.False(t, waitStatus.Success())
 			require.Equal(t, uint32(2), waitStatus.ExitCode)
 			require.True(t, waitStatus.Exited)
@@ -82,12 +97,12 @@ func testBaseHost(
 					Path: "env",
 					Env:  []string{env},
 				})
-				require.NoError(t, err)
 				t.Cleanup(func() {
 					if t.Failed() {
 						t.Logf("stdout:\n%s\nstderr:\n%s\n", stdout, stderr)
 					}
 				})
+				require.NoError(t, err)
 				require.True(t, waitStatus.Success())
 				require.Equal(t, uint32(0), waitStatus.ExitCode)
 				require.True(t, waitStatus.Exited)
@@ -103,12 +118,12 @@ func testBaseHost(
 					Path: "pwd",
 					Dir:  dir,
 				})
-				require.NoError(t, err)
 				t.Cleanup(func() {
 					if t.Failed() {
 						t.Logf("\nstdout:\n%s\nstderr:\n%s\n", stdout, stderr)
 					}
 				})
+				require.NoError(t, err)
 				require.True(t, waitStatus.Success())
 				require.Equal(t, uint32(0), waitStatus.ExitCode)
 				require.True(t, waitStatus.Exited)
@@ -131,12 +146,12 @@ func testBaseHost(
 				Args:  []string{"-c", "read v && echo =$v="},
 				Stdin: strings.NewReader(fmt.Sprintf("%s\n", stdin)),
 			})
-			require.NoError(t, err)
 			t.Cleanup(func() {
 				if t.Failed() {
 					t.Logf("\nstdout:\n%s\nstderr:\n%s\n", stdout, stderr)
 				}
 			})
+			require.NoError(t, err)
 			require.True(t, waitStatus.Success())
 			require.Equal(t, uint32(0), waitStatus.ExitCode)
 			require.True(t, waitStatus.Exited)

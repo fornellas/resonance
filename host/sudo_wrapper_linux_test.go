@@ -53,10 +53,9 @@ func (h HostLocalRunSudoOnlyTest) Close(ctx context.Context) error {
 }
 
 func NewHostLocalRunSudoOnlyTest(t *testing.T) HostLocalRunSudoOnlyTest {
-	localHost := Local{}
 	host := HostLocalRunSudoOnlyTest{
 		T:        t,
-		BaseHost: localHost,
+		BaseHost: Local{},
 	}
 	return host
 }
