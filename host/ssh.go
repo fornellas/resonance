@@ -471,6 +471,13 @@ func (h Ssh) Run(ctx context.Context, cmd types.Cmd) (_ types.WaitStatus, retErr
 			exitCode = uint32(exitError.ExitStatus())
 			exited = exitError.Signal() == ""
 			signal = exitError.Signal()
+
+			// we always run the command over sh, and sh calls env, so, when a command does not
+			// exist, either will return 127, and that's the quicky way we can detect os.ErrNotExist
+			// here.
+			if exited && exitCode == 127 {
+				return types.WaitStatus{}, os.ErrNotExist
+			}
 		} else {
 			return types.WaitStatus{}, fmt.Errorf("failed to run %v: %w", cmd, err)
 		}

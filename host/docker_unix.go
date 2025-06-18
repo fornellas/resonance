@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -87,6 +88,12 @@ func (h Docker) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error
 		if _, ok := err.(*exec.ExitError); !ok {
 			return types.WaitStatus{}, err
 		}
+	}
+
+	// docker exec always runs the command over sh, and sh calls env, so, when a command does not
+	// exist, either will return 127, and that's the quicky way we can detect os.ErrNotExist here.
+	if execCmd.ProcessState.Exited() && execCmd.ProcessState.ExitCode() == 127 {
+		return types.WaitStatus{}, os.ErrNotExist
 	}
 
 	waitStatus := types.WaitStatus{}

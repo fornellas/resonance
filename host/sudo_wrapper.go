@@ -240,7 +240,13 @@ func (h *SudoWrapper) runEnv(ctx context.Context, cmd types.Cmd, ignoreCmdEnv bo
 		Password: &h.Password,
 	}
 
-	return h.BaseHost.Run(ctx, cmd)
+	// we always run the command over env, so, when a command does not exist, it will return 127,
+	// and that's the quicky way we can detect os.ErrNotExist here.
+	waitStatus, err := h.BaseHost.Run(ctx, cmd)
+	if err == nil && waitStatus.Exited && waitStatus.ExitCode == 127 {
+		return types.WaitStatus{}, os.ErrNotExist
+	}
+	return waitStatus, err
 }
 
 func (h *SudoWrapper) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
