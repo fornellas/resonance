@@ -144,7 +144,7 @@ func testBaseHost(
 			waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, baseHost, types.Cmd{
 				Path: "sh",
 				// we need this extra "read foo" here, to have the command only exit on stdin EOF
-				Args:  []string{"-c", "read v && echo =$v= && read foo"},
+				Args:  []string{"-c", "read v && echo =$v= && read foo || true"},
 				Stdin: strings.NewReader(fmt.Sprintf("%s\n", stdin)),
 			})
 			t.Cleanup(func() {
