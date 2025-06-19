@@ -14,7 +14,7 @@ import (
 
 type HostLocalRunSudoOnlyTest struct {
 	T        *testing.T
-	BaseHost types.BaseHost
+	baseHost types.BaseHost
 }
 
 func (h HostLocalRunSudoOnlyTest) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {
@@ -37,25 +37,25 @@ func (h HostLocalRunSudoOnlyTest) Run(ctx context.Context, cmd types.Cmd) (types
 	}
 	cmd.Path = cmd.Args[cmdIdx]
 	cmd.Args = cmd.Args[cmdIdx+1:]
-	return h.BaseHost.Run(ctx, cmd)
+	return h.baseHost.Run(ctx, cmd)
 }
 
 func (h HostLocalRunSudoOnlyTest) String() string {
-	return h.BaseHost.String()
+	return h.baseHost.String()
 }
 
 func (h HostLocalRunSudoOnlyTest) Type() string {
-	return h.BaseHost.Type()
+	return h.baseHost.Type()
 }
 
 func (h HostLocalRunSudoOnlyTest) Close(ctx context.Context) error {
-	return h.BaseHost.Close(ctx)
+	return h.baseHost.Close(ctx)
 }
 
 func NewHostLocalRunSudoOnlyTest(t *testing.T) HostLocalRunSudoOnlyTest {
 	host := HostLocalRunSudoOnlyTest{
 		T:        t,
-		BaseHost: Local{},
+		baseHost: Local{},
 	}
 	return host
 }
