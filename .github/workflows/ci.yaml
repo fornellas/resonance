@@ -1,107 +1,126 @@
 name: ci
 on:
-    pull_request:
-        branches:
-            - "master"
-    push:
-        branches:
-            - "master"
-        tags:
-            - "v*"
+  pull_request:
+    branches:
+      - "master"
+  push:
+    branches:
+      - "master"
+    tags:
+      - "v*"
 concurrency:
-    group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
-    cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
-    linux_386:
-        uses: ./.github/workflows/build-linux.yaml
+  linux_386:
+    uses: ./.github/workflows/build-linux.yaml
+    with:
+      upload-artifact: ${{ startsWith(github.ref, 'refs/tags/') }}
+      GOARCH: 386
+      runs-on: ubuntu-24.04
+    secrets: inherit
+  linux_amd64:
+    uses: ./.github/workflows/build-linux.yaml
+    with:
+      upload-artifact: ${{ startsWith(github.ref, 'refs/tags/') }}
+      GOARCH: amd64
+      runs-on: ubuntu-24.04
+    secrets: inherit
+  linux_arm64:
+    uses: ./.github/workflows/build-linux.yaml
+    with:
+      upload-artifact: ${{ startsWith(github.ref, 'refs/tags/') }}
+      GOARCH: arm64
+      runs-on: ubuntu-24.04-arm
+    secrets: inherit
+  darwin_amd64:
+    uses: ./.github/workflows/build-darwin.yaml
+    with:
+      upload-artifact: ${{ startsWith(github.ref, 'refs/tags/') }}
+      GOARCH: amd64
+      runs-on: macos-13
+    secrets: inherit
+  darwin_arm64:
+    uses: ./.github/workflows/build-darwin.yaml
+    with:
+      upload-artifact: ${{ startsWith(github.ref, 'refs/tags/') }}
+      GOARCH: arm64
+      runs-on: macos-14
+    secrets: inherit
+  ci:
+    needs:
+      - linux_386
+      - linux_amd64
+      - linux_arm64
+      - darwin_amd64
+      - darwin_arm64
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if all jobs succeeded
+        # GH Actions are... quircky. If a needs job fails, this job here skips, and... it is
+        # interpreted as "success", allowing merges to happen...
+        # The only way out, is to ad-hoc check each of the needs jobs, and fail if one of them
+        # fails.
+        run: |
+          if [[ "${{ needs.linux_386.result }}" != "success" ]] || \
+             [[ "${{ needs.linux_amd64.result }}" != "success" ]] || \
+             [[ "${{ needs.linux_arm64.result }}" != "success" ]] || \
+             [[ "${{ needs.darwin_amd64.result }}" != "success" ]] || \
+             [[ "${{ needs.darwin_arm64.result }}" != "success" ]]; then
+            echo "One or more jobs failed"
+            exit 1
+          fi
+          echo "All checks passed"
+  release:
+    concurrency: release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    needs:
+      - linux_386
+      - linux_amd64
+      - linux_arm64
+      - darwin_amd64
+      - darwin_arm64
+    steps:
+      - uses: actions/download-artifact@v4.1.7
         with:
-            upload-artifact: ${{ startsWith(github.ref, 'refs/tags/') }}
-            GOARCH: 386
-            runs-on: ubuntu-24.04
-        secrets: inherit
-    linux_amd64:
-        uses: ./.github/workflows/build-linux.yaml
+          name: ${{ needs.linux_386.outputs.artifact }}
+      - uses: actions/download-artifact@v4.1.7
         with:
-            upload-artifact: ${{ startsWith(github.ref, 'refs/tags/') }}
-            GOARCH: amd64
-            runs-on: ubuntu-24.04
-        secrets: inherit
-    linux_arm64:
-        uses: ./.github/workflows/build-linux.yaml
+          name: ${{ needs.linux_amd64.outputs.artifact }}
+      - uses: actions/download-artifact@v4.1.7
         with:
-            upload-artifact: ${{ startsWith(github.ref, 'refs/tags/') }}
-            GOARCH: arm64
-            runs-on: ubuntu-24.04-arm
-        secrets: inherit
-    darwin_amd64:
-        uses: ./.github/workflows/build-darwin.yaml
+          name: ${{ needs.linux_arm64.outputs.artifact }}
+      - uses: actions/download-artifact@v4.1.7
         with:
-            upload-artifact: ${{ startsWith(github.ref, 'refs/tags/') }}
-            GOARCH: amd64
-            runs-on: macos-13
-        secrets: inherit
-    darwin_arm64:
-        uses: ./.github/workflows/build-darwin.yaml
+          name: ${{ needs.darwin_amd64.outputs.artifact }}
+      - uses: actions/download-artifact@v4.1.7
         with:
-            upload-artifact: ${{ startsWith(github.ref, 'refs/tags/') }}
-            GOARCH: arm64
-            runs-on: macos-14
-        secrets: inherit
-    ci:
-        needs:
-            - linux_386
-            - linux_amd64
-            - linux_arm64
-            - darwin_amd64
-            - darwin_arm64
-        runs-on: ubuntu-latest
-        steps:
-            - run: echo "All checks passed"
-    release:
-        concurrency: release
-        runs-on: ubuntu-latest
-        if: startsWith(github.ref, 'refs/tags/')
-        permissions:
-            contents: write
-        needs:
-            - ci
-        steps:
-            - uses: actions/download-artifact@v4.1.7
-              with:
-                name: ${{ needs.linux_386.outputs.artifact }}
-            - uses: actions/download-artifact@v4.1.7
-              with:
-                name: ${{ needs.linux_amd64.outputs.artifact }}
-            - uses: actions/download-artifact@v4.1.7
-              with:
-                name: ${{ needs.linux_arm64.outputs.artifact }}
-            - uses: actions/download-artifact@v4.1.7
-              with:
-                name: ${{ needs.darwin_amd64.outputs.artifact }}
-            - uses: actions/download-artifact@v4.1.7
-              with:
-                name: ${{ needs.darwin_arm64.outputs.artifact }}
-            - name: Release
-              uses: softprops/action-gh-release@v1
-              with:
-                files: |
-                    ${{ needs.linux_386.outputs.artifact }}
-                    ${{ needs.linux_amd64.outputs.artifact }}
-                    ${{ needs.linux_arm64.outputs.artifact }}
-                    ${{ needs.darwin_amd64.outputs.artifact }}
-                    ${{ needs.darwin_arm64.outputs.artifact }}
-            - name: Add to pkg.go.dev
-              # https://pkg.go.dev/about#adding-a-package
-              run: |
-                set -e
-                curl -v https://proxy.golang.org/github.com/fornellas/resonance/@v/$(git describe --tags).info
-              shell: bash
-    coveralls:
-        needs:
-            - ci
-        runs-on: ubuntu-latest
-        steps:
-            - name: Coveralls Finished
-              uses: coverallsapp/github-action@v2.3.4
-              with:
-                parallel-finished: true
+          name: ${{ needs.darwin_arm64.outputs.artifact }}
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ${{ needs.linux_386.outputs.artifact }}
+            ${{ needs.linux_amd64.outputs.artifact }}
+            ${{ needs.linux_arm64.outputs.artifact }}
+            ${{ needs.darwin_amd64.outputs.artifact }}
+            ${{ needs.darwin_arm64.outputs.artifact }}
+      - name: Add to pkg.go.dev
+        # https://pkg.go.dev/about#adding-a-package
+        run: |
+          set -e
+          curl -v https://proxy.golang.org/github.com/fornellas/resonance/@v/$(git describe --tags).info
+        shell: bash
+  coveralls:
+    needs:
+      - ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Coveralls Finished
+        uses: coverallsapp/github-action@v2.3.4
+        with:
+          parallel-finished: true
