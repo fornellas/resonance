@@ -47,6 +47,16 @@ jobs:
             GOARCH: arm64
             runs-on: macos-14
         secrets: inherit
+    ci:
+        needs:
+            - linux_386
+            - linux_amd64
+            - linux_arm64
+            - darwin_amd64
+            - darwin_arm64
+        runs-on: ubuntu-latest
+        steps:
+            - run: echo "All checks passed"
     release:
         concurrency: release
         runs-on: ubuntu-latest
@@ -54,11 +64,7 @@ jobs:
         permissions:
             contents: write
         needs:
-            - linux_386
-            - linux_amd64
-            - linux_arm64
-            - darwin_amd64
-            - darwin_arm64
+            - ci
         steps:
             - uses: actions/download-artifact@v4.1.7
               with:
@@ -92,11 +98,7 @@ jobs:
               shell: bash
     coveralls:
         needs:
-            - linux_386
-            - linux_amd64
-            - linux_arm64
-            - darwin_amd64
-            - darwin_arm64
+            - ci
         runs-on: ubuntu-latest
         steps:
             - name: Coveralls Finished
