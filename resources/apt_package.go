@@ -1,14 +1,17 @@
 package resources
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"regexp"
+	"slices"
 	"strings"
 
 	"fmt"
 	"reflect"
 
+	"github.com/fornellas/resonance/concurrency"
 	"github.com/fornellas/resonance/host/lib"
 	"github.com/fornellas/resonance/host/types"
 )
@@ -16,29 +19,50 @@ import (
 // APTPackage manages APT packages.
 type APTPackage struct {
 	// The name of the package
+	// See https://www.debian.org/doc/debian-policy/ch-controlfields.html#package
 	Package string `yaml:"package"`
 	// Whether to remove the package
 	Absent bool `yaml:"absent,omitempty"`
-	// Package version
+	// Architectures.
+	// See https://www.debian.org/doc/debian-policy/ch-controlfields.html#architecture
+	Architectures []string `yaml:"architectures,omitempty"`
+	// Package version.
+	// See https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
 	Version string `yaml:"version,omitempty"`
+	// Package debconf selections.
+	// Keys are debconf items and values are debconf values.
+	// See https://wiki.debian.org/debconf
+	Debconf map[string]string `yaml:"debconf,omitempty"`
 }
 
-// https://www.debian.org/doc/debian-policy/ch-controlfields.html#package
-var validAptPackageNameRegexp = regexp.MustCompile(`^[a-z0-9][a-z0-9+\-.]{1,}$`)
+var validDpkgPackageRegexp = regexp.MustCompile(`^[a-z0-9][a-z0-9+\-.]{1,}$`)
+
+var validDpkgArchitectureRegexp = regexp.MustCompile(`^[a-z0-9][a-z0-9-]+$`)
+
+var validDpkgVersionRegexp = regexp.MustCompile(`^(?:([0-9]+):)?(([0-9][A-Za-z0-9.+~]*)|([0-9][A-Za-z0-9.+~-]*-[A-Za-z0-9+.~]+))$`)
 
 func (a *APTPackage) Validate() error {
 	// Package
-	if !validAptPackageNameRegexp.MatchString(string(a.Package)) {
-		return fmt.Errorf("`package` must match regexp %s: %s", validAptPackageNameRegexp, a.Version)
+	if !validDpkgPackageRegexp.MatchString(string(a.Package)) {
+		return fmt.Errorf("invalid package: %#v", a.Package)
+	}
+
+	// Architectures
+	for _, architecture := range a.Architectures {
+		if !validDpkgArchitectureRegexp.MatchString(architecture) {
+			return fmt.Errorf("invalid package: %#v", architecture)
+		}
 	}
 
 	// Version
-	// https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
 	if strings.HasSuffix(a.Version, "+") {
 		return fmt.Errorf("`version` can't end in +: %s", a.Version)
 	}
 	if strings.HasSuffix(a.Version, "-") {
 		return fmt.Errorf("`version` can't end in -: %s", a.Version)
+	}
+	if a.Version != "" && !validDpkgVersionRegexp.MatchString(a.Version) {
+		return fmt.Errorf("invalid version: %#v", a.Version)
 	}
 
 	return nil
@@ -50,21 +74,46 @@ func (a *APTPackage) Satisfies(resource Resource) bool {
 		panic("bug: not APTPackage")
 	}
 
-	if a.Version != "" && b.Version == "" {
-		bCopy := *b
-		b = &bCopy
-		b.Version = a.Version
+	if a.Package != b.Package {
+		return false
 	}
 
-	return reflect.DeepEqual(a, b)
+	if a.Absent != b.Absent {
+		return false
+	}
+
+	for _, arch := range a.Architectures {
+		if !slices.Contains(b.Architectures, arch) {
+			return false
+		}
+	}
+
+	if len(a.Version) > 0 {
+		if len(b.Version) > 0 {
+			if a.Version != b.Version {
+				return false
+			}
+		}
+	} else {
+		if len(b.Version) > 0 {
+			return false
+		}
+	}
+
+	for key, value := range b.Debconf {
+		if bValue, ok := a.Debconf[key]; ok {
+			if value != bValue {
+				return false
+			}
+		} else {
+			return false
+		}
+	}
+
+	return true
 }
 
 type APTPackages struct{}
-
-var aptCachePackageRegexp = regexp.MustCompile(`^(.+):$`)
-var aptCachePackageInstalledRegexp = regexp.MustCompile(`^  Installed: (.+)$`)
-var aptCachePackageCandidateRegexp = regexp.MustCompile(`^  Candidate: (.+)$`)
-var aptCacheUnableToLocateRegexp = regexp.MustCompile(`^N: Unable to locate package (.+)$`)
 
 func (a *APTPackages) getAptPackages(resources Resources) []*APTPackage {
 	aptPackages := make([]*APTPackage, len(resources))
@@ -78,71 +127,156 @@ func (a *APTPackages) getAptPackages(resources Resources) []*APTPackage {
 	return aptPackages
 }
 
-func (a *APTPackages) Load(ctx context.Context, hst types.Host, resources Resources) error {
-	aptPackages := a.getAptPackages(resources)
+var debconfShowRegexp = regexp.MustCompile("^([ *]) (.+):(| (.+))$")
 
-	hostCmd := types.Cmd{
-		Path: "apt-cache",
-		Args: []string{"policy"},
-	}
+func (a *APTPackages) preparePackageQueries(
+	ctx context.Context, host types.Host, aptPackages []*APTPackage,
+) ([]string, map[string]*APTPackage) {
+	packageQueries := make([]string, 0)
+	packageToResource := make(map[string]*APTPackage)
+
 	for _, aptPackage := range aptPackages {
-		hostCmd.Args = append(hostCmd.Args, string(aptPackage.Package))
+		if len(aptPackage.Architectures) > 0 {
+			for _, arch := range aptPackage.Architectures {
+				query := fmt.Sprintf("%s:%s", aptPackage.Package, arch)
+				packageQueries = append(packageQueries, query)
+			}
+		} else {
+			packageQueries = append(packageQueries, aptPackage.Package)
+		}
+		packageToResource[aptPackage.Package] = aptPackage
+		aptPackage.Absent = true
+		aptPackage.Version = ""
+		aptPackage.Architectures = nil
+		aptPackage.Debconf = nil
 	}
 
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, hostCmd)
+	return packageQueries, packageToResource
+}
+
+func (a *APTPackages) runDpkgQuery(ctx context.Context, hst types.Host, packageQueries []string, resourceCount int) (string, error) {
+	args := []string{
+		"--show",
+		"--showformat=Package=${Package}\nArchitecture=${Architecture}\nVersion=${Version}\nend\n",
+	}
+	args = append(args, packageQueries...)
+
+	cmd := types.Cmd{
+		Path: "/usr/bin/dpkg-query",
+		Args: args,
+	}
+
+	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
 	if err != nil {
-		return err
-	}
-	if !waitStatus.Success() {
-		return fmt.Errorf(
-			"failed to run '%s': %s\nstdout:\n%s\nstderr:\n%s",
-			hostCmd.String(), waitStatus.String(), stdout, stderr,
-		)
+		return "", fmt.Errorf("failed to run dpkg-query: %w\n%s\nSTDOUT:\n%s\nSTDERR:\n%s", err, cmd, stdout, stderr)
 	}
 
-	pkgInstalledMap := map[string]string{}
-	pkgCandidateMap := map[string]string{}
-	var pkg string
-	for _, line := range strings.Split(stdout, "\n") {
-		matches := aptCachePackageRegexp.FindStringSubmatch(line)
-		if len(matches) == 2 {
-			pkg = matches[1]
+	if waitStatus.Exited && waitStatus.ExitCode == 1 && resourceCount == 1 && strings.HasPrefix(stdout, "dpkg-query: no packages found matching ") {
+		return "", nil
+	}
+
+	return stdout, nil
+}
+
+func (a *APTPackages) processDpkgOutput(stdout string, packageToResource map[string]*APTPackage) error {
+	scanner := bufio.NewScanner(strings.NewReader(stdout))
+	currentPkg := ""
+	currentArch := ""
+	currentVersion := ""
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "end" {
+			if aptPackage, ok := packageToResource[currentPkg]; ok {
+				aptPackage.Absent = false
+				aptPackage.Version = currentVersion
+				if currentArch != "" && !slices.Contains(aptPackage.Architectures, currentArch) {
+					aptPackage.Architectures = append(aptPackage.Architectures, currentArch)
+				}
+			}
+			currentPkg = ""
+			currentArch = ""
+			currentVersion = ""
+		} else if prefix, found := strings.CutPrefix(line, "Package="); found {
+			currentPkg = prefix
+		} else if prefix, found := strings.CutPrefix(line, "Architecture="); found {
+			currentArch = prefix
+		} else if prefix, found := strings.CutPrefix(line, "Version="); found {
+			currentVersion = prefix
+		} else {
+			return fmt.Errorf("failed to process dpkg-query stdout line: %s", line)
+		}
+	}
+
+	return scanner.Err()
+}
+
+func (a *APTPackages) loadDebconf(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+	concurrencyGroup := concurrency.NewConcurrencyGroup(ctx)
+
+	for _, aptPackage := range aptPackages {
+		if aptPackage.Absent {
 			continue
 		}
 
-		matches = aptCacheUnableToLocateRegexp.FindStringSubmatch(line)
-		if len(matches) == 2 {
-			return errors.New(line)
-		}
+		aptPackage.Debconf = map[string]string{}
 
-		if pkg != "" {
-			matches := aptCachePackageInstalledRegexp.FindStringSubmatch(line)
-			if len(matches) == 2 {
-				pkgInstalledMap[pkg] = matches[1]
-				continue
+		concurrencyGroup.Run(func() error {
+			cmd := types.Cmd{
+				Path: "debconf-show",
+				Args: []string{aptPackage.Package},
 			}
-			matches = aptCachePackageCandidateRegexp.FindStringSubmatch(line)
-			if len(matches) == 2 {
-				pkgCandidateMap[pkg] = matches[1]
-				continue
+			waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+			if err != nil {
+				return err
 			}
-		}
+			if !waitStatus.Success() {
+				return fmt.Errorf("%s failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, waitStatus.String(), stdout, stderr)
+			}
+
+			scanner := bufio.NewScanner(strings.NewReader(stdout))
+			for scanner.Scan() {
+				line := scanner.Text()
+				matches := debconfShowRegexp.FindStringSubmatch(line)
+				if matches == nil {
+					return fmt.Errorf("%s failed: can not parse debconf-show output line: %s", cmd, line)
+				}
+				isAnswered := matches[1] == "*"
+				debconfKey := matches[2]
+				debconfValue := matches[4]
+
+				if isAnswered {
+					aptPackage.Debconf[debconfKey] = debconfValue
+				}
+			}
+			if err := scanner.Err(); err != nil {
+				return fmt.Errorf("%s failed: can not scan stderr: %w\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, err, stdout, stderr)
+			}
+			return nil
+		})
+	}
+	if err := errors.Join(concurrencyGroup.Wait()...); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *APTPackages) Load(ctx context.Context, hst types.Host, resources Resources) error {
+	aptPackages := a.getAptPackages(resources)
+
+	packageQueries, packageToResource := a.preparePackageQueries(ctx, hst, aptPackages)
+
+	stdout, err := a.runDpkgQuery(ctx, hst, packageQueries, len(resources))
+	if err != nil {
+		return err
 	}
 
-	for _, aptPackage := range aptPackages {
-		installedVersion, ok := pkgInstalledMap[string(aptPackage.Package)]
-		if !ok {
-			return fmt.Errorf(
-				"failed to get %#v package version: %#v: no version found on output:\n%s",
-				aptPackage.Package, hostCmd.String(), stdout,
-			)
-		}
+	if err := a.processDpkgOutput(stdout, packageToResource); err != nil {
+		return fmt.Errorf("failed scanning dpkg-query output: %w", err)
+	}
 
-		if installedVersion == "(none)" {
-			aptPackage.Absent = true
-		} else {
-			aptPackage.Version = installedVersion
-		}
+	if err := a.loadDebconf(ctx, hst, aptPackages); err != nil {
+		return fmt.Errorf("failed loading debconf: %w", err)
 	}
 
 	return nil
@@ -155,16 +289,26 @@ func (a *APTPackages) Resolve(ctx context.Context, hst types.Host, resources Res
 func (a *APTPackages) Apply(ctx context.Context, hst types.Host, resources Resources) error {
 	aptPackages := a.getAptPackages(resources)
 
+	// TODO debconf-set-selections
+
 	// Package arguments
-	pkgArgs := make([]string, len(aptPackages))
-	for i, aptPackage := range aptPackages {
-		var pkgArg string
+	pkgArgs := []string{}
+	for _, aptPackage := range aptPackages {
 		if aptPackage.Absent {
-			pkgArg = fmt.Sprintf("%s-", aptPackage.Package)
+			pkgArgs = append(pkgArgs, fmt.Sprintf("%s-", aptPackage.Package))
 		} else {
-			pkgArg = fmt.Sprintf("%s=%s", aptPackage.Package, aptPackage.Version)
+			pkgArg := aptPackage.Package
+			if len(aptPackage.Version) > 0 {
+				pkgArg = fmt.Sprintf("=%s", aptPackage.Version)
+			}
+			if len(aptPackage.Architectures) > 0 {
+				for _, arch := range aptPackage.Architectures {
+					pkgArgs = append(pkgArgs, fmt.Sprintf("%s:%s", pkgArg, arch))
+				}
+			} else {
+				pkgArgs = append(pkgArgs, pkgArg)
+			}
 		}
-		pkgArgs[i] = pkgArg
 	}
 
 	// Run apt
