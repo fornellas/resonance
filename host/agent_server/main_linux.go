@@ -454,7 +454,7 @@ func (s *HostService) Mknod(ctx context.Context, req *proto.MknodRequest) (*prot
 
 func (s *HostService) runStdinCopier(
 	stream grpc.BidiStreamingServer[proto.RunRequest, proto.RunResponse],
-	stdinWriter io.Writer,
+	stdinWrieCloser io.WriteCloser,
 ) error {
 	for {
 		req, err := stream.Recv()
@@ -468,7 +468,12 @@ func (s *HostService) runStdinCopier(
 		if !ok {
 			panic(fmt.Sprintf("bug: unexpected request data: %#v", req.Data))
 		}
-		if _, err := stdinWriter.Write(stdinChunk.StdinChunk); err != nil {
+
+		if len(stdinChunk.StdinChunk) == 0 {
+			return stdinWrieCloser.Close()
+		}
+
+		if _, err := stdinWrieCloser.Write(stdinChunk.StdinChunk); err != nil {
 			return s.getGrpcStatusErrnoErr(err)
 		}
 	}
@@ -526,13 +531,13 @@ func (s *HostService) runStartStreamGoroutines(
 	wg = &sync.WaitGroup{}
 
 	if cmd.Stdin {
-		var stdinWriter io.Writer
-		stdinReader, stdinWriter, err = os.Pipe()
+		var stdinWriteCloser io.WriteCloser
+		stdinReader, stdinWriteCloser, err = os.Pipe()
 		if err != nil {
 			return nil, nil, nil, wg, s.getGrpcStatusErrnoErr(err)
 		}
 		go func() {
-			*stdinErr = s.runStdinCopier(stream, stdinWriter)
+			*stdinErr = s.runStdinCopier(stream, stdinWriteCloser)
 		}()
 	}
 
