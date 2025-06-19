@@ -1,11 +1,17 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"errors"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/fornellas/slogxt/log"
+
+	"github.com/fornellas/resonance/concurrency"
 	hostPkg "github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/host/types"
 )
@@ -36,6 +42,9 @@ var defaultDocker = ""
 
 var sudo bool
 var defaultSudo = false
+
+var maxConcurrency uint
+var defaultMaxConcurrency uint = 0
 
 func AddHostFlags(cmd *cobra.Command) {
 	hostFlagNames := []string{}
@@ -84,6 +93,7 @@ func AddHostFlags(cmd *cobra.Command) {
 		&sudo, "host-sudo", "r", defaultSudo,
 		"Use sudo to gain root privileges",
 	)
+	cmd.Flags().UintVar(&maxConcurrency, "host-max-concurrency", defaultMaxConcurrency, "Maximum concurrency when interacting with host, defaults to number of CPUs")
 
 	hostFlagNames = append(hostFlagNames, addHostFlagsArch(cmd)...)
 
@@ -91,17 +101,12 @@ func AddHostFlags(cmd *cobra.Command) {
 	cmd.MarkFlagsOneRequired(hostFlagNames...)
 }
 
-func GetHost(ctx context.Context) (types.Host, error) {
-	var baseHost types.BaseHost
-	var err error
+func GetHost(ctx context.Context) (_ types.Host, _ context.Context, retErr error) {
 
-	baseHost, host := getHostArch(ctx)
-
-	if host != nil {
-		host = hostPkg.NewLoggingWrapper(host)
-		return host, nil
-	} else if baseHost == nil {
+	baseHost := getBaseHostArch(ctx)
+	if baseHost == nil {
 		if ssh != "" {
+			var err error
 			baseHost, err = hostPkg.NewSshAuthority(ctx, ssh, hostPkg.SshClientConfig{
 				RekeyThreshold:    sshRekeyThreshold,
 				KeyExchanges:      sshKeyExchanges,
@@ -111,12 +116,13 @@ func GetHost(ctx context.Context) (types.Host, error) {
 				Timeout:           sshTcpConnectTimeout,
 			})
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		} else if docker != "" {
+			var err error
 			baseHost, err = hostPkg.NewDocker(ctx, docker)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		} else {
 			panic("bug: no host set")
@@ -127,18 +133,44 @@ func GetHost(ctx context.Context) (types.Host, error) {
 		var err error
 		baseHost, err = hostPkg.NewSudoWrapper(ctx, baseHost)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
-	host, err = hostPkg.NewAgentClientWrapper(ctx, baseHost)
+	var host types.Host
+
+	host, err := hostPkg.NewAgentClientWrapper(ctx, baseHost)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	host = hostPkg.NewLoggingWrapper(host)
 
-	return host, nil
+	var limit uint
+	if maxConcurrency != 0 {
+		limit = maxConcurrency
+	} else {
+		procCpuinfoReadCloser, err := host.ReadFile(ctx, "/proc/cpuinfo")
+		if err != nil {
+			return nil, nil, err
+		}
+		defer func() {
+			retErr = errors.Join(retErr, procCpuinfoReadCloser.Close())
+		}()
+		procCpuinfoScanner := bufio.NewScanner(procCpuinfoReadCloser)
+		for procCpuinfoScanner.Scan() {
+			if strings.HasPrefix(procCpuinfoScanner.Text(), "processor") {
+				limit += 1
+			}
+		}
+		if err := procCpuinfoScanner.Err(); err != nil {
+			return nil, nil, err
+		}
+		log.MustLogger(ctx).Debug("Setting concurrency to detected number of host CPUs", "max-concurrency", limit)
+	}
+	ctx = concurrency.WithConcurrencyLimit(ctx, limit)
+
+	return host, ctx, nil
 }
 
 func init() {
@@ -152,5 +184,6 @@ func init() {
 		sshTcpConnectTimeout = defaultSshTcpConnectTimeout
 		docker = defaultDocker
 		sudo = defaultSudo
+		maxConcurrency = defaultMaxConcurrency
 	})
 }

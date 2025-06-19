@@ -12,15 +12,11 @@ import (
 var localhost bool
 var defaultLocalhost = false
 
-func getHostArch(context.Context) (types.BaseHost, types.Host) {
+func getBaseHostArch(context.Context) types.BaseHost {
 	if localhost {
-		if sudo {
-			return hostPkg.Local{}, nil
-		} else {
-			return nil, hostPkg.Local{}
-		}
+		return hostPkg.Local{}
 	}
-	return nil, nil
+	return nil
 }
 
 func addHostFlagsArch(cmd *cobra.Command) []string {

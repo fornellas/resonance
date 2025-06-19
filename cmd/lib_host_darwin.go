@@ -8,8 +8,8 @@ import (
 	"github.com/fornellas/resonance/host/types"
 )
 
-func getHostArch(context.Context) (types.BaseHost, types.Host) {
-	return nil, nil
+func getBaseHostArch(context.Context) types.BaseHost {
+	return nil
 }
 
 func addHostFlagsArch(_ *cobra.Command) []string {

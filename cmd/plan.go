@@ -30,7 +30,7 @@ var PlanCmd = &cobra.Command{
 			}
 		}()
 
-		host, err := GetHost(ctx)
+		host, ctx, err := GetHost(ctx)
 		if err != nil {
 			retErr = errors.Join(retErr, fmt.Errorf("failed to get host: %w", err))
 			return
