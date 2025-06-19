@@ -8,6 +8,6 @@ import (
 
 func addStoreFlagsArch(cmd *cobra.Command) {}
 
-func getStoreArch(storeType string) (storePkg.Store, string, error) {
-	return nil, "", nil
+func getStoreArch(storeType string) (storePkg.Store, string) {
+	return nil, ""
 }
