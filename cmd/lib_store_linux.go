@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"path/filepath"
+
 	"github.com/spf13/cobra"
 
 	"github.com/fornellas/resonance/host"
@@ -17,11 +20,15 @@ func addStoreFlagsArch(cmd *cobra.Command) {
 	)
 }
 
-func getStoreArch(storeType string) (storePkg.Store, string) {
+func getStoreArch(storeType string) (storePkg.Store, string, error) {
 	if storeType == "local" {
-		return storePkg.NewHostStore(host.Local{}, storeLocalhostPath), storeLocalhostPath
+		storeLocalhostPathAbs, err := filepath.Abs(storeLocalhostPath)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to get absolute path for store local path: %w", err)
+		}
+		return storePkg.NewHostStore(host.Local{}, storeLocalhostPathAbs), storeLocalhostPathAbs, nil
 	}
-	return nil, ""
+	return nil, "", nil
 }
 
 func init() {
