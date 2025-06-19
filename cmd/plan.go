@@ -42,7 +42,11 @@ var PlanCmd = &cobra.Command{
 		}()
 		ctx, _ = log.MustWithAttrs(ctx, "host", fmt.Sprintf("%s => %s", host.Type(), host.String()))
 
-		store, storeConfig := GetStore(host)
+		store, storeConfig, err := GetStore(host)
+		if err != nil {
+			retErr = errors.Join(retErr, fmt.Errorf("failed to get store: %w", err))
+			return
+		}
 		ctx, logger = log.MustWithAttrs(ctx, "store", fmt.Sprintf("%s %s", storeValue.String(), storeConfig))
 
 		var targetResources resourcesPkg.Resources
