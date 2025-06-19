@@ -194,6 +194,17 @@ func NewResourceWithSameId(resource Resource) Resource {
 	return value.Interface().(Resource)
 }
 
+// NewResourceFromTypeNameAndId returns a new Resource of given type and with given id.
+func NewResourceFromTypeNameAndId(typeName, id string) Resource {
+	resource := GetResourceByTypeName(typeName)
+	if resource == nil {
+		return nil
+	}
+	value := reflect.ValueOf(resource)
+	value.Elem().Field(resourceIdFieldIndex).SetString(id)
+	return resource
+}
+
 // GetResourceId returns the id for the given Resource. The id is defined as a single
 // Resource struct sfield with a tag resonance:"id". The value of this id uniquely identifies
 // the resource among the same type at the same host. Eg: for file, the absolute path is the id.

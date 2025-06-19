@@ -689,6 +689,16 @@ func (h *AgentClientWrapper) runStdinCopier(
 	for {
 		n, err := stdinReader.Read(buffer)
 		if err == io.EOF {
+			err = stream.Send(
+				&proto.RunRequest{
+					Data: &proto.RunRequest_StdinChunk{
+						StdinChunk: []byte{},
+					},
+				},
+			)
+			if err != nil {
+				return unwrapGrpcStatusErrno(err)
+			}
 			break
 		}
 		if err != nil {

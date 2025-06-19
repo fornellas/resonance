@@ -2,6 +2,7 @@ package resources
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"regexp"
@@ -234,6 +235,10 @@ func (a *APTPackages) loadDebconf(ctx context.Context, hst types.Host, aptPackag
 				return fmt.Errorf("%s failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, waitStatus.String(), stdout, stderr)
 			}
 
+			if len(stderr) > 0 {
+				return fmt.Errorf("%s failed:\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, stdout, stderr)
+			}
+
 			scanner := bufio.NewScanner(strings.NewReader(stdout))
 			for scanner.Scan() {
 				line := scanner.Text()
@@ -241,11 +246,37 @@ func (a *APTPackages) loadDebconf(ctx context.Context, hst types.Host, aptPackag
 				if matches == nil {
 					return fmt.Errorf("%s failed: can not parse debconf-show output line: %s", cmd, line)
 				}
-				isAnswered := matches[1] == "*"
-				debconfKey := matches[2]
-				debconfValue := matches[4]
 
+				isAnswered := matches[1] == "*"
 				if isAnswered {
+					debconfKey := matches[2]
+					debconfValue := matches[4]
+					if debconfValue == "(password omitted)" {
+						stdin := fmt.Sprintf("get %s\n", debconfKey)
+						stdinReader := strings.NewReader(stdin)
+						stdoutBuffer := bytes.Buffer{}
+						stderrBuffer := bytes.Buffer{}
+						cmd := types.Cmd{
+							Path:   "debconf-communicate",
+							Args:   []string{aptPackage.Package},
+							Stdin:  stdinReader,
+							Stdout: &stdoutBuffer,
+							Stderr: &stderrBuffer,
+						}
+						waitStatus, err := hst.Run(ctx, cmd)
+						if err != nil {
+							return fmt.Errorf("%s failed: %w", cmd, err)
+						}
+						stdout := stdoutBuffer.String()
+						stderr := stderrBuffer.String()
+						if !waitStatus.Success() {
+							return fmt.Errorf("%s failed: %s\nSTDOUT:\n%s\nSTDERR:%s", cmd, waitStatus.String(), stdout, stderr)
+						}
+						if len(stdout) < 2 {
+							return fmt.Errorf("%s: short stdout, can't parse: %s", cmd, stdout)
+						}
+						debconfValue = strings.TrimSuffix(stdout[2:], "\n")
+					}
 					aptPackage.Debconf[debconfKey] = debconfValue
 				}
 			}
