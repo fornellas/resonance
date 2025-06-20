@@ -16,6 +16,7 @@ import (
 
 	"github.com/fornellas/slogxt/log"
 
+	"github.com/fornellas/resonance/concurrency"
 	"github.com/fornellas/resonance/host/types"
 )
 
@@ -200,9 +201,14 @@ func dpkgQuery(
 
 var dpkgVerifyRegexp = regexp.MustCompile(`^(missing  |\?\?([?.5])\?\?\?\?\?\?) ([c ]) (.+)$`)
 
-func dpkgVerify(ctx context.Context, host types.Host, aptDb *AptDb) error {
+func dpkgVerifyPackage(
+	ctx context.Context,
+	host types.Host,
+	aptDb *AptDb,
+	aptPackage *AptPackage,
+) error {
 	logger := log.MustLogger(ctx)
-	logger.Info("verifying")
+	logger.Info(aptPackage.Name())
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -218,6 +224,7 @@ func dpkgVerify(ctx context.Context, host types.Host, aptDb *AptDb) error {
 		Args: []string{
 			"--verify",
 			"--verify-format", "rpm",
+			aptPackage.Name(),
 		},
 		Stdout: stdoutWritter,
 		Stderr: &stderrBuffer,
@@ -253,13 +260,13 @@ func dpkgVerify(ctx context.Context, host types.Host, aptDb *AptDb) error {
 		path := matches[4]
 
 		if status == "missing  " {
-			for _, aptPackage := range aptDb.FindOwnerPackages(path) {
-				aptPackage.AddMissingPath(path)
+			for _, aptPackageOwner := range aptDb.FindOwnerPackages(path) {
+				aptPackageOwner.AddMissingPath(path)
 			}
 		} else {
 			if digest == "5" {
-				for _, aptPackage := range aptDb.FindOwnerPackages(path) {
-					aptPackage.AddDigestCheckFailedPath(path)
+				for _, aptPackageOwner := range aptDb.FindOwnerPackages(path) {
+					aptPackageOwner.AddDigestCheckFailedPath(path)
 				}
 			}
 		}
@@ -271,6 +278,23 @@ func dpkgVerify(ctx context.Context, host types.Host, aptDb *AptDb) error {
 	}
 
 	return err
+}
+
+func dpkgVerifyAll(ctx context.Context, host types.Host, aptDb *AptDb) error {
+	ctx, _ = log.MustWithGroup(ctx, "dpkg verify")
+
+	concurrencyGroup := concurrency.NewConcurrencyGroup(ctx)
+
+	for _, aptPackage := range aptDb.packages {
+		concurrencyGroup.Run(func() error {
+			if err := dpkgVerifyPackage(ctx, host, aptDb, aptPackage); err != nil {
+				return err
+			}
+			return nil
+		})
+	}
+
+	return errors.Join(concurrencyGroup.Wait()...)
 }
 
 func getNameFromBinaryPackage(binaryPackage string) string {
@@ -427,7 +451,7 @@ func LoadAptDb(ctx context.Context, host types.Host) (*AptDb, error) {
 		return nil, err
 	}
 
-	if err := dpkgVerify(ctx, host, aptDb); err != nil {
+	if err := dpkgVerifyAll(ctx, host, aptDb); err != nil {
 		return nil, err
 	}
 
