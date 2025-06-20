@@ -7,6 +7,7 @@ import (
 	"errors"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"fmt"
@@ -16,6 +17,17 @@ import (
 	"github.com/fornellas/resonance/host/lib"
 	"github.com/fornellas/resonance/host/types"
 )
+
+// A debconf question.
+// See https://wiki.debian.org/debconf
+type DebconfQuestion string
+
+// Debconf selections for a DebconfQuestion.
+// See https://wiki.debian.org/debconf
+type DebconfSelection struct {
+	Answer string `yaml:"answer"`
+	Seen   bool   `yaml:"seen,omitempty"`
+}
 
 // APTPackage manages APT packages.
 type APTPackage struct {
@@ -31,9 +43,8 @@ type APTPackage struct {
 	// See https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
 	Version string `yaml:"version,omitempty"`
 	// Package debconf selections.
-	// Keys are debconf items and values are debconf values.
 	// See https://wiki.debian.org/debconf
-	Debconf map[string]string `yaml:"debconf,omitempty"`
+	DebconfSelections map[DebconfQuestion]DebconfSelection `yaml:"debconf,omitempty"`
 }
 
 var validDpkgPackageRegexp = regexp.MustCompile(`^[a-z0-9][a-z0-9+\-.]{1,}$`)
@@ -101,9 +112,12 @@ func (a *APTPackage) Satisfies(resource Resource) bool {
 		}
 	}
 
-	for key, value := range b.Debconf {
-		if bValue, ok := a.Debconf[key]; ok {
-			if value != bValue {
+	for debconfQuestion, debconfSelection := range b.DebconfSelections {
+		if bDebconfSelection, ok := a.DebconfSelections[debconfQuestion]; ok {
+			if debconfSelection.Answer != bDebconfSelection.Answer {
+				return false
+			}
+			if debconfSelection.Seen != bDebconfSelection.Seen {
 				return false
 			}
 		} else {
@@ -131,7 +145,7 @@ func (a *APTPackages) getAptPackages(resources Resources) []*APTPackage {
 var debconfShowRegexp = regexp.MustCompile("^([ *]) (.+):(| (.+))$")
 
 func (a *APTPackages) preparePackageQueries(
-	ctx context.Context, host types.Host, aptPackages []*APTPackage,
+	aptPackages []*APTPackage,
 ) ([]string, map[string]*APTPackage) {
 	packageQueries := make([]string, 0)
 	packageToResource := make(map[string]*APTPackage)
@@ -149,7 +163,7 @@ func (a *APTPackages) preparePackageQueries(
 		aptPackage.Absent = true
 		aptPackage.Version = ""
 		aptPackage.Architectures = nil
-		aptPackage.Debconf = nil
+		aptPackage.DebconfSelections = nil
 	}
 
 	return packageQueries, packageToResource
@@ -211,16 +225,53 @@ func (a *APTPackages) processDpkgOutput(stdout string, packageToResource map[str
 
 	return scanner.Err()
 }
+func (a *APTPackages) debconfCommunicate(
+	ctx context.Context,
+	hst types.Host,
+	pkg, command string,
+) (string, error) {
+	stdinReader := strings.NewReader(command)
+	stdoutBuffer := bytes.Buffer{}
+	stderrBuffer := bytes.Buffer{}
+	cmd := types.Cmd{
+		Path:   "debconf-communicate",
+		Args:   []string{pkg},
+		Env:    []string{"DEBIAN_FRONTEND=noninteractive"},
+		Stdin:  stdinReader,
+		Stdout: &stdoutBuffer,
+		Stderr: &stderrBuffer,
+	}
+	waitStatus, err := hst.Run(ctx, cmd)
+	if err != nil {
+		return "", fmt.Errorf("%s failed: %w", cmd, err)
+	}
+	stdout := stdoutBuffer.String()
+	stderr := stderrBuffer.String()
+	if !waitStatus.Success() {
+		return "", fmt.Errorf("%s failed: %s\nSTDOUT:\n%s\nSTDERR:%s", cmd, waitStatus.String(), stdout, stderr)
+	}
+	if len(stderr) > 0 {
+		return "", fmt.Errorf("%s failed: %s\nSTDOUT:\n%s\nSTDERR:%s", cmd, waitStatus.String(), stdout, stderr)
+	}
+	var value string
+	if strings.HasPrefix(stdout, "0 ") {
+		value = strings.TrimSuffix(stdout[2:], "\n")
+	} else {
+		if stdout != "0" {
+			return "", fmt.Errorf("%s failed: %s\nSTDOUT:\n%s\nSTDERR:%s", cmd, waitStatus.String(), stdout, stderr)
+		}
+	}
 
-func (a *APTPackages) loadDebconf(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+	return value, nil
+}
+
+func (a *APTPackages) loadDebconfSelections(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
 	concurrencyGroup := concurrency.NewConcurrencyGroup(ctx)
 
 	for _, aptPackage := range aptPackages {
 		if aptPackage.Absent {
 			continue
 		}
-
-		aptPackage.Debconf = map[string]string{}
 
 		concurrencyGroup.Run(func() error {
 			cmd := types.Cmd{
@@ -247,37 +298,22 @@ func (a *APTPackages) loadDebconf(ctx context.Context, hst types.Host, aptPackag
 					return fmt.Errorf("%s failed: can not parse debconf-show output line: %s", cmd, line)
 				}
 
-				isAnswered := matches[1] == "*"
-				if isAnswered {
-					debconfKey := matches[2]
-					debconfValue := matches[4]
-					if debconfValue == "(password omitted)" {
-						stdin := fmt.Sprintf("get %s\n", debconfKey)
-						stdinReader := strings.NewReader(stdin)
-						stdoutBuffer := bytes.Buffer{}
-						stderrBuffer := bytes.Buffer{}
-						cmd := types.Cmd{
-							Path:   "debconf-communicate",
-							Args:   []string{aptPackage.Package},
-							Stdin:  stdinReader,
-							Stdout: &stdoutBuffer,
-							Stderr: &stderrBuffer,
-						}
-						waitStatus, err := hst.Run(ctx, cmd)
-						if err != nil {
-							return fmt.Errorf("%s failed: %w", cmd, err)
-						}
-						stdout := stdoutBuffer.String()
-						stderr := stderrBuffer.String()
-						if !waitStatus.Success() {
-							return fmt.Errorf("%s failed: %s\nSTDOUT:\n%s\nSTDERR:%s", cmd, waitStatus.String(), stdout, stderr)
-						}
-						if len(stdout) < 2 {
-							return fmt.Errorf("%s: short stdout, can't parse: %s", cmd, stdout)
-						}
-						debconfValue = strings.TrimSuffix(stdout[2:], "\n")
+				seen := matches[1] == "*"
+				question := DebconfQuestion(matches[2])
+				answer := matches[4]
+				if answer == "(password omitted)" {
+					command := fmt.Sprintf("get %s\n", question)
+					answer, err = a.debconfCommunicate(ctx, hst, aptPackage.Package, command)
+					if err != nil {
+						return err
 					}
-					aptPackage.Debconf[debconfKey] = debconfValue
+				}
+				if aptPackage.DebconfSelections == nil {
+					aptPackage.DebconfSelections = map[DebconfQuestion]DebconfSelection{}
+				}
+				aptPackage.DebconfSelections[question] = DebconfSelection{
+					Answer: answer,
+					Seen:   seen,
 				}
 			}
 			if err := scanner.Err(); err != nil {
@@ -295,7 +331,7 @@ func (a *APTPackages) loadDebconf(ctx context.Context, hst types.Host, aptPackag
 func (a *APTPackages) Load(ctx context.Context, hst types.Host, resources Resources) error {
 	aptPackages := a.getAptPackages(resources)
 
-	packageQueries, packageToResource := a.preparePackageQueries(ctx, hst, aptPackages)
+	packageQueries, packageToResource := a.preparePackageQueries(aptPackages)
 
 	stdout, err := a.runDpkgQuery(ctx, hst, packageQueries, len(resources))
 	if err != nil {
@@ -306,7 +342,7 @@ func (a *APTPackages) Load(ctx context.Context, hst types.Host, resources Resour
 		return fmt.Errorf("failed scanning dpkg-query output: %w", err)
 	}
 
-	if err := a.loadDebconf(ctx, hst, aptPackages); err != nil {
+	if err := a.loadDebconfSelections(ctx, hst, aptPackages); err != nil {
 		return fmt.Errorf("failed loading debconf: %w", err)
 	}
 
@@ -320,9 +356,6 @@ func (a *APTPackages) Resolve(ctx context.Context, hst types.Host, resources Res
 func (a *APTPackages) Apply(ctx context.Context, hst types.Host, resources Resources) error {
 	aptPackages := a.getAptPackages(resources)
 
-	// TODO debconf-set-selections
-
-	// Package arguments
 	pkgArgs := []string{}
 	for _, aptPackage := range aptPackages {
 		if aptPackage.Absent {
@@ -339,10 +372,22 @@ func (a *APTPackages) Apply(ctx context.Context, hst types.Host, resources Resou
 			} else {
 				pkgArgs = append(pkgArgs, pkgArg)
 			}
+
+			for debconfQuestion, debconfSelection := range aptPackage.DebconfSelections {
+				commands := []string{
+					fmt.Sprintf("set %s %s", debconfQuestion, debconfSelection.Answer),
+					fmt.Sprintf("set fset %s %s", debconfQuestion, strconv.FormatBool(debconfSelection.Seen)),
+				}
+				for _, command := range commands {
+					_, err := a.debconfCommunicate(ctx, hst, aptPackage.Package, command)
+					if err != nil {
+						return err
+					}
+				}
+			}
 		}
 	}
 
-	// Run apt
 	cmd := types.Cmd{
 		Path: "apt-get",
 		Args: append([]string{"--yes", "install"}, pkgArgs...),
