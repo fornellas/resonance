@@ -171,7 +171,7 @@ func (h Local) Mknod(ctx context.Context, pathName string, mode types.FileMode, 
 		return h.getPathError("Mknod", pathName, err)
 	}
 
-	return h.getPathError("Mknod", pathName, syscall.Chmod(pathName, uint32(mode)&07777))
+	return h.getPathError("Mknod", pathName, syscall.Chmod(pathName, uint32(mode&types.FileModeBitsMask)))
 }
 
 func (h Local) Run(ctx context.Context, cmd types.Cmd) (types.WaitStatus, error) {

@@ -146,7 +146,7 @@ func registerResource(resourceType reflect.Type) {
 	typeName := resourceType.Name()
 
 	if !(reflect.PointerTo(resourceType)).Implements(reflect.TypeOf((*Resource)(nil)).Elem()) {
-		panic("bug: resourceType does not implement Resource")
+		panic(fmt.Sprintf("bug: resourceType %s does not implement Resource", resourceType.Name()))
 	}
 
 	if _, ok := resourceMap[typeName]; ok {
@@ -330,7 +330,7 @@ type SingleResource interface {
 // Register a new SingleResource type.
 func RegisterSingleResource(singleResourceType reflect.Type) {
 	if !(reflect.PointerTo(singleResourceType)).Implements(reflect.TypeOf((*SingleResource)(nil)).Elem()) {
-		panic("bug: singleResourceType does not implement SingleResource")
+		panic(fmt.Sprintf("bug: singleResourceType %s does not implement SingleResource", singleResourceType.Name()))
 	}
 	registerResource(singleResourceType)
 }
@@ -376,7 +376,7 @@ func RegisterGroupResource(resourceType, groupResourceType reflect.Type) {
 	registerResource(resourceType)
 
 	if !(reflect.PointerTo(groupResourceType)).Implements(reflect.TypeOf((*GroupResource)(nil)).Elem()) {
-		panic("bug: groupResourceType does not implement GroupResource")
+		panic(fmt.Sprintf("bug: groupResourceType %s does not implement GroupResource", groupResourceType.Name()))
 	}
 	groupResourceMap[resourceType.Name()] = groupResourceType
 }

@@ -33,7 +33,7 @@ func WithConcurrencyLimit(ctx context.Context, limit uint) context.Context {
 
 // ConcurrencyGroup manages running concurrent go routines respecting a context limit defined by
 // WithConcurrencyLimit. This limit is global and shared by all ConcurrencyGroup. For example, if
-// the contextt limit is 2, and we have 2 ConcurrencyGroup attempting to run 5 go routines each,
+// the context limit is 2, and we have 2 ConcurrencyGroup attempting to run 5 go routines each,
 // all go routines from both ConcurrencyGroup shares the same global limit of 2. This means that,
 // 2 go routines can run concurrently (from any ConcurrencyGroup), and all other 8, will have to
 // wait for one of the first 2 to complete.

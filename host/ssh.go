@@ -154,7 +154,7 @@ func getKnownHostsHostKeyCallback(ctx context.Context) (ssh.HostKeyCallback, err
 
 	userKnownHosts := filepath.Join(home, ".ssh/known_hosts")
 	if _, err := os.Stat(userKnownHosts); err == nil {
-		logger.Debug("Using knwon hosts", "path", userKnownHosts)
+		logger.Debug("Using known hosts", "path", userKnownHosts)
 		files = append(files, userKnownHosts)
 	} else {
 		if !errors.Is(err, os.ErrNotExist) {
@@ -473,7 +473,7 @@ func (h Ssh) Run(ctx context.Context, cmd types.Cmd) (_ types.WaitStatus, retErr
 			signal = exitError.Signal()
 
 			// we always run the command over sh, and sh calls env, so, when a command does not
-			// exist, either will return 127, and that's the quicky way we can detect os.ErrNotExist
+			// exist, either will return 127, and that's the quircky way we can detect os.ErrNotExist
 			// here.
 			if exited && exitCode == 127 {
 				return types.WaitStatus{}, os.ErrNotExist

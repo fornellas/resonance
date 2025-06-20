@@ -30,7 +30,7 @@ func SimpleRun(ctx context.Context, baseHost types.BaseHost, cmd types.Cmd) (typ
 	return waitStatus, stdoutBuffer.String(), stderrBuffer.String(), err
 }
 
-// MkdirAll wraps Host.Mkdir and behavess similar to os.MkdirAll.
+// MkdirAll wraps Host.Mkdir and behaves similar to os.MkdirAll.
 func MkdirAll(ctx context.Context, hst types.Host, name string, mode types.FileMode) error {
 	stat_t, err := hst.Lstat(ctx, name)
 	if err == nil {

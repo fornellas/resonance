@@ -99,7 +99,7 @@ func testHost(
 			require.NoError(t, err)
 			var stat_t syscall.Stat_t
 			require.NoError(t, syscall.Lstat(name, &stat_t))
-			require.Equal(t, fileMode, types.FileMode(stat_t.Mode&07777))
+			require.Equal(t, fileMode, types.FileMode(stat_t.Mode&uint32(types.FileModeBitsMask)))
 		})
 		t.Run("path must be absolute", func(t *testing.T) {
 			err = hst.Chmod(ctx, "foo/bar", 0644)
@@ -282,7 +282,7 @@ func testHost(
 						stat_t, err := hst.Lstat(ctx, name)
 						require.NoError(t, err)
 
-						require.Equal(t, modeBits, stat_t.Mode&07777)
+						require.Equal(t, modeBits, stat_t.Mode&uint32(types.FileModeBitsMask))
 					})
 				}
 			})
@@ -437,7 +437,7 @@ func testHost(
 				var stat_t syscall.Stat_t
 				require.NoError(t, syscall.Lstat(name, &stat_t))
 				require.True(t, stat_t.Mode&syscall.S_IFMT == syscall.S_IFDIR)
-				require.Equal(t, fileMode, stat_t.Mode&07777)
+				require.Equal(t, fileMode, stat_t.Mode&uint32(types.FileModeBitsMask))
 			})
 		}
 		t.Run("path must be absolute", func(t *testing.T) {
@@ -695,7 +695,7 @@ func testHost(
 				err = syscall.Stat(path, &stat_t)
 				require.NoError(t, err)
 				require.Equal(t, fileTypeBits, stat_t.Mode&syscall.S_IFMT)
-				require.Equal(t, modeBits, stat_t.Mode&07777)
+				require.Equal(t, modeBits, stat_t.Mode&uint32(types.FileModeBitsMask))
 				if isDevice {
 					require.Equal(t, dev, stat_t.Rdev)
 				}
@@ -739,7 +739,7 @@ func testHost(
 
 				var stat_t syscall.Stat_t
 				require.NoError(t, syscall.Lstat(name, &stat_t))
-				require.Equal(t, modeBits, stat_t.Mode&07777)
+				require.Equal(t, modeBits, stat_t.Mode&uint32(types.FileModeBitsMask))
 			})
 		}
 
@@ -798,7 +798,7 @@ func testHost(
 			require.Equal(t, newDataBytes, readDataBytes)
 			var stat_t syscall.Stat_t
 			require.NoError(t, syscall.Lstat(name, &stat_t))
-			require.Equal(t, newFileMode, types.FileMode(stat_t.Mode&07777))
+			require.Equal(t, newFileMode, types.FileMode(stat_t.Mode&uint32(types.FileModeBitsMask)))
 		})
 	})
 
@@ -823,7 +823,7 @@ func testHost(
 			require.Equal(t, append(oldDataBytes, newDataBytes...), readDataBytes)
 			var stat_t syscall.Stat_t
 			require.NoError(t, syscall.Lstat(name, &stat_t))
-			require.Equal(t, newFileMode, types.FileMode(stat_t.Mode&07777))
+			require.Equal(t, newFileMode, types.FileMode(stat_t.Mode&uint32(types.FileModeBitsMask)))
 		})
 	})
 }

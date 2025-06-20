@@ -685,7 +685,7 @@ func (h *AgentClientWrapper) runStdinCopier(
 	stdinReader io.Reader,
 	stream grpc.BidiStreamingClient[proto.RunRequest, proto.RunResponse],
 ) error {
-	buffer := make([]byte, 8196)
+	buffer := make([]byte, 8192)
 	for {
 		n, err := stdinReader.Read(buffer)
 		if err == io.EOF {
