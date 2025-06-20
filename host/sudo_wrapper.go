@@ -92,7 +92,7 @@ func (w *stderrSudo) Write(p []byte) (_ int, retErr error) {
 
 				var passwordBytes []byte
 				fmt.Printf("sudo password: ")
-				passwordBytes, err = (term.ReadPassword(int(os.Stdin.Fd())))
+				passwordBytes, err = term.ReadPassword(int(os.Stdin.Fd()))
 				if err != nil {
 					return 0, err
 				}
@@ -116,8 +116,8 @@ func (w *stderrSudo) Write(p []byte) (_ int, retErr error) {
 		}
 	}
 
-	len, err := w.Writer.Write(p)
-	return len + extraLen, err
+	n, err := w.Writer.Write(p)
+	return n + extraLen, err
 }
 
 // SudoWrapper wraps another BaseHost and runs all commands with sudo.
