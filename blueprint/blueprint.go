@@ -35,7 +35,7 @@ func NewBlueprintFromResources(name string, resources resourcesPkg.Resources) (*
 	return blueprint, nil
 }
 
-func (b *Blueprint) getresourceMap() resourcesPkg.ResourceMap {
+func (b *Blueprint) getResourceMap() resourcesPkg.ResourceMap {
 	if b.resourceMap != nil {
 		return b.resourceMap
 	}
@@ -96,11 +96,11 @@ func (b *Blueprint) Resources() resourcesPkg.Resources {
 }
 
 func (b *Blueprint) GetResourceWithSameTypeId(resource resourcesPkg.Resource) resourcesPkg.Resource {
-	return b.getresourceMap().GetResourceWithSameTypeId(resource)
+	return b.getResourceMap().GetResourceWithSameTypeId(resource)
 }
 
 func (b *Blueprint) HasResourceWithSameTypeId(resource resourcesPkg.Resource) bool {
-	return b.getresourceMap().GetResourceWithSameTypeId(resource) != nil
+	return b.getResourceMap().GetResourceWithSameTypeId(resource) != nil
 }
 
 // Satisfies returns whether the Blueprint satisfies otherBlueprint.

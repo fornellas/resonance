@@ -407,7 +407,7 @@ func (f *File) applyBlockDevice(ctx context.Context, hst types.Host, currentFile
 				return err
 			}
 			if err := hst.Mknod(ctx, f.Path, *f.Mode|syscall.S_IFBLK, *f.BlockDevice); err != nil {
-				return nil
+				return err
 			}
 		}
 	}
@@ -456,7 +456,7 @@ func (f *File) applyCharacterDevice(ctx context.Context, hst types.Host, current
 				return err
 			}
 			if err := hst.Mknod(ctx, f.Path, *f.Mode|syscall.S_IFCHR, *f.CharacterDevice); err != nil {
-				return nil
+				return err
 			}
 		}
 	}
