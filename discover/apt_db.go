@@ -201,14 +201,28 @@ func dpkgQuery(
 
 var dpkgVerifyRegexp = regexp.MustCompile(`^(missing  |\?\?([?.5])\?\?\?\?\?\?) ([c ]) (.+)$`)
 
-func dpkgVerifyPackage(
+func dpkgVerifyPackages(
 	ctx context.Context,
 	host types.Host,
 	aptDb *AptDb,
-	aptPackage *AptPackage,
+	aptPackages []*AptPackage,
 ) error {
 	logger := log.MustLogger(ctx)
-	logger.Info(aptPackage.Name())
+
+	names := []string{}
+	for _, aptPackage := range aptPackages {
+		names = append(names, aptPackage.Name())
+	}
+	sort.Strings(names)
+
+	switch len(names) {
+	case 1:
+		logger.Info(names[0])
+	case 2:
+		logger.Info(strings.Join(names, ", "))
+	default:
+		logger.Info(fmt.Sprintf("%s to %s", names[0], names[len(names)-1]), "count", len(names))
+	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -221,11 +235,13 @@ func dpkgVerifyPackage(
 
 	cmd := types.Cmd{
 		Path: "/usr/bin/dpkg",
-		Args: []string{
-			"--verify",
-			"--verify-format", "rpm",
-			aptPackage.Name(),
-		},
+		Args: append(
+			[]string{
+				"--verify",
+				"--verify-format", "rpm",
+			},
+			names...,
+		),
 		Stdout: stdoutWritter,
 		Stderr: &stderrBuffer,
 	}
@@ -283,18 +299,11 @@ func dpkgVerifyPackage(
 func dpkgVerifyAll(ctx context.Context, host types.Host, aptDb *AptDb) error {
 	ctx, _ = log.MustWithGroup(ctx, "dpkg verify")
 
-	concurrencyGroup := concurrency.NewConcurrencyGroup(ctx)
+	errs := concurrency.BatchRun(ctx, aptDb.packages, func(aptPackages []*AptPackage) error {
+		return dpkgVerifyPackages(ctx, host, aptDb, aptPackages)
+	})
 
-	for _, aptPackage := range aptDb.packages {
-		concurrencyGroup.Run(func() error {
-			if err := dpkgVerifyPackage(ctx, host, aptDb, aptPackage); err != nil {
-				return err
-			}
-			return nil
-		})
-	}
-
-	return errors.Join(concurrencyGroup.Wait()...)
+	return errors.Join(errs...)
 }
 
 func getNameFromBinaryPackage(binaryPackage string) string {
