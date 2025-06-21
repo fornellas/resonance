@@ -2,7 +2,9 @@ package concurrency
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -51,6 +53,7 @@ func TestConcurrency(t *testing.T) {
 		const numGoroutines = 4
 
 		ctx := WithConcurrencyLimit(context.Background(), limit)
+
 		cg1 := NewConcurrencyGroup(ctx)
 		cg2 := NewConcurrencyGroup(ctx)
 
@@ -129,4 +132,84 @@ func TestConcurrency(t *testing.T) {
 			require.Equal(t, errs1[0].Error(), errs2[0].Error())
 		})
 	})
+}
+
+func TestBatchRun(t *testing.T) {
+	testCases := []struct {
+		name    string
+		limit   uint
+		items   []int
+		batches [][]int
+	}{
+		{
+			name:  "unlimited",
+			limit: 0,
+			items: []int{1, 2, 3, 4},
+			batches: [][]int{
+				[]int{1},
+				[]int{2},
+				[]int{3},
+				[]int{4},
+			},
+		},
+		{
+			name:  "even limit",
+			limit: 2,
+			items: []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+			batches: [][]int{
+				[]int{0, 1, 2, 3, 4},
+				[]int{5, 6, 7, 8, 9},
+			},
+		},
+		{
+			name:  "uneven limit",
+			limit: 3,
+			items: []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+			batches: [][]int{
+				[]int{0, 1, 2, 3},
+				[]int{4, 5, 6},
+				[]int{7, 8, 9},
+			},
+		},
+		{
+			name:  "big limit",
+			limit: 20,
+			items: []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+			batches: [][]int{
+				[]int{0},
+				[]int{1},
+				[]int{2},
+				[]int{3},
+				[]int{4},
+				[]int{5},
+				[]int{6},
+				[]int{7},
+				[]int{8},
+				[]int{9},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			if tc.limit > 0 {
+				ctx = WithConcurrencyLimit(ctx, tc.limit)
+			}
+			batches := [][]int{}
+			var mu sync.Mutex
+			errs := BatchRun(ctx, tc.items, func(items []int) error {
+				mu.Lock()
+				batches = append(batches, items)
+				mu.Unlock()
+				return nil
+			})
+			require.NoError(t, errors.Join(errs...))
+
+			sort.SliceStable(batches, func(i, j int) bool {
+				return batches[i][0] < batches[j][0]
+			})
+			require.Equal(t, tc.batches, batches)
+		})
+	}
 }

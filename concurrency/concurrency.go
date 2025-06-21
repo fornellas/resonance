@@ -8,13 +8,19 @@ import (
 type limiterKey struct{}
 
 type limiterType struct {
-	ch chan struct{}
+	limit uint
+	ch    chan struct{}
 }
 
 func newLimiter(limit uint) *limiterType {
 	return &limiterType{
-		ch: make(chan struct{}, limit),
+		limit: limit,
+		ch:    make(chan struct{}, limit),
 	}
+}
+
+func (l *limiterType) Limit() uint {
+	return l.limit
 }
 
 func (l *limiterType) Add() {
@@ -31,9 +37,17 @@ func WithConcurrencyLimit(ctx context.Context, limit uint) context.Context {
 	return context.WithValue(ctx, limiterKey{}, newLimiter(limit))
 }
 
+func getLimiter(ctx context.Context) *limiterType {
+	limiter, hasLimit := ctx.Value(limiterKey{}).(*limiterType)
+	if hasLimit {
+		return limiter
+	}
+	return nil
+}
+
 // ConcurrencyGroup manages running concurrent go routines respecting a context limit defined by
 // WithConcurrencyLimit. This limit is global and shared by all ConcurrencyGroup. For example, if
-// the contextt limit is 2, and we have 2 ConcurrencyGroup attempting to run 5 go routines each,
+// the context limit is 2, and we have 2 ConcurrencyGroup attempting to run 5 go routines each,
 // all go routines from both ConcurrencyGroup shares the same global limit of 2. This means that,
 // 2 go routines can run concurrently (from any ConcurrencyGroup), and all other 8, will have to
 // wait for one of the first 2 to complete.
@@ -53,8 +67,8 @@ func NewConcurrencyGroup(ctx context.Context) *ConcurrencyGroup {
 // Run adds given function to be executed as a go routine and runs it, as soon as the context limit
 // allows.
 func (c *ConcurrencyGroup) Run(fn func() error) {
-	limiter, hasLimit := c.context.Value(limiterKey{}).(*limiterType)
-	if hasLimit {
+	limiter := getLimiter(c.context)
+	if limiter != nil {
 		limiter.Add()
 	}
 
@@ -65,7 +79,7 @@ func (c *ConcurrencyGroup) Run(fn func() error) {
 
 	c.wg.Add(1)
 	go func() {
-		if hasLimit {
+		if limiter != nil {
 			defer limiter.Done()
 		}
 		defer c.wg.Done()
@@ -81,4 +95,44 @@ func (c *ConcurrencyGroup) Run(fn func() error) {
 func (c *ConcurrencyGroup) Wait() []error {
 	c.wg.Wait()
 	return c.errs
+}
+
+// BatchRun divides the items slice into batches and runs the provided function on each batch
+// concurrently. The number of batches is determined by the concurrency limit in the context, set by
+// WithConcurrencyLimit. If no limit is set, each item will be processed in its own batch. Items
+// are distributed as evenly as possible across batches.
+func BatchRun[I any](ctx context.Context, items []I, fn func([]I) error) []error {
+	var maxBatches int
+
+	limiter := getLimiter(ctx)
+	if limiter != nil {
+		maxBatches = int(limiter.limit)
+	} else {
+		maxBatches = len(items)
+	}
+
+	batchCount := min(len(items), maxBatches)
+	batches := make([][]I, batchCount)
+
+	baseSize := len(items) / batchCount
+	remainder := len(items) % batchCount
+
+	startIdx := 0
+	for i := range batchCount {
+		batchSize := baseSize
+		if i < remainder {
+			batchSize++
+		}
+		endIdx := startIdx + batchSize
+		batches[i] = items[startIdx:endIdx]
+		startIdx = endIdx
+	}
+
+	concurrencyGroup := NewConcurrencyGroup(ctx)
+
+	for _, batch := range batches {
+		concurrencyGroup.Run(func() error { return fn(batch) })
+	}
+
+	return concurrencyGroup.Wait()
 }
