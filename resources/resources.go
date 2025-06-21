@@ -83,7 +83,7 @@ func (r *Resources) UnmarshalYAML(node *yaml.Node) error {
 	return nil
 }
 
-// NewResourcesWithSameIds is analog to NewResourceCopyWithOnlyId
+// NewResourcesWithSameIds is analog to NewResourceWithSameId
 func NewResourcesWithSameIds(resources Resources) Resources {
 	nr := make(Resources, len(resources))
 

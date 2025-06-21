@@ -51,7 +51,7 @@ func TestFile(t *testing.T) {
 	group := "group"
 	var gid uint32 = uint32(os.Getgid())
 	var mode types.FileMode = 01724
-	var badMode types.FileMode = 07777 + 1
+	var badMode types.FileMode = types.FileModeBitsMask + 1
 	contents := "foo\nbar"
 	var device types.FileDevice = 234122345
 

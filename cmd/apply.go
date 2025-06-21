@@ -60,7 +60,7 @@ var ApplyCmd = &cobra.Command{
 		}
 		defer func() {
 			if err := storelogWriterCloser.Close(); err != nil {
-				retErr = errors.Join(retErr, fmt.Errorf("failed to close stotre log: %w", err))
+				retErr = errors.Join(retErr, fmt.Errorf("failed to close store log: %w", err))
 			}
 		}()
 

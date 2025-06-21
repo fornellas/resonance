@@ -449,7 +449,7 @@ func (s *HostService) Mknod(ctx context.Context, req *proto.MknodRequest) (*prot
 		return nil, s.getGrpcStatusErrnoErr(err)
 	}
 
-	return nil, s.getGrpcStatusErrnoErr(syscall.Chmod(req.Path, req.Mode&07777))
+	return nil, s.getGrpcStatusErrnoErr(syscall.Chmod(req.Path, req.Mode&uint32(types.FileModeBitsMask)))
 }
 
 func (s *HostService) runStdinCopier(

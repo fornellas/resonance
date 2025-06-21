@@ -248,17 +248,17 @@ func (a *APTPackages) debconfCommunicate(
 	stdout := stdoutBuffer.String()
 	stderr := stderrBuffer.String()
 	if !waitStatus.Success() {
-		return "", fmt.Errorf("%s failed: %s\nSTDOUT:\n%s\nSTDERR:%s", cmd, waitStatus.String(), stdout, stderr)
+		return "", fmt.Errorf("%s failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, waitStatus.String(), stdout, stderr)
 	}
 	if len(stderr) > 0 {
-		return "", fmt.Errorf("%s failed: %s\nSTDOUT:\n%s\nSTDERR:%s", cmd, waitStatus.String(), stdout, stderr)
+		return "", fmt.Errorf("%s failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, waitStatus.String(), stdout, stderr)
 	}
 	var value string
 	if strings.HasPrefix(stdout, "0 ") {
 		value = strings.TrimSuffix(stdout[2:], "\n")
 	} else {
 		if stdout != "0" {
-			return "", fmt.Errorf("%s failed: %s\nSTDOUT:\n%s\nSTDERR:%s", cmd, waitStatus.String(), stdout, stderr)
+			return "", fmt.Errorf("%s failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, waitStatus.String(), stdout, stderr)
 		}
 	}
 
@@ -361,9 +361,11 @@ func (a *APTPackages) Apply(ctx context.Context, hst types.Host, resources Resou
 		if aptPackage.Absent {
 			pkgArgs = append(pkgArgs, fmt.Sprintf("%s-", aptPackage.Package))
 		} else {
-			pkgArg := aptPackage.Package
+			var pkgArg string
 			if len(aptPackage.Version) > 0 {
-				pkgArg = fmt.Sprintf("=%s", aptPackage.Version)
+				pkgArg = fmt.Sprintf("%s=%s", aptPackage.Package, aptPackage.Version)
+			} else {
+				pkgArg = aptPackage.Package
 			}
 			if len(aptPackage.Architectures) > 0 {
 				for _, arch := range aptPackage.Architectures {
@@ -390,9 +392,24 @@ func (a *APTPackages) Apply(ctx context.Context, hst types.Host, resources Resou
 
 	cmd := types.Cmd{
 		Path: "apt-get",
-		Args: append([]string{"--yes", "install"}, pkgArgs...),
+		Args: []string{"update"},
 	}
 	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+	if err != nil {
+		return fmt.Errorf("failed to run '%s': %s", cmd, err)
+	}
+	if !waitStatus.Success() {
+		return fmt.Errorf(
+			"failed to run '%v': %s:\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
+		)
+	}
+
+	cmd = types.Cmd{
+		Path: "apt-get",
+		Args: append([]string{"--yes", "install"}, pkgArgs...),
+	}
+	waitStatus, stdout, stderr, err = lib.SimpleRun(ctx, hst, cmd)
 	if err != nil {
 		return fmt.Errorf("failed to run '%s': %s", cmd, err)
 	}
