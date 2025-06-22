@@ -1,8 +1,0 @@
-FIX store for localhost: CLI appears to always be using remote host
-Steps
-    is essentially the same as a Blueprint, merge it into a single Blueprint type
-Step
-    is a single/group resosurce with dependencies
-    could be called a node
-resource yaml
-    define & publish schema
