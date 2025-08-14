@@ -174,7 +174,7 @@ func (a *Action) Apply(ctx context.Context, host types.Host) error {
 	if isGroupResource {
 		groupResource := resourcesPkg.GetGroupResourceByTypeName(a.ResourceType)
 		if groupResource == nil {
-			panic("bug: bad GroupResource")
+			panic(fmt.Sprintf("bug: bad GroupResource %s", a.ResourceType))
 		}
 		if err := groupResource.Apply(ctx, host, a.ApplyResources); err != nil {
 			return err

@@ -240,7 +240,7 @@ func TestPlan(t *testing.T) {
 					RegularFile: &fileContentOriginal,
 				},
 			},
-			expectedPlan: `APTPackages:🔄barPkg,🔄fooPkg
+			expectedPlan: `APTPackage:🔄barPkg,🔄fooPkg
   barPkg:
     package: barPkg
     -version: 3.4.last
