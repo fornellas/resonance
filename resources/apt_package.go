@@ -277,6 +277,7 @@ func (a *APTPackages) loadDebconfSelections(ctx context.Context, hst types.Host,
 			cmd := types.Cmd{
 				Path: "debconf-show",
 				Args: []string{aptPackage.Package},
+				Env:  []string{"LANG=C"},
 			}
 			waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
 			if err != nil {
