@@ -47,7 +47,7 @@ single_resource:
 		},
 		{
 			name:          "GroupResource",
-			resourceType:  "APTPackages",
+			resourceType:  "APTPackage",
 			groupResource: &resourcesPkg.APTPackages{},
 			groupResources: resourcesPkg.Resources{
 				&resourcesPkg.APTPackage{
@@ -60,7 +60,7 @@ single_resource:
 				},
 			},
 			string: "APTPackages:bar,foo",
-			detailedString: `APTPackages:
+			detailedString: `APTPackage:
   - package: bar
     version: "2"
   - package: foo

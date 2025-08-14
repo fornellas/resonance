@@ -94,20 +94,16 @@ func (a *APTPackage) Satisfies(resource Resource) bool {
 		return false
 	}
 
-	for _, arch := range a.Architectures {
-		if !slices.Contains(b.Architectures, arch) {
-			return false
-		}
-	}
-
-	if len(a.Version) > 0 {
-		if len(b.Version) > 0 {
-			if a.Version != b.Version {
+	if len(b.Architectures) > 0 {
+		for _, arch := range b.Architectures {
+			if !slices.Contains(a.Architectures, arch) {
 				return false
 			}
 		}
-	} else {
-		if len(b.Version) > 0 {
+	}
+
+	if len(b.Version) > 0 {
+		if a.Version != b.Version {
 			return false
 		}
 	}
@@ -277,6 +273,7 @@ func (a *APTPackages) loadDebconfSelections(ctx context.Context, hst types.Host,
 			cmd := types.Cmd{
 				Path: "debconf-show",
 				Args: []string{aptPackage.Package},
+				Env:  []string{"LANG=C"},
 			}
 			waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
 			if err != nil {

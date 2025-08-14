@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"al.essio.dev/pkg/shellescape"
 	"google.golang.org/grpc"
@@ -965,8 +966,6 @@ func (h *AgentClientWrapper) Type() string {
 }
 
 func (h *AgentClientWrapper) Close(ctx context.Context) error {
-	grpcClientConnErr := h.grpcClientConn.Close()
-
 	signalWaitStatus, signalStdout, signalStderr, signalErr := lib.SimpleRun(ctx, h.BaseHost, types.Cmd{
 		Path: h.path,
 		Args: []string{"--stop"},
@@ -978,14 +977,21 @@ func (h *AgentClientWrapper) Close(ctx context.Context) error {
 		signalErr = fmt.Errorf("%w:\nSTDOUT:\n%s\nSTDERR:\n%s", signalErr, signalStdout, signalStderr)
 	}
 
-	spawnErr := <-h.spawnErrCh
+	var spawnErr error
+	select {
+	case spawnErr = <-h.spawnErrCh:
+	case <-time.After(10 * time.Second):
+		spawnErr = fmt.Errorf("timeout waiting for agent process to exit")
+	}
+
+	grpcClientConnErr := h.grpcClientConn.Close()
 
 	hostCloseErr := h.BaseHost.Close(ctx)
 
 	return errors.Join(
-		grpcClientConnErr,
 		signalErr,
 		spawnErr,
+		grpcClientConnErr,
 		hostCloseErr,
 	)
 }

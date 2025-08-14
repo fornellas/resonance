@@ -58,7 +58,10 @@ func (s *Step) Type() string {
 	}
 
 	if s.groupResource != nil {
-		return resourcesPkg.GetGroupResourceTypeName(s.groupResource)
+		if len(s.groupResources) == 0 {
+			panic("bug: groupResources is empty")
+		}
+		return resourcesPkg.GetResourceTypeName(s.groupResources[0])
 	}
 
 	panic("bug: invalid state")
