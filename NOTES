@@ -1,0 +1,93 @@
+Host state
+    Filesystem
+        Ephemeral
+            /proc
+                autofs /proc/sys/fs/binfmt_misc
+                binfmt_misc /proc/sys/fs/binfmt_misc
+                proc /proc
+            /sys
+                bpf /sys/fs/bpf
+                cgroup2 /sys/fs/cgroup
+                configfs /sys/kernel/config
+                debugfs /sys/kernel/debug
+                efivarfs /sys/firmware/efi/efivars
+                fusectl /sys/fs/fuse/connections
+                pstore /sys/fs/pstore
+                securityfs /sys/kernel/security
+                tracefs /sys/kernel/tracing
+                sysfs /sys
+            /dev
+                devpts /dev/pts
+                devtmpfs /dev
+                hugetlbfs /dev/hugepages
+                mqueue /dev/mqueue
+                tmpfs /dev/shm
+            snap
+                ext4 /var/snap/firefox/common/host-hunspell
+                squashfs /snap/bare/5
+                squashfs /snap/chromium/3121
+                squashfs /snap/chromium/3169
+                squashfs /snap/core22/1981
+                squashfs /snap/core22/2010
+                squashfs /snap/core24/1006
+                squashfs /snap/core24/988
+                squashfs /snap/cups/1085
+                squashfs /snap/cups/1100
+                squashfs /snap/firefox/6103
+                squashfs /snap/firefox/6316
+                squashfs /snap/firmware-updater/147
+                squashfs /snap/firmware-updater/167
+                squashfs /snap/gnome-42-2204/176
+                squashfs /snap/gnome-42-2204/202
+                squashfs /snap/gnome-46-2404/77
+                squashfs /snap/gnome-46-2404/90
+                squashfs /snap/gtk-common-themes/1535
+                squashfs /snap/gtk-common-themes/1536
+                squashfs /snap/gtk-theme-breeze/3
+                squashfs /snap/gtk-theme-breeze/5
+                squashfs /snap/icon-theme-breeze/3
+                squashfs /snap/icon-theme-breeze/5
+                squashfs /snap/mesa-2404/495
+                squashfs /snap/mesa-2404/887
+                squashfs /snap/snapd/24505
+                squashfs /snap/snapd/24718
+                squashfs /snap/snapd-desktop-integration/157
+                squashfs /snap/snapd-desktop-integration/253
+                squashfs /snap/snap-store/1248
+                squashfs /snap/snap-store/1270
+                squashfs /snap/thunderbird/721
+                squashfs /snap/thunderbird/737
+            /run
+                fuse.portal /run/user/1000/doc
+                nsfs /run/snapd/ns/cups.mnt
+                nsfs /run/snapd/ns/snapd-desktop-integration.mnt
+                tmpfs /run/credentials/systemd-journald.service
+                tmpfs /run/credentials/systemd-networkd.service
+                tmpfs /run/credentials/systemd-resolved.service
+                tmpfs /run/lock
+                tmpfs /run/snapd/ns
+                tmpfs /run/user/1000
+                tmpfs /run
+            /tmp
+                tmpfs /tmp
+            /boot
+                vfat /boot/efi
+        Remote
+            nfs
+        Persistant
+                ext4 /
+                ext4 /boot
+    High Level Resources
+        NetworkManager
+        sysctl
+        /etc/hosts
+        /etc/hostname
+        APT Package
+        Snap
+        /etc/fstab
+        ufw
+        Local Group
+        Local User
+        Debian Alternatives
+        Files
+        SystemD Unit
