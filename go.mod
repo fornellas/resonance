@@ -1,6 +1,6 @@
 module github.com/fornellas/resonance
 
-go 1.24.6
+go 1.25.0
 
 replace gopkg.in/yaml.v3 v3.0.1 => github.com/fornellas/yaml v0.0.0-20230305130802-4e6a4cc61a50
 
@@ -23,7 +23,7 @@ tool (
 require (
 	al.essio.dev/pkg/shellescape v1.6.0
 	github.com/fatih/color v1.18.0
-	github.com/fornellas/slogxt v1.0.1
+	github.com/fornellas/slogxt v1.1.0
 	github.com/gliderlabs/ssh v0.3.8
 	github.com/kylelemons/godebug v1.1.0
 	github.com/spf13/cobra v1.9.1
@@ -85,7 +85,7 @@ require (
 	golang.org/x/tools/go/expect v0.1.1-deprecated // indirect
 	golang.org/x/tools/go/packages/packagestest v0.1.1-deprecated // indirect
 	golang.org/x/vuln v1.1.4 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250804133106-a7a43d27e69b // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250811230008-5f3141c8851a // indirect
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
