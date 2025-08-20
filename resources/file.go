@@ -12,39 +12,167 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/hashicorp/hcl/v2"
+
 	"github.com/fornellas/resonance/host/types"
 )
 
 // File manages files
 type File struct {
+	// SourceLocation contains the location in the configuration file where this resource was defined
+	SourceLocation hcl.Range `hcl:",def_range"`
 	// Path is the absolute path to the file
-	Path string
+	Path string `hcl:"path,attr"`
 	// Whether to remove the file
-	Absent bool
+	Absent bool `hcl:"absent,optional"`
 	// Create a socket file
-	Socket bool
+	Socket bool `hcl:"socket,optional"`
 	// Create a symbolic link pointing to given path
-	SymbolicLink string
+	SymbolicLink string `hcl:"symbolic_link,optional"`
 	// Create a regular file with given contents
-	RegularFile *string
+	RegularFile *string `hcl:"regular_file,optional"`
 	// Create a block device file with given majon / minor.
-	BlockDevice *types.FileDevice
+	BlockDevice *types.FileDevice `hcl:"block_device,optional"`
 	// Create a directory with given contents
-	Directory *[]File
+	// FIXME: should be a pointer to array, otherwise we can't differentiate between empty dir and file declaration that's missing a type
+	// FIXME HCL complains if this is a pointer
+	Directory []File `hcl:"directory,block"`
 	// Create a character device file with given majon / minor
-	CharacterDevice *types.FileDevice
+	CharacterDevice *types.FileDevice `hcl:"character_device,optional"`
 	// Create a FIFO file
-	FIFO bool
+	FIFO bool `hcl:"fifo,optional"`
 	// Mode bits 07777, see inode(7).
-	Mode *types.FileMode
+	Mode *types.FileMode `hcl:"mode,optional"`
 	// User ID owner of the file. Default: 0.
-	Uid *uint32
+	Uid *uint32 `hcl:"uid,optional"`
 	// User name owner of the file
-	User *string
+	User *string `hcl:"user,optional"`
 	// Group ID owner of the file. Default: 0.
-	Gid *uint32
+	Gid *uint32 `hcl:"gid,optional"`
 	// Group name owner of the file
-	Group *string
+	Group *string `hcl:"group,optional"`
+}
+
+// FormatSourceLocation returns a human-readable string describing where this resource was defined
+func (f *File) FormatSourceLocation() string {
+	if f.SourceLocation.Filename == "" {
+		return "unknown location"
+	}
+	return fmt.Sprintf("%s:%d:%d", f.SourceLocation.Filename, f.SourceLocation.Start.Line, f.SourceLocation.Start.Column)
+}
+
+func (f *File) mergeBool(current *bool, otherVal bool, fieldName string, other *File) error {
+	if *current && otherVal && *current != otherVal {
+		return fmt.Errorf("conflicting %s: %s declares %v, %s declares %v",
+			fieldName, f.FormatSourceLocation(), *current, other.FormatSourceLocation(), otherVal)
+	}
+	if !*current && otherVal {
+		*current = otherVal
+	}
+	return nil
+}
+
+func (f *File) mergeStringPtr(current **string, other **string, fieldName string, otherFile *File) error {
+	if *current != nil && *other != nil && **current != **other {
+		return fmt.Errorf("conflicting %s: %s declares %q, %s declares %q",
+			fieldName, f.FormatSourceLocation(), **current, otherFile.FormatSourceLocation(), **other)
+	}
+	if *current == nil && *other != nil {
+		*current = *other
+	}
+	return nil
+}
+
+func (f *File) mergeUint32Ptr(current **uint32, other **uint32, fieldName string, otherFile *File) error {
+	if *current != nil && *other != nil && **current != **other {
+		return fmt.Errorf("conflicting %s: %s declares %d, %s declares %d",
+			fieldName, f.FormatSourceLocation(), **current, otherFile.FormatSourceLocation(), **other)
+	}
+	if *current == nil && *other != nil {
+		*current = *other
+	}
+	return nil
+}
+
+func (f *File) mergeFileModePtr(current **types.FileMode, other **types.FileMode, fieldName string, otherFile *File) error {
+	if *current != nil && *other != nil && **current != **other {
+		return fmt.Errorf("conflicting %s: %s declares %#o, %s declares %#o",
+			fieldName, f.FormatSourceLocation(), **current, otherFile.FormatSourceLocation(), **other)
+	}
+	if *current == nil && *other != nil {
+		*current = *other
+	}
+	return nil
+}
+
+func (f *File) mergeFileDevicePtr(current **types.FileDevice, other **types.FileDevice, fieldName string, otherFile *File) error {
+	if *current != nil && *other != nil && **current != **other {
+		return fmt.Errorf("conflicting %s: %s declares %v, %s declares %v",
+			fieldName, f.FormatSourceLocation(), **current, otherFile.FormatSourceLocation(), **other)
+	}
+	if *current == nil && *other != nil {
+		*current = *other
+	}
+	return nil
+}
+
+func (f *File) mergeString(current *string, otherVal string, fieldName string, other *File) error {
+	if *current != "" && otherVal != "" && *current != otherVal {
+		return fmt.Errorf("conflicting %s: %s declares %q, %s declares %q",
+			fieldName, f.FormatSourceLocation(), *current, other.FormatSourceLocation(), otherVal)
+	}
+	if *current == "" && otherVal != "" {
+		*current = otherVal
+	}
+	return nil
+}
+
+// Merge attempts to merge another File resource into this one
+// Returns error if there are conflicting values
+func (f *File) Merge(other *File) error {
+	if f.Path != other.Path {
+		return fmt.Errorf("cannot merge files with different paths: %s vs %s", f.Path, other.Path)
+	}
+
+	return f.mergeAllFields(other)
+}
+
+func (f *File) mergeAllFields(other *File) error {
+	mergeOps := []func() error{
+		func() error { return f.mergeBool(&f.Absent, other.Absent, "absent", other) },
+		func() error { return f.mergeBool(&f.Socket, other.Socket, "socket", other) },
+		func() error { return f.mergeBool(&f.FIFO, other.FIFO, "fifo", other) },
+		func() error { return f.mergeString(&f.SymbolicLink, other.SymbolicLink, "symbolic_link", other) },
+		func() error { return f.mergeStringPtr(&f.RegularFile, &other.RegularFile, "regular_file", other) },
+		func() error { return f.mergeFileDevicePtr(&f.BlockDevice, &other.BlockDevice, "block_device", other) },
+		func() error {
+			return f.mergeFileDevicePtr(&f.CharacterDevice, &other.CharacterDevice, "character_device", other)
+		},
+		func() error { return f.mergeDirectory(other) },
+		func() error { return f.mergeFileModePtr(&f.Mode, &other.Mode, "mode", other) },
+		func() error { return f.mergeUint32Ptr(&f.Uid, &other.Uid, "uid", other) },
+		func() error { return f.mergeStringPtr(&f.User, &other.User, "user", other) },
+		func() error { return f.mergeUint32Ptr(&f.Gid, &other.Gid, "gid", other) },
+		func() error { return f.mergeStringPtr(&f.Group, &other.Group, "group", other) },
+	}
+
+	for _, op := range mergeOps {
+		if err := op(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (f *File) mergeDirectory(other *File) error {
+	if len(f.Directory) > 0 && len(other.Directory) > 0 {
+		return fmt.Errorf("conflicting directory contents: %s and %s both declare directory contents",
+			f.FormatSourceLocation(), other.FormatSourceLocation())
+	}
+	if len(f.Directory) == 0 && len(other.Directory) > 0 {
+		f.Directory = other.Directory
+	}
+	return nil
 }
 
 func (f *File) validatePath() error {
@@ -114,8 +242,8 @@ func (f *File) validateAbsentAndType() error {
 }
 
 func (f *File) validateDirectory() error {
-	if f.Directory != nil {
-		for _, subFile := range *f.Directory {
+	if len(f.Directory) > 0 {
+		for _, subFile := range f.Directory {
 			if filepath.Dir(subFile.Path) != f.Path {
 				return fmt.Errorf("directory entry '%s' is not a subpath of '%s'", subFile.Path, f.Path)
 			}
@@ -208,7 +336,6 @@ func (f *File) loadDirectory(ctx context.Context, hst types.Host) error {
 	defer cancel()
 
 	directory := []File{}
-	f.Directory = &directory
 	for dirEntResult := range dirEntResultCh {
 		if dirEntResult.Error != nil {
 			return dirEntResult.Error
@@ -224,6 +351,7 @@ func (f *File) loadDirectory(ctx context.Context, hst types.Host) error {
 		return directory[i].Path < directory[j].Path
 	})
 
+	f.Directory = directory
 	return nil
 }
 
@@ -275,15 +403,15 @@ func (f *File) Load(ctx context.Context, hst types.Host) error {
 }
 
 func (f *File) Resolve(ctx context.Context, hst types.Host) error {
-	if f.Directory != nil {
-		sort.SliceStable(*f.Directory, func(i int, j int) bool {
-			return (*f.Directory)[i].Path < (*f.Directory)[j].Path
+	if len(f.Directory) > 0 {
+		sort.SliceStable(f.Directory, func(i int, j int) bool {
+			return f.Directory[i].Path < f.Directory[j].Path
 		})
-		for i, subFile := range *f.Directory {
+		for i, subFile := range f.Directory {
 			if err := subFile.Resolve(ctx, hst); err != nil {
 				return err
 			}
-			(*f.Directory)[i] = subFile
+			f.Directory[i] = subFile
 		}
 	}
 
@@ -414,8 +542,8 @@ func (f *File) applyBlockDevice(ctx context.Context, hst types.Host, currentFile
 }
 
 func (f *File) applyDirectory(ctx context.Context, hst types.Host, currentFile *File) error {
-	if f.Directory != nil {
-		if currentFile.Directory == nil {
+	if len(f.Directory) > 0 {
+		if len(currentFile.Directory) == 0 {
 			if err := currentFile.removeRecursively(ctx, hst); err != nil {
 				return err
 			}
@@ -424,12 +552,12 @@ func (f *File) applyDirectory(ctx context.Context, hst types.Host, currentFile *
 			}
 		}
 		pathToDelete := map[string]bool{}
-		if currentFile.Directory != nil {
-			for _, subFile := range *currentFile.Directory {
+		if len(currentFile.Directory) > 0 {
+			for _, subFile := range currentFile.Directory {
 				pathToDelete[subFile.Path] = true
 			}
 		}
-		for _, subFile := range *f.Directory {
+		for _, subFile := range f.Directory {
 			if err := subFile.Apply(ctx, hst); err != nil {
 				return err
 			}

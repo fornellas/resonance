@@ -172,7 +172,7 @@ func TestAPTPackageSatisfies(t *testing.T) {
 			},
 			target: &APTPackage{
 				Package: "wget",
-				DebconfSelections: map[DebconfQuestion]DebconfSelection{
+				DebconfSelections: map[string]DebconfSelection{
 					"wget/question": {Answer: "yes", Seen: true},
 				},
 			},
@@ -182,7 +182,7 @@ func TestAPTPackageSatisfies(t *testing.T) {
 			name: "current has debconf selections, target doesn't",
 			current: &APTPackage{
 				Package: "wget",
-				DebconfSelections: map[DebconfQuestion]DebconfSelection{
+				DebconfSelections: map[string]DebconfSelection{
 					"wget/question": {Answer: "yes", Seen: true},
 				},
 			},
@@ -195,13 +195,13 @@ func TestAPTPackageSatisfies(t *testing.T) {
 			name: "matching debconf selections",
 			current: &APTPackage{
 				Package: "wget",
-				DebconfSelections: map[DebconfQuestion]DebconfSelection{
+				DebconfSelections: map[string]DebconfSelection{
 					"wget/question": {Answer: "yes", Seen: true},
 				},
 			},
 			target: &APTPackage{
 				Package: "wget",
-				DebconfSelections: map[DebconfQuestion]DebconfSelection{
+				DebconfSelections: map[string]DebconfSelection{
 					"wget/question": {Answer: "yes", Seen: true},
 				},
 			},
@@ -211,13 +211,13 @@ func TestAPTPackageSatisfies(t *testing.T) {
 			name: "different debconf answers",
 			current: &APTPackage{
 				Package: "wget",
-				DebconfSelections: map[DebconfQuestion]DebconfSelection{
+				DebconfSelections: map[string]DebconfSelection{
 					"wget/question": {Answer: "yes", Seen: true},
 				},
 			},
 			target: &APTPackage{
 				Package: "wget",
-				DebconfSelections: map[DebconfQuestion]DebconfSelection{
+				DebconfSelections: map[string]DebconfSelection{
 					"wget/question": {Answer: "no", Seen: true},
 				},
 			},

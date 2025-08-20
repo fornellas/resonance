@@ -6,6 +6,6 @@ import (
 
 // State represents a desired host state, for all managed resources.
 type State struct {
-	Files       []*resources.File
-	APTPackages []*resources.APTPackages
+	Files       []*resources.File       `hcl:"file,block"`
+	APTPackages []*resources.APTPackage `hcl:"apt_package,block"`
 }

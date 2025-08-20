@@ -197,7 +197,7 @@ func TestFile(t *testing.T) {
 				Title: "directory",
 				File: File{
 					Path: "/foo",
-					Directory: &[]File{
+					Directory: []File{
 						{
 							Path:        "/foo/bar",
 							RegularFile: new(string),
@@ -209,7 +209,7 @@ func TestFile(t *testing.T) {
 				Title: "directory entry not subpath",
 				File: File{
 					Path: "/foo",
-					Directory: &[]File{
+					Directory: []File{
 						{
 							Path:        "/fooz/bar",
 							RegularFile: new(string),
@@ -339,7 +339,7 @@ func TestFile(t *testing.T) {
 
 			expectedFile := File{
 				Path: prefix,
-				Directory: &[]File{
+				Directory: []File{
 					{
 						Path: fifoPath,
 						FIFO: true,
@@ -374,7 +374,7 @@ func TestFile(t *testing.T) {
 			}
 
 			if isRoot(t) {
-				*expectedFile.Directory = append(
+				expectedFile.Directory = append(
 					[]File{
 						{
 							Path:        blockPath,
@@ -391,7 +391,7 @@ func TestFile(t *testing.T) {
 							Gid:             &gid,
 						},
 					},
-					*expectedFile.Directory...,
+					expectedFile.Directory...,
 				)
 			}
 
@@ -468,7 +468,7 @@ func TestFile(t *testing.T) {
 			t.Run("sort & recursion", func(t *testing.T) {
 				file := File{
 					Path: path,
-					Directory: &[]File{
+					Directory: []File{
 						{
 							Path:        filepath.Join(path, "last"),
 							RegularFile: new(string),
@@ -482,7 +482,7 @@ func TestFile(t *testing.T) {
 				require.NoError(t, file.Resolve(ctx, hst))
 				expectedFile := File{
 					Path: path,
-					Directory: &[]File{
+					Directory: []File{
 						{
 							Path:        filepath.Join(path, "first"),
 							RegularFile: new(string),
@@ -516,7 +516,7 @@ func TestFile(t *testing.T) {
 
 			file := File{
 				Path: prefix,
-				Directory: &[]File{
+				Directory: []File{
 					{
 						Path: fifoPath,
 						FIFO: true,
@@ -551,7 +551,7 @@ func TestFile(t *testing.T) {
 			}
 
 			if isRoot(t) {
-				*file.Directory = append(
+				file.Directory = append(
 					[]File{
 						{
 							Path:        blockPath,
@@ -568,7 +568,7 @@ func TestFile(t *testing.T) {
 							Gid:             &gid,
 						},
 					},
-					*file.Directory...,
+					file.Directory...,
 				)
 			}
 
