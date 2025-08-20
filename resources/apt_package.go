@@ -118,11 +118,11 @@ func (a *APTPackage) Satisfies(b *APTPackage) bool {
 	return true
 }
 
-type APTPackages struct{}
+type APTPackages []APTPackage
 
 var debconfShowRegexp = regexp.MustCompile("^([ *]) (.+):(| (.+))$")
 
-func (a *APTPackages) preparePackageQueries(
+func (a APTPackages) preparePackageQueries(
 	aptPackages []*APTPackage,
 ) ([]string, map[string]*APTPackage) {
 	packageQueries := make([]string, 0)
@@ -147,7 +147,7 @@ func (a *APTPackages) preparePackageQueries(
 	return packageQueries, packageToResource
 }
 
-func (a *APTPackages) runDpkgQuery(ctx context.Context, hst types.Host, packageQueries []string, resourceCount int) (string, error) {
+func (a APTPackages) runDpkgQuery(ctx context.Context, hst types.Host, packageQueries []string, resourceCount int) (string, error) {
 	args := []string{
 		"--show",
 		"--showformat=Package=${Package}\nArchitecture=${Architecture}\nVersion=${Version}\nend\n",
@@ -171,7 +171,7 @@ func (a *APTPackages) runDpkgQuery(ctx context.Context, hst types.Host, packageQ
 	return stdout, nil
 }
 
-func (a *APTPackages) processDpkgOutput(stdout string, packageToResource map[string]*APTPackage) error {
+func (a APTPackages) processDpkgOutput(stdout string, packageToResource map[string]*APTPackage) error {
 	scanner := bufio.NewScanner(strings.NewReader(stdout))
 	currentPkg := ""
 	currentArch := ""
@@ -203,7 +203,7 @@ func (a *APTPackages) processDpkgOutput(stdout string, packageToResource map[str
 
 	return scanner.Err()
 }
-func (a *APTPackages) debconfCommunicate(
+func (a APTPackages) debconfCommunicate(
 	ctx context.Context,
 	hst types.Host,
 	pkg, command string,
@@ -243,7 +243,7 @@ func (a *APTPackages) debconfCommunicate(
 	return value, nil
 }
 
-func (a *APTPackages) loadDebconfSelections(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+func (a APTPackages) loadDebconfSelections(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
 	concurrencyGroup := concurrency.NewConcurrencyGroup(ctx)
 
 	for _, aptPackage := range aptPackages {
@@ -307,7 +307,7 @@ func (a *APTPackages) loadDebconfSelections(ctx context.Context, hst types.Host,
 	return nil
 }
 
-func (a *APTPackages) Load(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+func (a APTPackages) Load(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
 	packageQueries, packageToResource := a.preparePackageQueries(aptPackages)
 
 	stdout, err := a.runDpkgQuery(ctx, hst, packageQueries, len(aptPackages))
@@ -326,11 +326,11 @@ func (a *APTPackages) Load(ctx context.Context, hst types.Host, aptPackages []*A
 	return nil
 }
 
-func (a *APTPackages) Resolve(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+func (a APTPackages) Resolve(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
 	return nil
 }
 
-func (a *APTPackages) Apply(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+func (a APTPackages) Apply(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
 	pkgArgs := []string{}
 	for _, aptPackage := range aptPackages {
 		if aptPackage.Absent {
