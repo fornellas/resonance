@@ -3,16 +3,10 @@ package main
 import (
 	"errors"
 	"fmt"
-	"os"
-	"sort"
-	"strings"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 
 	"github.com/fornellas/slogxt/log"
-
-	resourcesPkg "github.com/fornellas/resonance/resources"
 )
 
 type ResourceTypeValue struct {
@@ -24,17 +18,10 @@ func (r *ResourceTypeValue) String() string {
 }
 
 func (r *ResourceTypeValue) Set(name string) error {
-	resource := resourcesPkg.GetResourceByTypeName(name)
-	if resource == nil {
-		return fmt.Errorf("invalid resource type: %#v", name)
-	}
-	r.name = name
-	return nil
+	panic("TODO")
 }
 func (r *ResourceTypeValue) Type() string {
-	names := resourcesPkg.GetResourceTypeNames()
-	sort.Strings(names)
-	return fmt.Sprintf("[%s]", strings.Join(names, "|"))
+	panic("TODO")
 }
 
 func (r *ResourceTypeValue) Reset() {
@@ -74,38 +61,7 @@ var InspectCmd = &cobra.Command{
 		}()
 		ctx, _ = log.MustWithAttrs(ctx, "host", fmt.Sprintf("%s => %s", host.Type(), host.String()))
 
-		resourceType := resourceTypeValue.String()
-		resources := resourcesPkg.Resources{}
-		for _, id := range resourceIds {
-			resources = append(resources, resourcesPkg.NewResourceFromTypeNameAndId(resourceType, id))
-		}
-
-		if resourcesPkg.IsGroupResource(resourceType) {
-			groupResource := resourcesPkg.GetGroupResourceByTypeName(resourceType)
-			if err := groupResource.Load(ctx, host, resources); err != nil {
-				retErr = errors.Join(retErr, fmt.Errorf("failed load resources: %w", err))
-				return
-			}
-		} else {
-			for _, resource := range resources {
-				singleResource := resource.(resourcesPkg.SingleResource)
-				if err := singleResource.Load(ctx, host); err != nil {
-					retErr = errors.Join(retErr, fmt.Errorf("failed load resource: %w", err))
-					return
-				}
-			}
-		}
-
-		yamlBytes, err := yaml.Marshal(resources)
-		if err != nil {
-			retErr = errors.Join(retErr, fmt.Errorf("failed marshal yaml: %w", err))
-			return
-		}
-
-		if _, err := os.Stdout.Write(yamlBytes); err != nil {
-			retErr = errors.Join(retErr, fmt.Errorf("failed write: %w", err))
-			return
-		}
+		panic("TODO")
 	},
 }
 

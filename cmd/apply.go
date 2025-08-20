@@ -11,9 +11,6 @@ import (
 	"github.com/fornellas/slogxt/log"
 
 	"github.com/fornellas/resonance"
-	blueprintPkg "github.com/fornellas/resonance/blueprint"
-	planPkg "github.com/fornellas/resonance/plan"
-	resourcesPkg "github.com/fornellas/resonance/resources"
 )
 
 var ApplyCmd = &cobra.Command{
@@ -81,77 +78,7 @@ var ApplyCmd = &cobra.Command{
 		ctx = log.WithLogger(ctx, logger)
 		cmd.SetContext(ctx)
 
-		var targetResources resourcesPkg.Resources
-		{
-			var err error
-			targetResources, err = resourcesPkg.LoadPath(ctx, path)
-			if err != nil {
-				retErr = errors.Join(retErr, fmt.Errorf("failed to load resources: %w", err))
-				return
-			}
-			_, logger := log.MustWithGroup(ctx, "📚 Target resources")
-			for _, resource := range targetResources {
-				logger.Debug(resourcesPkg.GetResourceTypeName(resource), "yaml", resourcesPkg.GetResourceYaml(resource))
-			}
-		}
-
-		var plan planPkg.Plan
-		var targetBlueprint *blueprintPkg.Blueprint
-		var lastBlueprint *blueprintPkg.Blueprint
-		plan, targetBlueprint, lastBlueprint, err = planPkg.CraftPlan(ctx, host, store, targetResources)
-		if err != nil {
-			retErr = errors.Join(retErr, fmt.Errorf("failed to plan: %w", err))
-			return
-		}
-
-		{
-			ctx, _ := log.MustWithGroup(ctx, "💾 Saving target Blueprint")
-			hasTargetBlueprint, err := store.HasTargetBlueprint(ctx)
-			if err != nil {
-				retErr = errors.Join(retErr, fmt.Errorf("failed save blueprint: %w", err))
-				return
-			}
-			if hasTargetBlueprint {
-				retErr = errors.Join(retErr, fmt.Errorf("a previous apply was interrupted"))
-				return
-			} else {
-				if err := store.SaveTargetBlueprint(ctx, targetBlueprint); err != nil {
-					retErr = errors.Join(retErr, fmt.Errorf("failed save target blueprint: %w", err))
-					return
-				}
-			}
-		}
-
-		if err := plan.Apply(ctx, host); err != nil {
-			retErr = errors.Join(retErr, fmt.Errorf("failed to apply: %w", err))
-			return
-		}
-
-		{
-			ctx, _ := log.MustWithGroup(ctx, "🧹 State cleanup")
-
-			targetResourcesMap := resourcesPkg.NewResourceMap(targetResources)
-			for _, lastResource := range lastBlueprint.Resources() {
-				if !targetResourcesMap.HasResourceWithSameTypeId(lastResource) {
-					if err := store.DeleteOriginalResource(ctx, lastResource); err != nil {
-						retErr = errors.Join(retErr, fmt.Errorf("failed to delete original resource: %w", err))
-						return
-					}
-				}
-			}
-
-			if err := store.SaveLastBlueprint(ctx, targetBlueprint); err != nil {
-				retErr = errors.Join(retErr, fmt.Errorf("failed to save last blueprint: %w", err))
-				return
-			}
-
-			if err := store.DeleteTargetBlueprint(ctx); err != nil {
-				retErr = errors.Join(retErr, fmt.Errorf("failed to delete target blueprint: %w", err))
-				return
-			}
-		}
-
-		logger.Info("🎆 Apply successful")
+		panic("TODO")
 	},
 }
 

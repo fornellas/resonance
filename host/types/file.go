@@ -6,7 +6,6 @@ import (
 	"syscall"
 
 	"golang.org/x/sys/unix"
-	"gopkg.in/yaml.v3"
 )
 
 // File mode bits 07777, see inode(7).
@@ -23,25 +22,6 @@ func (f FileMode) LogValue() slog.Value {
 	return slog.StringValue(f.String())
 }
 
-func (f *FileMode) MarshalYAML() (any, error) {
-	return f.String(), nil
-}
-
-func (f *FileMode) UnmarshalYAML(value *yaml.Node) error {
-	var fileModeStr string
-	if err := value.Decode(&fileModeStr); err != nil {
-		return err
-	}
-	n, err := fmt.Sscanf(fileModeStr, "%o", f)
-	if err != nil {
-		return err
-	}
-	if n != 1 {
-		return fmt.Errorf("invalid file mode: %#v", value.Value)
-	}
-	return nil
-}
-
 // Mask for all file mode bits.
 var FileModeBitsMask FileMode = 07777
 
@@ -54,25 +34,6 @@ func (f *FileDevice) String() string {
 
 func (f FileDevice) LogValue() slog.Value {
 	return slog.StringValue(f.String())
-}
-
-func (f *FileDevice) MarshalYAML() (any, error) {
-	return f.String(), nil
-}
-
-func (f *FileDevice) UnmarshalYAML(value *yaml.Node) error {
-	var fileDeviceStr string
-	if err := value.Decode(&fileDeviceStr); err != nil {
-		return err
-	}
-	n, err := fmt.Sscanf(fileDeviceStr, "%d:%d", f)
-	if err != nil {
-		return err
-	}
-	if n != 2 {
-		return fmt.Errorf("invalid file device: %#v", value.Value)
-	}
-	return nil
 }
 
 // Timespec from syscall.Timespec for Linux

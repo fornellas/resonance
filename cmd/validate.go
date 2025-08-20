@@ -7,9 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/fornellas/slogxt/log"
-
-	blueprintPkg "github.com/fornellas/resonance/blueprint"
-	resourcesPkg "github.com/fornellas/resonance/resources"
 )
 
 var ValidateCmd = &cobra.Command{
@@ -42,28 +39,7 @@ var ValidateCmd = &cobra.Command{
 		}()
 		ctx, _ = log.MustWithAttrs(ctx, "host", fmt.Sprintf("%s => %s", host.Type(), host.String()))
 
-		resources, err := resourcesPkg.LoadPath(ctx, path)
-		if err != nil {
-			retErr = errors.Join(retErr, fmt.Errorf("failed to load resources: %w", err))
-			return
-		}
-
-		blueprint, err := blueprintPkg.NewBlueprintFromResources("validate", resources)
-		if err != nil {
-			retErr = errors.Join(retErr, fmt.Errorf("failed to create Blueprint: %w", err))
-			return
-		}
-		if err := blueprint.Resolve(ctx, host); err != nil {
-			retErr = errors.Join(retErr, fmt.Errorf("failed to resolve Blueprint: %w", err))
-			return
-		}
-
-		logger.Info(
-			"🧩 Blueprint",
-			"resources", blueprint.String(),
-		)
-
-		logger.Info("🎆 Validation successful")
+		panic("TODO")
 	},
 }
 
