@@ -28,8 +28,8 @@ type DebconfSelection struct {
 
 // APTPackage manages APT packages.
 type APTPackage struct {
-	// SourceLocation contains the location in the configuration file where this resource was defined
-	SourceLocation hcl.Range `hcl:",def_range"`
+	// SourceLocations contains all locations in configuration files where this resource was defined
+	SourceLocations []hcl.Range `hcl:",def_range"`
 	// The name of the package
 	// See https://www.debian.org/doc/debian-policy/ch-controlfields.html#package
 	Package string `hcl:"package,attr"`
@@ -48,10 +48,7 @@ type APTPackage struct {
 
 // FormatSourceLocation returns a human-readable string describing where this resource was defined
 func (a *APTPackage) FormatSourceLocation() string {
-	if a.SourceLocation.Filename == "" {
-		return "unknown location"
-	}
-	return fmt.Sprintf("%s:%d:%d", a.SourceLocation.Filename, a.SourceLocation.Start.Line, a.SourceLocation.Start.Column)
+	return FormatSourceLocations(a.SourceLocations)
 }
 
 // Merge attempts to merge another APTPackage resource into this one
@@ -60,6 +57,9 @@ func (a *APTPackage) Merge(other *APTPackage) error {
 	if a.Package != other.Package {
 		return fmt.Errorf("cannot merge APT packages with different names: %s vs %s", a.Package, other.Package)
 	}
+
+	// Collect source locations
+	a.SourceLocations = append(a.SourceLocations, other.SourceLocations...)
 
 	// Merge Absent - conflict if different
 	if a.Absent != other.Absent {

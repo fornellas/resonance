@@ -19,8 +19,8 @@ import (
 
 // File manages files
 type File struct {
-	// SourceLocation contains the location in the configuration file where this resource was defined
-	SourceLocation hcl.Range `hcl:",def_range"`
+	// SourceLocations contains all locations in configuration files where this resource was defined
+	SourceLocations []hcl.Range `hcl:",def_range"`
 	// Path is the absolute path to the file
 	Path string `hcl:"path,attr"`
 	// Whether to remove the file
@@ -55,10 +55,7 @@ type File struct {
 
 // FormatSourceLocation returns a human-readable string describing where this resource was defined
 func (f *File) FormatSourceLocation() string {
-	if f.SourceLocation.Filename == "" {
-		return "unknown location"
-	}
-	return fmt.Sprintf("%s:%d:%d", f.SourceLocation.Filename, f.SourceLocation.Start.Line, f.SourceLocation.Start.Column)
+	return FormatSourceLocations(f.SourceLocations)
 }
 
 func (f *File) mergeBool(current *bool, otherVal bool, fieldName string, other *File) error {
@@ -134,6 +131,9 @@ func (f *File) Merge(other *File) error {
 		return fmt.Errorf("cannot merge files with different paths: %s vs %s", f.Path, other.Path)
 	}
 
+	// Collect source locations
+	f.SourceLocations = append(f.SourceLocations, other.SourceLocations...)
+
 	return f.mergeAllFields(other)
 }
 
@@ -165,13 +165,31 @@ func (f *File) mergeAllFields(other *File) error {
 }
 
 func (f *File) mergeDirectory(other *File) error {
-	if len(f.Directory) > 0 && len(other.Directory) > 0 {
-		return fmt.Errorf("conflicting directory contents: %s and %s both declare directory contents",
-			f.FormatSourceLocation(), other.FormatSourceLocation())
-	}
 	if len(f.Directory) == 0 && len(other.Directory) > 0 {
 		f.Directory = other.Directory
+		return nil
 	}
+
+	if len(other.Directory) == 0 {
+		return nil
+	}
+
+	// Both have directory contents, merge recursively
+	fileMap := make(map[string]*File)
+	for i := range f.Directory {
+		fileMap[f.Directory[i].Path] = &f.Directory[i]
+	}
+
+	for _, otherFile := range other.Directory {
+		if existingFile, exists := fileMap[otherFile.Path]; exists {
+			if err := existingFile.Merge(&otherFile); err != nil {
+				return err
+			}
+		} else {
+			f.Directory = append(f.Directory, otherFile)
+		}
+	}
+
 	return nil
 }
 
