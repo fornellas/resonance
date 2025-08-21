@@ -2,10 +2,12 @@ package resources
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestAPTPackage(t *testing.T) {
-	t.Run("Satisfies", func(t *testing.T) {
+	t.Run("Satisfies()", func(t *testing.T) {
 		tests := []struct {
 			name     string
 			current  *APTPackage
@@ -295,6 +297,251 @@ func TestAPTPackage(t *testing.T) {
 					t.Errorf("APTPackage.Satisfies() = %v, want %v", result, tt.expected)
 					t.Errorf("Current: %+v", tt.current)
 					t.Errorf("Target: %+v", tt.target)
+				}
+			})
+		}
+	})
+
+	t.Run("Validate()", func(t *testing.T) {
+		tests := []struct {
+			name        string
+			aptPackage  *APTPackage
+			expectError bool
+			errorMsg    string
+		}{
+			{
+				name: "valid package with all fields",
+				aptPackage: &APTPackage{
+					Package:       "wget",
+					Architectures: []string{"amd64", "i386"},
+					Version:       "1.21.4-1ubuntu4.1",
+				},
+				expectError: false,
+			},
+			{
+				name: "valid package minimal",
+				aptPackage: &APTPackage{
+					Package: "curl",
+				},
+				expectError: false,
+			},
+			{
+				name: "valid package with epoch",
+				aptPackage: &APTPackage{
+					Package: "libc6",
+					Version: "2:2.31-0ubuntu9.9",
+				},
+				expectError: false,
+			},
+			{
+				name: "valid package with tilde",
+				aptPackage: &APTPackage{
+					Package: "test",
+					Version: "1.0~beta1",
+				},
+				expectError: false,
+			},
+			{
+				name: "valid package with plus in name",
+				aptPackage: &APTPackage{
+					Package: "g++",
+				},
+				expectError: false,
+			},
+			{
+				name: "valid package with dots and dashes",
+				aptPackage: &APTPackage{
+					Package: "lib.test-package",
+				},
+				expectError: false,
+			},
+			{
+				name: "empty package name",
+				aptPackage: &APTPackage{
+					Package: "",
+				},
+				expectError: true,
+				errorMsg:    "invalid package",
+			},
+			{
+				name: "package name starting with invalid character",
+				aptPackage: &APTPackage{
+					Package: "-invalid",
+				},
+				expectError: true,
+				errorMsg:    "invalid package",
+			},
+			{
+				name: "package name with uppercase",
+				aptPackage: &APTPackage{
+					Package: "Invalid",
+				},
+				expectError: true,
+				errorMsg:    "invalid package",
+			},
+			{
+				name: "package name with invalid characters",
+				aptPackage: &APTPackage{
+					Package: "pack@ge",
+				},
+				expectError: true,
+				errorMsg:    "invalid package",
+			},
+			{
+				name: "package name too short",
+				aptPackage: &APTPackage{
+					Package: "a",
+				},
+				expectError: true,
+				errorMsg:    "invalid package",
+			},
+			{
+				name: "package name starting with dot",
+				aptPackage: &APTPackage{
+					Package: ".invalid",
+				},
+				expectError: true,
+				errorMsg:    "invalid package",
+			},
+			{
+				name: "valid architecture",
+				aptPackage: &APTPackage{
+					Package:       "wget",
+					Architectures: []string{"amd64"},
+				},
+				expectError: false,
+			},
+			{
+				name: "invalid architecture with uppercase",
+				aptPackage: &APTPackage{
+					Package:       "wget",
+					Architectures: []string{"AMD64"},
+				},
+				expectError: true,
+				errorMsg:    "invalid package",
+			},
+			{
+				name: "invalid architecture with underscore",
+				aptPackage: &APTPackage{
+					Package:       "wget",
+					Architectures: []string{"amd_64"},
+				},
+				expectError: true,
+				errorMsg:    "invalid package",
+			},
+			{
+				name: "invalid architecture empty",
+				aptPackage: &APTPackage{
+					Package:       "wget",
+					Architectures: []string{""},
+				},
+				expectError: true,
+				errorMsg:    "invalid package",
+			},
+			{
+				name: "invalid architecture with dots",
+				aptPackage: &APTPackage{
+					Package:       "wget",
+					Architectures: []string{"amd.64"},
+				},
+				expectError: true,
+				errorMsg:    "invalid package",
+			},
+			{
+				name: "version ending with plus",
+				aptPackage: &APTPackage{
+					Package: "wget",
+					Version: "1.21.4+",
+				},
+				expectError: true,
+				errorMsg:    "version` can't end in +",
+			},
+			{
+				name: "version ending with minus",
+				aptPackage: &APTPackage{
+					Package: "wget",
+					Version: "1.21.4-",
+				},
+				expectError: true,
+				errorMsg:    "version` can't end in -",
+			},
+			{
+				name: "invalid version format",
+				aptPackage: &APTPackage{
+					Package: "wget",
+					Version: "invalid-version-format!",
+				},
+				expectError: true,
+				errorMsg:    "invalid version",
+			},
+			{
+				name: "version starting with letter",
+				aptPackage: &APTPackage{
+					Package: "wget",
+					Version: "abc123",
+				},
+				expectError: true,
+				errorMsg:    "invalid version",
+			},
+			{
+				name: "empty version is valid",
+				aptPackage: &APTPackage{
+					Package: "wget",
+					Version: "",
+				},
+				expectError: false,
+			},
+			{
+				name: "valid complex version",
+				aptPackage: &APTPackage{
+					Package: "complex-package.name",
+					Version: "1:2.3.4~rc1+dfsg-5ubuntu2.1",
+				},
+				expectError: false,
+			},
+			{
+				name: "valid version with just numbers",
+				aptPackage: &APTPackage{
+					Package: "simple",
+					Version: "123",
+				},
+				expectError: false,
+			},
+			{
+				name: "valid version with native package format",
+				aptPackage: &APTPackage{
+					Package: "native",
+					Version: "1.2.3",
+				},
+				expectError: false,
+			},
+			{
+				name: "multiple valid architectures",
+				aptPackage: &APTPackage{
+					Package:       "multiarch",
+					Architectures: []string{"amd64", "i386", "arm64", "armhf"},
+				},
+				expectError: false,
+			},
+			{
+				name: "one invalid architecture among valid ones",
+				aptPackage: &APTPackage{
+					Package:       "multiarch",
+					Architectures: []string{"amd64", "Invalid", "arm64"},
+				},
+				expectError: true,
+				errorMsg:    "invalid package",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				err := tt.aptPackage.Validate()
+				if tt.expectError {
+					require.Error(t, err)
+					require.Contains(t, err.Error(), tt.errorMsg)
+				} else {
+					require.NoError(t, err)
 				}
 			})
 		}
