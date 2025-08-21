@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/fatih/color"
 	"github.com/fornellas/slogxt/ansi"
 	"github.com/kylelemons/godebug/diff"
 )
@@ -44,7 +45,10 @@ func (c Chunks) deleted(i int, lines []string, buff *bytes.Buffer) {
 		if (i == 0 || i == len(c)-1) && line == "" {
 			continue
 		}
-		ansi.FgRed.Fprintf(buff, "-%s", line)
+		reset := color.New(color.Reset)
+		reset.Fprintf(buff, "")
+		color.New(color.FgRed).Fprintf(buff, "-%s", line)
+		reset.Fprintf(buff, "")
 		fmt.Fprintf(buff, "\n")
 	}
 }
@@ -58,7 +62,7 @@ func (c Chunks) equal(i int, lines []string, buff *bytes.Buffer) {
 	}
 }
 
-func (c Chunks) String() string {
+func (c Chunks) TerminalString() string {
 	var buff bytes.Buffer
 	for i, chunk := range c {
 		c.added(i, chunk.Added, &buff)
