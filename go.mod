@@ -20,8 +20,7 @@ tool (
 
 require (
 	al.essio.dev/pkg/shellescape v1.6.0
-	github.com/fatih/color v1.18.0
-	github.com/fornellas/slogxt v1.1.0
+	github.com/fornellas/slogxt v1.1.1
 	github.com/gliderlabs/ssh v0.3.8
 	github.com/kylelemons/godebug v1.1.0
 	github.com/spf13/cobra v1.9.1
@@ -42,6 +41,7 @@ require (
 	github.com/chavacava/garif v0.1.0 // indirect
 	github.com/client9/misspell v0.3.4 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/fatih/color v1.18.0 // indirect
 	github.com/fornellas/rrb v0.2.6 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fzipp/gocyclo v0.6.0 // indirect
