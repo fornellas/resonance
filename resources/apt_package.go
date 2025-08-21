@@ -79,6 +79,177 @@ func (a *APTPackage) Validate() error {
 	return nil
 }
 
+// compareVersions compares two Debian version strings according to dpkg algorithm
+// Returns: -1 if v1 < v2, 0 if v1 == v2, 1 if v1 > v2
+func compareVersions(v1, v2 string) int {
+	if v1 == v2 {
+		return 0
+	}
+
+	// Parse versions into epoch, upstream, and debian revision
+	epoch1, upstream1, revision1 := parseVersion(v1)
+	epoch2, upstream2, revision2 := parseVersion(v2)
+
+	// Compare epochs numerically
+	if epoch1 != epoch2 {
+		if epoch1 < epoch2 {
+			return -1
+		}
+		return 1
+	}
+
+	// Compare upstream versions
+	if cmp := compareVersionPart(upstream1, upstream2); cmp != 0 {
+		return cmp
+	}
+
+	// Compare debian revisions
+	return compareVersionPart(revision1, revision2)
+}
+
+// parseVersion splits a version string into epoch, upstream version, and debian revision
+func parseVersion(version string) (epoch int, upstream, revision string) {
+	// Default values
+	epoch = 0
+
+	// Extract epoch
+	if idx := strings.Index(version, ":"); idx != -1 {
+		if epochStr := version[:idx]; epochStr != "" {
+			if e, err := strconv.Atoi(epochStr); err == nil {
+				epoch = e
+			}
+		}
+		version = version[idx+1:]
+	}
+
+	// Extract debian revision (last hyphen)
+	if idx := strings.LastIndex(version, "-"); idx != -1 {
+		upstream = version[:idx]
+		revision = version[idx+1:]
+	} else {
+		upstream = version
+		revision = "0"
+	}
+
+	return epoch, upstream, revision
+}
+
+// compareVersionPart compares version parts using dpkg algorithm
+func compareVersionPart(v1, v2 string) int {
+	i, j := 0, 0
+
+	for i < len(v1) || j < len(v2) {
+		// Extract non-digit parts
+		nonDigit1 := ""
+		for i < len(v1) && !isDigit(v1[i]) {
+			nonDigit1 += string(v1[i])
+			i++
+		}
+
+		nonDigit2 := ""
+		for j < len(v2) && !isDigit(v2[j]) {
+			nonDigit2 += string(v2[j])
+			j++
+		}
+
+		// Compare non-digit parts lexically with special rules
+		if cmp := compareNonDigit(nonDigit1, nonDigit2); cmp != 0 {
+			return cmp
+		}
+
+		// Extract digit parts
+		digit1 := ""
+		for i < len(v1) && isDigit(v1[i]) {
+			digit1 += string(v1[i])
+			i++
+		}
+
+		digit2 := ""
+		for j < len(v2) && isDigit(v2[j]) {
+			digit2 += string(v2[j])
+			j++
+		}
+
+		// Compare digit parts numerically
+		if cmp := compareDigit(digit1, digit2); cmp != 0 {
+			return cmp
+		}
+	}
+
+	return 0
+}
+
+// isDigit checks if a character is a digit
+func isDigit(c byte) bool {
+	return c >= '0' && c <= '9'
+}
+
+// compareNonDigit compares non-digit parts with special Debian rules
+func compareNonDigit(s1, s2 string) int {
+	// Convert strings to comparable form
+	s1Comp := makeComparableNonDigit(s1)
+	s2Comp := makeComparableNonDigit(s2)
+
+	if s1Comp < s2Comp {
+		return -1
+	} else if s1Comp > s2Comp {
+		return 1
+	}
+	return 0
+}
+
+// makeComparableNonDigit converts a non-digit string to comparable form
+// Tilde (~) sorts first, then empty, then letters, then other characters
+func makeComparableNonDigit(s string) string {
+	if s == "" {
+		return "\x01" // Sort after tilde but before everything else
+	}
+
+	result := ""
+	for _, r := range s {
+		if r == '~' {
+			result += "\x00" // Tilde sorts first
+		} else if (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') {
+			result += "\x02" + string(r) // Letters sort after empty
+		} else {
+			result += "\x03" + string(r) // Other chars sort after letters
+		}
+	}
+	return result
+}
+
+// compareDigit compares digit strings numerically
+func compareDigit(d1, d2 string) int {
+	// Empty digit string is treated as 0
+	if d1 == "" && d2 == "" {
+		return 0
+	}
+	if d1 == "" {
+		d1 = "0"
+	}
+	if d2 == "" {
+		d2 = "0"
+	}
+
+	// Convert to integers for comparison
+	n1, err1 := strconv.Atoi(d1)
+	n2, err2 := strconv.Atoi(d2)
+
+	if err1 != nil {
+		n1 = 0
+	}
+	if err2 != nil {
+		n2 = 0
+	}
+
+	if n1 < n2 {
+		return -1
+	} else if n1 > n2 {
+		return 1
+	}
+	return 0
+}
+
 func (a *APTPackage) Satisfies(b *APTPackage) bool {
 	if a.Package != b.Package {
 		return false
@@ -97,7 +268,7 @@ func (a *APTPackage) Satisfies(b *APTPackage) bool {
 	}
 
 	if len(b.Version) > 0 {
-		if a.Version != b.Version {
+		if compareVersions(a.Version, b.Version) != 0 {
 			return false
 		}
 	}
