@@ -34,8 +34,6 @@ type File struct {
 	// Create a block device file with given majon / minor.
 	BlockDevice *types.FileDevice `hcl:"block_device,optional"`
 	// Create a directory with given contents
-	// FIXME: should be a pointer to array, otherwise we can't differentiate between empty dir and file declaration that's missing a type
-	// FIXME HCL complains if this is a pointer
 	Directory []File `hcl:"directory,block"`
 	// Create a character device file with given majon / minor
 	CharacterDevice *types.FileDevice `hcl:"character_device,optional"`
