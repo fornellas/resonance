@@ -2,8 +2,6 @@ module github.com/fornellas/resonance
 
 go 1.25.0
 
-replace gopkg.in/yaml.v3 v3.0.1 => github.com/fornellas/yaml v0.0.0-20230305130802-4e6a4cc61a50
-
 tool (
 	github.com/client9/misspell/cmd/misspell
 	github.com/fornellas/rrb
@@ -35,7 +33,6 @@ require (
 	golang.org/x/term v0.34.0
 	google.golang.org/grpc v1.74.2
 	google.golang.org/protobuf v1.36.7
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -89,5 +86,6 @@ require (
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	honnef.co/go/tools v0.6.1 // indirect
 )

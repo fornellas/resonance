@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -19,33 +18,33 @@ import (
 // File manages files
 type File struct {
 	// Path is the absolute path to the file
-	Path string `yaml:"path"`
+	Path string
 	// Whether to remove the file
-	Absent bool `yaml:"absent,omitempty"`
+	Absent bool
 	// Create a socket file
-	Socket bool `yaml:"socket,omitempty"`
+	Socket bool
 	// Create a symbolic link pointing to given path
-	SymbolicLink string `yaml:"symbolic_link,omitempty"`
+	SymbolicLink string
 	// Create a regular file with given contents
-	RegularFile *string `yaml:"regular_file,omitempty"`
+	RegularFile *string
 	// Create a block device file with given majon / minor.
-	BlockDevice *types.FileDevice `yaml:"block_device,omitempty"`
+	BlockDevice *types.FileDevice
 	// Create a directory with given contents
-	Directory *[]File `yaml:"directory,omitempty"`
+	Directory *[]File
 	// Create a character device file with given majon / minor
-	CharacterDevice *types.FileDevice `yaml:"character_device,omitempty"`
+	CharacterDevice *types.FileDevice
 	// Create a FIFO file
-	FIFO bool `yaml:"FIFO,omitempty"`
+	FIFO bool
 	// Mode bits 07777, see inode(7).
-	Mode *types.FileMode `yaml:"mode,omitempty"`
+	Mode *types.FileMode
 	// User ID owner of the file. Default: 0.
-	Uid *uint32 `yaml:"uid,omitempty"`
+	Uid *uint32
 	// User name owner of the file
-	User *string `yaml:"user,omitempty"`
+	User *string
 	// Group ID owner of the file. Default: 0.
-	Gid *uint32 `yaml:"gid,omitempty"`
+	Gid *uint32
 	// Group name owner of the file
-	Group *string `yaml:"group,omitempty"`
+	Group *string
 }
 
 func (f *File) validatePath() error {
@@ -528,8 +527,4 @@ func (f *File) Apply(ctx context.Context, hst types.Host) error {
 	}
 
 	return nil
-}
-
-func init() {
-	RegisterSingleResource(reflect.TypeOf((*File)(nil)).Elem())
 }

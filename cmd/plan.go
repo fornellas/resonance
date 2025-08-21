@@ -7,9 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/fornellas/slogxt/log"
-
-	planPkg "github.com/fornellas/resonance/plan"
-	resourcesPkg "github.com/fornellas/resonance/resources"
 )
 
 var PlanCmd = &cobra.Command{
@@ -42,46 +39,7 @@ var PlanCmd = &cobra.Command{
 		}()
 		ctx, _ = log.MustWithAttrs(ctx, "host", fmt.Sprintf("%s => %s", host.Type(), host.String()))
 
-		store, storeConfig, err := GetStore(host)
-		if err != nil {
-			retErr = errors.Join(retErr, fmt.Errorf("failed to get store: %w", err))
-			return
-		}
-		ctx, logger = log.MustWithAttrs(ctx, "store", fmt.Sprintf("%s %s", storeValue.String(), storeConfig))
-
-		var targetResources resourcesPkg.Resources
-		{
-			var err error
-			targetResources, err = resourcesPkg.LoadPath(ctx, path)
-			if err != nil {
-				retErr = errors.Join(retErr, fmt.Errorf("failed to load resources: %w", err))
-				return
-			}
-			_, logger := log.MustWithGroup(ctx, "📚 Target resources")
-			for _, resource := range targetResources {
-				logger.Debug(resourcesPkg.GetResourceTypeName(resource), "yaml", resourcesPkg.GetResourceYaml(resource))
-			}
-		}
-
-		var plan planPkg.Plan
-		plan, _, _, err = planPkg.CraftPlan(ctx, host, store, targetResources)
-		if err != nil {
-			retErr = errors.Join(retErr, fmt.Errorf("failed to plan: %w", err))
-			return
-		}
-
-		{
-			_, logger := log.MustWithGroup(ctx, "💡 Actions")
-			for _, action := range plan {
-				args := []any{}
-				diffStr := action.DiffString()
-				if len(diffStr) > 0 {
-					args = append(args, []any{"diff", diffStr}...)
-				}
-				logger.Info(action.String(), args...)
-			}
-		}
-		logger.Info("🎆 Planning successful")
+		panic("TODO")
 	},
 }
 

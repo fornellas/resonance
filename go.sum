@@ -25,8 +25,6 @@ github.com/fornellas/rrb v0.2.6 h1:L20hwLlH2TLM7yXTp/nmBDD07kntKqF+vEMJq4DqxhM=
 github.com/fornellas/rrb v0.2.6/go.mod h1:NOAWi/+uk4Ffe8MehuQQTxE/T4q4gf15V7/L4hmphNI=
 github.com/fornellas/slogxt v1.1.0 h1:Whjr1IemOS/Cewiw7aXEghsyzboFXoaSl86SNMFRayM=
 github.com/fornellas/slogxt v1.1.0/go.mod h1:KOyzc26P8XafN34h5KFmaCCqX/SCEfx0vklrw4UFZfI=
-github.com/fornellas/yaml v0.0.0-20230305130802-4e6a4cc61a50 h1:XHTqZJ4K15OOoSLSI3D34rUCURahsKcYWb/LYXcBFJU=
-github.com/fornellas/yaml v0.0.0-20230305130802-4e6a4cc61a50/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 github.com/frankban/quicktest v1.14.6 h1:7Xjx+VpznH+oBnejlPUj8oUpdxnVs4f8XU8WnHkI4W8=
 github.com/frankban/quicktest v1.14.6/go.mod h1:4ptaffx2x8+WTWXmUCuVU6aPUX1/Mz7zb5vbUoiM6w0=
 github.com/fsnotify/fsnotify v1.9.0 h1:2Ml+OJNzbYCTzsxtv8vKSFD9PbJjmhYF14k/jKC7S9k=
@@ -233,5 +231,7 @@ gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7/go.mod h1:dt/ZhP58zS4L8KSrWD
 gopkg.in/yaml.v2 v2.4.0 h1:D8xgwECY7CYvx+Y2n4sBz93Jn9JRvxdiyyo8CTfuKaY=
 gopkg.in/yaml.v2 v2.4.0/go.mod h1:RDklbk79AGWmwhnvt/jBztapEOGDOx6ZbXqjP6csGnQ=
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
+gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
+gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 honnef.co/go/tools v0.6.1 h1:R094WgE8K4JirYjBaOpz/AvTyUu/3wbmAoskKN/pxTI=
 honnef.co/go/tools v0.6.1/go.mod h1:3puzxxljPCe8RGJX7BIy1plGbxEOZni5mR2aXe3/uk4=

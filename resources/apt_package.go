@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"fmt"
-	"reflect"
 
 	"github.com/fornellas/resonance/concurrency"
 	"github.com/fornellas/resonance/host/lib"
@@ -25,26 +24,26 @@ type DebconfQuestion string
 // Debconf selections for a DebconfQuestion.
 // See https://wiki.debian.org/debconf
 type DebconfSelection struct {
-	Answer string `yaml:"answer"`
-	Seen   bool   `yaml:"seen,omitempty"`
+	Answer string
+	Seen   bool
 }
 
 // APTPackage manages APT packages.
 type APTPackage struct {
 	// The name of the package
 	// See https://www.debian.org/doc/debian-policy/ch-controlfields.html#package
-	Package string `yaml:"package"`
+	Package string
 	// Whether to remove the package
-	Absent bool `yaml:"absent,omitempty"`
+	Absent bool
 	// Architectures.
 	// See https://www.debian.org/doc/debian-policy/ch-controlfields.html#architecture
-	Architectures []string `yaml:"architectures,omitempty"`
+	Architectures []string
 	// Package version.
 	// See https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
-	Version string `yaml:"version,omitempty"`
+	Version string
 	// Package debconf selections.
 	// See https://wiki.debian.org/debconf
-	DebconfSelections map[DebconfQuestion]DebconfSelection `yaml:"debconf,omitempty"`
+	DebconfSelections map[DebconfQuestion]DebconfSelection
 }
 
 var validDpkgPackageRegexp = regexp.MustCompile(`^[a-z0-9][a-z0-9+\-.]{1,}$`)
@@ -80,12 +79,7 @@ func (a *APTPackage) Validate() error {
 	return nil
 }
 
-func (a *APTPackage) Satisfies(resource Resource) bool {
-	b, ok := resource.(*APTPackage)
-	if !ok {
-		panic("bug: not APTPackage")
-	}
-
+func (a *APTPackage) Satisfies(b *APTPackage) bool {
 	if a.Package != b.Package {
 		return false
 	}
@@ -125,18 +119,6 @@ func (a *APTPackage) Satisfies(resource Resource) bool {
 }
 
 type APTPackages struct{}
-
-func (a *APTPackages) getAptPackages(resources Resources) []*APTPackage {
-	aptPackages := make([]*APTPackage, len(resources))
-	for i, resurce := range resources {
-		aptPackage, ok := resurce.(*APTPackage)
-		if !ok {
-			panic("bug: Resource is not a APTPackage")
-		}
-		aptPackages[i] = aptPackage
-	}
-	return aptPackages
-}
 
 var debconfShowRegexp = regexp.MustCompile("^([ *]) (.+):(| (.+))$")
 
@@ -325,12 +307,10 @@ func (a *APTPackages) loadDebconfSelections(ctx context.Context, hst types.Host,
 	return nil
 }
 
-func (a *APTPackages) Load(ctx context.Context, hst types.Host, resources Resources) error {
-	aptPackages := a.getAptPackages(resources)
-
+func (a *APTPackages) Load(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
 	packageQueries, packageToResource := a.preparePackageQueries(aptPackages)
 
-	stdout, err := a.runDpkgQuery(ctx, hst, packageQueries, len(resources))
+	stdout, err := a.runDpkgQuery(ctx, hst, packageQueries, len(aptPackages))
 	if err != nil {
 		return err
 	}
@@ -346,13 +326,11 @@ func (a *APTPackages) Load(ctx context.Context, hst types.Host, resources Resour
 	return nil
 }
 
-func (a *APTPackages) Resolve(ctx context.Context, hst types.Host, resources Resources) error {
+func (a *APTPackages) Resolve(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
 	return nil
 }
 
-func (a *APTPackages) Apply(ctx context.Context, hst types.Host, resources Resources) error {
-	aptPackages := a.getAptPackages(resources)
-
+func (a *APTPackages) Apply(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
 	pkgArgs := []string{}
 	for _, aptPackage := range aptPackages {
 		if aptPackage.Absent {
@@ -418,11 +396,4 @@ func (a *APTPackages) Apply(ctx context.Context, hst types.Host, resources Resou
 	}
 
 	return nil
-}
-
-func init() {
-	RegisterGroupResource(
-		reflect.TypeOf((*APTPackage)(nil)).Elem(),
-		reflect.TypeOf((*APTPackages)(nil)).Elem(),
-	)
 }

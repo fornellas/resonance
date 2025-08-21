@@ -13,7 +13,6 @@ import (
 
 	"github.com/fornellas/slogxt/log"
 
-	"github.com/fornellas/resonance/diff"
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/host/types"
 )
@@ -396,11 +395,7 @@ func TestFile(t *testing.T) {
 				)
 			}
 
-			require.Truef(
-				t,
-				reflect.DeepEqual(expectedFile, file),
-				diff.DiffAsYaml(expectedFile, file).String(),
-			)
+			require.True(t, reflect.DeepEqual(expectedFile, file))
 		})
 		t.Run("absent", func(t *testing.T) {
 			prefix := t.TempDir()
@@ -434,11 +429,7 @@ func TestFile(t *testing.T) {
 					Uid:  &uid,
 					Gid:  &defaultGid,
 				}
-				require.Truef(
-					t,
-					reflect.DeepEqual(expectedFile, file),
-					diff.DiffAsYaml(expectedFile, file).String(),
-				)
+				require.True(t, reflect.DeepEqual(expectedFile, file))
 			})
 			t.Run("invalid", func(t *testing.T) {
 				badUser := "foobar"
@@ -462,11 +453,7 @@ func TestFile(t *testing.T) {
 					Uid:  &defaultUid,
 					Gid:  &gid,
 				}
-				require.Truef(
-					t,
-					reflect.DeepEqual(expectedFile, file),
-					diff.DiffAsYaml(expectedFile, file).String(),
-				)
+				require.True(t, reflect.DeepEqual(expectedFile, file))
 			})
 			t.Run("invalid", func(t *testing.T) {
 				badGroup := "foobar"
@@ -512,11 +499,7 @@ func TestFile(t *testing.T) {
 					Uid: &defaultUid,
 					Gid: &defaultGid,
 				}
-				require.Truef(
-					t,
-					reflect.DeepEqual(expectedFile, file),
-					diff.DiffAsYaml(expectedFile, file).String(),
-				)
+				require.True(t, reflect.DeepEqual(expectedFile, file))
 			})
 		})
 	})
@@ -596,11 +579,7 @@ func TestFile(t *testing.T) {
 				loadedFile := File{Path: prefix}
 				require.NoError(t, loadedFile.Load(ctx, hst))
 
-				require.Truef(
-					t,
-					reflect.DeepEqual(file, loadedFile),
-					diff.DiffAsYaml(file, loadedFile).String(),
-				)
+				require.True(t, reflect.DeepEqual(file, loadedFile))
 			} else {
 				require.ErrorIs(t, err, expectedErr)
 			}
