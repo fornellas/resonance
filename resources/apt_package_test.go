@@ -236,6 +236,55 @@ func TestAPTPackageSatisfies(t *testing.T) {
 			},
 			expected: true,
 		},
+		// Hold
+		{
+			name: "hold mismatch - current held, target not",
+			current: &APTPackage{
+				Package: "wget",
+				Hold:    true,
+			},
+			target: &APTPackage{
+				Package: "wget",
+				Hold:    false,
+			},
+			expected: false,
+		},
+		{
+			name: "hold mismatch - current not held, target held",
+			current: &APTPackage{
+				Package: "wget",
+				Hold:    false,
+			},
+			target: &APTPackage{
+				Package: "wget",
+				Hold:    true,
+			},
+			expected: false,
+		},
+		{
+			name: "hold match - both held",
+			current: &APTPackage{
+				Package: "wget",
+				Hold:    true,
+			},
+			target: &APTPackage{
+				Package: "wget",
+				Hold:    true,
+			},
+			expected: true,
+		},
+		{
+			name: "hold match - both not held",
+			current: &APTPackage{
+				Package: "wget",
+				Hold:    false,
+			},
+			target: &APTPackage{
+				Package: "wget",
+				Hold:    false,
+			},
+			expected: true,
+		},
 	}
 
 	for _, tt := range tests {

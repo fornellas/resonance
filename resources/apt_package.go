@@ -41,6 +41,8 @@ type APTPackage struct {
 	// Package version.
 	// See https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
 	Version string
+	// Whether the package should be held to prevent automatic upgrades
+	Hold bool
 	// Package debconf selections.
 	// See https://wiki.debian.org/debconf
 	DebconfSelections map[DebconfQuestion]DebconfSelection
@@ -273,6 +275,10 @@ func (a *APTPackage) Satisfies(b *APTPackage) bool {
 		}
 	}
 
+	if a.Hold != b.Hold {
+		return false
+	}
+
 	for debconfQuestion, debconfSelection := range b.DebconfSelections {
 		if bDebconfSelection, ok := a.DebconfSelections[debconfQuestion]; ok {
 			if debconfSelection.Answer != bDebconfSelection.Answer {
@@ -311,6 +317,7 @@ func (a *APTPackages) preparePackageQueries(
 		packageToResource[aptPackage.Package] = aptPackage
 		aptPackage.Absent = true
 		aptPackage.Version = ""
+		aptPackage.Hold = false
 		aptPackage.Architectures = nil
 		aptPackage.DebconfSelections = nil
 	}
@@ -374,6 +381,7 @@ func (a *APTPackages) processDpkgOutput(stdout string, packageToResource map[str
 
 	return scanner.Err()
 }
+
 func (a *APTPackages) debconfCommunicate(
 	ctx context.Context,
 	hst types.Host,
@@ -478,6 +486,42 @@ func (a *APTPackages) loadDebconfSelections(ctx context.Context, hst types.Host,
 	return nil
 }
 
+func (a *APTPackages) loadHoldStatus(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+	cmd := types.Cmd{
+		Path: "/usr/bin/dpkg",
+		Args: []string{"--get-selections"},
+	}
+	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+	if err != nil {
+		return fmt.Errorf("failed to run dpkg --get-selections: %w\n%s\nSTDOUT:\n%s\nSTDERR:\n%s", err, cmd, stdout, stderr)
+	}
+	if !waitStatus.Success() {
+		return fmt.Errorf("dpkg --get-selections failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", waitStatus.String(), stdout, stderr)
+	}
+
+	heldPackages := make(map[string]bool)
+	scanner := bufio.NewScanner(strings.NewReader(stdout))
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.Fields(line)
+		if len(parts) >= 2 && parts[1] == "hold" {
+			heldPackages[parts[0]] = true
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("failed scanning dpkg --get-selections output: %w", err)
+	}
+
+	for _, aptPackage := range aptPackages {
+		if !aptPackage.Absent {
+			aptPackage.Hold = heldPackages[aptPackage.Package]
+		}
+	}
+
+	return nil
+}
+
 func (a *APTPackages) Load(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
 	packageQueries, packageToResource := a.preparePackageQueries(aptPackages)
 
@@ -494,6 +538,10 @@ func (a *APTPackages) Load(ctx context.Context, hst types.Host, aptPackages []*A
 		return fmt.Errorf("failed loading debconf: %w", err)
 	}
 
+	if err := a.loadHoldStatus(ctx, hst, aptPackages); err != nil {
+		return fmt.Errorf("failed loading hold status: %w", err)
+	}
+
 	return nil
 }
 
@@ -501,7 +549,57 @@ func (a *APTPackages) Resolve(ctx context.Context, hst types.Host, aptPackages [
 	return nil
 }
 
+func (a *APTPackages) applyHolds(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+	var selections strings.Builder
+
+	for _, aptPackage := range aptPackages {
+		if aptPackage.Absent {
+			continue
+		}
+
+		status := "install"
+		if aptPackage.Hold {
+			status = "hold"
+		}
+
+		selections.WriteString(fmt.Sprintf("%s %s\n", aptPackage.Package, status))
+	}
+
+	if selections.Len() == 0 {
+		return nil
+	}
+
+	stdinReader := strings.NewReader(selections.String())
+	stdoutBuffer := bytes.Buffer{}
+	stderrBuffer := bytes.Buffer{}
+	cmd := types.Cmd{
+		Path:   "/usr/bin/dpkg",
+		Args:   []string{"--set-selections"},
+		Stdin:  stdinReader,
+		Stdout: &stdoutBuffer,
+		Stderr: &stderrBuffer,
+	}
+
+	waitStatus, err := hst.Run(ctx, cmd)
+	if err != nil {
+		return fmt.Errorf("failed to run dpkg --set-selections: %w", err)
+	}
+
+	stdout := stdoutBuffer.String()
+	stderr := stderrBuffer.String()
+
+	if !waitStatus.Success() {
+		return fmt.Errorf("dpkg --set-selections failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", waitStatus.String(), stdout, stderr)
+	}
+
+	return nil
+}
+
 func (a *APTPackages) Apply(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+	if err := a.applyHolds(ctx, hst, aptPackages); err != nil {
+		return fmt.Errorf("failed applying holds: %w", err)
+	}
+
 	pkgArgs := []string{}
 	for _, aptPackage := range aptPackages {
 		if aptPackage.Absent {
@@ -513,6 +611,7 @@ func (a *APTPackages) Apply(ctx context.Context, hst types.Host, aptPackages []*
 			} else {
 				pkgArg = aptPackage.Package
 			}
+			// FIXME if first apply arch X and Y, then just X, Y will be left behind.
 			if len(aptPackage.Architectures) > 0 {
 				for _, arch := range aptPackage.Architectures {
 					pkgArgs = append(pkgArgs, fmt.Sprintf("%s:%s", pkgArg, arch))
