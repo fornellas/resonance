@@ -12,38 +12,97 @@ import (
 
 	"fmt"
 
+	"github.com/hashicorp/hcl/v2"
+
 	"github.com/fornellas/resonance/concurrency"
 	"github.com/fornellas/resonance/host/lib"
 	"github.com/fornellas/resonance/host/types"
 )
 
-// A debconf question.
-// See https://wiki.debian.org/debconf
-type DebconfQuestion string
-
 // Debconf selections for a DebconfQuestion.
 // See https://wiki.debian.org/debconf
 type DebconfSelection struct {
-	Answer string
-	Seen   bool
+	Answer string `hcl:"answer,attr" cty:"answer"`
+	Seen   bool   `hcl:"seen,optional" cty:"seen"`
 }
 
 // APTPackage manages APT packages.
 type APTPackage struct {
+	// SourceLocations contains all locations in configuration files where this resource was defined
+	SourceLocations []hcl.Range `hcl:",def_range"`
 	// The name of the package
 	// See https://www.debian.org/doc/debian-policy/ch-controlfields.html#package
-	Package string
+	Package string `hcl:"package,attr"`
 	// Whether to remove the package
-	Absent bool
+	Absent bool `hcl:"absent,optional"`
 	// Architectures.
 	// See https://www.debian.org/doc/debian-policy/ch-controlfields.html#architecture
-	Architectures []string
+	Architectures []string `hcl:"architectures,optional"`
 	// Package version.
 	// See https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
-	Version string
-	// Package debconf selections.
+	Version string `hcl:"version,optional"`
+	// Package debconf question to selections.
 	// See https://wiki.debian.org/debconf
-	DebconfSelections map[DebconfQuestion]DebconfSelection
+	DebconfSelections map[string]DebconfSelection `hcl:"debconf_selections,optional"`
+}
+
+// FormatSourceLocation returns a human-readable string describing where this resource was defined
+func (a *APTPackage) FormatSourceLocation() string {
+	return FormatSourceLocations(a.SourceLocations)
+}
+
+// Merge attempts to merge another APTPackage resource into this one
+// Returns error if there are conflicting values
+func (a *APTPackage) Merge(other *APTPackage) error {
+	if a.Package != other.Package {
+		return fmt.Errorf("cannot merge APT packages with different names: %s vs %s", a.Package, other.Package)
+	}
+
+	// Collect source locations
+	a.SourceLocations = append(a.SourceLocations, other.SourceLocations...)
+
+	// Merge Absent - conflict if different
+	if a.Absent != other.Absent {
+		return fmt.Errorf("conflicting absent: %s declares %v, %s declares %v",
+			a.FormatSourceLocation(), a.Absent, other.FormatSourceLocation(), other.Absent)
+	}
+
+	// Merge Version - conflict if both set but different
+	if a.Version != "" && other.Version != "" && a.Version != other.Version {
+		return fmt.Errorf("conflicting version: %s declares %q, %s declares %q",
+			a.FormatSourceLocation(), a.Version, other.FormatSourceLocation(), other.Version)
+	}
+	if a.Version == "" && other.Version != "" {
+		a.Version = other.Version
+	}
+
+	// Merge Architectures - combine unique architectures
+	for _, arch := range other.Architectures {
+		if !slices.Contains(a.Architectures, arch) {
+			a.Architectures = append(a.Architectures, arch)
+		}
+	}
+
+	// Merge DebconfSelections - conflict if same question has different answers
+	if a.DebconfSelections == nil {
+		a.DebconfSelections = make(map[string]DebconfSelection)
+	}
+	for question, otherSelection := range other.DebconfSelections {
+		if existingSelection, exists := a.DebconfSelections[question]; exists {
+			if existingSelection.Answer != otherSelection.Answer {
+				return fmt.Errorf("conflicting debconf selection for %s: %s declares answer %q, %s declares answer %q",
+					question, a.FormatSourceLocation(), existingSelection.Answer, other.FormatSourceLocation(), otherSelection.Answer)
+			}
+			if existingSelection.Seen != otherSelection.Seen {
+				return fmt.Errorf("conflicting debconf selection for %s: %s declares seen %v, %s declares seen %v",
+					question, a.FormatSourceLocation(), existingSelection.Seen, other.FormatSourceLocation(), otherSelection.Seen)
+			}
+		} else {
+			a.DebconfSelections[question] = otherSelection
+		}
+	}
+
+	return nil
 }
 
 var validDpkgPackageRegexp = regexp.MustCompile(`^[a-z0-9][a-z0-9+\-.]{1,}$`)
@@ -118,11 +177,11 @@ func (a *APTPackage) Satisfies(b *APTPackage) bool {
 	return true
 }
 
-type APTPackages struct{}
+type APTPackages []APTPackage
 
 var debconfShowRegexp = regexp.MustCompile("^([ *]) (.+):(| (.+))$")
 
-func (a *APTPackages) preparePackageQueries(
+func (a APTPackages) preparePackageQueries(
 	aptPackages []*APTPackage,
 ) ([]string, map[string]*APTPackage) {
 	packageQueries := make([]string, 0)
@@ -147,7 +206,7 @@ func (a *APTPackages) preparePackageQueries(
 	return packageQueries, packageToResource
 }
 
-func (a *APTPackages) runDpkgQuery(ctx context.Context, hst types.Host, packageQueries []string, resourceCount int) (string, error) {
+func (a APTPackages) runDpkgQuery(ctx context.Context, hst types.Host, packageQueries []string, resourceCount int) (string, error) {
 	args := []string{
 		"--show",
 		"--showformat=Package=${Package}\nArchitecture=${Architecture}\nVersion=${Version}\nend\n",
@@ -171,7 +230,7 @@ func (a *APTPackages) runDpkgQuery(ctx context.Context, hst types.Host, packageQ
 	return stdout, nil
 }
 
-func (a *APTPackages) processDpkgOutput(stdout string, packageToResource map[string]*APTPackage) error {
+func (a APTPackages) processDpkgOutput(stdout string, packageToResource map[string]*APTPackage) error {
 	scanner := bufio.NewScanner(strings.NewReader(stdout))
 	currentPkg := ""
 	currentArch := ""
@@ -203,7 +262,7 @@ func (a *APTPackages) processDpkgOutput(stdout string, packageToResource map[str
 
 	return scanner.Err()
 }
-func (a *APTPackages) debconfCommunicate(
+func (a APTPackages) debconfCommunicate(
 	ctx context.Context,
 	hst types.Host,
 	pkg, command string,
@@ -243,7 +302,7 @@ func (a *APTPackages) debconfCommunicate(
 	return value, nil
 }
 
-func (a *APTPackages) loadDebconfSelections(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+func (a APTPackages) loadDebconfSelections(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
 	concurrencyGroup := concurrency.NewConcurrencyGroup(ctx)
 
 	for _, aptPackage := range aptPackages {
@@ -278,7 +337,7 @@ func (a *APTPackages) loadDebconfSelections(ctx context.Context, hst types.Host,
 				}
 
 				seen := matches[1] == "*"
-				question := DebconfQuestion(matches[2])
+				question := matches[2]
 				answer := matches[4]
 				if answer == "(password omitted)" {
 					command := fmt.Sprintf("get %s\n", question)
@@ -288,7 +347,7 @@ func (a *APTPackages) loadDebconfSelections(ctx context.Context, hst types.Host,
 					}
 				}
 				if aptPackage.DebconfSelections == nil {
-					aptPackage.DebconfSelections = map[DebconfQuestion]DebconfSelection{}
+					aptPackage.DebconfSelections = map[string]DebconfSelection{}
 				}
 				aptPackage.DebconfSelections[question] = DebconfSelection{
 					Answer: answer,
@@ -307,7 +366,7 @@ func (a *APTPackages) loadDebconfSelections(ctx context.Context, hst types.Host,
 	return nil
 }
 
-func (a *APTPackages) Load(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+func (a APTPackages) Load(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
 	packageQueries, packageToResource := a.preparePackageQueries(aptPackages)
 
 	stdout, err := a.runDpkgQuery(ctx, hst, packageQueries, len(aptPackages))
@@ -326,11 +385,11 @@ func (a *APTPackages) Load(ctx context.Context, hst types.Host, aptPackages []*A
 	return nil
 }
 
-func (a *APTPackages) Resolve(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+func (a APTPackages) Resolve(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
 	return nil
 }
 
-func (a *APTPackages) Apply(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+func (a APTPackages) Apply(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
 	pkgArgs := []string{}
 	for _, aptPackage := range aptPackages {
 		if aptPackage.Absent {
