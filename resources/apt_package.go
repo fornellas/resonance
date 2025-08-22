@@ -234,17 +234,17 @@ func (a *APTPackages) debconfCommunicate(
 	stdout := stdoutBuffer.String()
 	stderr := stderrBuffer.String()
 	if !waitStatus.Success() {
-		return "", fmt.Errorf("%s failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, waitStatus.String(), stdout, stderr)
+		return "", fmt.Errorf("%s failed: %s\nSTDIN:\n%s\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, waitStatus.String(), command, stdout, stderr)
 	}
 	if len(stderr) > 0 {
-		return "", fmt.Errorf("%s failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, waitStatus.String(), stdout, stderr)
+		return "", fmt.Errorf("%s failed: %s\nSTDIN:\n%s\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, waitStatus.String(), command, stdout, stderr)
 	}
 	var value string
 	if strings.HasPrefix(stdout, "0 ") {
 		value = strings.TrimSuffix(stdout[2:], "\n")
 	} else {
 		if stdout != "0" {
-			return "", fmt.Errorf("%s failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, waitStatus.String(), stdout, stderr)
+			return "", fmt.Errorf("%s failed: %s\nSTDIN:\n%s\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, waitStatus.String(), command, stdout, stderr)
 		}
 	}
 
@@ -425,10 +425,6 @@ func (a *APTPackages) applyHolds(ctx context.Context, hst types.Host, aptPackage
 }
 
 func (a *APTPackages) Apply(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
-	if err := a.applyHolds(ctx, hst, aptPackages); err != nil {
-		return fmt.Errorf("failed applying holds: %w", err)
-	}
-
 	pkgArgs := []string{}
 	for _, aptPackage := range aptPackages {
 		if aptPackage.Absent {
@@ -452,7 +448,7 @@ func (a *APTPackages) Apply(ctx context.Context, hst types.Host, aptPackages []*
 			for debconfQuestion, debconfSelection := range aptPackage.DebconfSelections {
 				commands := []string{
 					fmt.Sprintf("set %s %s", debconfQuestion, debconfSelection.Answer),
-					fmt.Sprintf("set fset %s %s", debconfQuestion, strconv.FormatBool(debconfSelection.Seen)),
+					fmt.Sprintf("fset %s seen %s", debconfQuestion, strconv.FormatBool(debconfSelection.Seen)),
 				}
 				for _, command := range commands {
 					_, err := a.debconfCommunicate(ctx, hst, aptPackage.Package, command)
@@ -492,6 +488,10 @@ func (a *APTPackages) Apply(ctx context.Context, hst types.Host, aptPackages []*
 			"failed to run '%v': %s:\nstdout:\n%s\nstderr:\n%s",
 			cmd, waitStatus.String(), stdout, stderr,
 		)
+	}
+
+	if err := a.applyHolds(ctx, hst, aptPackages); err != nil {
+		return fmt.Errorf("failed applying holds: %w", err)
 	}
 
 	return nil

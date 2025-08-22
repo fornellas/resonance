@@ -563,22 +563,239 @@ func TestAPTPackages(t *testing.T) {
 		agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
 		require.NoError(t, err)
 
-		aptPackages := &APTPackages{}
-		packages := []*APTPackage{
-			{
-				Package: "nano",
-			},
-		}
-		err = aptPackages.Apply(ctx, agentHost, packages)
-		require.NoError(t, err)
+		t.Run("basic package installation", func(t *testing.T) {
+			aptPackages := &APTPackages{}
+			packages := []*APTPackage{
+				{
+					Package: "nano",
+				},
+			}
+			err = aptPackages.Apply(ctx, agentHost, packages)
+			require.NoError(t, err)
 
-		cmd := types.Cmd{
-			Path: "/usr/bin/dpkg",
-			Args: []string{"-l", "nano"},
-		}
-		waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, agentHost, cmd)
-		require.NoError(t, err)
-		require.True(t, waitStatus.Success(), "dpkg -l nano failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", waitStatus.String(), stdout, stderr)
-		require.True(t, strings.Contains(stdout, "nano"), "nano package not found in dpkg output: %s", stdout)
+			cmd := types.Cmd{
+				Path: "/usr/bin/dpkg",
+				Args: []string{"-l", "nano"},
+			}
+			waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, agentHost, cmd)
+			require.NoError(t, err)
+			require.True(t, waitStatus.Success(), "dpkg -l nano failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", waitStatus.String(), stdout, stderr)
+			require.True(t, strings.Contains(stdout, "nano"), "nano package not found in dpkg output: %s", stdout)
+		})
+
+		t.Run("package removal", func(t *testing.T) {
+			aptPackages := &APTPackages{}
+
+			// First install nano
+			packages := []*APTPackage{
+				{
+					Package: "nano",
+				},
+			}
+			err = aptPackages.Apply(ctx, agentHost, packages)
+			require.NoError(t, err)
+
+			// Then remove it
+			packages = []*APTPackage{
+				{
+					Package: "nano",
+					Absent:  true,
+				},
+			}
+			err = aptPackages.Apply(ctx, agentHost, packages)
+			require.NoError(t, err)
+
+			// Verify it's removed
+			cmd := types.Cmd{
+				Path: "/usr/bin/dpkg",
+				Args: []string{"-l", "nano"},
+			}
+			waitStatus, stdout, _, err := lib.SimpleRun(ctx, agentHost, cmd)
+			require.NoError(t, err)
+			require.False(t, waitStatus.Success() && strings.Contains(stdout, "ii  nano"), "nano package should be removed but found in dpkg output: %s", stdout)
+		})
+
+		t.Run("package with specific architecture", func(t *testing.T) {
+			aptPackages := &APTPackages{}
+			packages := []*APTPackage{
+				{
+					Package:       "libc6",
+					Architectures: []string{"amd64"},
+				},
+			}
+			err = aptPackages.Apply(ctx, agentHost, packages)
+			require.NoError(t, err)
+
+			cmd := types.Cmd{
+				Path: "/usr/bin/dpkg",
+				Args: []string{"-l", "libc6:amd64"},
+			}
+			waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, agentHost, cmd)
+			require.NoError(t, err)
+			require.True(t, waitStatus.Success(), "dpkg -l libc6:amd64 failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", waitStatus.String(), stdout, stderr)
+			require.True(t, strings.Contains(stdout, "libc6"), "libc6 package not found in dpkg output: %s", stdout)
+		})
+
+		t.Run("package hold", func(t *testing.T) {
+			aptPackages := &APTPackages{}
+			packages := []*APTPackage{
+				{
+					Package: "curl",
+					Hold:    true,
+				},
+			}
+			err = aptPackages.Apply(ctx, agentHost, packages)
+			require.NoError(t, err)
+
+			// Check that curl is on hold
+			cmd := types.Cmd{
+				Path: "/usr/bin/dpkg",
+				Args: []string{"--get-selections", "curl"},
+			}
+			waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, agentHost, cmd)
+			require.NoError(t, err)
+			require.True(t, waitStatus.Success(), "dpkg --get-selections curl failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", waitStatus.String(), stdout, stderr)
+			require.True(t, strings.Contains(stdout, "hold"), "curl package should be on hold: %s", stdout)
+		})
+
+		t.Run("package with debconf selections", func(t *testing.T) {
+			aptPackages := &APTPackages{}
+			packages := []*APTPackage{
+				{
+					Package: "tzdata",
+					DebconfSelections: map[DebconfQuestion]DebconfSelection{
+						"tzdata/Areas":        {Answer: "Europe", Seen: true},
+						"tzdata/Zones/Europe": {Answer: "London", Seen: true},
+					},
+				},
+			}
+			err = aptPackages.Apply(ctx, agentHost, packages)
+			require.NoError(t, err)
+
+			// Verify package is installed
+			cmd := types.Cmd{
+				Path: "/usr/bin/dpkg",
+				Args: []string{"-l", "tzdata"},
+			}
+			waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, agentHost, cmd)
+			require.NoError(t, err)
+			require.True(t, waitStatus.Success(), "dpkg -l tzdata failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", waitStatus.String(), stdout, stderr)
+			require.True(t, strings.Contains(stdout, "tzdata"), "tzdata package not found in dpkg output: %s", stdout)
+
+			// Verify debconf selections (if debconf-show is available)
+			cmd = types.Cmd{
+				Path: "debconf-show",
+				Args: []string{"tzdata"},
+			}
+			waitStatus, stdout, stderr, err = lib.SimpleRun(ctx, agentHost, cmd)
+			if err == nil && waitStatus.Success() {
+				require.True(t, strings.Contains(stdout, "tzdata/Areas"), "debconf selection tzdata/Areas not found: %s", stdout)
+			}
+		})
+
+		t.Run("mixed install and remove operations", func(t *testing.T) {
+			aptPackages := &APTPackages{}
+
+			// First install both packages
+			packages := []*APTPackage{
+				{
+					Package: "wget",
+				},
+				{
+					Package: "curl",
+				},
+			}
+			err = aptPackages.Apply(ctx, agentHost, packages)
+			require.NoError(t, err)
+
+			// Then mix operations: keep wget, remove curl, install nano
+			packages = []*APTPackage{
+				{
+					Package: "wget", // keep installed
+				},
+				{
+					Package: "curl",
+					Absent:  true, // remove
+				},
+				{
+					Package: "nano", // install new
+				},
+			}
+			err = aptPackages.Apply(ctx, agentHost, packages)
+			require.NoError(t, err)
+
+			// Verify wget is still installed
+			cmd := types.Cmd{
+				Path: "/usr/bin/dpkg",
+				Args: []string{"-l", "wget"},
+			}
+			waitStatus, stdout, _, err := lib.SimpleRun(ctx, agentHost, cmd)
+			require.NoError(t, err)
+			require.True(t, waitStatus.Success() && strings.Contains(stdout, "ii  wget"), "wget should still be installed: %s", stdout)
+
+			// Verify curl is removed
+			cmd = types.Cmd{
+				Path: "/usr/bin/dpkg",
+				Args: []string{"-l", "curl"},
+			}
+			waitStatus, stdout, _, err = lib.SimpleRun(ctx, agentHost, cmd)
+			require.NoError(t, err)
+			require.False(t, waitStatus.Success() && strings.Contains(stdout, "ii  curl"), "curl should be removed: %s", stdout)
+
+			// Verify nano is installed
+			cmd = types.Cmd{
+				Path: "/usr/bin/dpkg",
+				Args: []string{"-l", "nano"},
+			}
+			waitStatus, stdout, _, err = lib.SimpleRun(ctx, agentHost, cmd)
+			require.NoError(t, err)
+			require.True(t, waitStatus.Success() && strings.Contains(stdout, "ii  nano"), "nano should be installed: %s", stdout)
+		})
+
+		t.Run("multiple packages with different attributes", func(t *testing.T) {
+			aptPackages := &APTPackages{}
+			packages := []*APTPackage{
+				{
+					Package: "wget",
+					Hold:    true,
+				},
+				{
+					Package:       "libc6",
+					Architectures: []string{"amd64"},
+				},
+				{
+					Package: "unzip",
+				},
+			}
+			err = aptPackages.Apply(ctx, agentHost, packages)
+			require.NoError(t, err)
+
+			// Verify wget is installed and on hold
+			cmd := types.Cmd{
+				Path: "/usr/bin/dpkg",
+				Args: []string{"--get-selections", "wget"},
+			}
+			waitStatus, stdout, _, err := lib.SimpleRun(ctx, agentHost, cmd)
+			require.NoError(t, err)
+			require.True(t, waitStatus.Success() && strings.Contains(stdout, "hold"), "wget should be on hold: %s", stdout)
+
+			// Verify libc6:amd64 is installed
+			cmd = types.Cmd{
+				Path: "/usr/bin/dpkg",
+				Args: []string{"-l", "libc6:amd64"},
+			}
+			waitStatus, stdout, _, err = lib.SimpleRun(ctx, agentHost, cmd)
+			require.NoError(t, err)
+			require.True(t, waitStatus.Success() && strings.Contains(stdout, "libc6"), "libc6:amd64 should be installed: %s", stdout)
+
+			// Verify unzip is installed
+			cmd = types.Cmd{
+				Path: "/usr/bin/dpkg",
+				Args: []string{"-l", "unzip"},
+			}
+			waitStatus, stdout, _, err = lib.SimpleRun(ctx, agentHost, cmd)
+			require.NoError(t, err)
+			require.True(t, waitStatus.Success() && strings.Contains(stdout, "unzip"), "unzip should be installed: %s", stdout)
+		})
 	})
 }
