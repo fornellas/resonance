@@ -566,16 +566,14 @@ func runAndRequireSuccess(t *testing.T, ctx context.Context, host types.BaseHost
 
 func TestAPTPackages(t *testing.T) {
 	t.Run("Apply()", func(t *testing.T) {
-		t.Parallel()
-
-		dockerHost, _ := host.GetTestDockerHost(t, "debian")
-
-		ctx := log.WithTestLogger(t.Context())
-
-		agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
-		require.NoError(t, err)
-
 		t.Run("basic package installation", func(t *testing.T) {
+			t.Parallel()
+
+			dockerHost, _ := host.GetTestDockerHost(t, "debian")
+			ctx := log.WithTestLogger(t.Context())
+			agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
+			require.NoError(t, err)
+
 			aptPackages := &APTPackages{}
 			packages := []*APTPackage{
 				{
@@ -594,6 +592,13 @@ func TestAPTPackages(t *testing.T) {
 		})
 
 		t.Run("package removal", func(t *testing.T) {
+			t.Parallel()
+
+			dockerHost, _ := host.GetTestDockerHost(t, "debian")
+			ctx := log.WithTestLogger(t.Context())
+			agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
+			require.NoError(t, err)
+
 			aptPackages := &APTPackages{}
 
 			// First install nano
@@ -626,6 +631,13 @@ func TestAPTPackages(t *testing.T) {
 		})
 
 		t.Run("package with specific architecture", func(t *testing.T) {
+			t.Parallel()
+
+			dockerHost, _ := host.GetTestDockerHost(t, "debian")
+			ctx := log.WithTestLogger(t.Context())
+			agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
+			require.NoError(t, err)
+
 			aptPackages := &APTPackages{}
 			packages := []*APTPackage{
 				{
@@ -645,6 +657,13 @@ func TestAPTPackages(t *testing.T) {
 		})
 
 		t.Run("package hold", func(t *testing.T) {
+			t.Parallel()
+
+			dockerHost, _ := host.GetTestDockerHost(t, "debian")
+			ctx := log.WithTestLogger(t.Context())
+			agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
+			require.NoError(t, err)
+
 			aptPackages := &APTPackages{}
 			packages := []*APTPackage{
 				{
@@ -665,6 +684,13 @@ func TestAPTPackages(t *testing.T) {
 		})
 
 		t.Run("package with debconf selections", func(t *testing.T) {
+			t.Parallel()
+
+			dockerHost, _ := host.GetTestDockerHost(t, "debian")
+			ctx := log.WithTestLogger(t.Context())
+			agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
+			require.NoError(t, err)
+
 			aptPackages := &APTPackages{}
 			packages := []*APTPackage{
 				{
@@ -698,6 +724,13 @@ func TestAPTPackages(t *testing.T) {
 		})
 
 		t.Run("mixed install and remove operations", func(t *testing.T) {
+			t.Parallel()
+
+			dockerHost, _ := host.GetTestDockerHost(t, "debian")
+			ctx := log.WithTestLogger(t.Context())
+			agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
+			require.NoError(t, err)
+
 			aptPackages := &APTPackages{}
 
 			// First install both packages
@@ -757,6 +790,13 @@ func TestAPTPackages(t *testing.T) {
 		})
 
 		t.Run("multiple packages with different attributes", func(t *testing.T) {
+			t.Parallel()
+
+			dockerHost, _ := host.GetTestDockerHost(t, "debian")
+			ctx := log.WithTestLogger(t.Context())
+			agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
+			require.NoError(t, err)
+
 			aptPackages := &APTPackages{}
 			packages := []*APTPackage{
 				{

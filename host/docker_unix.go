@@ -3,6 +3,7 @@ package host
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -233,7 +234,8 @@ func GetTestDockerHost(t *testing.T, image string) (Docker, string) {
 	}
 
 	ctx, cancel := context.WithCancel(t.Context())
-	name := sanitizeDockerContainerName(fmt.Sprintf("resonance-test-%s-%d", t.Name(), os.Getpid()))
+	id := fmt.Sprintf("%x", sha256.Sum256([]byte(t.TempDir())))
+	name := sanitizeDockerContainerName(fmt.Sprintf("resonance-test-%s-%s", t.Name(), id))
 	timeout := getTestTimeout(t)
 
 	cmd := startDockerContainer(ctx, name, image, timeout)
