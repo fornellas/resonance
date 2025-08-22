@@ -1,9 +1,15 @@
 package resources
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/fornellas/resonance/host"
+	"github.com/fornellas/resonance/host/lib"
+	"github.com/fornellas/resonance/host/types"
+	"github.com/fornellas/slogxt/log"
 )
 
 func TestAPTPackage(t *testing.T) {
@@ -545,5 +551,34 @@ func TestAPTPackage(t *testing.T) {
 				}
 			})
 		}
+	})
+}
+
+func TestAPTPackages(t *testing.T) {
+	t.Run("Apply()", func(t *testing.T) {
+		dockerHost, _ := host.GetTestDockerHost(t, "debian")
+
+		ctx := log.WithTestLogger(t.Context())
+
+		agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
+		require.NoError(t, err)
+
+		aptPackages := &APTPackages{}
+		packages := []*APTPackage{
+			{
+				Package: "nano",
+			},
+		}
+		err = aptPackages.Apply(ctx, agentHost, packages)
+		require.NoError(t, err)
+
+		cmd := types.Cmd{
+			Path: "/usr/bin/dpkg",
+			Args: []string{"-l", "nano"},
+		}
+		waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, agentHost, cmd)
+		require.NoError(t, err)
+		require.True(t, waitStatus.Success(), "dpkg -l nano failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", waitStatus.String(), stdout, stderr)
+		require.True(t, strings.Contains(stdout, "nano"), "nano package not found in dpkg output: %s", stdout)
 	})
 }
