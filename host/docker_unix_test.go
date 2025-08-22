@@ -24,13 +24,20 @@ func GetTestDockerHost(t *testing.T, image string) (Docker, string) {
 	ctx, cancel := context.WithCancel(t.Context())
 
 	name := fmt.Sprintf("resonance-test-%s-%d", t.Name(), os.Getpid())
+
+	deadline, ok := t.Deadline()
+	timeout := 5 * time.Minute
+	if !ok {
+		timeout = time.Until(deadline)
+	}
+
 	cmd := exec.CommandContext(
 		ctx,
 		"docker", "run",
 		"--name", name,
 		"--rm",
 		image,
-		"sleep", "5",
+		"sleep", fmt.Sprintf("%d", int(timeout.Seconds())),
 	)
 	stdout := bytes.Buffer{}
 	cmd.Stdout = &stdout
@@ -53,7 +60,7 @@ func GetTestDockerHost(t *testing.T, image string) (Docker, string) {
 		)
 	})
 
-	timeoutCh := time.After(2 * time.Minute)
+	timeoutCh := time.After(timeout)
 	for {
 		select {
 		case <-timeoutCh:
