@@ -80,7 +80,7 @@ func testHost(
 	hostString,
 	hostType string,
 ) {
-	testBaseHost(t, ctx, hst, hostString, hostType)
+	testBaseHost(t, hst, hostString, hostType)
 
 	t.Run("Getuid", func(t *testing.T) {
 		uid, err := hst.Geteuid(ctx)

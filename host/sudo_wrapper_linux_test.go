@@ -70,5 +70,5 @@ func TestSudo(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { require.NoError(t, baseHost.Close(ctx)) }()
 
-	testBaseHost(t, ctx, baseHost, wrappedBaseHost.String(), wrappedBaseHost.Type())
+	testBaseHost(t, baseHost, wrappedBaseHost.String(), wrappedBaseHost.Type())
 }

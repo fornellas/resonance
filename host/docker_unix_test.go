@@ -14,29 +14,22 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/fornellas/slogxt/log"
 )
 
-func TestDocker(t *testing.T) {
+func GetTestDockerHost(t *testing.T, image string) (Docker, string) {
 	if _, err := exec.LookPath("docker"); err != nil {
 		t.Skip("docker command not found on path")
 	}
 
-	ctx := context.Background()
-	ctx = log.WithTestLogger(ctx)
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(t.Context())
 
-	tempDirPrefix := t.TempDir()
-
-	name := fmt.Sprintf("resonance-%s-%d", t.Name(), os.Getpid())
+	name := fmt.Sprintf("resonance-test-%s-%d", t.Name(), os.Getpid())
 	cmd := exec.CommandContext(
 		ctx,
 		"docker", "run",
 		"--name", name,
 		"--rm",
-		"--volume", fmt.Sprintf("%s:%s", tempDirPrefix, tempDirPrefix),
-		"debian",
+		image,
 		"sleep", "5",
 	)
 	stdout := bytes.Buffer{}
@@ -44,7 +37,7 @@ func TestDocker(t *testing.T) {
 	stderr := bytes.Buffer{}
 	cmd.Stderr = &stderr
 	cmd.Start()
-	defer func() {
+	t.Cleanup(func() {
 		cancel()
 		err := cmd.Wait()
 		var exitError *exec.ExitError
@@ -58,7 +51,7 @@ func TestDocker(t *testing.T) {
 		assert.NoError(t, err, fmt.Sprintf(
 			"docker run returned error:\nstdout:\n%s\nstderr\n%s", stdout.String(), stderr.String()),
 		)
-	}()
+	})
 
 	timeoutCh := time.After(2 * time.Minute)
 	for {
@@ -94,9 +87,15 @@ func TestDocker(t *testing.T) {
 	}
 
 	connection := fmt.Sprintf("0:0@%s", name)
-	baseHost, err := NewDocker(ctx, connection)
+	dockerHost, err := NewDocker(ctx, connection)
 	require.NoError(t, err)
-	defer func() { require.NoError(t, baseHost.Close(ctx)) }()
+	t.Cleanup(func() { require.NoError(t, dockerHost.Close(ctx)) })
 
-	testBaseHost(t, ctx, baseHost, connection, "docker")
+	return dockerHost, connection
+}
+
+func TestDocker(t *testing.T) {
+	dockerHost, connection := GetTestDockerHost(t, "debian")
+
+	testBaseHost(t, dockerHost, connection, "docker")
 }

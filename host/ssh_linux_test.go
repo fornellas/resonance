@@ -96,5 +96,5 @@ func TestSsh(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { require.NoError(t, baseHost.Close(ctx)) }()
 
-	testBaseHost(t, ctx, baseHost, "localhost", "ssh")
+	testBaseHost(t, baseHost, "localhost", "ssh")
 }
