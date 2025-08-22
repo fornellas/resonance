@@ -391,7 +391,13 @@ func (a *APTPackages) applyHolds(ctx context.Context, hst types.Host, aptPackage
 			status = "hold"
 		}
 
-		selections.WriteString(fmt.Sprintf("%s %s\n", aptPackage.Package, status))
+		if len(aptPackage.Architectures) > 0 {
+			for _, arch := range aptPackage.Architectures {
+				selections.WriteString(fmt.Sprintf("%s:%s %s\n", aptPackage.Package, arch, status))
+			}
+		} else {
+			selections.WriteString(fmt.Sprintf("%s %s\n", aptPackage.Package, status))
+		}
 	}
 
 	if selections.Len() == 0 {
@@ -424,42 +430,104 @@ func (a *APTPackages) applyHolds(ctx context.Context, hst types.Host, aptPackage
 	return nil
 }
 
-func (a *APTPackages) Apply(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+func (a *APTPackages) loadCurrentArchitecturesForPackages(ctx context.Context, hst types.Host, aptPackages []*APTPackage) (map[string][]string, error) {
+	packagesNeedingArchCheck := make([]*APTPackage, 0)
+	for _, aptPackage := range aptPackages {
+		if !aptPackage.Absent && len(aptPackage.Architectures) > 0 {
+			packagesNeedingArchCheck = append(packagesNeedingArchCheck, &APTPackage{
+				Package: aptPackage.Package,
+			})
+		}
+	}
+
+	if len(packagesNeedingArchCheck) == 0 {
+		return make(map[string][]string), nil
+	}
+
+	if err := a.Load(ctx, hst, packagesNeedingArchCheck); err != nil {
+		return nil, fmt.Errorf("failed to load current state for architecture checking: %w", err)
+	}
+
+	currentArchs := make(map[string][]string)
+	for _, pkg := range packagesNeedingArchCheck {
+		if !pkg.Absent {
+			currentArchs[pkg.Package] = pkg.Architectures
+		}
+	}
+
+	return currentArchs, nil
+}
+
+func (a *APTPackages) buildPackageArguments(aptPackages []*APTPackage, currentArchs map[string][]string) []string {
 	pkgArgs := []string{}
 	for _, aptPackage := range aptPackages {
 		if aptPackage.Absent {
 			pkgArgs = append(pkgArgs, fmt.Sprintf("%s-", aptPackage.Package))
 		} else {
-			var pkgArg string
-			if len(aptPackage.Version) > 0 {
-				pkgArg = fmt.Sprintf("%s=%s", aptPackage.Package, aptPackage.Version)
-			} else {
-				pkgArg = aptPackage.Package
-			}
-			// FIXME if first apply arch X and Y, then just X, Y will be left behind.
-			if len(aptPackage.Architectures) > 0 {
-				for _, arch := range aptPackage.Architectures {
-					pkgArgs = append(pkgArgs, fmt.Sprintf("%s:%s", pkgArg, arch))
-				}
-			} else {
-				pkgArgs = append(pkgArgs, pkgArg)
-			}
+			pkgArgs = append(pkgArgs, a.buildInstallArguments(aptPackage, currentArchs)...)
+		}
+	}
+	return pkgArgs
+}
 
-			for debconfQuestion, debconfSelection := range aptPackage.DebconfSelections {
-				commands := []string{
-					fmt.Sprintf("set %s %s", debconfQuestion, debconfSelection.Answer),
-					fmt.Sprintf("fset %s seen %s", debconfQuestion, strconv.FormatBool(debconfSelection.Seen)),
-				}
-				for _, command := range commands {
-					_, err := a.debconfCommunicate(ctx, hst, aptPackage.Package, command)
-					if err != nil {
-						return err
-					}
-				}
+func (a *APTPackages) buildInstallArguments(aptPackage *APTPackage, currentArchs map[string][]string) []string {
+	var pkgArg string
+	if len(aptPackage.Version) > 0 {
+		pkgArg = fmt.Sprintf("%s=%s", aptPackage.Package, aptPackage.Version)
+	} else {
+		pkgArg = aptPackage.Package
+	}
+
+	if len(aptPackage.Architectures) > 0 {
+		return a.buildArchitectureArguments(aptPackage, pkgArg, currentArchs)
+	}
+
+	return []string{pkgArg}
+}
+
+func (a *APTPackages) buildArchitectureArguments(aptPackage *APTPackage, pkgArg string, currentArchs map[string][]string) []string {
+	args := []string{}
+
+	// Install desired architectures
+	for _, arch := range aptPackage.Architectures {
+		args = append(args, fmt.Sprintf("%s:%s", pkgArg, arch))
+	}
+
+	// Remove unwanted architectures that are currently installed
+	if currentArch, exists := currentArchs[aptPackage.Package]; exists {
+		for _, arch := range currentArch {
+			if !slices.Contains(aptPackage.Architectures, arch) {
+				args = append(args, fmt.Sprintf("%s:%s-", aptPackage.Package, arch))
 			}
 		}
 	}
 
+	return args
+}
+
+func (a *APTPackages) configureDebconfSelections(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+	for _, aptPackage := range aptPackages {
+		if aptPackage.Absent {
+			continue
+		}
+
+		for debconfQuestion, debconfSelection := range aptPackage.DebconfSelections {
+			commands := []string{
+				fmt.Sprintf("set %s %s", debconfQuestion, debconfSelection.Answer),
+				fmt.Sprintf("fset %s seen %s", debconfQuestion, strconv.FormatBool(debconfSelection.Seen)),
+			}
+			for _, command := range commands {
+				_, err := a.debconfCommunicate(ctx, hst, aptPackage.Package, command)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (a *APTPackages) runAptCommands(ctx context.Context, hst types.Host, pkgArgs []string) error {
 	cmd := types.Cmd{
 		Path: "apt-get",
 		Args: []string{"update"},
@@ -488,6 +556,25 @@ func (a *APTPackages) Apply(ctx context.Context, hst types.Host, aptPackages []*
 			"failed to run '%v': %s:\nstdout:\n%s\nstderr:\n%s",
 			cmd, waitStatus.String(), stdout, stderr,
 		)
+	}
+
+	return nil
+}
+
+func (a *APTPackages) Apply(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+	currentArchs, err := a.loadCurrentArchitecturesForPackages(ctx, hst, aptPackages)
+	if err != nil {
+		return err
+	}
+
+	pkgArgs := a.buildPackageArguments(aptPackages, currentArchs)
+
+	if err := a.configureDebconfSelections(ctx, hst, aptPackages); err != nil {
+		return err
+	}
+
+	if err := a.runAptCommands(ctx, hst, pkgArgs); err != nil {
+		return err
 	}
 
 	if err := a.applyHolds(ctx, hst, aptPackages); err != nil {

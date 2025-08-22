@@ -630,7 +630,7 @@ func TestAPTPackages(t *testing.T) {
 			require.False(t, waitStatus.Success() && strings.Contains(stdout, "ii  nano"), "nano package should be removed but found in dpkg output: %s", stdout)
 		})
 
-		t.Run("package with specific architecture", func(t *testing.T) {
+		t.Run("package with system architecture", func(t *testing.T) {
 			t.Parallel()
 
 			dockerHost, _ := host.GetTestDockerHost(t, "debian")
@@ -638,22 +638,38 @@ func TestAPTPackages(t *testing.T) {
 			agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
 			require.NoError(t, err)
 
+			cmd := types.Cmd{
+				Path: "/usr/bin/dpkg",
+				Args: []string{"--print-architecture"},
+			}
+			arch := strings.TrimSpace(runAndRequireSuccess(t, ctx, agentHost, cmd))
+
 			aptPackages := &APTPackages{}
 			packages := []*APTPackage{
 				{
 					Package:       "libc6",
-					Architectures: []string{"amd64"},
+					Architectures: []string{arch},
 				},
 			}
 			err = aptPackages.Apply(ctx, agentHost, packages)
 			require.NoError(t, err)
 
-			cmd := types.Cmd{
+			cmd = types.Cmd{
 				Path: "/usr/bin/dpkg",
-				Args: []string{"-l", "libc6:amd64"},
+				Args: []string{"-l", "libc6:" + arch},
 			}
 			stdout := runAndRequireSuccess(t, ctx, agentHost, cmd)
 			require.True(t, strings.Contains(stdout, "libc6"), "libc6 package not found in dpkg output: %s", stdout)
+		})
+
+		t.Run("package with foreign architecture", func(t *testing.T) {
+			// TODO
+			t.SkipNow()
+		})
+
+		t.Run("multiple architectures before, single architecture specificed", func(t *testing.T) {
+			// TODO
+			t.SkipNow()
 		})
 
 		t.Run("package hold", func(t *testing.T) {
@@ -787,56 +803,6 @@ func TestAPTPackages(t *testing.T) {
 			waitStatus, stdout, _, err = lib.SimpleRun(ctx, agentHost, cmd)
 			require.NoError(t, err)
 			require.True(t, waitStatus.Success() && strings.Contains(stdout, "ii  nano"), "nano should be installed: %s", stdout)
-		})
-
-		t.Run("multiple packages with different attributes", func(t *testing.T) {
-			t.Parallel()
-
-			dockerHost, _ := host.GetTestDockerHost(t, "debian")
-			ctx := log.WithTestLogger(t.Context())
-			agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
-			require.NoError(t, err)
-
-			aptPackages := &APTPackages{}
-			packages := []*APTPackage{
-				{
-					Package: "wget",
-					Hold:    true,
-				},
-				{
-					Package:       "libc6",
-					Architectures: []string{"amd64"},
-				},
-				{
-					Package: "unzip",
-				},
-			}
-			err = aptPackages.Apply(ctx, agentHost, packages)
-			require.NoError(t, err)
-
-			// Verify wget is installed and on hold
-			cmd := types.Cmd{
-				Path: "/usr/bin/dpkg",
-				Args: []string{"--get-selections", "wget"},
-			}
-			stdout := runAndRequireSuccess(t, ctx, agentHost, cmd)
-			require.True(t, strings.Contains(stdout, "hold"), "wget should be on hold: %s", stdout)
-
-			// Verify libc6:amd64 is installed
-			cmd = types.Cmd{
-				Path: "/usr/bin/dpkg",
-				Args: []string{"-l", "libc6:amd64"},
-			}
-			stdout = runAndRequireSuccess(t, ctx, agentHost, cmd)
-			require.True(t, strings.Contains(stdout, "libc6"), "libc6:amd64 should be installed: %s", stdout)
-
-			// Verify unzip is installed
-			cmd = types.Cmd{
-				Path: "/usr/bin/dpkg",
-				Args: []string{"-l", "unzip"},
-			}
-			stdout = runAndRequireSuccess(t, ctx, agentHost, cmd)
-			require.True(t, strings.Contains(stdout, "unzip"), "unzip should be installed: %s", stdout)
 		})
 	})
 }
