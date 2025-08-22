@@ -161,6 +161,11 @@ func GetTestDockerHost(t *testing.T, image string) (Docker, string) {
 	cmd.Start()
 	t.Cleanup(func() {
 		cancel()
+
+		if err := exec.Command("docker", "kill", name).Run(); err != nil {
+			t.Errorf("Failed to docker kill container: %s", err)
+		}
+
 		err := cmd.Wait()
 		var exitError *exec.ExitError
 		if errors.As(err, &exitError) {
