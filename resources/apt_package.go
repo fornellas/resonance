@@ -78,6 +78,19 @@ func (a *APTPackage) Validate() error {
 		return fmt.Errorf("invalid version: %#v", a.Version)
 	}
 
+	// Hold logic validation
+	if a.Absent && a.Hold {
+		return fmt.Errorf("hold can't be set when package is absent")
+	}
+	if !a.Absent {
+		if a.Version == "" && a.Hold {
+			return fmt.Errorf("hold can't be set when version is unset")
+		}
+		if a.Version != "" && !a.Hold {
+			return fmt.Errorf("hold must be set when version is set")
+		}
+	}
+
 	return nil
 }
 

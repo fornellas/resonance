@@ -130,15 +130,16 @@ func TestAPTPackage(t *testing.T) {
 			},
 			// Version
 			{
-				name: "current has version, target doesn't - should satisfy",
+				name: "current has version, target doesn't - should not satisfy due to hold mismatch",
 				current: &APTPackage{
 					Package: "wget",
 					Version: "1.21.4-1ubuntu4.1",
+					Hold:    true,
 				},
 				target: &APTPackage{
 					Package: "wget",
 				},
-				expected: true,
+				expected: false,
 			},
 			{
 				name: "target has version, current doesn't - should not satisfy",
@@ -148,6 +149,7 @@ func TestAPTPackage(t *testing.T) {
 				target: &APTPackage{
 					Package: "wget",
 					Version: "1.21.4-1ubuntu4.1",
+					Hold:    true,
 				},
 				expected: false,
 			},
@@ -156,10 +158,12 @@ func TestAPTPackage(t *testing.T) {
 				current: &APTPackage{
 					Package: "wget",
 					Version: "1.21.4-1ubuntu4.1",
+					Hold:    true,
 				},
 				target: &APTPackage{
 					Package: "wget",
 					Version: "1.21.4-1ubuntu4.1",
+					Hold:    true,
 				},
 				expected: true,
 			},
@@ -168,10 +172,12 @@ func TestAPTPackage(t *testing.T) {
 				current: &APTPackage{
 					Package: "wget",
 					Version: "1.21.4-1ubuntu4.1",
+					Hold:    true,
 				},
 				target: &APTPackage{
 					Package: "wget",
 					Version: "1.21.3-1ubuntu4.1",
+					Hold:    true,
 				},
 				expected: false,
 			},
@@ -236,11 +242,12 @@ func TestAPTPackage(t *testing.T) {
 			},
 			// Misc
 			{
-				name: "current has both architectures and version, target doesn't - should satisfy",
+				name: "current has both architectures and version, target doesn't - should not satisfy due to hold mismatch",
 				current: &APTPackage{
 					Package:       "wget",
 					Architectures: []string{"amd64"},
 					Version:       "1.21.4-1ubuntu4.1",
+					Hold:          true,
 				},
 				target: &APTPackage{
 					Package: "wget",
@@ -252,6 +259,7 @@ func TestAPTPackage(t *testing.T) {
 				name: "hold mismatch - current held, target not",
 				current: &APTPackage{
 					Package: "wget",
+					Version: "1.21.4-1",
 					Hold:    true,
 				},
 				target: &APTPackage{
@@ -268,6 +276,7 @@ func TestAPTPackage(t *testing.T) {
 				},
 				target: &APTPackage{
 					Package: "wget",
+					Version: "1.21.4-1",
 					Hold:    true,
 				},
 				expected: false,
@@ -276,10 +285,12 @@ func TestAPTPackage(t *testing.T) {
 				name: "hold match - both held",
 				current: &APTPackage{
 					Package: "wget",
+					Version: "1.21.4-1",
 					Hold:    true,
 				},
 				target: &APTPackage{
 					Package: "wget",
+					Version: "1.21.4-1",
 					Hold:    true,
 				},
 				expected: true,
@@ -323,6 +334,7 @@ func TestAPTPackage(t *testing.T) {
 					Package:       "wget",
 					Architectures: []string{"amd64", "i386"},
 					Version:       "1.21.4-1ubuntu4.1",
+					Hold:          true,
 				},
 				expectError: false,
 			},
@@ -338,6 +350,7 @@ func TestAPTPackage(t *testing.T) {
 				aptPackage: &APTPackage{
 					Package: "libc6",
 					Version: "2:2.31-0ubuntu9.9",
+					Hold:    true,
 				},
 				expectError: false,
 			},
@@ -346,6 +359,7 @@ func TestAPTPackage(t *testing.T) {
 				aptPackage: &APTPackage{
 					Package: "test",
 					Version: "1.0~beta1",
+					Hold:    true,
 				},
 				expectError: false,
 			},
@@ -504,6 +518,7 @@ func TestAPTPackage(t *testing.T) {
 				aptPackage: &APTPackage{
 					Package: "complex-package.name",
 					Version: "1:2.3.4~rc1+dfsg-5ubuntu2.1",
+					Hold:    true,
 				},
 				expectError: false,
 			},
@@ -512,6 +527,7 @@ func TestAPTPackage(t *testing.T) {
 				aptPackage: &APTPackage{
 					Package: "simple",
 					Version: "123",
+					Hold:    true,
 				},
 				expectError: false,
 			},
@@ -520,6 +536,7 @@ func TestAPTPackage(t *testing.T) {
 				aptPackage: &APTPackage{
 					Package: "native",
 					Version: "1.2.3",
+					Hold:    true,
 				},
 				expectError: false,
 			},
@@ -539,6 +556,68 @@ func TestAPTPackage(t *testing.T) {
 				},
 				expectError: true,
 				errorMsg:    "invalid package",
+			},
+			// Hold logic validation tests
+			{
+				name: "absent package with hold set - should fail",
+				aptPackage: &APTPackage{
+					Package: "wget",
+					Absent:  true,
+					Hold:    true,
+				},
+				expectError: true,
+				errorMsg:    "hold can't be set when package is absent",
+			},
+			{
+				name: "absent package without hold - should pass",
+				aptPackage: &APTPackage{
+					Package: "wget",
+					Absent:  true,
+					Hold:    false,
+				},
+				expectError: false,
+			},
+			{
+				name: "non-absent package with version unset and hold set - should fail",
+				aptPackage: &APTPackage{
+					Package: "wget",
+					Absent:  false,
+					Version: "",
+					Hold:    true,
+				},
+				expectError: true,
+				errorMsg:    "hold can't be set when version is unset",
+			},
+			{
+				name: "non-absent package with version unset and hold unset - should pass",
+				aptPackage: &APTPackage{
+					Package: "wget",
+					Absent:  false,
+					Version: "",
+					Hold:    false,
+				},
+				expectError: false,
+			},
+			{
+				name: "non-absent package with version set and hold unset - should fail",
+				aptPackage: &APTPackage{
+					Package: "wget",
+					Absent:  false,
+					Version: "1.21.4-1ubuntu4.1",
+					Hold:    false,
+				},
+				expectError: true,
+				errorMsg:    "hold must be set when version is set",
+			},
+			{
+				name: "non-absent package with version set and hold set - should pass",
+				aptPackage: &APTPackage{
+					Package: "wget",
+					Absent:  false,
+					Version: "1.21.4-1ubuntu4.1",
+					Hold:    true,
+				},
+				expectError: false,
 			},
 		}
 
@@ -684,6 +763,24 @@ func TestAPTPackages(t *testing.T) {
 			packages := []*APTPackage{
 				{
 					Package: "curl",
+				},
+			}
+			err = aptPackages.Apply(ctx, agentHost, packages)
+			require.NoError(t, err)
+
+			// Query the installed version
+			cmd := types.Cmd{
+				Path: "/usr/bin/dpkg-query",
+				Args: []string{"-W", "-f", "${Version}", "curl"},
+			}
+			version := runAndRequireSuccess(t, ctx, agentHost, cmd)
+			require.NotEmpty(t, version, "curl version should not be empty")
+
+			// Now apply with hold set
+			packages = []*APTPackage{
+				{
+					Package: "curl",
+					Version: strings.TrimSpace(version),
 					Hold:    true,
 				},
 			}
@@ -691,7 +788,7 @@ func TestAPTPackages(t *testing.T) {
 			require.NoError(t, err)
 
 			// Check that curl is on hold
-			cmd := types.Cmd{
+			cmd = types.Cmd{
 				Path: "/usr/bin/dpkg",
 				Args: []string{"--get-selections", "curl"},
 			}
