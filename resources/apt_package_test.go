@@ -18,38 +18,38 @@ func TestAPTPackage(t *testing.T) {
 	t.Run("Satisfies()", func(t *testing.T) {
 		tests := []struct {
 			name     string
-			current  *APTPackage
-			target   *APTPackage
+			a        *APTPackage
+			b        *APTPackage
 			expected bool
 		}{
 			// Package
 			{
 				name: "same package, no extra fields",
-				current: &APTPackage{
+				a: &APTPackage{
 					Package: "wget",
 				},
-				target: &APTPackage{
+				b: &APTPackage{
 					Package: "wget",
 				},
 				expected: true,
 			},
 			{
 				name: "different package names",
-				current: &APTPackage{
+				a: &APTPackage{
 					Package: "wget",
 				},
-				target: &APTPackage{
+				b: &APTPackage{
 					Package: "curl",
 				},
 				expected: false,
 			},
 			{
-				name: "current has architectures, target doesn't - should satisfy",
-				current: &APTPackage{
+				name: "a has architectures, b doesn't - should satisfy",
+				a: &APTPackage{
 					Package:       "wget",
 					Architectures: []string{"amd64"},
 				},
-				target: &APTPackage{
+				b: &APTPackage{
 					Package: "wget",
 				},
 				expected: true,
@@ -57,11 +57,11 @@ func TestAPTPackage(t *testing.T) {
 			// Absent
 			{
 				name: "absent mismatch",
-				current: &APTPackage{
+				a: &APTPackage{
 					Package: "wget",
 					Absent:  false,
 				},
-				target: &APTPackage{
+				b: &APTPackage{
 					Package: "wget",
 					Absent:  true,
 				},
@@ -69,11 +69,11 @@ func TestAPTPackage(t *testing.T) {
 			},
 			{
 				name: "absent match",
-				current: &APTPackage{
+				a: &APTPackage{
 					Package: "wget",
 					Absent:  true,
 				},
-				target: &APTPackage{
+				b: &APTPackage{
 					Package: "wget",
 					Absent:  true,
 				},
@@ -81,35 +81,35 @@ func TestAPTPackage(t *testing.T) {
 			},
 			// Architectures
 			{
-				name: "current has all required architectures",
-				current: &APTPackage{
+				name: "a has all required architectures",
+				a: &APTPackage{
 					Package:       "wget",
 					Architectures: []string{"amd64", "i386"},
 				},
-				target: &APTPackage{
+				b: &APTPackage{
 					Package:       "wget",
 					Architectures: []string{"amd64"},
 				},
 				expected: true,
 			},
 			{
-				name: "current has architectures, target has other arch - should not satisfy",
-				current: &APTPackage{
+				name: "a has architectures, b has other arch - should not satisfy",
+				a: &APTPackage{
 					Package:       "wget",
 					Architectures: []string{"amd64"},
 				},
-				target: &APTPackage{
+				b: &APTPackage{
 					Package:       "wget",
 					Architectures: []string{"i386"},
 				},
 				expected: false,
 			},
 			{
-				name: "target has architectures, current doesn't - should not satisfy",
-				current: &APTPackage{
+				name: "a has architectures, b doesn't - should not satisfy",
+				a: &APTPackage{
 					Package: "wget",
 				},
-				target: &APTPackage{
+				b: &APTPackage{
 					Package:       "wget",
 					Architectures: []string{"amd64"},
 				},
@@ -117,12 +117,12 @@ func TestAPTPackage(t *testing.T) {
 			},
 
 			{
-				name: "current missing required architecture",
-				current: &APTPackage{
+				name: "a missing required architecture",
+				a: &APTPackage{
 					Package:       "wget",
 					Architectures: []string{"i386"},
 				},
-				target: &APTPackage{
+				b: &APTPackage{
 					Package:       "wget",
 					Architectures: []string{"amd64"},
 				},
@@ -130,23 +130,23 @@ func TestAPTPackage(t *testing.T) {
 			},
 			// Version
 			{
-				name: "current has version, target doesn't - should not satisfy due to hold mismatch",
-				current: &APTPackage{
+				name: "a has version, b doesn't",
+				a: &APTPackage{
 					Package: "wget",
 					Version: "1.21.4-1ubuntu4.1",
 					Hold:    true,
 				},
-				target: &APTPackage{
+				b: &APTPackage{
 					Package: "wget",
 				},
-				expected: false,
+				expected: true,
 			},
 			{
-				name: "target has version, current doesn't - should not satisfy",
-				current: &APTPackage{
+				name: "a has version, b doesn't - should not satisfy",
+				a: &APTPackage{
 					Package: "wget",
 				},
-				target: &APTPackage{
+				b: &APTPackage{
 					Package: "wget",
 					Version: "1.21.4-1ubuntu4.1",
 					Hold:    true,
@@ -155,12 +155,12 @@ func TestAPTPackage(t *testing.T) {
 			},
 			{
 				name: "matching versions",
-				current: &APTPackage{
+				a: &APTPackage{
 					Package: "wget",
 					Version: "1.21.4-1ubuntu4.1",
 					Hold:    true,
 				},
-				target: &APTPackage{
+				b: &APTPackage{
 					Package: "wget",
 					Version: "1.21.4-1ubuntu4.1",
 					Hold:    true,
@@ -169,12 +169,12 @@ func TestAPTPackage(t *testing.T) {
 			},
 			{
 				name: "different versions",
-				current: &APTPackage{
+				a: &APTPackage{
 					Package: "wget",
 					Version: "1.21.4-1ubuntu4.1",
 					Hold:    true,
 				},
-				target: &APTPackage{
+				b: &APTPackage{
 					Package: "wget",
 					Version: "1.21.3-1ubuntu4.1",
 					Hold:    true,
@@ -183,11 +183,11 @@ func TestAPTPackage(t *testing.T) {
 			},
 			// DebconfSelections
 			{
-				name: "target has debconf selections, current doesn't",
-				current: &APTPackage{
+				name: "b has debconf selections, a doesn't",
+				a: &APTPackage{
 					Package: "wget",
 				},
-				target: &APTPackage{
+				b: &APTPackage{
 					Package: "wget",
 					DebconfSelections: map[DebconfQuestion]DebconfSelection{
 						"wget/question": {Answer: "yes", Seen: true},
@@ -196,27 +196,27 @@ func TestAPTPackage(t *testing.T) {
 				expected: false,
 			},
 			{
-				name: "current has debconf selections, target doesn't",
-				current: &APTPackage{
+				name: "a has debconf selections, b doesn't",
+				a: &APTPackage{
 					Package: "wget",
 					DebconfSelections: map[DebconfQuestion]DebconfSelection{
 						"wget/question": {Answer: "yes", Seen: true},
 					},
 				},
-				target: &APTPackage{
+				b: &APTPackage{
 					Package: "wget",
 				},
 				expected: true,
 			},
 			{
 				name: "matching debconf selections",
-				current: &APTPackage{
+				a: &APTPackage{
 					Package: "wget",
 					DebconfSelections: map[DebconfQuestion]DebconfSelection{
 						"wget/question": {Answer: "yes", Seen: true},
 					},
 				},
-				target: &APTPackage{
+				b: &APTPackage{
 					Package: "wget",
 					DebconfSelections: map[DebconfQuestion]DebconfSelection{
 						"wget/question": {Answer: "yes", Seen: true},
@@ -226,13 +226,13 @@ func TestAPTPackage(t *testing.T) {
 			},
 			{
 				name: "different debconf answers",
-				current: &APTPackage{
+				a: &APTPackage{
 					Package: "wget",
 					DebconfSelections: map[DebconfQuestion]DebconfSelection{
 						"wget/question": {Answer: "yes", Seen: true},
 					},
 				},
-				target: &APTPackage{
+				b: &APTPackage{
 					Package: "wget",
 					DebconfSelections: map[DebconfQuestion]DebconfSelection{
 						"wget/question": {Answer: "no", Seen: true},
@@ -242,39 +242,39 @@ func TestAPTPackage(t *testing.T) {
 			},
 			// Misc
 			{
-				name: "current has both architectures and version, target doesn't - should not satisfy due to hold mismatch",
-				current: &APTPackage{
+				name: "a has both architectures and version, b doesn't",
+				a: &APTPackage{
 					Package:       "wget",
 					Architectures: []string{"amd64"},
 					Version:       "1.21.4-1ubuntu4.1",
 					Hold:          true,
 				},
-				target: &APTPackage{
+				b: &APTPackage{
 					Package: "wget",
 				},
 				expected: true,
 			},
 			// Hold
 			{
-				name: "hold mismatch - current held, target not",
-				current: &APTPackage{
+				name: "hold mismatch - a held, b not",
+				a: &APTPackage{
 					Package: "wget",
 					Version: "1.21.4-1",
 					Hold:    true,
 				},
-				target: &APTPackage{
+				b: &APTPackage{
 					Package: "wget",
 					Hold:    false,
 				},
-				expected: false,
+				expected: true,
 			},
 			{
-				name: "hold mismatch - current not held, target held",
-				current: &APTPackage{
+				name: "hold mismatch - a not held, b held",
+				a: &APTPackage{
 					Package: "wget",
 					Hold:    false,
 				},
-				target: &APTPackage{
+				b: &APTPackage{
 					Package: "wget",
 					Version: "1.21.4-1",
 					Hold:    true,
@@ -283,12 +283,12 @@ func TestAPTPackage(t *testing.T) {
 			},
 			{
 				name: "hold match - both held",
-				current: &APTPackage{
+				a: &APTPackage{
 					Package: "wget",
 					Version: "1.21.4-1",
 					Hold:    true,
 				},
-				target: &APTPackage{
+				b: &APTPackage{
 					Package: "wget",
 					Version: "1.21.4-1",
 					Hold:    true,
@@ -297,11 +297,11 @@ func TestAPTPackage(t *testing.T) {
 			},
 			{
 				name: "hold match - both not held",
-				current: &APTPackage{
+				a: &APTPackage{
 					Package: "wget",
 					Hold:    false,
 				},
-				target: &APTPackage{
+				b: &APTPackage{
 					Package: "wget",
 					Hold:    false,
 				},
@@ -311,11 +311,11 @@ func TestAPTPackage(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				result := tt.current.Satisfies(tt.target)
+				result := tt.a.Satisfies(tt.b)
 				if result != tt.expected {
 					t.Errorf("APTPackage.Satisfies() = %v, want %v", result, tt.expected)
-					t.Errorf("Current: %+v", tt.current)
-					t.Errorf("Target: %+v", tt.target)
+					t.Errorf("a: %+v", tt.a)
+					t.Errorf("b: %+v", tt.b)
 				}
 			})
 		}

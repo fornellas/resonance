@@ -94,6 +94,10 @@ func (a *APTPackage) Validate() error {
 	return nil
 }
 
+// Satisfies returns true only when a satisfies b.
+// Eg: if a defines a package with a name and a specific version, and
+// b specifies a package with the same name, but without a version, then
+// a satisfies b (and b would not satisfy a).
 func (a *APTPackage) Satisfies(b *APTPackage) bool {
 	if a.Package != b.Package {
 		return false
@@ -115,10 +119,6 @@ func (a *APTPackage) Satisfies(b *APTPackage) bool {
 		if a.Version != b.Version {
 			return false
 		}
-	}
-
-	if a.Hold != b.Hold {
-		return false
 	}
 
 	for debconfQuestion, debconfSelection := range b.DebconfSelections {
