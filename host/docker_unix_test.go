@@ -98,5 +98,5 @@ func TestDocker(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { require.NoError(t, baseHost.Close(ctx)) }()
 
-	testBaseHost(t, ctx, tempDirPrefix, baseHost, connection, "docker")
+	testBaseHost(t, ctx, baseHost, connection, "docker")
 }

@@ -10,6 +10,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -64,6 +65,12 @@ var allModeBits = []uint32{
 	syscall.S_IXOTH, // 00001 others have execute permission
 }
 
+func tempDirWithPrefix(t *testing.T, prefix string) string {
+	dir, err := os.MkdirTemp(prefix, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
+	require.NoError(t, err)
+	return dir
+}
+
 //gocyclo:ignore
 func testHost(
 	t *testing.T,
@@ -73,7 +80,7 @@ func testHost(
 	hostString,
 	hostType string,
 ) {
-	testBaseHost(t, ctx, tempDirPrefix, hst, hostString, hostType)
+	testBaseHost(t, ctx, hst, hostString, hostType)
 
 	t.Run("Getuid", func(t *testing.T) {
 		uid, err := hst.Geteuid(ctx)

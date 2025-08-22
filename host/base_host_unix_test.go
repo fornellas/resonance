@@ -14,16 +14,9 @@ import (
 	"github.com/fornellas/resonance/host/types"
 )
 
-func tempDirWithPrefix(t *testing.T, prefix string) string {
-	dir, err := os.MkdirTemp(prefix, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
-	require.NoError(t, err)
-	return dir
-}
-
 func testBaseHost(
 	t *testing.T,
 	ctx context.Context,
-	tempDirPrefix string,
 	baseHost types.BaseHost,
 	baseHostString,
 	baseHostType string,
@@ -113,7 +106,7 @@ func testBaseHost(
 		})
 		t.Run("Dir", func(t *testing.T) {
 			t.Run("Success", func(t *testing.T) {
-				dir := tempDirWithPrefix(t, tempDirPrefix)
+				dir := "/"
 				waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, baseHost, types.Cmd{
 					Path: "pwd",
 					Dir:  dir,
