@@ -6,10 +6,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/fornellas/slogxt/log"
+
 	"github.com/fornellas/resonance/host"
 	"github.com/fornellas/resonance/host/lib"
 	"github.com/fornellas/resonance/host/types"
-	"github.com/fornellas/slogxt/log"
 )
 
 func TestAPTPackage(t *testing.T) {
@@ -556,6 +557,8 @@ func TestAPTPackage(t *testing.T) {
 
 func TestAPTPackages(t *testing.T) {
 	t.Run("Apply()", func(t *testing.T) {
+		t.Parallel()
+
 		dockerHost, _ := host.GetTestDockerHost(t, "debian")
 
 		ctx := log.WithTestLogger(t.Context())
@@ -687,7 +690,7 @@ func TestAPTPackages(t *testing.T) {
 				Path: "debconf-show",
 				Args: []string{"tzdata"},
 			}
-			waitStatus, stdout, stderr, err = lib.SimpleRun(ctx, agentHost, cmd)
+			waitStatus, stdout, _, err = lib.SimpleRun(ctx, agentHost, cmd)
 			if err == nil && waitStatus.Success() {
 				require.True(t, strings.Contains(stdout, "tzdata/Areas"), "debconf selection tzdata/Areas not found: %s", stdout)
 			}

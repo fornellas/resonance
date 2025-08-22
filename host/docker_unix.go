@@ -124,28 +124,24 @@ func (h Docker) Close(ctx context.Context) error {
 	return nil
 }
 
-// GetTestDockerHost creates a Docker BaseHost suitable for usage in tests. It returns the host and
-// the docker connection string to it. The container will be purged when the test finishes.
-func GetTestDockerHost(t *testing.T, image string) (Docker, string) {
-	if _, err := exec.LookPath("docker"); err != nil {
-		t.Skip("docker command not found on path")
-	}
-
-	ctx, cancel := context.WithCancel(t.Context())
-	sanitizedName := strings.Map(func(r rune) rune {
+func sanitizeDockerContainerName(name string) string {
+	return strings.Map(func(r rune) rune {
 		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '.' || r == '-' {
 			return r
 		}
 		return '_'
-	}, t.Name())
-	name := fmt.Sprintf("resonance-test-%s-%d", sanitizedName, os.Getpid())
+	}, name)
+}
 
+func getTestTimeout(t *testing.T) time.Duration {
 	deadline, ok := t.Deadline()
-	timeout := 5 * time.Minute
 	if !ok {
-		timeout = time.Until(deadline)
+		return 5 * time.Minute
 	}
+	return time.Until(deadline)
+}
 
+func startDockerContainer(ctx context.Context, name, image string, timeout time.Duration) *exec.Cmd {
 	cmd := exec.CommandContext(
 		ctx,
 		"docker", "run",
@@ -159,6 +155,11 @@ func GetTestDockerHost(t *testing.T, image string) (Docker, string) {
 	stderr := bytes.Buffer{}
 	cmd.Stderr = &stderr
 	cmd.Start()
+
+	return cmd
+}
+
+func setupDockerCleanup(t *testing.T, cancel context.CancelFunc, cmd *exec.Cmd, name string) {
 	t.Cleanup(func() {
 		cancel()
 
@@ -175,11 +176,41 @@ func GetTestDockerHost(t *testing.T, image string) (Docker, string) {
 				}
 			}
 		}
+		stdout := cmd.Stdout.(*bytes.Buffer)
+		stderr := cmd.Stderr.(*bytes.Buffer)
 		assert.NoError(t, err, fmt.Sprintf(
 			"docker run returned error:\nstdout:\n%s\nstderr\n%s", stdout.String(), stderr.String()),
 		)
 	})
+}
 
+func isContainerReady(ctx context.Context, t *testing.T, name string) bool {
+	cmdCheck := exec.CommandContext(ctx, "docker", "exec", name, "/bin/true")
+	stdoutBuffer := bytes.Buffer{}
+	cmdCheck.Stdout = &stdoutBuffer
+	stderrBuffer := bytes.Buffer{}
+	cmdCheck.Stderr = &stderrBuffer
+	err := cmdCheck.Run()
+
+	if err != nil {
+		var exitError *exec.ExitError
+		if ok := errors.As(err, &exitError); ok {
+			if exitError.Exited() {
+				stderrStr := stderrBuffer.String()
+				if strings.Contains(stderrStr, "No such container") || strings.Contains(stderrStr, "is not running") {
+					return false
+				}
+			}
+		}
+		require.NoErrorf(
+			t, err,
+			"failed: %s %s:\nstdout:\n%s\n\nstderr\n%s", cmdCheck.Path, cmdCheck.Args, stdoutBuffer.String(), stderrBuffer.String(),
+		)
+	}
+	return true
+}
+
+func waitForContainerReady(ctx context.Context, t *testing.T, name string, timeout time.Duration) {
 	timeoutCh := time.After(timeout)
 	for {
 		select {
@@ -187,31 +218,27 @@ func GetTestDockerHost(t *testing.T, image string) (Docker, string) {
 			t.Fatalf("timeout waiting for container")
 		case <-time.After(100 * time.Millisecond):
 		}
-		cmdCheck := exec.CommandContext(ctx, "docker", "exec", name, "/bin/true")
-		stdoutBuffer := bytes.Buffer{}
-		cmdCheck.Stdout = &stdoutBuffer
-		stderrBuffer := bytes.Buffer{}
-		cmdCheck.Stderr = &stderrBuffer
-		err := cmdCheck.Run()
-		if err != nil {
-			var exitError *exec.ExitError
-			if ok := errors.As(err, &exitError); ok {
-				if exitError.Exited() {
-					if strings.Contains(stderrBuffer.String(), "No such container") {
-						continue
-					}
-					if strings.Contains(stderrBuffer.String(), "is not running") {
-						continue
-					}
-				}
-			}
-			require.NoErrorf(
-				t, err,
-				"failed: %s %s:\nstdout:\n%s\n\nstderr\n%s", cmd.Path, cmd.Args, stdoutBuffer.String(), stderrBuffer.String(),
-			)
+
+		if isContainerReady(ctx, t, name) {
+			break
 		}
-		break
 	}
+}
+
+// GetTestDockerHost creates a Docker BaseHost suitable for usage in tests. It returns the host and
+// the docker connection string to it. The container will be purged when the test finishes.
+func GetTestDockerHost(t *testing.T, image string) (Docker, string) {
+	if _, err := exec.LookPath("docker"); err != nil {
+		t.Skip("docker command not found on path")
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	name := sanitizeDockerContainerName(fmt.Sprintf("resonance-test-%s-%d", t.Name(), os.Getpid()))
+	timeout := getTestTimeout(t)
+
+	cmd := startDockerContainer(ctx, name, image, timeout)
+	setupDockerCleanup(t, cancel, cmd, name)
+	waitForContainerReady(ctx, t, name, timeout)
 
 	connection := fmt.Sprintf("0:0@%s", name)
 	dockerHost, err := NewDocker(ctx, connection)
