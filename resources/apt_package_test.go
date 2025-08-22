@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -555,6 +556,14 @@ func TestAPTPackage(t *testing.T) {
 	})
 }
 
+// runAndRequireSuccess runs a command and requires it to succeed, providing detailed error info on failure
+func runAndRequireSuccess(t *testing.T, ctx context.Context, host types.BaseHost, cmd types.Cmd) string {
+	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, host, cmd)
+	require.NoError(t, err)
+	require.True(t, waitStatus.Success(), "Command %s %v failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", cmd.Path, cmd.Args, waitStatus.String(), stdout, stderr)
+	return stdout
+}
+
 func TestAPTPackages(t *testing.T) {
 	t.Run("Apply()", func(t *testing.T) {
 		t.Parallel()
@@ -580,9 +589,7 @@ func TestAPTPackages(t *testing.T) {
 				Path: "/usr/bin/dpkg",
 				Args: []string{"-l", "nano"},
 			}
-			waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, agentHost, cmd)
-			require.NoError(t, err)
-			require.True(t, waitStatus.Success(), "dpkg -l nano failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", waitStatus.String(), stdout, stderr)
+			stdout := runAndRequireSuccess(t, ctx, agentHost, cmd)
 			require.True(t, strings.Contains(stdout, "nano"), "nano package not found in dpkg output: %s", stdout)
 		})
 
@@ -633,9 +640,7 @@ func TestAPTPackages(t *testing.T) {
 				Path: "/usr/bin/dpkg",
 				Args: []string{"-l", "libc6:amd64"},
 			}
-			waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, agentHost, cmd)
-			require.NoError(t, err)
-			require.True(t, waitStatus.Success(), "dpkg -l libc6:amd64 failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", waitStatus.String(), stdout, stderr)
+			stdout := runAndRequireSuccess(t, ctx, agentHost, cmd)
 			require.True(t, strings.Contains(stdout, "libc6"), "libc6 package not found in dpkg output: %s", stdout)
 		})
 
@@ -655,9 +660,7 @@ func TestAPTPackages(t *testing.T) {
 				Path: "/usr/bin/dpkg",
 				Args: []string{"--get-selections", "curl"},
 			}
-			waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, agentHost, cmd)
-			require.NoError(t, err)
-			require.True(t, waitStatus.Success(), "dpkg --get-selections curl failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", waitStatus.String(), stdout, stderr)
+			stdout := runAndRequireSuccess(t, ctx, agentHost, cmd)
 			require.True(t, strings.Contains(stdout, "hold"), "curl package should be on hold: %s", stdout)
 		})
 
@@ -680,9 +683,7 @@ func TestAPTPackages(t *testing.T) {
 				Path: "/usr/bin/dpkg",
 				Args: []string{"-l", "tzdata"},
 			}
-			waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, agentHost, cmd)
-			require.NoError(t, err)
-			require.True(t, waitStatus.Success(), "dpkg -l tzdata failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", waitStatus.String(), stdout, stderr)
+			stdout := runAndRequireSuccess(t, ctx, agentHost, cmd)
 			require.True(t, strings.Contains(stdout, "tzdata"), "tzdata package not found in dpkg output: %s", stdout)
 
 			// Verify debconf selections (if debconf-show is available)
@@ -690,7 +691,7 @@ func TestAPTPackages(t *testing.T) {
 				Path: "debconf-show",
 				Args: []string{"tzdata"},
 			}
-			waitStatus, stdout, _, err = lib.SimpleRun(ctx, agentHost, cmd)
+			waitStatus, stdout, _, err := lib.SimpleRun(ctx, agentHost, cmd)
 			if err == nil && waitStatus.Success() {
 				require.True(t, strings.Contains(stdout, "tzdata/Areas"), "debconf selection tzdata/Areas not found: %s", stdout)
 			}
@@ -778,27 +779,24 @@ func TestAPTPackages(t *testing.T) {
 				Path: "/usr/bin/dpkg",
 				Args: []string{"--get-selections", "wget"},
 			}
-			waitStatus, stdout, _, err := lib.SimpleRun(ctx, agentHost, cmd)
-			require.NoError(t, err)
-			require.True(t, waitStatus.Success() && strings.Contains(stdout, "hold"), "wget should be on hold: %s", stdout)
+			stdout := runAndRequireSuccess(t, ctx, agentHost, cmd)
+			require.True(t, strings.Contains(stdout, "hold"), "wget should be on hold: %s", stdout)
 
 			// Verify libc6:amd64 is installed
 			cmd = types.Cmd{
 				Path: "/usr/bin/dpkg",
 				Args: []string{"-l", "libc6:amd64"},
 			}
-			waitStatus, stdout, _, err = lib.SimpleRun(ctx, agentHost, cmd)
-			require.NoError(t, err)
-			require.True(t, waitStatus.Success() && strings.Contains(stdout, "libc6"), "libc6:amd64 should be installed: %s", stdout)
+			stdout = runAndRequireSuccess(t, ctx, agentHost, cmd)
+			require.True(t, strings.Contains(stdout, "libc6"), "libc6:amd64 should be installed: %s", stdout)
 
 			// Verify unzip is installed
 			cmd = types.Cmd{
 				Path: "/usr/bin/dpkg",
 				Args: []string{"-l", "unzip"},
 			}
-			waitStatus, stdout, _, err = lib.SimpleRun(ctx, agentHost, cmd)
-			require.NoError(t, err)
-			require.True(t, waitStatus.Success() && strings.Contains(stdout, "unzip"), "unzip should be installed: %s", stdout)
+			stdout = runAndRequireSuccess(t, ctx, agentHost, cmd)
+			require.True(t, strings.Contains(stdout, "unzip"), "unzip should be installed: %s", stdout)
 		})
 	})
 }
