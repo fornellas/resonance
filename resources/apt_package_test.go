@@ -645,261 +645,270 @@ func runAndRequireSuccess(t *testing.T, ctx context.Context, host types.BaseHost
 
 func TestAPTPackages(t *testing.T) {
 	t.Run("Apply()", func(t *testing.T) {
-		t.Run("basic package installation", func(t *testing.T) {
-			t.Parallel()
+		for _, image := range []string{
+			"debian:bookworm",
+			"debian:trixie",
+			"ubuntu:22.04",
+			"ubuntu:24.04",
+		} {
+			t.Run(image, func(t *testing.T) {
+				t.Run("basic package installation", func(t *testing.T) {
+					t.Parallel()
 
-			dockerHost, _ := host.GetTestDockerHost(t, "debian")
-			ctx := log.WithTestLogger(t.Context())
-			agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
-			require.NoError(t, err)
+					dockerHost, _ := host.GetTestDockerHost(t, image)
+					ctx := log.WithTestLogger(t.Context())
+					agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
+					require.NoError(t, err)
 
-			aptPackages := &APTPackages{}
-			packages := []*APTPackage{
-				{
-					Package: "nano",
-				},
-			}
-			err = aptPackages.Apply(ctx, agentHost, packages)
-			require.NoError(t, err)
+					aptPackages := &APTPackages{}
+					packages := []*APTPackage{
+						{
+							Package: "nano",
+						},
+					}
+					err = aptPackages.Apply(ctx, agentHost, packages)
+					require.NoError(t, err)
 
-			cmd := types.Cmd{
-				Path: "/usr/bin/dpkg",
-				Args: []string{"-l", "nano"},
-			}
-			stdout := runAndRequireSuccess(t, ctx, agentHost, cmd)
-			require.True(t, strings.Contains(stdout, "nano"), "nano package not found in dpkg output: %s", stdout)
-		})
+					cmd := types.Cmd{
+						Path: "/usr/bin/dpkg",
+						Args: []string{"-l", "nano"},
+					}
+					stdout := runAndRequireSuccess(t, ctx, agentHost, cmd)
+					require.True(t, strings.Contains(stdout, "nano"), "nano package not found in dpkg output: %s", stdout)
+				})
 
-		t.Run("package removal", func(t *testing.T) {
-			t.Parallel()
+				t.Run("package removal", func(t *testing.T) {
+					t.Parallel()
 
-			dockerHost, _ := host.GetTestDockerHost(t, "debian")
-			ctx := log.WithTestLogger(t.Context())
-			agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
-			require.NoError(t, err)
+					dockerHost, _ := host.GetTestDockerHost(t, image)
+					ctx := log.WithTestLogger(t.Context())
+					agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
+					require.NoError(t, err)
 
-			aptPackages := &APTPackages{}
+					aptPackages := &APTPackages{}
 
-			// First install nano
-			packages := []*APTPackage{
-				{
-					Package: "nano",
-				},
-			}
-			err = aptPackages.Apply(ctx, agentHost, packages)
-			require.NoError(t, err)
+					// First install nano
+					packages := []*APTPackage{
+						{
+							Package: "nano",
+						},
+					}
+					err = aptPackages.Apply(ctx, agentHost, packages)
+					require.NoError(t, err)
 
-			// Then remove it
-			packages = []*APTPackage{
-				{
-					Package: "nano",
-					Absent:  true,
-				},
-			}
-			err = aptPackages.Apply(ctx, agentHost, packages)
-			require.NoError(t, err)
+					// Then remove it
+					packages = []*APTPackage{
+						{
+							Package: "nano",
+							Absent:  true,
+						},
+					}
+					err = aptPackages.Apply(ctx, agentHost, packages)
+					require.NoError(t, err)
 
-			// Verify it's removed
-			cmd := types.Cmd{
-				Path: "/usr/bin/dpkg",
-				Args: []string{"-l", "nano"},
-			}
-			waitStatus, stdout, _, err := lib.SimpleRun(ctx, agentHost, cmd)
-			require.NoError(t, err)
-			require.False(t, waitStatus.Success() && strings.Contains(stdout, "ii  nano"), "nano package should be removed but found in dpkg output: %s", stdout)
-		})
+					// Verify it's removed
+					cmd := types.Cmd{
+						Path: "/usr/bin/dpkg",
+						Args: []string{"-l", "nano"},
+					}
+					waitStatus, stdout, _, err := lib.SimpleRun(ctx, agentHost, cmd)
+					require.NoError(t, err)
+					require.False(t, waitStatus.Success() && strings.Contains(stdout, "ii  nano"), "nano package should be removed but found in dpkg output: %s", stdout)
+				})
 
-		t.Run("package with system architecture", func(t *testing.T) {
-			t.Parallel()
+				t.Run("package with system architecture", func(t *testing.T) {
+					t.Parallel()
 
-			dockerHost, _ := host.GetTestDockerHost(t, "debian")
-			ctx := log.WithTestLogger(t.Context())
-			agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
-			require.NoError(t, err)
+					dockerHost, _ := host.GetTestDockerHost(t, image)
+					ctx := log.WithTestLogger(t.Context())
+					agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
+					require.NoError(t, err)
 
-			cmd := types.Cmd{
-				Path: "/usr/bin/dpkg",
-				Args: []string{"--print-architecture"},
-			}
-			arch := strings.TrimSpace(runAndRequireSuccess(t, ctx, agentHost, cmd))
+					cmd := types.Cmd{
+						Path: "/usr/bin/dpkg",
+						Args: []string{"--print-architecture"},
+					}
+					arch := strings.TrimSpace(runAndRequireSuccess(t, ctx, agentHost, cmd))
 
-			aptPackages := &APTPackages{}
-			packages := []*APTPackage{
-				{
-					Package:       "libc6",
-					Architectures: []string{arch},
-				},
-			}
-			err = aptPackages.Apply(ctx, agentHost, packages)
-			require.NoError(t, err)
+					aptPackages := &APTPackages{}
+					packages := []*APTPackage{
+						{
+							Package:       "libc6",
+							Architectures: []string{arch},
+						},
+					}
+					err = aptPackages.Apply(ctx, agentHost, packages)
+					require.NoError(t, err)
 
-			cmd = types.Cmd{
-				Path: "/usr/bin/dpkg",
-				Args: []string{"-l", "libc6:" + arch},
-			}
-			stdout := runAndRequireSuccess(t, ctx, agentHost, cmd)
-			require.True(t, strings.Contains(stdout, "libc6"), "libc6 package not found in dpkg output: %s", stdout)
-		})
+					cmd = types.Cmd{
+						Path: "/usr/bin/dpkg",
+						Args: []string{"-l", "libc6:" + arch},
+					}
+					stdout := runAndRequireSuccess(t, ctx, agentHost, cmd)
+					require.True(t, strings.Contains(stdout, "libc6"), "libc6 package not found in dpkg output: %s", stdout)
+				})
 
-		t.Run("package with foreign architecture", func(t *testing.T) {
-			// TODO
-			t.SkipNow()
-		})
+				t.Run("package with foreign architecture", func(t *testing.T) {
+					// TODO
+					t.SkipNow()
+				})
 
-		t.Run("multiple architectures before, single architecture specificed", func(t *testing.T) {
-			// TODO
-			t.SkipNow()
-		})
+				t.Run("multiple architectures before, single architecture specificed", func(t *testing.T) {
+					// TODO
+					t.SkipNow()
+				})
 
-		t.Run("package hold", func(t *testing.T) {
-			t.Parallel()
+				t.Run("package hold", func(t *testing.T) {
+					t.Parallel()
 
-			dockerHost, _ := host.GetTestDockerHost(t, "debian")
-			ctx := log.WithTestLogger(t.Context())
-			agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
-			require.NoError(t, err)
+					dockerHost, _ := host.GetTestDockerHost(t, image)
+					ctx := log.WithTestLogger(t.Context())
+					agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
+					require.NoError(t, err)
 
-			aptPackages := &APTPackages{}
-			packages := []*APTPackage{
-				{
-					Package: "curl",
-				},
-			}
-			err = aptPackages.Apply(ctx, agentHost, packages)
-			require.NoError(t, err)
+					aptPackages := &APTPackages{}
+					packages := []*APTPackage{
+						{
+							Package: "curl",
+						},
+					}
+					err = aptPackages.Apply(ctx, agentHost, packages)
+					require.NoError(t, err)
 
-			// Query the installed version
-			cmd := types.Cmd{
-				Path: "/usr/bin/dpkg-query",
-				Args: []string{"-W", "-f", "${Version}", "curl"},
-			}
-			version := runAndRequireSuccess(t, ctx, agentHost, cmd)
-			require.NotEmpty(t, version, "curl version should not be empty")
+					// Query the installed version
+					cmd := types.Cmd{
+						Path: "/usr/bin/dpkg-query",
+						Args: []string{"-W", "-f", "${Version}", "curl"},
+					}
+					version := runAndRequireSuccess(t, ctx, agentHost, cmd)
+					require.NotEmpty(t, version, "curl version should not be empty")
 
-			// Now apply with hold set
-			packages = []*APTPackage{
-				{
-					Package: "curl",
-					Version: strings.TrimSpace(version),
-					Hold:    true,
-				},
-			}
-			err = aptPackages.Apply(ctx, agentHost, packages)
-			require.NoError(t, err)
+					// Now apply with hold set
+					packages = []*APTPackage{
+						{
+							Package: "curl",
+							Version: strings.TrimSpace(version),
+							Hold:    true,
+						},
+					}
+					err = aptPackages.Apply(ctx, agentHost, packages)
+					require.NoError(t, err)
 
-			// Check that curl is on hold
-			cmd = types.Cmd{
-				Path: "/usr/bin/dpkg",
-				Args: []string{"--get-selections", "curl"},
-			}
-			stdout := runAndRequireSuccess(t, ctx, agentHost, cmd)
-			require.True(t, strings.Contains(stdout, "hold"), "curl package should be on hold: %s", stdout)
-		})
+					// Check that curl is on hold
+					cmd = types.Cmd{
+						Path: "/usr/bin/dpkg",
+						Args: []string{"--get-selections", "curl"},
+					}
+					stdout := runAndRequireSuccess(t, ctx, agentHost, cmd)
+					require.True(t, strings.Contains(stdout, "hold"), "curl package should be on hold: %s", stdout)
+				})
 
-		t.Run("package with debconf selections", func(t *testing.T) {
-			t.Parallel()
+				t.Run("package with debconf selections", func(t *testing.T) {
+					t.Parallel()
 
-			dockerHost, _ := host.GetTestDockerHost(t, "debian")
-			ctx := log.WithTestLogger(t.Context())
-			agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
-			require.NoError(t, err)
+					dockerHost, _ := host.GetTestDockerHost(t, image)
+					ctx := log.WithTestLogger(t.Context())
+					agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
+					require.NoError(t, err)
 
-			aptPackages := &APTPackages{}
-			packages := []*APTPackage{
-				{
-					Package: "tzdata",
-					DebconfSelections: map[DebconfQuestion]DebconfSelection{
-						"tzdata/Areas":        {Answer: "Europe", Seen: true},
-						"tzdata/Zones/Europe": {Answer: "London", Seen: true},
-					},
-				},
-			}
-			err = aptPackages.Apply(ctx, agentHost, packages)
-			require.NoError(t, err)
+					aptPackages := &APTPackages{}
+					packages := []*APTPackage{
+						{
+							Package: "tzdata",
+							DebconfSelections: map[DebconfQuestion]DebconfSelection{
+								"tzdata/Areas":        {Answer: "Europe", Seen: true},
+								"tzdata/Zones/Europe": {Answer: "London", Seen: true},
+							},
+						},
+					}
+					err = aptPackages.Apply(ctx, agentHost, packages)
+					require.NoError(t, err)
 
-			// Verify package is installed
-			cmd := types.Cmd{
-				Path: "/usr/bin/dpkg",
-				Args: []string{"-l", "tzdata"},
-			}
-			stdout := runAndRequireSuccess(t, ctx, agentHost, cmd)
-			require.True(t, strings.Contains(stdout, "tzdata"), "tzdata package not found in dpkg output: %s", stdout)
+					// Verify package is installed
+					cmd := types.Cmd{
+						Path: "/usr/bin/dpkg",
+						Args: []string{"-l", "tzdata"},
+					}
+					stdout := runAndRequireSuccess(t, ctx, agentHost, cmd)
+					require.True(t, strings.Contains(stdout, "tzdata"), "tzdata package not found in dpkg output: %s", stdout)
 
-			// Verify debconf selections (if debconf-show is available)
-			cmd = types.Cmd{
-				Path: "debconf-show",
-				Args: []string{"tzdata"},
-			}
-			waitStatus, stdout, _, err := lib.SimpleRun(ctx, agentHost, cmd)
-			if err == nil && waitStatus.Success() {
-				require.True(t, strings.Contains(stdout, "tzdata/Areas"), "debconf selection tzdata/Areas not found: %s", stdout)
-			}
-		})
+					// Verify debconf selections (if debconf-show is available)
+					cmd = types.Cmd{
+						Path: "debconf-show",
+						Args: []string{"tzdata"},
+					}
+					waitStatus, stdout, _, err := lib.SimpleRun(ctx, agentHost, cmd)
+					if err == nil && waitStatus.Success() {
+						require.True(t, strings.Contains(stdout, "tzdata/Areas"), "debconf selection tzdata/Areas not found: %s", stdout)
+					}
+				})
 
-		t.Run("mixed install and remove operations", func(t *testing.T) {
-			t.Parallel()
+				t.Run("mixed install and remove operations", func(t *testing.T) {
+					t.Parallel()
 
-			dockerHost, _ := host.GetTestDockerHost(t, "debian")
-			ctx := log.WithTestLogger(t.Context())
-			agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
-			require.NoError(t, err)
+					dockerHost, _ := host.GetTestDockerHost(t, image)
+					ctx := log.WithTestLogger(t.Context())
+					agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
+					require.NoError(t, err)
 
-			aptPackages := &APTPackages{}
+					aptPackages := &APTPackages{}
 
-			// First install both packages
-			packages := []*APTPackage{
-				{
-					Package: "wget",
-				},
-				{
-					Package: "curl",
-				},
-			}
-			err = aptPackages.Apply(ctx, agentHost, packages)
-			require.NoError(t, err)
+					// First install both packages
+					packages := []*APTPackage{
+						{
+							Package: "wget",
+						},
+						{
+							Package: "curl",
+						},
+					}
+					err = aptPackages.Apply(ctx, agentHost, packages)
+					require.NoError(t, err)
 
-			// Then mix operations: keep wget, remove curl, install nano
-			packages = []*APTPackage{
-				{
-					Package: "wget", // keep installed
-				},
-				{
-					Package: "curl",
-					Absent:  true, // remove
-				},
-				{
-					Package: "nano", // install new
-				},
-			}
-			err = aptPackages.Apply(ctx, agentHost, packages)
-			require.NoError(t, err)
+					// Then mix operations: keep wget, remove curl, install nano
+					packages = []*APTPackage{
+						{
+							Package: "wget", // keep installed
+						},
+						{
+							Package: "curl",
+							Absent:  true, // remove
+						},
+						{
+							Package: "nano", // install new
+						},
+					}
+					err = aptPackages.Apply(ctx, agentHost, packages)
+					require.NoError(t, err)
 
-			// Verify wget is still installed
-			cmd := types.Cmd{
-				Path: "/usr/bin/dpkg",
-				Args: []string{"-l", "wget"},
-			}
-			waitStatus, stdout, _, err := lib.SimpleRun(ctx, agentHost, cmd)
-			require.NoError(t, err)
-			require.True(t, waitStatus.Success() && strings.Contains(stdout, "ii  wget"), "wget should still be installed: %s", stdout)
+					// Verify wget is still installed
+					cmd := types.Cmd{
+						Path: "/usr/bin/dpkg",
+						Args: []string{"-l", "wget"},
+					}
+					waitStatus, stdout, _, err := lib.SimpleRun(ctx, agentHost, cmd)
+					require.NoError(t, err)
+					require.True(t, waitStatus.Success() && strings.Contains(stdout, "ii  wget"), "wget should still be installed: %s", stdout)
 
-			// Verify curl is removed
-			cmd = types.Cmd{
-				Path: "/usr/bin/dpkg",
-				Args: []string{"-l", "curl"},
-			}
-			waitStatus, stdout, _, err = lib.SimpleRun(ctx, agentHost, cmd)
-			require.NoError(t, err)
-			require.False(t, waitStatus.Success() && strings.Contains(stdout, "ii  curl"), "curl should be removed: %s", stdout)
+					// Verify curl is removed
+					cmd = types.Cmd{
+						Path: "/usr/bin/dpkg",
+						Args: []string{"-l", "curl"},
+					}
+					waitStatus, stdout, _, err = lib.SimpleRun(ctx, agentHost, cmd)
+					require.NoError(t, err)
+					require.False(t, waitStatus.Success() && strings.Contains(stdout, "ii  curl"), "curl should be removed: %s", stdout)
 
-			// Verify nano is installed
-			cmd = types.Cmd{
-				Path: "/usr/bin/dpkg",
-				Args: []string{"-l", "nano"},
-			}
-			waitStatus, stdout, _, err = lib.SimpleRun(ctx, agentHost, cmd)
-			require.NoError(t, err)
-			require.True(t, waitStatus.Success() && strings.Contains(stdout, "ii  nano"), "nano should be installed: %s", stdout)
-		})
+					// Verify nano is installed
+					cmd = types.Cmd{
+						Path: "/usr/bin/dpkg",
+						Args: []string{"-l", "nano"},
+					}
+					waitStatus, stdout, _, err = lib.SimpleRun(ctx, agentHost, cmd)
+					require.NoError(t, err)
+					require.True(t, waitStatus.Success() && strings.Contains(stdout, "ii  nano"), "nano should be installed: %s", stdout)
+				})
+			})
+		}
 	})
 }
