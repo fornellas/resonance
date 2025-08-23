@@ -1,7 +1,6 @@
 package host
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"sort"
@@ -14,23 +13,15 @@ import (
 	"github.com/fornellas/resonance/host/types"
 )
 
-func tempDirWithPrefix(t *testing.T, prefix string) string {
-	dir, err := os.MkdirTemp(prefix, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
-	require.NoError(t, err)
-	return dir
-}
-
 func testBaseHost(
 	t *testing.T,
-	ctx context.Context,
-	tempDirPrefix string,
 	baseHost types.BaseHost,
 	baseHostString,
 	baseHostType string,
 ) {
 	t.Run("Run", func(t *testing.T) {
 		t.Run("Bad path", func(t *testing.T) {
-			waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, baseHost, types.Cmd{
+			waitStatus, stdout, stderr, err := lib.Run(t.Context(), baseHost, types.Cmd{
 				Path: "/bad-path",
 			})
 			t.Cleanup(func() {
@@ -45,7 +36,7 @@ func testBaseHost(
 			require.Equal(t, "", waitStatus.Signal)
 		})
 		t.Run("Args, output and failure", func(t *testing.T) {
-			waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, baseHost, types.Cmd{
+			waitStatus, stdout, stderr, err := lib.Run(t.Context(), baseHost, types.Cmd{
 				Path: "ls",
 				Args: []string{"-d", "../tmp", "/non-existent"},
 			})
@@ -64,7 +55,7 @@ func testBaseHost(
 		})
 		t.Run("Env", func(t *testing.T) {
 			t.Run("Empty", func(t *testing.T) {
-				waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, baseHost, types.Cmd{
+				waitStatus, stdout, stderr, err := lib.Run(t.Context(), baseHost, types.Cmd{
 					Path: "env",
 				})
 				t.Cleanup(func() {
@@ -93,7 +84,7 @@ func testBaseHost(
 			})
 			t.Run("Set", func(t *testing.T) {
 				env := "FOO=bar"
-				waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, baseHost, types.Cmd{
+				waitStatus, stdout, stderr, err := lib.Run(t.Context(), baseHost, types.Cmd{
 					Path: "env",
 					Env:  []string{env},
 				})
@@ -113,8 +104,8 @@ func testBaseHost(
 		})
 		t.Run("Dir", func(t *testing.T) {
 			t.Run("Success", func(t *testing.T) {
-				dir := tempDirWithPrefix(t, tempDirPrefix)
-				waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, baseHost, types.Cmd{
+				dir := "/"
+				waitStatus, stdout, stderr, err := lib.Run(t.Context(), baseHost, types.Cmd{
 					Path: "pwd",
 					Dir:  dir,
 				})
@@ -132,7 +123,7 @@ func testBaseHost(
 				require.Equal(t, "", stderr)
 			})
 			t.Run("path must be absolute", func(t *testing.T) {
-				_, _, _, err := lib.SimpleRun(ctx, baseHost, types.Cmd{
+				_, _, _, err := lib.Run(t.Context(), baseHost, types.Cmd{
 					Path: "pwd",
 					Dir:  "foo/bar",
 				})
@@ -141,7 +132,7 @@ func testBaseHost(
 		})
 		t.Run("Stdin", func(t *testing.T) {
 			stdin := "hello"
-			waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, baseHost, types.Cmd{
+			waitStatus, stdout, stderr, err := lib.Run(t.Context(), baseHost, types.Cmd{
 				Path: "sh",
 				// we need this extra "read foo" here, to have the command only exit on stdin EOF
 				Args:  []string{"-c", "read v && echo =$v= && read foo || true"},
@@ -172,6 +163,6 @@ func testBaseHost(
 
 	t.Run("Close()", func(t *testing.T) {
 		t.SkipNow()
-		require.NoError(t, baseHost.Close(ctx))
+		require.NoError(t, baseHost.Close(t.Context()))
 	})
 }

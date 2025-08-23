@@ -7,7 +7,6 @@ import (
 	"errors"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 
 	"fmt"
@@ -15,7 +14,12 @@ import (
 	"github.com/fornellas/resonance/concurrency"
 	"github.com/fornellas/resonance/host/lib"
 	"github.com/fornellas/resonance/host/types"
+
+	_ "embed"
 )
+
+//go:embed debconf_editor.sh
+var debconfEditor string
 
 // A debconf question.
 // See https://wiki.debian.org/debconf
@@ -23,10 +27,7 @@ type DebconfQuestion string
 
 // Debconf selections for a DebconfQuestion.
 // See https://wiki.debian.org/debconf
-type DebconfSelection struct {
-	Answer string
-	Seen   bool
-}
+type DebconfAnswer string
 
 // APTPackage manages APT packages.
 type APTPackage struct {
@@ -41,44 +42,21 @@ type APTPackage struct {
 	// Package version.
 	// See https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
 	Version string
+	// Whether the package should be held to prevent automatic upgrades
+	Hold bool
 	// Package debconf selections.
 	// See https://wiki.debian.org/debconf
-	DebconfSelections map[DebconfQuestion]DebconfSelection
+	DebconfSelections map[DebconfQuestion]DebconfAnswer
 }
 
 var validDpkgPackageRegexp = regexp.MustCompile(`^[a-z0-9][a-z0-9+\-.]{1,}$`)
 
-var validDpkgArchitectureRegexp = regexp.MustCompile(`^[a-z0-9][a-z0-9-]+$`)
-
 var validDpkgVersionRegexp = regexp.MustCompile(`^(?:([0-9]+):)?(([0-9][A-Za-z0-9.+~]*)|([0-9][A-Za-z0-9.+~-]*-[A-Za-z0-9+.~]+))$`)
 
-func (a *APTPackage) Validate() error {
-	// Package
-	if !validDpkgPackageRegexp.MatchString(string(a.Package)) {
-		return fmt.Errorf("invalid package: %#v", a.Package)
-	}
-
-	// Architectures
-	for _, architecture := range a.Architectures {
-		if !validDpkgArchitectureRegexp.MatchString(architecture) {
-			return fmt.Errorf("invalid package: %#v", architecture)
-		}
-	}
-
-	// Version
-	if strings.HasSuffix(a.Version, "+") {
-		return fmt.Errorf("`version` can't end in +: %s", a.Version)
-	}
-	if strings.HasSuffix(a.Version, "-") {
-		return fmt.Errorf("`version` can't end in -: %s", a.Version)
-	}
-	if a.Version != "" && !validDpkgVersionRegexp.MatchString(a.Version) {
-		return fmt.Errorf("invalid version: %#v", a.Version)
-	}
-
-	return nil
-}
-
+// Satisfies returns true only when a satisfies b.
+// Eg: if a defines a package with a name and a specific version, and
+// b specifies a package with the same name, but without a version, then
+// a satisfies b (and b would not satisfy a).
 func (a *APTPackage) Satisfies(b *APTPackage) bool {
 	if a.Package != b.Package {
 		return false
@@ -102,12 +80,9 @@ func (a *APTPackage) Satisfies(b *APTPackage) bool {
 		}
 	}
 
-	for debconfQuestion, debconfSelection := range b.DebconfSelections {
-		if bDebconfSelection, ok := a.DebconfSelections[debconfQuestion]; ok {
-			if debconfSelection.Answer != bDebconfSelection.Answer {
-				return false
-			}
-			if debconfSelection.Seen != bDebconfSelection.Seen {
+	for debconfQuestion, debconfAnswer := range b.DebconfSelections {
+		if bDebconfAnswer, ok := a.DebconfSelections[debconfQuestion]; ok {
+			if debconfAnswer != bDebconfAnswer {
 				return false
 			}
 		} else {
@@ -116,6 +91,78 @@ func (a *APTPackage) Satisfies(b *APTPackage) bool {
 	}
 
 	return true
+}
+
+func (a *APTPackage) validatePackage() error {
+	if !validDpkgPackageRegexp.MatchString(string(a.Package)) {
+		return fmt.Errorf("invalid package: %#v", a.Package)
+	}
+	return nil
+}
+
+func (a *APTPackage) validateArchitectures() error {
+	for _, architecture := range a.Architectures {
+		if !validDpkgArchitectureRegexp.MatchString(architecture) {
+			return fmt.Errorf("invalid architecture: %#v", architecture)
+		}
+	}
+	return nil
+}
+
+func (a *APTPackage) validateVersion() error {
+	if strings.HasSuffix(a.Version, "+") {
+		return fmt.Errorf("`version` can't end in +: %s", a.Version)
+	}
+	if strings.HasSuffix(a.Version, "-") {
+		return fmt.Errorf("`version` can't end in -: %s", a.Version)
+	}
+	if a.Version != "" && !validDpkgVersionRegexp.MatchString(a.Version) {
+		return fmt.Errorf("invalid version: %#v", a.Version)
+	}
+	return nil
+}
+
+func (a *APTPackage) validateDebconfSelections() error {
+	for q := range a.DebconfSelections {
+		if !strings.HasPrefix(string(q), a.Package+"/") {
+			return fmt.Errorf("debconf question %q must start with %q", q, a.Package+"/")
+		}
+	}
+	return nil
+}
+
+func (a *APTPackage) validateHoldLogic() error {
+	if a.Absent && a.Hold {
+		return fmt.Errorf("hold can't be set when package is absent")
+	}
+	if !a.Absent {
+		if a.Version == "" && a.Hold {
+			return fmt.Errorf("hold can't be set when version is unset")
+		}
+		if a.Version != "" && !a.Hold {
+			return fmt.Errorf("hold must be set when version is set")
+		}
+	}
+	return nil
+}
+
+func (a *APTPackage) Validate() error {
+	if err := a.validatePackage(); err != nil {
+		return err
+	}
+	if err := a.validateArchitectures(); err != nil {
+		return err
+	}
+	if err := a.validateVersion(); err != nil {
+		return err
+	}
+	if err := a.validateDebconfSelections(); err != nil {
+		return err
+	}
+	if err := a.validateHoldLogic(); err != nil {
+		return err
+	}
+	return nil
 }
 
 type APTPackages struct{}
@@ -140,6 +187,7 @@ func (a *APTPackages) preparePackageQueries(
 		packageToResource[aptPackage.Package] = aptPackage
 		aptPackage.Absent = true
 		aptPackage.Version = ""
+		aptPackage.Hold = false
 		aptPackage.Architectures = nil
 		aptPackage.DebconfSelections = nil
 	}
@@ -147,7 +195,7 @@ func (a *APTPackages) preparePackageQueries(
 	return packageQueries, packageToResource
 }
 
-func (a *APTPackages) runDpkgQuery(ctx context.Context, hst types.Host, packageQueries []string, resourceCount int) (string, error) {
+func (a *APTPackages) runDpkgQuery(ctx context.Context, host types.Host, packageQueries []string, resourceCount int) (string, error) {
 	args := []string{
 		"--show",
 		"--showformat=Package=${Package}\nArchitecture=${Architecture}\nVersion=${Version}\nend\n",
@@ -159,7 +207,7 @@ func (a *APTPackages) runDpkgQuery(ctx context.Context, hst types.Host, packageQ
 		Args: args,
 	}
 
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+	waitStatus, stdout, stderr, err := lib.Run(ctx, host, cmd)
 	if err != nil {
 		return "", fmt.Errorf("failed to run dpkg-query: %w\n%s\nSTDOUT:\n%s\nSTDERR:\n%s", err, cmd, stdout, stderr)
 	}
@@ -203,9 +251,10 @@ func (a *APTPackages) processDpkgOutput(stdout string, packageToResource map[str
 
 	return scanner.Err()
 }
+
 func (a *APTPackages) debconfCommunicate(
 	ctx context.Context,
-	hst types.Host,
+	host types.Host,
 	pkg, command string,
 ) (string, error) {
 	stdinReader := strings.NewReader(command)
@@ -219,31 +268,75 @@ func (a *APTPackages) debconfCommunicate(
 		Stdout: &stdoutBuffer,
 		Stderr: &stderrBuffer,
 	}
-	waitStatus, err := hst.Run(ctx, cmd)
+	waitStatus, err := host.Run(ctx, cmd)
 	if err != nil {
 		return "", fmt.Errorf("%s failed: %w", cmd, err)
 	}
 	stdout := stdoutBuffer.String()
 	stderr := stderrBuffer.String()
 	if !waitStatus.Success() {
-		return "", fmt.Errorf("%s failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, waitStatus.String(), stdout, stderr)
+		return "", fmt.Errorf("%s failed: %s\nSTDIN:\n%s\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, waitStatus.String(), command, stdout, stderr)
 	}
 	if len(stderr) > 0 {
-		return "", fmt.Errorf("%s failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, waitStatus.String(), stdout, stderr)
+		return "", fmt.Errorf("%s failed: %s\nSTDIN:\n%s\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, waitStatus.String(), command, stdout, stderr)
 	}
 	var value string
 	if strings.HasPrefix(stdout, "0 ") {
 		value = strings.TrimSuffix(stdout[2:], "\n")
 	} else {
 		if stdout != "0" {
-			return "", fmt.Errorf("%s failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, waitStatus.String(), stdout, stderr)
+			return "", fmt.Errorf("%s failed: %s\nSTDIN:\n%s\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, waitStatus.String(), command, stdout, stderr)
 		}
 	}
 
 	return value, nil
 }
 
-func (a *APTPackages) loadDebconfSelections(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+func (a *APTPackages) loadPackageDebconfSelections(ctx context.Context, host types.Host, name string) (map[DebconfQuestion]DebconfAnswer, error) {
+	cmd := types.Cmd{
+		Path: "debconf-show",
+		Args: []string{name},
+		Env:  []string{"LANG=C"},
+	}
+	waitStatus, stdout, stderr, err := lib.Run(ctx, host, cmd)
+	if err != nil {
+		return nil, err
+	}
+	if !waitStatus.Success() {
+		return nil, fmt.Errorf("%s failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, waitStatus.String(), stdout, stderr)
+	}
+
+	if len(stderr) > 0 {
+		return nil, fmt.Errorf("%s failed:\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, stdout, stderr)
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(stdout))
+	debconfSelections := map[DebconfQuestion]DebconfAnswer{}
+	for scanner.Scan() {
+		line := scanner.Text()
+		matches := debconfShowRegexp.FindStringSubmatch(line)
+		if matches == nil {
+			return nil, fmt.Errorf("%s failed: can not parse debconf-show output line: %s", cmd, line)
+		}
+
+		question := DebconfQuestion(matches[2])
+		answer := matches[4]
+		if answer == "(password omitted)" {
+			command := fmt.Sprintf("get %s\n", question)
+			answer, err = a.debconfCommunicate(ctx, host, name, command)
+			if err != nil {
+				return nil, err
+			}
+		}
+		debconfSelections[question] = DebconfAnswer(answer)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("%s failed: can not scan stderr: %w\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, err, stdout, stderr)
+	}
+	return debconfSelections, nil
+}
+
+func (a *APTPackages) loadAPTPackagesDebconfSelections(ctx context.Context, host types.Host, aptPackages []*APTPackage) error {
 	concurrencyGroup := concurrency.NewConcurrencyGroup(ctx)
 
 	for _, aptPackage := range aptPackages {
@@ -252,51 +345,15 @@ func (a *APTPackages) loadDebconfSelections(ctx context.Context, hst types.Host,
 		}
 
 		concurrencyGroup.Run(func() error {
-			cmd := types.Cmd{
-				Path: "debconf-show",
-				Args: []string{aptPackage.Package},
-				Env:  []string{"LANG=C"},
-			}
-			waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+			debconfSelections, err := a.loadPackageDebconfSelections(ctx, host, aptPackage.Package)
 			if err != nil {
 				return err
 			}
-			if !waitStatus.Success() {
-				return fmt.Errorf("%s failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, waitStatus.String(), stdout, stderr)
-			}
-
-			if len(stderr) > 0 {
-				return fmt.Errorf("%s failed:\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, stdout, stderr)
-			}
-
-			scanner := bufio.NewScanner(strings.NewReader(stdout))
-			for scanner.Scan() {
-				line := scanner.Text()
-				matches := debconfShowRegexp.FindStringSubmatch(line)
-				if matches == nil {
-					return fmt.Errorf("%s failed: can not parse debconf-show output line: %s", cmd, line)
-				}
-
-				seen := matches[1] == "*"
-				question := DebconfQuestion(matches[2])
-				answer := matches[4]
-				if answer == "(password omitted)" {
-					command := fmt.Sprintf("get %s\n", question)
-					answer, err = a.debconfCommunicate(ctx, hst, aptPackage.Package, command)
-					if err != nil {
-						return err
-					}
-				}
+			for question, answer := range debconfSelections {
 				if aptPackage.DebconfSelections == nil {
-					aptPackage.DebconfSelections = map[DebconfQuestion]DebconfSelection{}
+					aptPackage.DebconfSelections = map[DebconfQuestion]DebconfAnswer{}
 				}
-				aptPackage.DebconfSelections[question] = DebconfSelection{
-					Answer: answer,
-					Seen:   seen,
-				}
-			}
-			if err := scanner.Err(); err != nil {
-				return fmt.Errorf("%s failed: can not scan stderr: %w\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, err, stdout, stderr)
+				aptPackage.DebconfSelections[question] = answer
 			}
 			return nil
 		})
@@ -307,10 +364,46 @@ func (a *APTPackages) loadDebconfSelections(ctx context.Context, hst types.Host,
 	return nil
 }
 
-func (a *APTPackages) Load(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+func (a *APTPackages) loadHoldStatus(ctx context.Context, host types.Host, aptPackages []*APTPackage) error {
+	cmd := types.Cmd{
+		Path: "/usr/bin/dpkg",
+		Args: []string{"--get-selections"},
+	}
+	waitStatus, stdout, stderr, err := lib.Run(ctx, host, cmd)
+	if err != nil {
+		return fmt.Errorf("failed to run dpkg --get-selections: %w\n%s\nSTDOUT:\n%s\nSTDERR:\n%s", err, cmd, stdout, stderr)
+	}
+	if !waitStatus.Success() {
+		return fmt.Errorf("dpkg --get-selections failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", waitStatus.String(), stdout, stderr)
+	}
+
+	heldPackages := make(map[string]bool)
+	scanner := bufio.NewScanner(strings.NewReader(stdout))
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.Fields(line)
+		if len(parts) >= 2 && parts[1] == "hold" {
+			heldPackages[parts[0]] = true
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("failed scanning dpkg --get-selections output: %w", err)
+	}
+
+	for _, aptPackage := range aptPackages {
+		if !aptPackage.Absent {
+			aptPackage.Hold = heldPackages[aptPackage.Package]
+		}
+	}
+
+	return nil
+}
+
+func (a *APTPackages) Load(ctx context.Context, host types.Host, aptPackages []*APTPackage) error {
 	packageQueries, packageToResource := a.preparePackageQueries(aptPackages)
 
-	stdout, err := a.runDpkgQuery(ctx, hst, packageQueries, len(aptPackages))
+	stdout, err := a.runDpkgQuery(ctx, host, packageQueries, len(aptPackages))
 	if err != nil {
 		return err
 	}
@@ -319,80 +412,284 @@ func (a *APTPackages) Load(ctx context.Context, hst types.Host, aptPackages []*A
 		return fmt.Errorf("failed scanning dpkg-query output: %w", err)
 	}
 
-	if err := a.loadDebconfSelections(ctx, hst, aptPackages); err != nil {
+	if err := a.loadAPTPackagesDebconfSelections(ctx, host, aptPackages); err != nil {
 		return fmt.Errorf("failed loading debconf: %w", err)
+	}
+
+	if err := a.loadHoldStatus(ctx, host, aptPackages); err != nil {
+		return fmt.Errorf("failed loading hold status: %w", err)
+	}
+
+	for _, aptPackage := range aptPackages {
+		if !aptPackage.Hold {
+			aptPackage.Version = ""
+		}
 	}
 
 	return nil
 }
 
-func (a *APTPackages) Resolve(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
-	return nil
+func (a *APTPackages) setupDebianFrontendEditor(ctx context.Context, host types.Host) (path string, err error) {
+	path, err = lib.CreateTemp(ctx, host, "debconf_editor")
+	if err != nil {
+		return "", err
+	}
+	if writeErr := host.WriteFile(ctx, path, strings.NewReader(debconfEditor), types.FileMode(0755)); writeErr != nil {
+		err = errors.Join(err, writeErr)
+		err = errors.Join(err, host.Remove(ctx, path))
+		return "", err
+	}
+
+	return path, nil
 }
 
-func (a *APTPackages) Apply(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+func (a *APTPackages) getDebconfEnv(aptPackages []*APTPackage, editorPath string) []string {
+	var questionAnswersBuff strings.Builder
+	for _, aptPackage := range aptPackages {
+		for question, answer := range aptPackage.DebconfSelections {
+			fmt.Fprintf(&questionAnswersBuff, "%s\n%s\n", question, answer)
+		}
+	}
+	return []string{
+		"EDITOR=" + editorPath,
+		"QUESTION_ANSWERS=" + questionAnswersBuff.String(),
+		"DEBIAN_FRONTEND=editor",
+		"DEBIAN_PRIORITY=low",
+	}
+}
+
+func (a *APTPackages) loadCurrentArchitecturesForPackages(ctx context.Context, host types.Host, aptPackages []*APTPackage) (map[string][]string, error) {
+	packagesNeedingArchCheck := make([]*APTPackage, 0)
+	for _, aptPackage := range aptPackages {
+		if !aptPackage.Absent && len(aptPackage.Architectures) > 0 {
+			packagesNeedingArchCheck = append(packagesNeedingArchCheck, &APTPackage{
+				Package: aptPackage.Package,
+			})
+		}
+	}
+
+	if len(packagesNeedingArchCheck) == 0 {
+		return make(map[string][]string), nil
+	}
+
+	if err := a.Load(ctx, host, packagesNeedingArchCheck); err != nil {
+		return nil, fmt.Errorf("failed to load current state for architecture checking: %w", err)
+	}
+
+	currentArchs := make(map[string][]string)
+	for _, pkg := range packagesNeedingArchCheck {
+		if !pkg.Absent {
+			currentArchs[pkg.Package] = pkg.Architectures
+		}
+	}
+
+	return currentArchs, nil
+}
+
+func (a *APTPackages) buildPackageArguments(ctx context.Context, host types.Host, aptPackages []*APTPackage) ([]string, error) {
+	currentArchs, err := a.loadCurrentArchitecturesForPackages(ctx, host, aptPackages)
+	if err != nil {
+		return nil, err
+	}
+
 	pkgArgs := []string{}
 	for _, aptPackage := range aptPackages {
 		if aptPackage.Absent {
 			pkgArgs = append(pkgArgs, fmt.Sprintf("%s-", aptPackage.Package))
 		} else {
-			var pkgArg string
-			if len(aptPackage.Version) > 0 {
-				pkgArg = fmt.Sprintf("%s=%s", aptPackage.Package, aptPackage.Version)
-			} else {
-				pkgArg = aptPackage.Package
-			}
-			if len(aptPackage.Architectures) > 0 {
-				for _, arch := range aptPackage.Architectures {
-					pkgArgs = append(pkgArgs, fmt.Sprintf("%s:%s", pkgArg, arch))
-				}
-			} else {
-				pkgArgs = append(pkgArgs, pkgArg)
-			}
+			pkgArgs = append(pkgArgs, a.buildInstallArguments(aptPackage, currentArchs)...)
+		}
+	}
+	return pkgArgs, nil
+}
 
-			for debconfQuestion, debconfSelection := range aptPackage.DebconfSelections {
-				commands := []string{
-					fmt.Sprintf("set %s %s", debconfQuestion, debconfSelection.Answer),
-					fmt.Sprintf("set fset %s %s", debconfQuestion, strconv.FormatBool(debconfSelection.Seen)),
-				}
-				for _, command := range commands {
-					_, err := a.debconfCommunicate(ctx, hst, aptPackage.Package, command)
-					if err != nil {
-						return err
-					}
+func (a *APTPackages) buildInstallArguments(aptPackage *APTPackage, currentArchs map[string][]string) []string {
+	var pkgArg string
+	if len(aptPackage.Version) > 0 {
+		pkgArg = fmt.Sprintf("%s=%s", aptPackage.Package, aptPackage.Version)
+	} else {
+		pkgArg = aptPackage.Package
+	}
+
+	if len(aptPackage.Architectures) > 0 {
+		return a.buildArchitectureArguments(aptPackage, pkgArg, currentArchs)
+	}
+
+	return []string{pkgArg}
+}
+
+func (a *APTPackages) buildArchitectureArguments(aptPackage *APTPackage, pkgArg string, currentArchs map[string][]string) []string {
+	args := []string{}
+
+	// Install desired architectures
+	for _, arch := range aptPackage.Architectures {
+		args = append(args, fmt.Sprintf("%s:%s", pkgArg, arch))
+	}
+
+	// Remove unwanted architectures that are currently installed
+	if currentArch, exists := currentArchs[aptPackage.Package]; exists {
+		for _, arch := range currentArch {
+			if !slices.Contains(aptPackage.Architectures, arch) {
+				args = append(args, fmt.Sprintf("%s:%s-", aptPackage.Package, arch))
+			}
+		}
+	}
+
+	return args
+}
+
+func (a *APTPackages) aptInstall(ctx context.Context, host types.Host, env []string, aptPackages []*APTPackage) error {
+	cmd := types.Cmd{
+		Path: "apt",
+		Args: []string{"update"},
+	}
+	waitStatus, stdout, stderr, err := lib.Run(ctx, host, cmd)
+	if err != nil {
+		return fmt.Errorf("failed to run '%s': %s", cmd, err)
+	}
+	if !waitStatus.Success() {
+		return fmt.Errorf(
+			"failed to run '%v': %s:\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
+		)
+	}
+
+	pkgArgs, err := a.buildPackageArguments(ctx, host, aptPackages)
+	if err != nil {
+		return err
+	}
+	cmd = types.Cmd{
+		Path: "apt",
+		Args: append([]string{"--yes", "install"}, pkgArgs...),
+		Env:  env,
+	}
+	waitStatus, stdout, stderr, err = lib.Run(ctx, host, cmd)
+	if err != nil {
+		return fmt.Errorf("failed to run '%s': %s", cmd, err)
+	}
+	if !waitStatus.Success() {
+		return fmt.Errorf(
+			"failed to run '%v': %s:\nstdout:\n%s\nstderr:\n%s",
+			cmd, waitStatus.String(), stdout, stderr,
+		)
+	}
+
+	return nil
+}
+
+func (a *APTPackages) applyHolds(ctx context.Context, host types.Host, aptPackages []*APTPackage) error {
+	var selections strings.Builder
+
+	for _, aptPackage := range aptPackages {
+		if aptPackage.Absent {
+			continue
+		}
+
+		status := "install"
+		if aptPackage.Hold {
+			status = "hold"
+		}
+
+		if len(aptPackage.Architectures) > 0 {
+			for _, arch := range aptPackage.Architectures {
+				selections.WriteString(fmt.Sprintf("%s:%s %s\n", aptPackage.Package, arch, status))
+			}
+		} else {
+			selections.WriteString(fmt.Sprintf("%s %s\n", aptPackage.Package, status))
+		}
+	}
+
+	if selections.Len() == 0 {
+		return nil
+	}
+
+	stdinReader := strings.NewReader(selections.String())
+	stdoutBuffer := bytes.Buffer{}
+	stderrBuffer := bytes.Buffer{}
+	cmd := types.Cmd{
+		Path:   "/usr/bin/dpkg",
+		Args:   []string{"--set-selections"},
+		Stdin:  stdinReader,
+		Stdout: &stdoutBuffer,
+		Stderr: &stderrBuffer,
+	}
+
+	waitStatus, err := host.Run(ctx, cmd)
+	if err != nil {
+		return fmt.Errorf("failed to run dpkg --set-selections: %w", err)
+	}
+
+	stdout := stdoutBuffer.String()
+	stderr := stderrBuffer.String()
+
+	if !waitStatus.Success() {
+		return fmt.Errorf("dpkg --set-selections failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", waitStatus.String(), stdout, stderr)
+	}
+
+	return nil
+}
+
+func (a *APTPackages) postFixDebconf(ctx context.Context, host types.Host, aptPackages []*APTPackage, env []string) error {
+	var reconfigurePackages []string
+	for _, aptPackage := range aptPackages {
+		if aptPackage.Absent {
+			continue
+		}
+
+		debconfSelections, err := a.loadPackageDebconfSelections(ctx, host, aptPackage.Package)
+		if err != nil {
+			return err
+		}
+		for question, currentAnswer := range debconfSelections {
+			if expectedAnswer, ok := aptPackage.DebconfSelections[question]; ok {
+				if currentAnswer != expectedAnswer {
+					reconfigurePackages = append(reconfigurePackages, aptPackage.Package)
+					break
 				}
 			}
 		}
 	}
 
-	cmd := types.Cmd{
-		Path: "apt-get",
-		Args: []string{"update"},
-	}
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
-	if err != nil {
-		return fmt.Errorf("failed to run '%s': %s", cmd, err)
-	}
-	if !waitStatus.Success() {
-		return fmt.Errorf(
-			"failed to run '%v': %s:\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus.String(), stdout, stderr,
-		)
+	if len(reconfigurePackages) > 0 {
+		cmd := types.Cmd{
+			Path: "dpkg-reconfigure",
+			Args: reconfigurePackages,
+			Env:  env,
+		}
+		waitStatus, stdout, stderr, err := lib.Run(ctx, host, cmd)
+		if err != nil {
+			return fmt.Errorf("failed to run '%s': %s", cmd, err)
+		}
+		if !waitStatus.Success() {
+			return fmt.Errorf(
+				"failed to run '%v': %s:\nstdout:\n%s\nstderr:\n%s",
+				cmd, waitStatus.String(), stdout, stderr,
+			)
+		}
 	}
 
-	cmd = types.Cmd{
-		Path: "apt-get",
-		Args: append([]string{"--yes", "install"}, pkgArgs...),
-	}
-	waitStatus, stdout, stderr, err = lib.SimpleRun(ctx, hst, cmd)
+	return nil
+}
+
+func (a *APTPackages) Apply(ctx context.Context, host types.Host, aptPackages []*APTPackage) (err error) {
+	debconfEditorPath, err := a.setupDebianFrontendEditor(ctx, host)
 	if err != nil {
-		return fmt.Errorf("failed to run '%s': %s", cmd, err)
+		return err
 	}
-	if !waitStatus.Success() {
-		return fmt.Errorf(
-			"failed to run '%v': %s:\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus.String(), stdout, stderr,
-		)
+	defer func() { err = errors.Join(err, host.Remove(ctx, debconfEditorPath)) }()
+
+	debconfEnv := a.getDebconfEnv(aptPackages, debconfEditorPath)
+
+	if err := a.aptInstall(ctx, host, debconfEnv, aptPackages); err != nil {
+		return err
+	}
+
+	if err := a.postFixDebconf(ctx, host, aptPackages, debconfEnv); err != nil {
+		return err
+	}
+
+	if err := a.applyHolds(ctx, host, aptPackages); err != nil {
+		return fmt.Errorf("failed applying holds: %w", err)
 	}
 
 	return nil

@@ -64,7 +64,7 @@ func AddStoreFlags(cmd *cobra.Command) {
 	addStoreFlagsArch(cmd)
 }
 
-func GetStore(hst types.Host) (storePkg.Store, string, error) {
+func GetStore(host types.Host) (storePkg.Store, string, error) {
 	store, config, err := getStoreArch(storeValue.String())
 	if err != nil {
 		return nil, "", err
@@ -76,7 +76,7 @@ func GetStore(hst types.Host) (storePkg.Store, string, error) {
 	switch storeValue.String() {
 	case "remote":
 		return storePkg.NewLoggingWrapper(
-			storePkg.NewHostStore(hst, storeHostPath),
+			storePkg.NewHostStore(host, storeHostPath),
 		), storeHostPath, nil
 	default:
 		panic("bug: unexpected store value")

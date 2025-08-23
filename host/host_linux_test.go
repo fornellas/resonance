@@ -10,6 +10,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -64,25 +65,31 @@ var allModeBits = []uint32{
 	syscall.S_IXOTH, // 00001 others have execute permission
 }
 
+func tempDirWithPrefix(t *testing.T, prefix string) string {
+	dir, err := os.MkdirTemp(prefix, strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
+	require.NoError(t, err)
+	return dir
+}
+
 //gocyclo:ignore
 func testHost(
 	t *testing.T,
 	ctx context.Context,
 	tempDirPrefix string,
-	hst types.Host,
+	host types.Host,
 	hostString,
 	hostType string,
 ) {
-	testBaseHost(t, ctx, tempDirPrefix, hst, hostString, hostType)
+	testBaseHost(t, host, hostString, hostType)
 
 	t.Run("Getuid", func(t *testing.T) {
-		uid, err := hst.Geteuid(ctx)
+		uid, err := host.Geteuid(ctx)
 		require.NoError(t, err)
 		require.Equal(t, uint64(syscall.Getuid()), uid)
 	})
 
 	t.Run("Getgid", func(t *testing.T) {
-		gid, err := hst.Getegid(ctx)
+		gid, err := host.Getegid(ctx)
 		require.NoError(t, err)
 		require.Equal(t, uint64(syscall.Getgid()), gid)
 	})
@@ -95,27 +102,27 @@ func testHost(
 		file.Close()
 		t.Run("Success", func(t *testing.T) {
 			var fileMode types.FileMode = 01257
-			err = hst.Chmod(ctx, name, fileMode)
+			err = host.Chmod(ctx, name, fileMode)
 			require.NoError(t, err)
 			var stat_t syscall.Stat_t
 			require.NoError(t, syscall.Lstat(name, &stat_t))
 			require.Equal(t, fileMode, types.FileMode(stat_t.Mode&uint32(types.FileModeBitsMask)))
 		})
 		t.Run("path must be absolute", func(t *testing.T) {
-			err = hst.Chmod(ctx, "foo/bar", 0644)
+			err = host.Chmod(ctx, "foo/bar", 0644)
 			require.ErrorContains(t, err, "path must be absolute")
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
 		})
 		t.Run("syscall.EPERM", func(t *testing.T) {
 			skipIfRoot(t)
-			err = hst.Chmod(ctx, "/tmp", 0)
+			err = host.Chmod(ctx, "/tmp", 0)
 			require.ErrorIs(t, err, syscall.EPERM)
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
 		})
 		t.Run("syscall.ENOENT", func(t *testing.T) {
-			err = hst.Chmod(ctx, "/non-existent", 0)
+			err = host.Chmod(ctx, "/non-existent", 0)
 			require.ErrorIs(t, err, syscall.ENOENT)
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
@@ -138,7 +145,7 @@ func testHost(
 
 				var uid uint32 = 2341
 				var gid uint32 = 2341
-				require.NoError(t, hst.Lchown(ctx, symlinkPatht, uid, gid))
+				require.NoError(t, host.Lchown(ctx, symlinkPatht, uid, gid))
 
 				fileInfo, err := os.Lstat(regularFilePath)
 				require.NoError(t, err)
@@ -152,25 +159,25 @@ func testHost(
 				require.Equal(t, uid, newSymlinkStat_t.Uid)
 				require.Equal(t, gid, newSymlinkStat_t.Gid)
 			} else {
-				err = hst.Lchown(ctx, regularFilePath, regularFileStat_t.Uid, regularFileStat_t.Gid)
+				err = host.Lchown(ctx, regularFilePath, regularFileStat_t.Uid, regularFileStat_t.Gid)
 				require.NoError(t, err)
 			}
 		})
 		t.Run("path must be absolute", func(t *testing.T) {
-			err = hst.Lchown(ctx, "foo/bar", 0, 0)
+			err = host.Lchown(ctx, "foo/bar", 0, 0)
 			require.ErrorContains(t, err, "path must be absolute")
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
 		})
 		t.Run("syscall.EPERM", func(t *testing.T) {
 			skipIfRoot(t)
-			err = hst.Lchown(ctx, regularFilePath, 0, 0)
+			err = host.Lchown(ctx, regularFilePath, 0, 0)
 			require.ErrorIs(t, err, syscall.EPERM)
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
 		})
 		t.Run("syscall.ENOENT", func(t *testing.T) {
-			err = hst.Lchown(ctx, "/non-existent", 0, 0)
+			err = host.Lchown(ctx, "/non-existent", 0, 0)
 			require.ErrorIs(t, err, syscall.ENOENT)
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
@@ -179,27 +186,27 @@ func testHost(
 
 	t.Run("Lookup", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
-			u, err := hst.Lookup(ctx, "root")
+			u, err := host.Lookup(ctx, "root")
 			require.NoError(t, err)
 			require.Equal(t, "0", u.Uid)
 			require.Equal(t, "0", u.Gid)
 			require.Equal(t, "root", u.Username)
 		})
 		t.Run("UnknownUserError", func(t *testing.T) {
-			_, err := hst.Lookup(ctx, "foobar")
+			_, err := host.Lookup(ctx, "foobar")
 			require.ErrorIs(t, err, user.UnknownUserError("foobar"))
 		})
 	})
 
 	t.Run("LookupGroup", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
-			g, err := hst.LookupGroup(ctx, "root")
+			g, err := host.LookupGroup(ctx, "root")
 			require.NoError(t, err)
 			require.Equal(t, "0", g.Gid)
 			require.Equal(t, "root", g.Name)
 		})
 		t.Run("UnknownGroupError", func(t *testing.T) {
-			_, err := hst.LookupGroup(ctx, "foobar")
+			_, err := host.LookupGroup(ctx, "foobar")
 			require.ErrorIs(t, err, user.UnknownGroupError("foobar"))
 		})
 	})
@@ -216,7 +223,7 @@ func testHost(
 			err = syscall.Lstat(name, &expectedStat_t)
 			require.NoError(t, err)
 
-			stat_t, err := hst.Lstat(ctx, name)
+			stat_t, err := host.Lstat(ctx, name)
 			require.NoError(t, err)
 
 			t.Run("Dev", func(t *testing.T) {
@@ -235,7 +242,7 @@ func testHost(
 						socketPath := filepath.Join(dir, "socket")
 						err = syscall.Mknod(socketPath, syscall.S_IFSOCK, 0)
 						require.NoError(t, err)
-						socketStat_t, err := hst.Lstat(ctx, socketPath)
+						socketStat_t, err := host.Lstat(ctx, socketPath)
 						require.NoError(t, err)
 						require.True(t, socketStat_t.Mode&syscall.S_IFMT == syscall.S_IFSOCK)
 					})
@@ -243,7 +250,7 @@ func testHost(
 						dir := tempDirWithPrefix(t, tempDirPrefix)
 						linkPath := filepath.Join(dir, "symlink")
 						require.NoError(t, syscall.Symlink("foo", linkPath))
-						linkStat_t, err := hst.Lstat(ctx, linkPath)
+						linkStat_t, err := host.Lstat(ctx, linkPath)
 						require.NoError(t, err)
 						require.True(t, linkStat_t.Mode&syscall.S_IFMT == syscall.S_IFLNK)
 					})
@@ -251,17 +258,17 @@ func testHost(
 						require.True(t, stat_t.Mode&syscall.S_IFMT == syscall.S_IFREG)
 					})
 					t.Run("block device", func(t *testing.T) {
-						blockStat_t, err := hst.Lstat(ctx, getBlockDevicePath(t))
+						blockStat_t, err := host.Lstat(ctx, getBlockDevicePath(t))
 						require.NoError(t, err)
 						require.True(t, blockStat_t.Mode&syscall.S_IFMT == syscall.S_IFBLK)
 					})
 					t.Run("directory", func(t *testing.T) {
-						dirStat_t, err := hst.Lstat(ctx, "/dev")
+						dirStat_t, err := host.Lstat(ctx, "/dev")
 						require.NoError(t, err)
 						require.True(t, dirStat_t.Mode&syscall.S_IFMT == syscall.S_IFDIR)
 					})
 					t.Run("character device", func(t *testing.T) {
-						charStat_t, err := hst.Lstat(ctx, "/dev/tty")
+						charStat_t, err := host.Lstat(ctx, "/dev/tty")
 						require.NoError(t, err)
 						require.True(t, charStat_t.Mode&syscall.S_IFMT == syscall.S_IFCHR)
 					})
@@ -269,7 +276,7 @@ func testHost(
 						dir := tempDirWithPrefix(t, tempDirPrefix)
 						fifoPath := filepath.Join(dir, "fifo")
 						require.NoError(t, syscall.Mkfifo(fifoPath, 0644))
-						fifoStat_t, err := hst.Lstat(ctx, fifoPath)
+						fifoStat_t, err := host.Lstat(ctx, fifoPath)
 						require.NoError(t, err)
 						require.True(t, fifoStat_t.Mode&syscall.S_IFMT == syscall.S_IFIFO)
 					})
@@ -279,7 +286,7 @@ func testHost(
 						err := syscall.Chmod(name, modeBits)
 						require.NoError(t, err)
 
-						stat_t, err := hst.Lstat(ctx, name)
+						stat_t, err := host.Lstat(ctx, name)
 						require.NoError(t, err)
 
 						require.Equal(t, modeBits, stat_t.Mode&uint32(types.FileModeBitsMask))
@@ -329,20 +336,20 @@ func testHost(
 			})
 		})
 		t.Run("path must be absolute", func(t *testing.T) {
-			_, err := hst.Lstat(ctx, "foo/bar")
+			_, err := host.Lstat(ctx, "foo/bar")
 			require.ErrorContains(t, err, "path must be absolute")
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
 		})
 		t.Run("syscall.EACCES", func(t *testing.T) {
 			skipIfRoot(t)
-			_, err := hst.Lstat(ctx, "/etc/ssl/private/foo")
+			_, err := host.Lstat(ctx, "/etc/ssl/private/foo")
 			require.ErrorIs(t, err, syscall.EACCES)
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
 		})
 		t.Run("syscall.ENOENT", func(t *testing.T) {
-			_, err := hst.Lstat(ctx, "/non-existent")
+			_, err := host.Lstat(ctx, "/non-existent")
 			require.ErrorIs(t, err, syscall.ENOENT)
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
@@ -385,7 +392,7 @@ func testHost(
 			require.NoError(t, syscall.Mkfifo(filepath.Join(dir, "FIFO"), 0644))
 			expectedTypeMap["FIFO"] = syscall.DT_FIFO
 
-			dirEntResultCh, cancel := hst.ReadDir(ctx, dir)
+			dirEntResultCh, cancel := host.ReadDir(ctx, dir)
 			defer cancel()
 
 			inodeMap := map[uint64]bool{}
@@ -401,7 +408,7 @@ func testHost(
 			require.Empty(t, expectedTypeMap)
 		})
 		t.Run("path must be absolute", func(t *testing.T) {
-			dirEntResultCh, cancel := hst.ReadDir(ctx, "foo")
+			dirEntResultCh, cancel := host.ReadDir(ctx, "foo")
 			defer cancel()
 			direntResult := <-dirEntResultCh
 			require.ErrorContains(t, direntResult.Error, "path must be absolute")
@@ -410,7 +417,7 @@ func testHost(
 		})
 		t.Run("syscall.EACCES", func(t *testing.T) {
 			skipIfRoot(t)
-			dirEntResultCh, cancel := hst.ReadDir(ctx, "/etc/ssl/private/foo")
+			dirEntResultCh, cancel := host.ReadDir(ctx, "/etc/ssl/private/foo")
 			defer cancel()
 			direntResult := <-dirEntResultCh
 			require.ErrorIs(t, direntResult.Error, syscall.EACCES)
@@ -418,7 +425,7 @@ func testHost(
 			require.ErrorAs(t, direntResult.Error, &pathError)
 		})
 		t.Run("syscall.ENOENT", func(t *testing.T) {
-			dirEntResultCh, cancel := hst.ReadDir(ctx, "/non-existent")
+			dirEntResultCh, cancel := host.ReadDir(ctx, "/non-existent")
 			defer cancel()
 			direntResult := <-dirEntResultCh
 			require.ErrorIs(t, direntResult.Error, syscall.ENOENT)
@@ -432,7 +439,7 @@ func testHost(
 			t.Run(fmt.Sprintf("Success mode=%#.12o", fileMode), func(t *testing.T) {
 				dir := tempDirWithPrefix(t, tempDirPrefix)
 				name := filepath.Join(dir, "foo")
-				err := hst.Mkdir(ctx, name, types.FileMode(fileMode))
+				err := host.Mkdir(ctx, name, types.FileMode(fileMode))
 				require.NoError(t, err)
 				var stat_t syscall.Stat_t
 				require.NoError(t, syscall.Lstat(name, &stat_t))
@@ -441,14 +448,14 @@ func testHost(
 			})
 		}
 		t.Run("path must be absolute", func(t *testing.T) {
-			err := hst.Mkdir(ctx, "foo/bar", 0750)
+			err := host.Mkdir(ctx, "foo/bar", 0750)
 			require.ErrorContains(t, err, "path must be absolute")
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
 		})
 		t.Run("syscall.EACCES", func(t *testing.T) {
 			skipIfRoot(t)
-			err := hst.Mkdir(ctx, "/etc/foo", 0750)
+			err := host.Mkdir(ctx, "/etc/foo", 0750)
 			require.ErrorIs(t, err, syscall.EACCES)
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
@@ -456,9 +463,9 @@ func testHost(
 		t.Run("syscall.EEXIST", func(t *testing.T) {
 			dir := tempDirWithPrefix(t, tempDirPrefix)
 			name := filepath.Join(dir, "foo")
-			err := hst.Mkdir(ctx, name, 0750)
+			err := host.Mkdir(ctx, name, 0750)
 			require.NoError(t, err)
-			err = hst.Mkdir(ctx, name, 0750)
+			err = host.Mkdir(ctx, name, 0750)
 			require.ErrorIs(t, err, syscall.EEXIST)
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
@@ -466,7 +473,7 @@ func testHost(
 		t.Run("syscall.ENOENT", func(t *testing.T) {
 			dir := tempDirWithPrefix(t, tempDirPrefix)
 			name := filepath.Join(dir, "foo", "bar")
-			err := hst.Mkdir(ctx, name, 0750)
+			err := host.Mkdir(ctx, name, 0750)
 			require.ErrorIs(t, err, syscall.ENOENT)
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
@@ -481,7 +488,7 @@ func testHost(
 				data := []byte("foo")
 				err := os.WriteFile(name, data, os.FileMode(0600))
 				require.NoError(t, err)
-				fileReadCloser, err := hst.ReadFile(ctx, name)
+				fileReadCloser, err := host.ReadFile(ctx, name)
 				require.NoError(t, err)
 				readData, err := io.ReadAll(fileReadCloser)
 				assert.NoError(t, err)
@@ -494,7 +501,7 @@ func testHost(
 				data := []byte{}
 				err := os.WriteFile(name, data, os.FileMode(0600))
 				require.NoError(t, err)
-				fileReadCloser, err := hst.ReadFile(ctx, name)
+				fileReadCloser, err := host.ReadFile(ctx, name)
 				require.NoError(t, err)
 				readData, err := io.ReadAll(fileReadCloser)
 				assert.NoError(t, err)
@@ -503,7 +510,7 @@ func testHost(
 			})
 		})
 		t.Run("path must be absolute", func(t *testing.T) {
-			fileReadCloser, err := hst.ReadFile(ctx, "foo/bar")
+			fileReadCloser, err := host.ReadFile(ctx, "foo/bar")
 			defer func() {
 				if err == nil {
 					require.NoError(t, fileReadCloser.Close())
@@ -514,7 +521,7 @@ func testHost(
 			require.ErrorAs(t, err, &pathError)
 		})
 		t.Run("syscall.EACCES", func(t *testing.T) {
-			fileReadCloser, err := hst.ReadFile(ctx, "/etc/shadow")
+			fileReadCloser, err := host.ReadFile(ctx, "/etc/shadow")
 			defer func() {
 				if err == nil {
 					require.NoError(t, fileReadCloser.Close())
@@ -526,7 +533,7 @@ func testHost(
 			require.ErrorAs(t, err, &pathError)
 		})
 		t.Run("syscall.ENOENT", func(t *testing.T) {
-			fileReadCloser, err := hst.ReadFile(ctx, "/non-existent")
+			fileReadCloser, err := host.ReadFile(ctx, "/non-existent")
 			defer func() {
 				if err == nil {
 					require.NoError(t, fileReadCloser.Close())
@@ -543,7 +550,7 @@ func testHost(
 			dir := tempDirWithPrefix(t, tempDirPrefix)
 			newname := filepath.Join(dir, "newname")
 			oldname := "foo/bar"
-			err := hst.Symlink(ctx, oldname, newname)
+			err := host.Symlink(ctx, oldname, newname)
 			require.NoError(t, err)
 			readOldname, err := os.Readlink(newname)
 			require.NoError(t, err)
@@ -552,7 +559,7 @@ func testHost(
 		t.Run("path must be absolute", func(t *testing.T) {
 			newname := "relative/path"
 			oldname := "foo/bar"
-			err := hst.Symlink(ctx, oldname, newname)
+			err := host.Symlink(ctx, oldname, newname)
 			require.ErrorContains(t, err, "path must be absolute")
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
@@ -561,7 +568,7 @@ func testHost(
 			skipIfRoot(t)
 			newname := "/etc/foo"
 			oldname := "foo/bar"
-			err := hst.Symlink(ctx, oldname, newname)
+			err := host.Symlink(ctx, oldname, newname)
 			require.ErrorIs(t, err, syscall.EACCES)
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
@@ -570,9 +577,9 @@ func testHost(
 			dir := tempDirWithPrefix(t, tempDirPrefix)
 			newname := filepath.Join(dir, "newname")
 			oldname := "foo/bar"
-			err := hst.Symlink(ctx, oldname, newname)
+			err := host.Symlink(ctx, oldname, newname)
 			require.NoError(t, err)
-			err = hst.Symlink(ctx, oldname, newname)
+			err = host.Symlink(ctx, oldname, newname)
 			require.ErrorIs(t, err, syscall.EEXIST)
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
@@ -580,7 +587,7 @@ func testHost(
 		t.Run("syscall.ENOENT", func(t *testing.T) {
 			oldname := "foo/bar"
 			newname := "/bad/path"
-			err := hst.Symlink(ctx, oldname, newname)
+			err := host.Symlink(ctx, oldname, newname)
 			require.ErrorIs(t, err, syscall.ENOENT)
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
@@ -596,18 +603,18 @@ func testHost(
 			symlink := filepath.Join(dir, "symlink")
 			err = os.Symlink(target, symlink)
 			require.NoError(t, err)
-			result, err := hst.Readlink(ctx, symlink)
+			result, err := host.Readlink(ctx, symlink)
 			require.NoError(t, err)
 			require.Equal(t, target, result)
 		})
 		t.Run("path must be absolute", func(t *testing.T) {
-			_, err := hst.Readlink(ctx, "foo/bar")
+			_, err := host.Readlink(ctx, "foo/bar")
 			require.ErrorContains(t, err, "path must be absolute")
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
 		})
 		t.Run("syscall.ENOENT", func(t *testing.T) {
-			_, err := hst.Readlink(ctx, "/non-existent")
+			_, err := host.Readlink(ctx, "/non-existent")
 			require.ErrorIs(t, err, syscall.ENOENT)
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
@@ -621,7 +628,7 @@ func testHost(
 			file, err := os.Create(name)
 			require.NoError(t, err)
 			file.Close()
-			err = hst.Remove(ctx, name)
+			err = host.Remove(ctx, name)
 			require.NoError(t, err)
 			_, err = os.Lstat(name)
 			require.ErrorIs(t, err, syscall.ENOENT)
@@ -633,7 +640,7 @@ func testHost(
 			name := filepath.Join(dir, "foo")
 			err := os.Mkdir(name, 0700)
 			require.NoError(t, err)
-			err = hst.Remove(ctx, name)
+			err = host.Remove(ctx, name)
 			require.NoError(t, err)
 			_, err = os.Lstat(name)
 			require.ErrorIs(t, err, syscall.ENOENT)
@@ -641,27 +648,27 @@ func testHost(
 			require.ErrorAs(t, err, &pathError)
 		})
 		t.Run("path must be absolute", func(t *testing.T) {
-			err := hst.Remove(ctx, "foo/bar")
+			err := host.Remove(ctx, "foo/bar")
 			require.ErrorContains(t, err, "path must be absolute")
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
 		})
 		t.Run("syscall.EACCES file", func(t *testing.T) {
 			skipIfRoot(t)
-			err := hst.Remove(ctx, "/bin/ls")
+			err := host.Remove(ctx, "/bin/ls")
 			require.ErrorIs(t, err, syscall.EACCES)
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
 		})
 		t.Run("syscall.EACCES dir", func(t *testing.T) {
 			skipIfRoot(t)
-			err := hst.Remove(ctx, "/bin")
+			err := host.Remove(ctx, "/bin")
 			require.ErrorIs(t, err, syscall.EACCES)
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
 		})
 		t.Run("syscall.ENOENT", func(t *testing.T) {
-			err := hst.Remove(ctx, "/non-existent")
+			err := host.Remove(ctx, "/non-existent")
 			require.ErrorIs(t, err, syscall.ENOENT)
 			var pathError *fs.PathError
 			require.ErrorAs(t, err, &pathError)
@@ -682,7 +689,7 @@ func testHost(
 					isDevice = true
 				}
 
-				err := hst.Mknod(ctx, path, mode, dev)
+				err := host.Mknod(ctx, path, mode, dev)
 				if isDevice && !isRoot(t) {
 					require.ErrorIs(t, err, syscall.EPERM)
 					var pathError *fs.PathError
@@ -778,7 +785,7 @@ func testHost(
 	}
 
 	t.Run("WriteFile", func(t *testing.T) {
-		testFileCommon(t, hst.WriteFile)
+		testFileCommon(t, host.WriteFile)
 
 		t.Run("ovewrite file", func(t *testing.T) {
 			dir := tempDirWithPrefix(t, tempDirPrefix)
@@ -786,12 +793,12 @@ func testHost(
 			oldDataBytes := []byte("old")
 			oldData := bytes.NewReader(oldDataBytes)
 			var fileMode types.FileMode = 01607
-			err := hst.WriteFile(ctx, name, oldData, fileMode)
+			err := host.WriteFile(ctx, name, oldData, fileMode)
 			require.NoError(t, err)
 			newDataBytes := []byte("new")
 			newData := bytes.NewReader(newDataBytes)
 			var newFileMode types.FileMode = 02675
-			err = hst.WriteFile(ctx, name, newData, newFileMode)
+			err = host.WriteFile(ctx, name, newData, newFileMode)
 			require.NoError(t, err)
 			readDataBytes, err := os.ReadFile(name)
 			require.NoError(t, err)
@@ -803,7 +810,7 @@ func testHost(
 	})
 
 	t.Run("AppendFile", func(t *testing.T) {
-		testFileCommon(t, hst.AppendFile)
+		testFileCommon(t, host.AppendFile)
 
 		t.Run("append file", func(t *testing.T) {
 			dir := tempDirWithPrefix(t, tempDirPrefix)
@@ -811,12 +818,12 @@ func testHost(
 			oldDataBytes := []byte("old")
 			oldData := bytes.NewReader(oldDataBytes)
 			var fileMode types.FileMode = 01607
-			err := hst.AppendFile(ctx, name, oldData, fileMode)
+			err := host.AppendFile(ctx, name, oldData, fileMode)
 			require.NoError(t, err)
 			newDataBytes := []byte("new")
 			newData := bytes.NewReader(newDataBytes)
 			var newFileMode types.FileMode = 02675
-			err = hst.AppendFile(ctx, name, newData, newFileMode)
+			err = host.AppendFile(ctx, name, newData, newFileMode)
 			require.NoError(t, err)
 			readDataBytes, err := os.ReadFile(name)
 			require.NoError(t, err)

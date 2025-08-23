@@ -1,7 +1,9 @@
 package host
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -10,8 +12,13 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"testing"
+	"time"
 
 	"al.essio.dev/pkg/shellescape"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/fornellas/resonance/host/types"
 )
@@ -116,4 +123,129 @@ func (h Docker) Type() string {
 
 func (h Docker) Close(ctx context.Context) error {
 	return nil
+}
+
+func sanitizeDockerContainerName(name string) string {
+	return strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '.' || r == '-' {
+			return r
+		}
+		return '_'
+	}, name)
+}
+
+func getTestTimeout(t *testing.T) time.Duration {
+	deadline, ok := t.Deadline()
+	if !ok {
+		return 5 * time.Minute
+	}
+	return time.Until(deadline)
+}
+
+func startDockerContainer(ctx context.Context, name, image string, timeout time.Duration) *exec.Cmd {
+	cmd := exec.CommandContext(
+		ctx,
+		"docker", "run",
+		"--name", name,
+		"--rm",
+		image,
+		"sleep", fmt.Sprintf("%d", int(timeout.Seconds())),
+	)
+	stdout := bytes.Buffer{}
+	cmd.Stdout = &stdout
+	stderr := bytes.Buffer{}
+	cmd.Stderr = &stderr
+	cmd.Start()
+
+	return cmd
+}
+
+func setupDockerCleanup(t *testing.T, cancel context.CancelFunc, cmd *exec.Cmd, name string) {
+	t.Cleanup(func() {
+		cancel()
+
+		if err := exec.Command("docker", "kill", name).Run(); err != nil {
+			t.Errorf("Failed to docker kill container: %s", err)
+		}
+
+		err := cmd.Wait()
+		var exitError *exec.ExitError
+		if errors.As(err, &exitError) {
+			if waitStatus, ok := exitError.Sys().(syscall.WaitStatus); ok {
+				if waitStatus.Signaled() && waitStatus.Signal() == syscall.SIGKILL {
+					return
+				}
+			}
+		}
+		stdout := cmd.Stdout.(*bytes.Buffer)
+		stderr := cmd.Stderr.(*bytes.Buffer)
+		assert.NoError(t, err, fmt.Sprintf(
+			"docker run returned error:\nstdout:\n%s\nstderr\n%s", stdout.String(), stderr.String()),
+		)
+	})
+}
+
+func isContainerReady(ctx context.Context, t *testing.T, name string) bool {
+	cmdCheck := exec.CommandContext(ctx, "docker", "exec", name, "/bin/true")
+	stdoutBuffer := bytes.Buffer{}
+	cmdCheck.Stdout = &stdoutBuffer
+	stderrBuffer := bytes.Buffer{}
+	cmdCheck.Stderr = &stderrBuffer
+	err := cmdCheck.Run()
+
+	if err != nil {
+		var exitError *exec.ExitError
+		if ok := errors.As(err, &exitError); ok {
+			if exitError.Exited() {
+				stderrStr := stderrBuffer.String()
+				if strings.Contains(stderrStr, "No such container") || strings.Contains(stderrStr, "is not running") {
+					return false
+				}
+			}
+		}
+		require.NoErrorf(
+			t, err,
+			"failed: %s %s:\nstdout:\n%s\n\nstderr\n%s", cmdCheck.Path, cmdCheck.Args, stdoutBuffer.String(), stderrBuffer.String(),
+		)
+	}
+	return true
+}
+
+func waitForContainerReady(ctx context.Context, t *testing.T, name string, timeout time.Duration) {
+	timeoutCh := time.After(timeout)
+	for {
+		select {
+		case <-timeoutCh:
+			t.Fatalf("timeout waiting for container")
+		case <-time.After(100 * time.Millisecond):
+		}
+
+		if isContainerReady(ctx, t, name) {
+			break
+		}
+	}
+}
+
+// GetTestDockerHost creates a Docker BaseHost suitable for usage in tests. It returns the host and
+// the docker connection string to it. The container will be purged when the test finishes.
+func GetTestDockerHost(t *testing.T, image string) (Docker, string) {
+	if _, err := exec.LookPath("docker"); err != nil {
+		t.Skip("docker command not found on path")
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	id := fmt.Sprintf("%x", sha256.Sum256([]byte(t.TempDir())))
+	name := sanitizeDockerContainerName(fmt.Sprintf("resonance-test-%s-%s", t.Name(), id))
+	timeout := getTestTimeout(t)
+
+	cmd := startDockerContainer(ctx, name, image, timeout)
+	setupDockerCleanup(t, cancel, cmd, name)
+	waitForContainerReady(ctx, t, name, timeout)
+
+	connection := fmt.Sprintf("0:0@%s", name)
+	dockerHost, err := NewDocker(ctx, connection)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, dockerHost.Close(ctx)) })
+
+	return dockerHost, connection
 }

@@ -21,7 +21,7 @@ tool (
 require (
 	al.essio.dev/pkg/shellescape v1.6.0
 	github.com/fatih/color v1.18.0
-	github.com/fornellas/slogxt v1.1.0
+	github.com/fornellas/slogxt v1.1.1
 	github.com/gliderlabs/ssh v0.3.8
 	github.com/kylelemons/godebug v1.1.0
 	github.com/spf13/cobra v1.9.1

@@ -116,30 +116,12 @@ type AgentClientWrapper struct {
 	spawnErrCh        chan error
 }
 
-func getTmpFile(ctx context.Context, baseHost types.BaseHost, template string) (string, error) {
-	cmd := types.Cmd{
-		Path: "mktemp",
-		Args: []string{"-t", fmt.Sprintf("%s.XXXXXXXX", template)},
-	}
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, baseHost, cmd)
-	if err != nil {
-		return "", err
-	}
-	if !waitStatus.Success() {
-		return "", fmt.Errorf(
-			"failed to run %s: %s\nstdout:\n%s\nstderr:\n%s",
-			cmd, waitStatus.String(), stdout, stderr,
-		)
-	}
-	return strings.TrimRight(stdout, "\n"), nil
-}
-
 func chmod(ctx context.Context, baseHost types.BaseHost, name string, mode types.FileMode) error {
 	cmd := types.Cmd{
 		Path: "chmod",
 		Args: []string{fmt.Sprintf("%o", mode), name},
 	}
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, baseHost, cmd)
+	waitStatus, stdout, stderr, err := lib.Run(ctx, baseHost, cmd)
 	if err != nil {
 		return err
 	}
@@ -158,7 +140,7 @@ func getGoOs(ctx context.Context, baseHost types.BaseHost) (string, error) {
 		Path: "uname",
 		Args: []string{"-o"},
 	}
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, baseHost, cmd)
+	waitStatus, stdout, stderr, err := lib.Run(ctx, baseHost, cmd)
 	if err != nil {
 		return "", err
 	}
@@ -183,7 +165,7 @@ func getGoArch(ctx context.Context, baseHost types.BaseHost) (string, error) {
 		Path: "uname",
 		Args: []string{"-m"},
 	}
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, baseHost, cmd)
+	waitStatus, stdout, stderr, err := lib.Run(ctx, baseHost, cmd)
 	if err != nil {
 		return "", err
 	}
@@ -256,7 +238,7 @@ func copyReader(ctx context.Context, baseHost types.BaseHost, reader io.Reader, 
 		Args:  []string{"-c", fmt.Sprintf("cat > %s", shellescape.Quote(path))},
 		Stdin: reader,
 	}
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, baseHost, cmd)
+	waitStatus, stdout, stderr, err := lib.Run(ctx, baseHost, cmd)
 	if err != nil {
 		return err
 	}
@@ -272,7 +254,7 @@ func copyReader(ctx context.Context, baseHost types.BaseHost, reader io.Reader, 
 func NewAgentClientWrapper(ctx context.Context, baseHost types.BaseHost) (*AgentClientWrapper, error) {
 	ctx, _ = log.MustWithGroup(ctx, "🐈 Agent")
 
-	agentPath, err := getTmpFile(ctx, baseHost, "resonance_agent")
+	agentPath, err := lib.CreateTemp(ctx, baseHost, "resonance_agent")
 	if err != nil {
 		return nil, err
 	}
@@ -966,7 +948,7 @@ func (h *AgentClientWrapper) Type() string {
 }
 
 func (h *AgentClientWrapper) Close(ctx context.Context) error {
-	signalWaitStatus, signalStdout, signalStderr, signalErr := lib.SimpleRun(ctx, h.BaseHost, types.Cmd{
+	signalWaitStatus, signalStdout, signalStderr, signalErr := lib.Run(ctx, h.BaseHost, types.Cmd{
 		Path: h.path,
 		Args: []string{"--stop"},
 	})
