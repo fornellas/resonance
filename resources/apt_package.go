@@ -14,7 +14,12 @@ import (
 	"github.com/fornellas/resonance/concurrency"
 	"github.com/fornellas/resonance/host/lib"
 	"github.com/fornellas/resonance/host/types"
+
+	_ "embed"
 )
+
+//go:embed debian_frontend_editor.sh
+var debianFrontendEditor string
 
 // A debconf question.
 // See https://wiki.debian.org/debconf
@@ -158,7 +163,7 @@ func (a *APTPackages) preparePackageQueries(
 	return packageQueries, packageToResource
 }
 
-func (a *APTPackages) runDpkgQuery(ctx context.Context, hst types.Host, packageQueries []string, resourceCount int) (string, error) {
+func (a *APTPackages) runDpkgQuery(ctx context.Context, host types.Host, packageQueries []string, resourceCount int) (string, error) {
 	args := []string{
 		"--show",
 		"--showformat=Package=${Package}\nArchitecture=${Architecture}\nVersion=${Version}\nend\n",
@@ -170,7 +175,7 @@ func (a *APTPackages) runDpkgQuery(ctx context.Context, hst types.Host, packageQ
 		Args: args,
 	}
 
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+	waitStatus, stdout, stderr, err := lib.Run(ctx, host, cmd)
 	if err != nil {
 		return "", fmt.Errorf("failed to run dpkg-query: %w\n%s\nSTDOUT:\n%s\nSTDERR:\n%s", err, cmd, stdout, stderr)
 	}
@@ -217,7 +222,7 @@ func (a *APTPackages) processDpkgOutput(stdout string, packageToResource map[str
 
 func (a *APTPackages) debconfCommunicate(
 	ctx context.Context,
-	hst types.Host,
+	host types.Host,
 	pkg, command string,
 ) (string, error) {
 	stdinReader := strings.NewReader(command)
@@ -231,7 +236,7 @@ func (a *APTPackages) debconfCommunicate(
 		Stdout: &stdoutBuffer,
 		Stderr: &stderrBuffer,
 	}
-	waitStatus, err := hst.Run(ctx, cmd)
+	waitStatus, err := host.Run(ctx, cmd)
 	if err != nil {
 		return "", fmt.Errorf("%s failed: %w", cmd, err)
 	}
@@ -255,7 +260,7 @@ func (a *APTPackages) debconfCommunicate(
 	return value, nil
 }
 
-func (a *APTPackages) loadDebconfSelections(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+func (a *APTPackages) loadDebconfSelections(ctx context.Context, host types.Host, aptPackages []*APTPackage) error {
 	concurrencyGroup := concurrency.NewConcurrencyGroup(ctx)
 
 	for _, aptPackage := range aptPackages {
@@ -269,7 +274,7 @@ func (a *APTPackages) loadDebconfSelections(ctx context.Context, hst types.Host,
 				Args: []string{aptPackage.Package},
 				Env:  []string{"LANG=C"},
 			}
-			waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+			waitStatus, stdout, stderr, err := lib.Run(ctx, host, cmd)
 			if err != nil {
 				return err
 			}
@@ -293,7 +298,7 @@ func (a *APTPackages) loadDebconfSelections(ctx context.Context, hst types.Host,
 				answer := matches[4]
 				if answer == "(password omitted)" {
 					command := fmt.Sprintf("get %s\n", question)
-					answer, err = a.debconfCommunicate(ctx, hst, aptPackage.Package, command)
+					answer, err = a.debconfCommunicate(ctx, host, aptPackage.Package, command)
 					if err != nil {
 						return err
 					}
@@ -315,12 +320,12 @@ func (a *APTPackages) loadDebconfSelections(ctx context.Context, hst types.Host,
 	return nil
 }
 
-func (a *APTPackages) loadHoldStatus(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+func (a *APTPackages) loadHoldStatus(ctx context.Context, host types.Host, aptPackages []*APTPackage) error {
 	cmd := types.Cmd{
 		Path: "/usr/bin/dpkg",
 		Args: []string{"--get-selections"},
 	}
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+	waitStatus, stdout, stderr, err := lib.Run(ctx, host, cmd)
 	if err != nil {
 		return fmt.Errorf("failed to run dpkg --get-selections: %w\n%s\nSTDOUT:\n%s\nSTDERR:\n%s", err, cmd, stdout, stderr)
 	}
@@ -351,10 +356,10 @@ func (a *APTPackages) loadHoldStatus(ctx context.Context, hst types.Host, aptPac
 	return nil
 }
 
-func (a *APTPackages) Load(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+func (a *APTPackages) Load(ctx context.Context, host types.Host, aptPackages []*APTPackage) error {
 	packageQueries, packageToResource := a.preparePackageQueries(aptPackages)
 
-	stdout, err := a.runDpkgQuery(ctx, hst, packageQueries, len(aptPackages))
+	stdout, err := a.runDpkgQuery(ctx, host, packageQueries, len(aptPackages))
 	if err != nil {
 		return err
 	}
@@ -363,22 +368,22 @@ func (a *APTPackages) Load(ctx context.Context, hst types.Host, aptPackages []*A
 		return fmt.Errorf("failed scanning dpkg-query output: %w", err)
 	}
 
-	if err := a.loadDebconfSelections(ctx, hst, aptPackages); err != nil {
+	if err := a.loadDebconfSelections(ctx, host, aptPackages); err != nil {
 		return fmt.Errorf("failed loading debconf: %w", err)
 	}
 
-	if err := a.loadHoldStatus(ctx, hst, aptPackages); err != nil {
+	if err := a.loadHoldStatus(ctx, host, aptPackages); err != nil {
 		return fmt.Errorf("failed loading hold status: %w", err)
 	}
 
 	return nil
 }
 
-func (a *APTPackages) Resolve(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+func (a *APTPackages) Resolve(ctx context.Context, host types.Host, aptPackages []*APTPackage) error {
 	return nil
 }
 
-func (a *APTPackages) applyHolds(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+func (a *APTPackages) applyHolds(ctx context.Context, host types.Host, aptPackages []*APTPackage) error {
 	var selections strings.Builder
 
 	for _, aptPackage := range aptPackages {
@@ -415,7 +420,7 @@ func (a *APTPackages) applyHolds(ctx context.Context, hst types.Host, aptPackage
 		Stderr: &stderrBuffer,
 	}
 
-	waitStatus, err := hst.Run(ctx, cmd)
+	waitStatus, err := host.Run(ctx, cmd)
 	if err != nil {
 		return fmt.Errorf("failed to run dpkg --set-selections: %w", err)
 	}
@@ -430,7 +435,7 @@ func (a *APTPackages) applyHolds(ctx context.Context, hst types.Host, aptPackage
 	return nil
 }
 
-func (a *APTPackages) loadCurrentArchitecturesForPackages(ctx context.Context, hst types.Host, aptPackages []*APTPackage) (map[string][]string, error) {
+func (a *APTPackages) loadCurrentArchitecturesForPackages(ctx context.Context, host types.Host, aptPackages []*APTPackage) (map[string][]string, error) {
 	packagesNeedingArchCheck := make([]*APTPackage, 0)
 	for _, aptPackage := range aptPackages {
 		if !aptPackage.Absent && len(aptPackage.Architectures) > 0 {
@@ -444,7 +449,7 @@ func (a *APTPackages) loadCurrentArchitecturesForPackages(ctx context.Context, h
 		return make(map[string][]string), nil
 	}
 
-	if err := a.Load(ctx, hst, packagesNeedingArchCheck); err != nil {
+	if err := a.Load(ctx, host, packagesNeedingArchCheck); err != nil {
 		return nil, fmt.Errorf("failed to load current state for architecture checking: %w", err)
 	}
 
@@ -458,8 +463,8 @@ func (a *APTPackages) loadCurrentArchitecturesForPackages(ctx context.Context, h
 	return currentArchs, nil
 }
 
-func (a *APTPackages) buildPackageArguments(ctx context.Context, hst types.Host, aptPackages []*APTPackage) ([]string, error) {
-	currentArchs, err := a.loadCurrentArchitecturesForPackages(ctx, hst, aptPackages)
+func (a *APTPackages) buildPackageArguments(ctx context.Context, host types.Host, aptPackages []*APTPackage) ([]string, error) {
+	currentArchs, err := a.loadCurrentArchitecturesForPackages(ctx, host, aptPackages)
 	if err != nil {
 		return nil, err
 	}
@@ -510,8 +515,8 @@ func (a *APTPackages) buildArchitectureArguments(aptPackage *APTPackage, pkgArg 
 	return args
 }
 
-func (a *APTPackages) runAptCommands(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
-	pkgArgs, err := a.buildPackageArguments(ctx, hst, aptPackages)
+func (a *APTPackages) runAptCommands(ctx context.Context, host types.Host, aptPackages []*APTPackage) error {
+	pkgArgs, err := a.buildPackageArguments(ctx, host, aptPackages)
 	if err != nil {
 		return err
 	}
@@ -520,7 +525,7 @@ func (a *APTPackages) runAptCommands(ctx context.Context, hst types.Host, aptPac
 		Path: "apt",
 		Args: []string{"update"},
 	}
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+	waitStatus, stdout, stderr, err := lib.Run(ctx, host, cmd)
 	if err != nil {
 		return fmt.Errorf("failed to run '%s': %s", cmd, err)
 	}
@@ -535,7 +540,7 @@ func (a *APTPackages) runAptCommands(ctx context.Context, hst types.Host, aptPac
 		Path: "apt",
 		Args: append([]string{"--yes", "install"}, pkgArgs...),
 	}
-	waitStatus, stdout, stderr, err = lib.SimpleRun(ctx, hst, cmd)
+	waitStatus, stdout, stderr, err = lib.Run(ctx, host, cmd)
 	if err != nil {
 		return fmt.Errorf("failed to run '%s': %s", cmd, err)
 	}
@@ -549,16 +554,29 @@ func (a *APTPackages) runAptCommands(ctx context.Context, hst types.Host, aptPac
 	return nil
 }
 
-func (a *APTPackages) Apply(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
-	if err := a.configureDebconfSelections(ctx, hst, aptPackages); err != nil {
+func (a *APTPackages) Apply(ctx context.Context, host types.Host, aptPackages []*APTPackage) (err error) {
+	debianFrontendEditorPath, err := lib.CreateTemp(ctx, host, "debian_frontend_editor")
+	if err != nil {
+		return err
+	}
+	if err := host.WriteFile(ctx, debianFrontendEditorPath, strings.NewReader(debianFrontendEditor), types.FileMode(0755)); err != nil {
+		return err
+	}
+	defer func() { err = errors.Join(err, host.Remove(ctx, debianFrontendEditorPath)) }()
+
+	// TODO use these env vars to run apt
+	// EDITOR=/tmp/editor.sh
+	// QUESTION_ANSWERS=$foo
+	// DEBIAN_FRONTEND=editor
+	// DEBIAN_PRIORITY=low
+
+	if err := a.runAptCommands(ctx, host, aptPackages); err != nil {
 		return err
 	}
 
-	if err := a.runAptCommands(ctx, hst, aptPackages); err != nil {
-		return err
-	}
+	// TODO check whether debconf is ok, if not, dpkg-reconfigure the package (for cases where the package was previously installed)
 
-	if err := a.applyHolds(ctx, hst, aptPackages); err != nil {
+	if err := a.applyHolds(ctx, host, aptPackages); err != nil {
 		return fmt.Errorf("failed applying holds: %w", err)
 	}
 

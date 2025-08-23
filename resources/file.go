@@ -173,8 +173,8 @@ func (f *File) Validate() error {
 	return nil
 }
 
-func (f *File) loadSymbolicLink(ctx context.Context, hst types.Host) error {
-	target, err := hst.Readlink(ctx, f.Path)
+func (f *File) loadSymbolicLink(ctx context.Context, host types.Host) error {
+	target, err := host.Readlink(ctx, f.Path)
 	if err != nil {
 		return err
 	}
@@ -183,8 +183,8 @@ func (f *File) loadSymbolicLink(ctx context.Context, hst types.Host) error {
 	return nil
 }
 
-func (f *File) loadRegularFile(ctx context.Context, hst types.Host) error {
-	fileReadCloser, err := hst.ReadFile(ctx, string(f.Path))
+func (f *File) loadRegularFile(ctx context.Context, host types.Host) error {
+	fileReadCloser, err := host.ReadFile(ctx, string(f.Path))
 	if err != nil {
 		return err
 	}
@@ -203,8 +203,8 @@ func (f *File) loadRegularFile(ctx context.Context, hst types.Host) error {
 	return nil
 }
 
-func (f *File) loadDirectory(ctx context.Context, hst types.Host) error {
-	dirEntResultCh, cancel := hst.ReadDir(ctx, f.Path)
+func (f *File) loadDirectory(ctx context.Context, host types.Host) error {
+	dirEntResultCh, cancel := host.ReadDir(ctx, f.Path)
 	defer cancel()
 
 	directory := []File{}
@@ -214,7 +214,7 @@ func (f *File) loadDirectory(ctx context.Context, hst types.Host) error {
 			return dirEntResult.Error
 		}
 		subFile := File{Path: filepath.Join(f.Path, dirEntResult.DirEnt.Name)}
-		if err := subFile.Load(ctx, hst); err != nil {
+		if err := subFile.Load(ctx, host); err != nil {
 			return err
 		}
 		directory = append(directory, subFile)
@@ -227,12 +227,12 @@ func (f *File) loadDirectory(ctx context.Context, hst types.Host) error {
 	return nil
 }
 
-func (f *File) Load(ctx context.Context, hst types.Host) error {
+func (f *File) Load(ctx context.Context, host types.Host) error {
 	*f = File{
 		Path: f.Path,
 	}
 
-	stat_t, err := hst.Lstat(ctx, string(f.Path))
+	stat_t, err := host.Lstat(ctx, string(f.Path))
 	if err != nil {
 		if os.IsNotExist(err) {
 			f.Absent = true
@@ -250,17 +250,17 @@ func (f *File) Load(ctx context.Context, hst types.Host) error {
 	case syscall.S_IFSOCK:
 		f.Socket = true
 	case syscall.S_IFLNK:
-		if err := f.loadSymbolicLink(ctx, hst); err != nil {
+		if err := f.loadSymbolicLink(ctx, host); err != nil {
 			return err
 		}
 	case syscall.S_IFREG:
-		if err := f.loadRegularFile(ctx, hst); err != nil {
+		if err := f.loadRegularFile(ctx, host); err != nil {
 			return err
 		}
 	case syscall.S_IFBLK:
 		f.BlockDevice = (*types.FileDevice)(&stat_t.Rdev)
 	case syscall.S_IFDIR:
-		if err := f.loadDirectory(ctx, hst); err != nil {
+		if err := f.loadDirectory(ctx, host); err != nil {
 			return err
 		}
 	case syscall.S_IFCHR:
@@ -274,13 +274,13 @@ func (f *File) Load(ctx context.Context, hst types.Host) error {
 	return nil
 }
 
-func (f *File) Resolve(ctx context.Context, hst types.Host) error {
+func (f *File) Resolve(ctx context.Context, host types.Host) error {
 	if f.Directory != nil {
 		sort.SliceStable(*f.Directory, func(i int, j int) bool {
 			return (*f.Directory)[i].Path < (*f.Directory)[j].Path
 		})
 		for i, subFile := range *f.Directory {
-			if err := subFile.Resolve(ctx, hst); err != nil {
+			if err := subFile.Resolve(ctx, host); err != nil {
 				return err
 			}
 			(*f.Directory)[i] = subFile
@@ -288,7 +288,7 @@ func (f *File) Resolve(ctx context.Context, hst types.Host) error {
 	}
 
 	if f.User != nil {
-		usr, err := hst.Lookup(ctx, *f.User)
+		usr, err := host.Lookup(ctx, *f.User)
 		if err != nil {
 			return err
 		}
@@ -305,7 +305,7 @@ func (f *File) Resolve(ctx context.Context, hst types.Host) error {
 	}
 
 	if f.Group != nil {
-		group, err := hst.LookupGroup(ctx, *f.Group)
+		group, err := host.LookupGroup(ctx, *f.Group)
 		if err != nil {
 			return err
 		}
@@ -324,8 +324,8 @@ func (f *File) Resolve(ctx context.Context, hst types.Host) error {
 	return nil
 }
 
-func (f *File) removeRecursively(ctx context.Context, hst types.Host) error {
-	err := hst.Remove(ctx, f.Path)
+func (f *File) removeRecursively(ctx context.Context, host types.Host) error {
+	err := host.Remove(ctx, f.Path)
 	if err != nil {
 		var errno syscall.Errno
 		if errors.As(err, &errno) {
@@ -342,28 +342,28 @@ func (f *File) removeRecursively(ctx context.Context, hst types.Host) error {
 		}
 	}
 
-	dirEntResultCh, cancel := hst.ReadDir(ctx, f.Path)
+	dirEntResultCh, cancel := host.ReadDir(ctx, f.Path)
 	defer cancel()
 	for dirEntResult := range dirEntResultCh {
 		if dirEntResult.Error != nil {
 			return err
 		}
 		subFile := File{Path: filepath.Join(f.Path, dirEntResult.DirEnt.Name), Absent: true}
-		if err := subFile.Apply(ctx, hst); err != nil {
+		if err := subFile.Apply(ctx, host); err != nil {
 			return err
 		}
 	}
 
-	return hst.Remove(ctx, f.Path)
+	return host.Remove(ctx, f.Path)
 }
 
-func (f *File) applySocket(ctx context.Context, hst types.Host, currentFile *File) error {
+func (f *File) applySocket(ctx context.Context, host types.Host, currentFile *File) error {
 	if f.Socket {
 		if !currentFile.Socket {
-			if err := currentFile.removeRecursively(ctx, hst); err != nil {
+			if err := currentFile.removeRecursively(ctx, host); err != nil {
 				return err
 			}
-			if err := hst.Mknod(ctx, f.Path, *f.Mode|syscall.S_IFSOCK, 0); err != nil {
+			if err := host.Mknod(ctx, f.Path, *f.Mode|syscall.S_IFSOCK, 0); err != nil {
 				return err
 			}
 		}
@@ -371,13 +371,13 @@ func (f *File) applySocket(ctx context.Context, hst types.Host, currentFile *Fil
 	return nil
 }
 
-func (f *File) applySymbolicLink(ctx context.Context, hst types.Host, currentFile *File) error {
+func (f *File) applySymbolicLink(ctx context.Context, host types.Host, currentFile *File) error {
 	if f.SymbolicLink != "" {
 		if currentFile.SymbolicLink != f.SymbolicLink {
-			if err := currentFile.removeRecursively(ctx, hst); err != nil {
+			if err := currentFile.removeRecursively(ctx, host); err != nil {
 				return err
 			}
-			if err := hst.Symlink(ctx, f.SymbolicLink, f.Path); err != nil {
+			if err := host.Symlink(ctx, f.SymbolicLink, f.Path); err != nil {
 				return err
 			}
 		}
@@ -385,13 +385,13 @@ func (f *File) applySymbolicLink(ctx context.Context, hst types.Host, currentFil
 	return nil
 }
 
-func (f *File) applyRegularFile(ctx context.Context, hst types.Host, currentFile *File) error {
+func (f *File) applyRegularFile(ctx context.Context, host types.Host, currentFile *File) error {
 	if f.RegularFile != nil {
 		if currentFile.RegularFile == nil || *currentFile.RegularFile != *f.RegularFile {
-			if err := currentFile.removeRecursively(ctx, hst); err != nil {
+			if err := currentFile.removeRecursively(ctx, host); err != nil {
 				return err
 			}
-			if err := hst.WriteFile(ctx, string(f.Path), strings.NewReader(*f.RegularFile), *f.Mode); err != nil {
+			if err := host.WriteFile(ctx, string(f.Path), strings.NewReader(*f.RegularFile), *f.Mode); err != nil {
 				return err
 			}
 		}
@@ -399,13 +399,13 @@ func (f *File) applyRegularFile(ctx context.Context, hst types.Host, currentFile
 	return nil
 }
 
-func (f *File) applyBlockDevice(ctx context.Context, hst types.Host, currentFile *File) error {
+func (f *File) applyBlockDevice(ctx context.Context, host types.Host, currentFile *File) error {
 	if f.BlockDevice != nil {
 		if currentFile.BlockDevice == nil || *currentFile.BlockDevice != *f.BlockDevice {
-			if err := currentFile.removeRecursively(ctx, hst); err != nil {
+			if err := currentFile.removeRecursively(ctx, host); err != nil {
 				return err
 			}
-			if err := hst.Mknod(ctx, f.Path, *f.Mode|syscall.S_IFBLK, *f.BlockDevice); err != nil {
+			if err := host.Mknod(ctx, f.Path, *f.Mode|syscall.S_IFBLK, *f.BlockDevice); err != nil {
 				return err
 			}
 		}
@@ -413,13 +413,13 @@ func (f *File) applyBlockDevice(ctx context.Context, hst types.Host, currentFile
 	return nil
 }
 
-func (f *File) applyDirectory(ctx context.Context, hst types.Host, currentFile *File) error {
+func (f *File) applyDirectory(ctx context.Context, host types.Host, currentFile *File) error {
 	if f.Directory != nil {
 		if currentFile.Directory == nil {
-			if err := currentFile.removeRecursively(ctx, hst); err != nil {
+			if err := currentFile.removeRecursively(ctx, host); err != nil {
 				return err
 			}
-			if err := hst.Mkdir(ctx, f.Path, *f.Mode); err != nil {
+			if err := host.Mkdir(ctx, f.Path, *f.Mode); err != nil {
 				return err
 			}
 		}
@@ -430,7 +430,7 @@ func (f *File) applyDirectory(ctx context.Context, hst types.Host, currentFile *
 			}
 		}
 		for _, subFile := range *f.Directory {
-			if err := subFile.Apply(ctx, hst); err != nil {
+			if err := subFile.Apply(ctx, host); err != nil {
 				return err
 			}
 			delete(pathToDelete, subFile.Path)
@@ -440,7 +440,7 @@ func (f *File) applyDirectory(ctx context.Context, hst types.Host, currentFile *
 				Path:   path,
 				Absent: true,
 			}
-			if err := file.Apply(ctx, hst); err != nil {
+			if err := file.Apply(ctx, host); err != nil {
 				return err
 			}
 		}
@@ -448,13 +448,13 @@ func (f *File) applyDirectory(ctx context.Context, hst types.Host, currentFile *
 	return nil
 }
 
-func (f *File) applyCharacterDevice(ctx context.Context, hst types.Host, currentFile *File) error {
+func (f *File) applyCharacterDevice(ctx context.Context, host types.Host, currentFile *File) error {
 	if f.CharacterDevice != nil {
 		if currentFile.CharacterDevice == nil || *currentFile.CharacterDevice != *f.CharacterDevice {
-			if err := currentFile.removeRecursively(ctx, hst); err != nil {
+			if err := currentFile.removeRecursively(ctx, host); err != nil {
 				return err
 			}
-			if err := hst.Mknod(ctx, f.Path, *f.Mode|syscall.S_IFCHR, *f.CharacterDevice); err != nil {
+			if err := host.Mknod(ctx, f.Path, *f.Mode|syscall.S_IFCHR, *f.CharacterDevice); err != nil {
 				return err
 			}
 		}
@@ -462,13 +462,13 @@ func (f *File) applyCharacterDevice(ctx context.Context, hst types.Host, current
 	return nil
 }
 
-func (f *File) applyFIFO(ctx context.Context, hst types.Host, currentFile *File) error {
+func (f *File) applyFIFO(ctx context.Context, host types.Host, currentFile *File) error {
 	if f.FIFO {
 		if !currentFile.FIFO {
-			if err := currentFile.removeRecursively(ctx, hst); err != nil {
+			if err := currentFile.removeRecursively(ctx, host); err != nil {
 				return err
 			}
-			if err := hst.Mknod(ctx, f.Path, *f.Mode|syscall.S_IFIFO, 0); err != nil {
+			if err := host.Mknod(ctx, f.Path, *f.Mode|syscall.S_IFIFO, 0); err != nil {
 				return err
 			}
 		}
@@ -476,53 +476,53 @@ func (f *File) applyFIFO(ctx context.Context, hst types.Host, currentFile *File)
 	return nil
 }
 
-func (f *File) Apply(ctx context.Context, hst types.Host) error {
+func (f *File) Apply(ctx context.Context, host types.Host) error {
 	currentFile := &File{
 		Path: f.Path,
 	}
-	if err := currentFile.Load(ctx, hst); err != nil {
+	if err := currentFile.Load(ctx, host); err != nil {
 		return err
 	}
 
 	if f.Absent {
-		return currentFile.removeRecursively(ctx, hst)
+		return currentFile.removeRecursively(ctx, host)
 	}
 
-	if err := f.applySocket(ctx, hst, currentFile); err != nil {
+	if err := f.applySocket(ctx, host, currentFile); err != nil {
 		return err
 	}
 
-	if err := f.applySymbolicLink(ctx, hst, currentFile); err != nil {
+	if err := f.applySymbolicLink(ctx, host, currentFile); err != nil {
 		return err
 	}
 
-	if err := f.applyRegularFile(ctx, hst, currentFile); err != nil {
+	if err := f.applyRegularFile(ctx, host, currentFile); err != nil {
 		return err
 	}
 
-	if err := f.applyBlockDevice(ctx, hst, currentFile); err != nil {
+	if err := f.applyBlockDevice(ctx, host, currentFile); err != nil {
 		return err
 	}
 
-	if err := f.applyDirectory(ctx, hst, currentFile); err != nil {
+	if err := f.applyDirectory(ctx, host, currentFile); err != nil {
 		return err
 	}
 
-	if err := f.applyCharacterDevice(ctx, hst, currentFile); err != nil {
+	if err := f.applyCharacterDevice(ctx, host, currentFile); err != nil {
 		return err
 	}
 
-	if err := f.applyFIFO(ctx, hst, currentFile); err != nil {
+	if err := f.applyFIFO(ctx, host, currentFile); err != nil {
 		return err
 	}
 
 	if f.Mode != nil {
-		if err := hst.Chmod(ctx, f.Path, *f.Mode); err != nil {
+		if err := host.Chmod(ctx, f.Path, *f.Mode); err != nil {
 			return err
 		}
 	}
 
-	if err := hst.Lchown(ctx, f.Path, *f.Uid, *f.Gid); err != nil {
+	if err := host.Lchown(ctx, f.Path, *f.Uid, *f.Gid); err != nil {
 		return err
 	}
 

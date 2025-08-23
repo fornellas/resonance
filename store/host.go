@@ -23,10 +23,10 @@ type HostStore struct {
 }
 
 // NewHostStore creates a new HostStore for given Host.
-func NewHostStore(hst types.Host, path string) *HostStore {
+func NewHostStore(host types.Host, path string) *HostStore {
 	basePath := filepath.Join(path, "state", "v1")
 	return &HostStore{
-		Host:      hst,
+		Host:      host,
 		logPath:   filepath.Join(path, "logs"),
 		statePath: basePath,
 	}

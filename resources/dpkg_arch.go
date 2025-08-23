@@ -39,12 +39,12 @@ func (a *DpkgArch) Validate() error {
 	}
 	return nil
 }
-func getSystemArch(ctx context.Context, hst types.Host) (string, error) {
+func getSystemArch(ctx context.Context, host types.Host) (string, error) {
 	cmd := types.Cmd{
 		Path: "/usr/bin/dpkg",
 		Args: []string{"--print-architecture"},
 	}
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+	waitStatus, stdout, stderr, err := lib.Run(ctx, host, cmd)
 	if err != nil {
 		return "", err
 	}
@@ -54,12 +54,12 @@ func getSystemArch(ctx context.Context, hst types.Host) (string, error) {
 	return strings.TrimSpace(stdout), nil
 }
 
-func getCurrentForeignArchs(ctx context.Context, hst types.Host) (map[string]struct{}, error) {
+func getCurrentForeignArchs(ctx context.Context, host types.Host) (map[string]struct{}, error) {
 	cmd := types.Cmd{
 		Path: "/usr/bin/dpkg",
 		Args: []string{"--print-foreign-architectures"},
 	}
-	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+	waitStatus, stdout, stderr, err := lib.Run(ctx, host, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -84,14 +84,14 @@ func getDesiredArchs(foreignArchs []string, systemArch string) (map[string]struc
 	return desired, nil
 }
 
-func addMissingArchs(ctx context.Context, hst types.Host, current, desired map[string]struct{}) error {
+func addMissingArchs(ctx context.Context, host types.Host, current, desired map[string]struct{}) error {
 	for arch := range desired {
 		if _, ok := current[arch]; !ok {
 			cmd := types.Cmd{
 				Path: "/usr/bin/dpkg",
 				Args: []string{"--add-architecture", arch},
 			}
-			waitStatus, _, stderr, err := lib.SimpleRun(ctx, hst, cmd)
+			waitStatus, _, stderr, err := lib.Run(ctx, host, cmd)
 			if err != nil {
 				return err
 			}
@@ -103,7 +103,7 @@ func addMissingArchs(ctx context.Context, hst types.Host, current, desired map[s
 	return nil
 }
 
-func removeExtraArchs(ctx context.Context, hst types.Host, current, desired map[string]struct{}) error {
+func removeExtraArchs(ctx context.Context, host types.Host, current, desired map[string]struct{}) error {
 	for arch := range current {
 		if _, ok := desired[arch]; !ok {
 			// Purge all packages for this architecture before removing it
@@ -111,7 +111,7 @@ func removeExtraArchs(ctx context.Context, hst types.Host, current, desired map[
 				Path: "/usr/bin/apt",
 				Args: []string{"-y", "--allow-remove-essential", "purge", "*:" + arch},
 			}
-			waitStatus, _, stderr, err := lib.SimpleRun(ctx, hst, purgeCmd)
+			waitStatus, _, stderr, err := lib.Run(ctx, host, purgeCmd)
 			if err != nil {
 				return err
 			}
@@ -124,7 +124,7 @@ func removeExtraArchs(ctx context.Context, hst types.Host, current, desired map[
 				Path: "/usr/bin/dpkg",
 				Args: []string{"--remove-architecture", arch},
 			}
-			waitStatus, _, stderr, err = lib.SimpleRun(ctx, hst, cmd)
+			waitStatus, _, stderr, err = lib.Run(ctx, host, cmd)
 			if err != nil {
 				return err
 			}
@@ -136,13 +136,13 @@ func removeExtraArchs(ctx context.Context, hst types.Host, current, desired map[
 	return nil
 }
 
-func (a *DpkgArch) Apply(ctx context.Context, hst types.Host) error {
-	systemArch, err := getSystemArch(ctx, hst)
+func (a *DpkgArch) Apply(ctx context.Context, host types.Host) error {
+	systemArch, err := getSystemArch(ctx, host)
 	if err != nil {
 		return err
 	}
 
-	foreignArchsMap, err := getCurrentForeignArchs(ctx, hst)
+	foreignArchsMap, err := getCurrentForeignArchs(ctx, host)
 	if err != nil {
 		return err
 	}
@@ -152,11 +152,11 @@ func (a *DpkgArch) Apply(ctx context.Context, hst types.Host) error {
 		return err
 	}
 
-	if err := addMissingArchs(ctx, hst, foreignArchsMap, desiredArchs); err != nil {
+	if err := addMissingArchs(ctx, host, foreignArchsMap, desiredArchs); err != nil {
 		return err
 	}
 
-	if err := removeExtraArchs(ctx, hst, foreignArchsMap, desiredArchs); err != nil {
+	if err := removeExtraArchs(ctx, host, foreignArchsMap, desiredArchs); err != nil {
 		return err
 	}
 

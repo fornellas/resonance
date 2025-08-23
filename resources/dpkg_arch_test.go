@@ -74,7 +74,7 @@ func TestDpkgArch(t *testing.T) {
 				require.NoError(t, dpkgArch.Apply(ctx, host))
 
 				// Check that foreign package was removed
-				waitStatus, _, stderr, err := lib.SimpleRun(ctx, host, types.Cmd{
+				waitStatus, _, stderr, err := lib.Run(ctx, host, types.Cmd{
 					Path: "/usr/bin/dpkg", Args: []string{"-l", foreignPackage},
 				})
 				require.NoError(t, err)
