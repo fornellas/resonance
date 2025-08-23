@@ -643,14 +643,16 @@ func runAndRequireSuccess(t *testing.T, ctx context.Context, host types.BaseHost
 	return stdout
 }
 
+var aptDpkgTestDockerImages = []string{
+	// "debian:bookworm",
+	// "debian:trixie",
+	// "ubuntu:22.04",
+	"ubuntu:24.04",
+}
+
 func TestAPTPackages(t *testing.T) {
 	t.Run("Apply()", func(t *testing.T) {
-		for _, image := range []string{
-			// "debian:bookworm",
-			// "debian:trixie",
-			// "ubuntu:22.04",
-			"ubuntu:24.04",
-		} {
+		for _, image := range aptDpkgTestDockerImages {
 			t.Run(image, func(t *testing.T) {
 				t.Run("basic package installation", func(t *testing.T) {
 					t.Parallel()
