@@ -18,8 +18,8 @@ import (
 	_ "embed"
 )
 
-//go:embed debian_frontend_editor.sh
-var debianFrontendEditor string
+//go:embed debconf_editor.sh
+var debconfEditor string
 
 // A debconf question.
 // See https://wiki.debian.org/debconf
@@ -379,8 +379,33 @@ func (a *APTPackages) Load(ctx context.Context, host types.Host, aptPackages []*
 	return nil
 }
 
-func (a *APTPackages) Resolve(ctx context.Context, host types.Host, aptPackages []*APTPackage) error {
-	return nil
+func (a *APTPackages) setupDebianFrontendEditor(ctx context.Context, host types.Host) (path string, err error) {
+	path, err = lib.CreateTemp(ctx, host, "debconf_editor")
+	if err != nil {
+		return "", err
+	}
+	if writeErr := host.WriteFile(ctx, path, strings.NewReader(debconfEditor), types.FileMode(0755)); writeErr != nil {
+		err = errors.Join(err, writeErr)
+		err = errors.Join(err, host.Remove(ctx, path))
+		return "", err
+	}
+
+	return path, nil
+}
+
+func (a *APTPackages) getDebconfEnv(aptPackages []*APTPackage, editorPath string) []string {
+	var questionAnswersBuff strings.Builder
+	for _, aptPackage := range aptPackages {
+		for question, answer := range aptPackage.DebconfSelections {
+			fmt.Fprintf(&questionAnswersBuff, "%s\n%s\n", question, answer)
+		}
+	}
+	return []string{
+		"EDITOR=" + editorPath,
+		"QUESTION_ANSWERS=" + questionAnswersBuff.String(),
+		"DEBIAN_FRONTEND=editor",
+		"DEBIAN_PRIORITY=low",
+	}
 }
 
 func (a *APTPackages) applyHolds(ctx context.Context, host types.Host, aptPackages []*APTPackage) error {
@@ -515,12 +540,7 @@ func (a *APTPackages) buildArchitectureArguments(aptPackage *APTPackage, pkgArg 
 	return args
 }
 
-func (a *APTPackages) runAptCommands(ctx context.Context, host types.Host, aptPackages []*APTPackage) error {
-	pkgArgs, err := a.buildPackageArguments(ctx, host, aptPackages)
-	if err != nil {
-		return err
-	}
-
+func (a *APTPackages) runAptCommands(ctx context.Context, host types.Host, env []string, aptPackages []*APTPackage) error {
 	cmd := types.Cmd{
 		Path: "apt",
 		Args: []string{"update"},
@@ -536,9 +556,14 @@ func (a *APTPackages) runAptCommands(ctx context.Context, host types.Host, aptPa
 		)
 	}
 
+	pkgArgs, err := a.buildPackageArguments(ctx, host, aptPackages)
+	if err != nil {
+		return err
+	}
 	cmd = types.Cmd{
 		Path: "apt",
 		Args: append([]string{"--yes", "install"}, pkgArgs...),
+		Env:  env,
 	}
 	waitStatus, stdout, stderr, err = lib.Run(ctx, host, cmd)
 	if err != nil {
@@ -555,22 +580,15 @@ func (a *APTPackages) runAptCommands(ctx context.Context, host types.Host, aptPa
 }
 
 func (a *APTPackages) Apply(ctx context.Context, host types.Host, aptPackages []*APTPackage) (err error) {
-	debianFrontendEditorPath, err := lib.CreateTemp(ctx, host, "debian_frontend_editor")
+	debconfEditorPath, err := a.setupDebianFrontendEditor(ctx, host)
 	if err != nil {
 		return err
 	}
-	if err := host.WriteFile(ctx, debianFrontendEditorPath, strings.NewReader(debianFrontendEditor), types.FileMode(0755)); err != nil {
-		return err
-	}
-	defer func() { err = errors.Join(err, host.Remove(ctx, debianFrontendEditorPath)) }()
+	defer func() { err = errors.Join(err, host.Remove(ctx, debconfEditorPath)) }()
 
-	// TODO use these env vars to run apt
-	// EDITOR=/tmp/editor.sh
-	// QUESTION_ANSWERS=$foo
-	// DEBIAN_FRONTEND=editor
-	// DEBIAN_PRIORITY=low
+	debconfEnv := a.getDebconfEnv(aptPackages, debconfEditorPath)
 
-	if err := a.runAptCommands(ctx, host, aptPackages); err != nil {
+	if err := a.runAptCommands(ctx, host, debconfEnv, aptPackages); err != nil {
 		return err
 	}
 
