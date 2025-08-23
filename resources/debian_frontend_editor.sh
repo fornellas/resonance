@@ -1,4 +1,6 @@
-#!/bin/sh
+#!/bin/bash
+
+file="$1"
 
 # Read QUESTION_ANSWERS from env, split into pairs
 IFS='
@@ -13,11 +15,13 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-file="$1"
 
 for i in $(seq 0 $((${#questions[@]} - 1))); do
     q="${questions[$i]}"
     a="${answers[$i]}"
+    # Escape q for regex, a for sed replacement
+    q_escaped=$(printf '%s\n' "$q" | sed 's/[][\/.^$*]/\\&/g')
+    a_escaped=$(printf '%s\n' "$a" | sed 's/[&/\]/\\&/g')
     # Use sed to update the answer in place
-    sed -i -e "/^$q=\".*\"/s|^$q=\".*\"|$q=\"$a\"|" "$file"
+    sed -i -e "/^$q_escaped=\".*\"/s|^$q_escaped=\".*\"|$q_escaped=\"$a_escaped\"|" "$file"
 done

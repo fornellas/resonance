@@ -510,28 +510,6 @@ func (a *APTPackages) buildArchitectureArguments(aptPackage *APTPackage, pkgArg 
 	return args
 }
 
-func (a *APTPackages) configureDebconfSelections(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
-	for _, aptPackage := range aptPackages {
-		if aptPackage.Absent {
-			continue
-		}
-
-		for debconfQuestion, debconfSelection := range aptPackage.DebconfSelections {
-			commands := []string{
-				fmt.Sprintf("set %s %s", debconfQuestion, debconfSelection),
-				fmt.Sprintf("fset %s seen true", debconfQuestion),
-			}
-			for _, command := range commands {
-				_, err := a.debconfCommunicate(ctx, hst, aptPackage.Package, command)
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-	return nil
-}
-
 func (a *APTPackages) runAptCommands(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
 	pkgArgs, err := a.buildPackageArguments(ctx, hst, aptPackages)
 	if err != nil {
@@ -539,7 +517,7 @@ func (a *APTPackages) runAptCommands(ctx context.Context, hst types.Host, aptPac
 	}
 
 	cmd := types.Cmd{
-		Path: "apt-get",
+		Path: "apt",
 		Args: []string{"update"},
 	}
 	waitStatus, stdout, stderr, err := lib.SimpleRun(ctx, hst, cmd)
@@ -554,7 +532,7 @@ func (a *APTPackages) runAptCommands(ctx context.Context, hst types.Host, aptPac
 	}
 
 	cmd = types.Cmd{
-		Path: "apt-get",
+		Path: "apt",
 		Args: append([]string{"--yes", "install"}, pkgArgs...),
 	}
 	waitStatus, stdout, stderr, err = lib.SimpleRun(ctx, hst, cmd)
