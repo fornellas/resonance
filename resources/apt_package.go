@@ -260,7 +260,51 @@ func (a *APTPackages) debconfCommunicate(
 	return value, nil
 }
 
-func (a *APTPackages) loadDebconfSelections(ctx context.Context, host types.Host, aptPackages []*APTPackage) error {
+func (a *APTPackages) loadPackageDebconfSelections(ctx context.Context, host types.Host, name string) (map[DebconfQuestion]DebconfAnswer, error) {
+	cmd := types.Cmd{
+		Path: "debconf-show",
+		Args: []string{name},
+		Env:  []string{"LANG=C"},
+	}
+	waitStatus, stdout, stderr, err := lib.Run(ctx, host, cmd)
+	if err != nil {
+		return nil, err
+	}
+	if !waitStatus.Success() {
+		return nil, fmt.Errorf("%s failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, waitStatus.String(), stdout, stderr)
+	}
+
+	if len(stderr) > 0 {
+		return nil, fmt.Errorf("%s failed:\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, stdout, stderr)
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(stdout))
+	debconfSelections := map[DebconfQuestion]DebconfAnswer{}
+	for scanner.Scan() {
+		line := scanner.Text()
+		matches := debconfShowRegexp.FindStringSubmatch(line)
+		if matches == nil {
+			return nil, fmt.Errorf("%s failed: can not parse debconf-show output line: %s", cmd, line)
+		}
+
+		question := DebconfQuestion(matches[2])
+		answer := matches[4]
+		if answer == "(password omitted)" {
+			command := fmt.Sprintf("get %s\n", question)
+			answer, err = a.debconfCommunicate(ctx, host, name, command)
+			if err != nil {
+				return nil, err
+			}
+		}
+		debconfSelections[question] = DebconfAnswer(answer)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("%s failed: can not scan stderr: %w\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, err, stdout, stderr)
+	}
+	return debconfSelections, nil
+}
+
+func (a *APTPackages) loadAPTPackagesDebconfSelections(ctx context.Context, host types.Host, aptPackages []*APTPackage) error {
 	concurrencyGroup := concurrency.NewConcurrencyGroup(ctx)
 
 	for _, aptPackage := range aptPackages {
@@ -269,47 +313,15 @@ func (a *APTPackages) loadDebconfSelections(ctx context.Context, host types.Host
 		}
 
 		concurrencyGroup.Run(func() error {
-			cmd := types.Cmd{
-				Path: "debconf-show",
-				Args: []string{aptPackage.Package},
-				Env:  []string{"LANG=C"},
-			}
-			waitStatus, stdout, stderr, err := lib.Run(ctx, host, cmd)
+			debconfSelections, err := a.loadPackageDebconfSelections(ctx, host, aptPackage.Package)
 			if err != nil {
 				return err
 			}
-			if !waitStatus.Success() {
-				return fmt.Errorf("%s failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, waitStatus.String(), stdout, stderr)
-			}
-
-			if len(stderr) > 0 {
-				return fmt.Errorf("%s failed:\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, stdout, stderr)
-			}
-
-			scanner := bufio.NewScanner(strings.NewReader(stdout))
-			for scanner.Scan() {
-				line := scanner.Text()
-				matches := debconfShowRegexp.FindStringSubmatch(line)
-				if matches == nil {
-					return fmt.Errorf("%s failed: can not parse debconf-show output line: %s", cmd, line)
-				}
-
-				question := DebconfQuestion(matches[2])
-				answer := matches[4]
-				if answer == "(password omitted)" {
-					command := fmt.Sprintf("get %s\n", question)
-					answer, err = a.debconfCommunicate(ctx, host, aptPackage.Package, command)
-					if err != nil {
-						return err
-					}
-				}
+			for question, answer := range debconfSelections {
 				if aptPackage.DebconfSelections == nil {
 					aptPackage.DebconfSelections = map[DebconfQuestion]DebconfAnswer{}
 				}
-				aptPackage.DebconfSelections[question] = DebconfAnswer(answer)
-			}
-			if err := scanner.Err(); err != nil {
-				return fmt.Errorf("%s failed: can not scan stderr: %w\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, err, stdout, stderr)
+				aptPackage.DebconfSelections[question] = answer
 			}
 			return nil
 		})
@@ -368,7 +380,7 @@ func (a *APTPackages) Load(ctx context.Context, host types.Host, aptPackages []*
 		return fmt.Errorf("failed scanning dpkg-query output: %w", err)
 	}
 
-	if err := a.loadDebconfSelections(ctx, host, aptPackages); err != nil {
+	if err := a.loadAPTPackagesDebconfSelections(ctx, host, aptPackages); err != nil {
 		return fmt.Errorf("failed loading debconf: %w", err)
 	}
 
@@ -406,58 +418,6 @@ func (a *APTPackages) getDebconfEnv(aptPackages []*APTPackage, editorPath string
 		"DEBIAN_FRONTEND=editor",
 		"DEBIAN_PRIORITY=low",
 	}
-}
-
-func (a *APTPackages) applyHolds(ctx context.Context, host types.Host, aptPackages []*APTPackage) error {
-	var selections strings.Builder
-
-	for _, aptPackage := range aptPackages {
-		if aptPackage.Absent {
-			continue
-		}
-
-		status := "install"
-		if aptPackage.Hold {
-			status = "hold"
-		}
-
-		if len(aptPackage.Architectures) > 0 {
-			for _, arch := range aptPackage.Architectures {
-				selections.WriteString(fmt.Sprintf("%s:%s %s\n", aptPackage.Package, arch, status))
-			}
-		} else {
-			selections.WriteString(fmt.Sprintf("%s %s\n", aptPackage.Package, status))
-		}
-	}
-
-	if selections.Len() == 0 {
-		return nil
-	}
-
-	stdinReader := strings.NewReader(selections.String())
-	stdoutBuffer := bytes.Buffer{}
-	stderrBuffer := bytes.Buffer{}
-	cmd := types.Cmd{
-		Path:   "/usr/bin/dpkg",
-		Args:   []string{"--set-selections"},
-		Stdin:  stdinReader,
-		Stdout: &stdoutBuffer,
-		Stderr: &stderrBuffer,
-	}
-
-	waitStatus, err := host.Run(ctx, cmd)
-	if err != nil {
-		return fmt.Errorf("failed to run dpkg --set-selections: %w", err)
-	}
-
-	stdout := stdoutBuffer.String()
-	stderr := stderrBuffer.String()
-
-	if !waitStatus.Success() {
-		return fmt.Errorf("dpkg --set-selections failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", waitStatus.String(), stdout, stderr)
-	}
-
-	return nil
 }
 
 func (a *APTPackages) loadCurrentArchitecturesForPackages(ctx context.Context, host types.Host, aptPackages []*APTPackage) (map[string][]string, error) {
@@ -540,7 +500,7 @@ func (a *APTPackages) buildArchitectureArguments(aptPackage *APTPackage, pkgArg 
 	return args
 }
 
-func (a *APTPackages) runAptCommands(ctx context.Context, host types.Host, env []string, aptPackages []*APTPackage) error {
+func (a *APTPackages) aptInstall(ctx context.Context, host types.Host, env []string, aptPackages []*APTPackage) error {
 	cmd := types.Cmd{
 		Path: "apt",
 		Args: []string{"update"},
@@ -579,6 +539,100 @@ func (a *APTPackages) runAptCommands(ctx context.Context, host types.Host, env [
 	return nil
 }
 
+func (a *APTPackages) applyHolds(ctx context.Context, host types.Host, aptPackages []*APTPackage) error {
+	var selections strings.Builder
+
+	for _, aptPackage := range aptPackages {
+		if aptPackage.Absent {
+			continue
+		}
+
+		status := "install"
+		if aptPackage.Hold {
+			status = "hold"
+		}
+
+		if len(aptPackage.Architectures) > 0 {
+			for _, arch := range aptPackage.Architectures {
+				selections.WriteString(fmt.Sprintf("%s:%s %s\n", aptPackage.Package, arch, status))
+			}
+		} else {
+			selections.WriteString(fmt.Sprintf("%s %s\n", aptPackage.Package, status))
+		}
+	}
+
+	if selections.Len() == 0 {
+		return nil
+	}
+
+	stdinReader := strings.NewReader(selections.String())
+	stdoutBuffer := bytes.Buffer{}
+	stderrBuffer := bytes.Buffer{}
+	cmd := types.Cmd{
+		Path:   "/usr/bin/dpkg",
+		Args:   []string{"--set-selections"},
+		Stdin:  stdinReader,
+		Stdout: &stdoutBuffer,
+		Stderr: &stderrBuffer,
+	}
+
+	waitStatus, err := host.Run(ctx, cmd)
+	if err != nil {
+		return fmt.Errorf("failed to run dpkg --set-selections: %w", err)
+	}
+
+	stdout := stdoutBuffer.String()
+	stderr := stderrBuffer.String()
+
+	if !waitStatus.Success() {
+		return fmt.Errorf("dpkg --set-selections failed: %s\nSTDOUT:\n%s\nSTDERR:\n%s", waitStatus.String(), stdout, stderr)
+	}
+
+	return nil
+}
+
+func (a *APTPackages) postFixDebconf(ctx context.Context, host types.Host, aptPackages []*APTPackage, env []string) error {
+	var reconfigurePackages []string
+	for _, aptPackage := range aptPackages {
+		if aptPackage.Absent {
+			continue
+		}
+
+		debconfSelections, err := a.loadPackageDebconfSelections(ctx, host, aptPackage.Package)
+		if err != nil {
+			return err
+		}
+		for question, currentAnswer := range debconfSelections {
+			if expectedAnswer, ok := aptPackage.DebconfSelections[question]; ok {
+				if currentAnswer != expectedAnswer {
+					reconfigurePackages = append(reconfigurePackages, aptPackage.Package)
+					break
+				}
+			}
+		}
+	}
+
+	if len(reconfigurePackages) > 0 {
+		cmd := types.Cmd{
+			Path: "dpkg-reconfigure",
+			Args: reconfigurePackages,
+			Env:  env,
+		}
+		waitStatus, stdout, stderr, err := lib.Run(ctx, host, cmd)
+		if err != nil {
+			return fmt.Errorf("failed to run '%s': %s", cmd, err)
+		}
+		if !waitStatus.Success() {
+			return fmt.Errorf(
+				"failed to run '%v': %s:\nstdout:\n%s\nstderr:\n%s",
+				cmd, waitStatus.String(), stdout, stderr,
+			)
+		}
+	}
+
+	return nil
+}
+
 func (a *APTPackages) Apply(ctx context.Context, host types.Host, aptPackages []*APTPackage) (err error) {
 	debconfEditorPath, err := a.setupDebianFrontendEditor(ctx, host)
 	if err != nil {
@@ -588,11 +642,13 @@ func (a *APTPackages) Apply(ctx context.Context, host types.Host, aptPackages []
 
 	debconfEnv := a.getDebconfEnv(aptPackages, debconfEditorPath)
 
-	if err := a.runAptCommands(ctx, host, debconfEnv, aptPackages); err != nil {
+	if err := a.aptInstall(ctx, host, debconfEnv, aptPackages); err != nil {
 		return err
 	}
 
-	// TODO check whether debconf is ok, if not, dpkg-reconfigure the package (for cases where the package was previously installed)
+	if err := a.postFixDebconf(ctx, host, aptPackages, debconfEnv); err != nil {
+		return err
+	}
 
 	if err := a.applyHolds(ctx, host, aptPackages); err != nil {
 		return fmt.Errorf("failed applying holds: %w", err)

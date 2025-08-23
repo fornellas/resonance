@@ -924,6 +924,7 @@ func TestAPTPackages(t *testing.T) {
 					require.NoError(t, err)
 
 					aptPackages := &APTPackages{}
+
 					packages := []*APTPackage{
 						{
 							Package: "tzdata",
@@ -945,7 +946,7 @@ func TestAPTPackages(t *testing.T) {
 
 					// Reconfigure package
 					runAndRequireSuccess(t, ctx, dockerHost, types.Cmd{
-						Path: "dpkg-reconfigure", Args: []string{"tzdata"},
+						Path: "dpkg-reconfigure", Args: []string{"-f", "noninteractive", "tzdata"},
 					})
 
 					// Verify debconf selections (reconfiguring must not alter it)
@@ -954,6 +955,26 @@ func TestAPTPackages(t *testing.T) {
 					})
 					require.Contains(t, stdout, "* tzdata/Areas: Europe\n")
 					require.Contains(t, stdout, "* tzdata/Zones/Europe: Dublin\n")
+
+					// Change answer for already istalled package
+					packages = []*APTPackage{
+						{
+							Package: "tzdata",
+							DebconfSelections: map[DebconfQuestion]DebconfAnswer{
+								"tzdata/Areas":        "Europe",
+								"tzdata/Zones/Europe": "London",
+							},
+						},
+					}
+					err = aptPackages.Apply(ctx, agentHost, packages)
+					require.NoError(t, err)
+
+					// Verify debconf selections
+					stdout = runAndRequireSuccess(t, ctx, dockerHost, types.Cmd{
+						Path: "debconf-show", Args: []string{"tzdata"},
+					})
+					require.Contains(t, stdout, "* tzdata/Areas: Europe\n")
+					require.Contains(t, stdout, "* tzdata/Zones/Europe: London\n")
 				})
 			})
 		}
