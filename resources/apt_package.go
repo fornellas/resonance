@@ -460,7 +460,12 @@ func (a *APTPackages) loadCurrentArchitecturesForPackages(ctx context.Context, h
 	return currentArchs, nil
 }
 
-func (a *APTPackages) buildPackageArguments(aptPackages []*APTPackage, currentArchs map[string][]string) []string {
+func (a *APTPackages) buildPackageArguments(ctx context.Context, hst types.Host, aptPackages []*APTPackage) ([]string, error) {
+	currentArchs, err := a.loadCurrentArchitecturesForPackages(ctx, hst, aptPackages)
+	if err != nil {
+		return nil, err
+	}
+
 	pkgArgs := []string{}
 	for _, aptPackage := range aptPackages {
 		if aptPackage.Absent {
@@ -469,7 +474,7 @@ func (a *APTPackages) buildPackageArguments(aptPackages []*APTPackage, currentAr
 			pkgArgs = append(pkgArgs, a.buildInstallArguments(aptPackage, currentArchs)...)
 		}
 	}
-	return pkgArgs
+	return pkgArgs, nil
 }
 
 func (a *APTPackages) buildInstallArguments(aptPackage *APTPackage, currentArchs map[string][]string) []string {
@@ -529,7 +534,12 @@ func (a *APTPackages) configureDebconfSelections(ctx context.Context, hst types.
 	return nil
 }
 
-func (a *APTPackages) runAptCommands(ctx context.Context, hst types.Host, pkgArgs []string) error {
+func (a *APTPackages) runAptCommands(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
+	pkgArgs, err := a.buildPackageArguments(ctx, hst, aptPackages)
+	if err != nil {
+		return err
+	}
+
 	cmd := types.Cmd{
 		Path: "apt-get",
 		Args: []string{"update"},
@@ -564,18 +574,11 @@ func (a *APTPackages) runAptCommands(ctx context.Context, hst types.Host, pkgArg
 }
 
 func (a *APTPackages) Apply(ctx context.Context, hst types.Host, aptPackages []*APTPackage) error {
-	currentArchs, err := a.loadCurrentArchitecturesForPackages(ctx, hst, aptPackages)
-	if err != nil {
-		return err
-	}
-
-	pkgArgs := a.buildPackageArguments(aptPackages, currentArchs)
-
 	if err := a.configureDebconfSelections(ctx, hst, aptPackages); err != nil {
 		return err
 	}
 
-	if err := a.runAptCommands(ctx, hst, pkgArgs); err != nil {
+	if err := a.runAptCommands(ctx, hst, aptPackages); err != nil {
 		return err
 	}
 
