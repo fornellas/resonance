@@ -654,6 +654,96 @@ func runAndRequireSuccess(t *testing.T, ctx context.Context, host types.BaseHost
 }
 
 func TestAPTPackages(t *testing.T) {
+	t.Run("Load()", func(t *testing.T) {
+		for _, image := range testDockerImages {
+			t.Run(image, func(t *testing.T) {
+				t.Parallel()
+				var err error
+				var systemArch string
+				dockerHost, _ := host.GetTestDockerHost(t, image)
+				ctx := log.WithTestLogger(t.Context())
+				agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
+				require.NoError(t, err)
+
+				// Fetch system arch
+				systemArch = strings.TrimSpace(runAndRequireSuccess(t, ctx, agentHost, types.Cmd{
+					Path: "/usr/bin/dpkg", Args: []string{"--print-architecture"},
+				}))
+
+				// APT update
+				runAndRequireSuccess(t, ctx, agentHost, types.Cmd{
+					Path: "apt", Args: []string{"update"},
+				})
+
+				// Package + Architectures
+				runAndRequireSuccess(t, ctx, agentHost, types.Cmd{
+					Path: "apt", Args: []string{"install", "-y", "nano"},
+				})
+				aptPackages := &APTPackages{}
+				nanoPkg := &APTPackage{Package: "nano"}
+				err = aptPackages.Load(ctx, agentHost, []*APTPackage{nanoPkg})
+				require.NoError(t, err)
+				expectedNano := &APTPackage{
+					Package:       "nano",
+					Architectures: []string{systemArch},
+				}
+				require.Equal(t, expectedNano, nanoPkg)
+
+				// Absent
+				curlAbsent := &APTPackage{Package: "curl", Absent: true}
+				err = aptPackages.Load(ctx, agentHost, []*APTPackage{curlAbsent})
+				require.NoError(t, err)
+				expectedCurlAbsent := &APTPackage{
+					Package: "curl",
+					Absent:  true,
+				}
+				require.Equal(t, expectedCurlAbsent, curlAbsent)
+
+				// Version + Hold
+				runAndRequireSuccess(t, ctx, agentHost, types.Cmd{
+					Path: "apt-get", Args: []string{"install", "-y", "curl"},
+				})
+				runAndRequireSuccess(t, ctx, agentHost, types.Cmd{
+					Path: "/usr/bin/dpkg", Args: []string{"--set-selections"},
+					Stdin: strings.NewReader("curl hold\n"),
+				})
+				curlHold := &APTPackage{Package: "curl", Hold: true}
+				err = aptPackages.Load(ctx, agentHost, []*APTPackage{curlHold})
+				require.NoError(t, err)
+				version := strings.TrimSpace(runAndRequireSuccess(t, ctx, agentHost, types.Cmd{
+					Path: "/usr/bin/dpkg-query", Args: []string{"-W", "-f", "${Version}", "curl"},
+				}))
+				expectedCurlHold := &APTPackage{
+					Package:       "curl",
+					Architectures: []string{systemArch},
+					Version:       version,
+					Hold:          true,
+				}
+				require.Equal(t, expectedCurlHold, curlHold)
+
+				// DebconfSelections
+				runAndRequireSuccess(t, ctx, agentHost, types.Cmd{
+					Path: "apt", Args: []string{"install", "-y", "tzdata"},
+				})
+				runAndRequireSuccess(t, ctx, agentHost, types.Cmd{
+					Path:  "debconf-set-selections",
+					Stdin: strings.NewReader("tzdata tzdata/Areas select Europe\ntzdata tzdata/Zones/Europe select Dublin\n"),
+				})
+				tzdataPkg := &APTPackage{
+					Package: "tzdata",
+				}
+				err = aptPackages.Load(ctx, agentHost, []*APTPackage{tzdataPkg})
+				require.NoError(t, err)
+				require.Contains(t, tzdataPkg.DebconfSelections, DebconfQuestion("tzdata/Areas"))
+				require.Equal(t, DebconfAnswer("Europe"), tzdataPkg.DebconfSelections["tzdata/Areas"])
+				require.Contains(t, tzdataPkg.DebconfSelections, DebconfQuestion("tzdata/Zones/Europe"))
+				require.Equal(t, DebconfAnswer("Dublin"), tzdataPkg.DebconfSelections["tzdata/Zones/Europe"])
+				for k := range tzdataPkg.DebconfSelections {
+					require.True(t, strings.HasPrefix(string(k), "tzdata/"), "unexpected debconf key: %s", k)
+				}
+			})
+		}
+	})
 	t.Run("Apply()", func(t *testing.T) {
 		for _, image := range testDockerImages {
 			t.Run(image, func(t *testing.T) {

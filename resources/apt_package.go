@@ -420,6 +420,12 @@ func (a *APTPackages) Load(ctx context.Context, host types.Host, aptPackages []*
 		return fmt.Errorf("failed loading hold status: %w", err)
 	}
 
+	for _, aptPackage := range aptPackages {
+		if !aptPackage.Hold {
+			aptPackage.Version = ""
+		}
+	}
+
 	return nil
 }
 
