@@ -137,32 +137,35 @@ $(value GO_TEST_BUILD_FLAGS_$(1))
 endef
 
 GO_TEST_BUILD_FLAGS :=
+ifeq ($(GO_TEST_BUILD_FLAGS_SKIP_INTEGRATION),1)
+GO_TEST_BUILD_FLAGS := -tags skip_integration $(GO_TEST_BUILD_FLAGS)
+endif
 # https://go.dev/doc/articles/race_detector#Requirements
 ifneq ($(GO_TEST_BUILD_FLAGS_NO_RACE),1)
 ifeq ($(GOOS)/$(GOARCH),linux/amd64)
-GO_TEST_BUILD_FLAGS_linux_amd64 := -race $(GO_TEST_BUILD_FLAGS)
+GO_TEST_BUILD_FLAGS_linux_amd64 := -race
 endif
 ifeq ($(GOOS)/$(GOARCH),linux/ppc64le)
-GO_TEST_BUILD_FLAGS_linux_ppc64le := -race $(GO_TEST_BUILD_FLAGS)
+GO_TEST_BUILD_FLAGS_linux_ppc64le := -race
 endif
 # https://github.com/golang/go/issues/29948
 # ifeq ($(GOOS)/$(GOARCH),linux/arm64)
-#_LINUX_ARM64 GO_TEST_BUILD_FLAGS := -race $(GO_TEST_BUILD_FLAGS)
+#_LINUX_ARM64 GO_TEST_BUILD_FLAGS := -race
 # endif
 ifeq ($(GOOS)/$(GOARCH),freebsd/amd64)
-GO_TEST_BUILD_FLAGS_freebsd_amd64 := -race $(GO_TEST_BUILD_FLAGS)
+GO_TEST_BUILD_FLAGS_freebsd_amd64 := -race
 endif
 ifeq ($(GOOS)/$(GOARCH),netbsd/amd64)
-GO_TEST_BUILD_FLAGS_netbsd_amd64 := -race $(GO_TEST_BUILD_FLAGS)
+GO_TEST_BUILD_FLAGS_netbsd_amd64 := -race
 endif
 ifeq ($(GOOS)/$(GOARCH),darwin/amd64)
-GO_TEST_BUILD_FLAGS_darwin_amd64 := -race $(GO_TEST_BUILD_FLAGS)
+GO_TEST_BUILD_FLAGS_darwin_amd64 := -race
 endif
 ifeq ($(GOOS)/$(GOARCH),darwin/arm64)
-GO_TEST_BUILD_FLAGS_darwin_arm64 := -race $(GO_TEST_BUILD_FLAGS)
+GO_TEST_BUILD_FLAGS_darwin_arm64 := -race
 endif
 ifeq ($(GOOS)/$(GOARCH),windows/amd64)
-GO_TEST_BUILD_FLAGS_windows_amd64 := -race $(GO_TEST_BUILD_FLAGS)
+GO_TEST_BUILD_FLAGS_windows_amd64 := -race
 endif
 endif
 
@@ -173,7 +176,7 @@ GO_TEST_BINARY_FLAGS :=
 ifneq ($(GO_TEST_NO_COVER),1)
 GO_TEST_BINARY_FLAGS := -coverprofile cover.txt -coverpkg $(GO_TEST_PACKAGES) $(GO_TEST_BINARY_FLAGS)
 endif
-GO_TEST_BINARY_FLAGS := -count=1 $(GO_TEST_BINARY_FLAGS)
+GO_TEST_BINARY_FLAGS := $(GO_TEST_BINARY_FLAGS)
 GO_TEST_BINARY_FLAGS := -failfast $(GO_TEST_BINARY_FLAGS)
 
 GO_TEST_BINARY_FLAGS_EXTRA :=
@@ -499,6 +502,7 @@ help-test:
 	@echo '  use GO_TEST_BINARY_FLAGS_EXTRA to pass extra flags to the test binary (see `go help testflag`)'
 	@echo '  use GO_TEST_NO_COVER=1 to disable code coverage (faster)'
 	@echo '  use GO_TEST_BUILD_FLAGS_NO_RACE=1 to disable -race build flag (faster)'
+	@echo '  use GO_TEST_BUILD_FLAGS_SKIP_INTEGRATION=1 to skip (slow) integration tests'
 help: help-test
 
 .PHONY: test
@@ -509,6 +513,7 @@ help: help-test
 gotest: install-go go-generate gen-protofiles
 	$(GO_TEST) \
 		$(GO_BUILD_FLAGS_COMMON) \
+		$(GO_TEST_BUILD_FLAGS) \
 		$(call go_test_build_flags,$(GOOS)_$(GOARCH_NATIVE)) \
 		$(GO_TEST_FLAGS) \
 		$(GO_TEST_PACKAGES) \
@@ -660,7 +665,8 @@ ci-dev:
 		LINT_GOVULNCHECK_DISABLE=1 \
 		GO_TEST_NO_COVER=1 \
 		GO_TEST_BUILD_FLAGS_NO_RACE=1 \
-		GO_BUILD_AGENT_NATIVE_ONLY=1
+		GO_BUILD_AGENT_NATIVE_ONLY=1 \
+		GO_TEST_BUILD_FLAGS_SKIP_INTEGRATION=1
 
 ##
 ## update
