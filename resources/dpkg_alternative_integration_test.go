@@ -46,7 +46,7 @@ func TestDpkgAlternativeIntegration(t *testing.T) {
 					Choices: []AlternativeChoice{
 						{
 							Alternative: "/bin/ed",
-							Priority:    0,
+							Priority:    -100,
 							Slaves: map[string]string{
 								"editor.1.gz": "/usr/share/man/man1/ed.1.gz",
 							},
