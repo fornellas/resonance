@@ -750,95 +750,111 @@ func TestAPTPackages(t *testing.T) {
 					require.True(t, strings.Contains(stdout, "libc6"), "libc6 package not found in dpkg output: %s", stdout)
 				})
 
-				// t.Run("package with foreign architecture", func(t *testing.T) {
-				// 	t.Parallel()
+				t.Run("package with foreign architecture", func(t *testing.T) {
+					t.Parallel()
 
-				// 	dockerHost, _ := host.GetTestDockerHost(t, image)
-				// 	ctx := log.WithTestLogger(t.Context())
-				// 	agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
-				// 	require.NoError(t, err)
+					dockerHost, _ := host.GetTestDockerHost(t, image)
+					ctx := log.WithTestLogger(t.Context())
+					agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
+					require.NoError(t, err)
 
-				// 	systemArch := strings.TrimSpace(runAndRequireSuccess(t, ctx, agentHost, types.Cmd{
-				// 		Path: "/usr/bin/dpkg",
-				// 		Args: []string{"--print-architecture"},
-				// 	}))
+					systemArch := strings.TrimSpace(runAndRequireSuccess(t, ctx, agentHost, types.Cmd{
+						Path: "/usr/bin/dpkg",
+						Args: []string{"--print-architecture"},
+					}))
 
-				// 	foreignArch := "amd64"
-				// 	if systemArch == "amd64" {
-				// 		foreignArch = "i386"
-				// 	}
-				// 	// FIXME https://wiki.debian.org/Multiarch/HOWTO
-				// 	// This should be handled by a new DpkgArchitecture resource instead
-				// 	runAndRequireSuccess(t, ctx, agentHost, types.Cmd{
-				// 		Path: "/usr/bin/dpkg",
-				// 		Args: []string{"--add-architecture", foreignArch},
-				// 	})
+					foreignArch := "amd64"
+					if systemArch == "amd64" {
+						foreignArch = "i386"
+					}
+					runAndRequireSuccess(t, ctx, agentHost, types.Cmd{
+						Path: "/usr/bin/dpkg",
+						Args: []string{"--add-architecture", foreignArch},
+					})
 
-				// 	archs := []string{systemArch, foreignArch}
+					archs := []string{systemArch, foreignArch}
 
-				// 	aptPackages := &APTPackages{}
-				// 	packages := []*APTPackage{
-				// 		{
-				// 			Package:       "libc6",
-				// 			Architectures: archs,
-				// 		},
-				// 	}
-				// 	err = aptPackages.Apply(ctx, agentHost, packages)
-				// 	require.NoError(t, err)
+					aptPackages := &APTPackages{}
+					packages := []*APTPackage{
+						{
+							Package:       "libc6",
+							Architectures: archs,
+						},
+					}
+					err = aptPackages.Apply(ctx, agentHost, packages)
+					require.NoError(t, err)
 
-				// 	for _, arch := range archs {
-				// 		stdout := runAndRequireSuccess(t, ctx, agentHost, types.Cmd{
-				// 			Path: "/usr/bin/dpkg",
-				// 			Args: []string{"-l", "libc6:" + arch},
-				// 		})
-				// 		require.True(t, strings.Contains(stdout, "libc6"), "libc6 package not found in dpkg output: %s", stdout)
-				// 	}
-				// })
+					for _, arch := range archs {
+						stdout := runAndRequireSuccess(t, ctx, agentHost, types.Cmd{
+							Path: "/usr/bin/dpkg",
+							Args: []string{"-l", "libc6:" + arch},
+						})
+						require.True(t, strings.Contains(stdout, "libc6"), "libc6 package not found in dpkg output: %s", stdout)
+					}
+				})
 
-				// t.Run("package hold", func(t *testing.T) {
-				// 	t.Parallel()
+				t.Run("package version and hold", func(t *testing.T) {
+					t.Parallel()
 
-				// 	dockerHost, _ := host.GetTestDockerHost(t, image)
-				// 	ctx := log.WithTestLogger(t.Context())
-				// 	agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
-				// 	require.NoError(t, err)
+					dockerHost, _ := host.GetTestDockerHost(t, image)
+					ctx := log.WithTestLogger(t.Context())
+					agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
+					require.NoError(t, err)
 
-				// 	aptPackages := &APTPackages{}
-				// 	packages := []*APTPackage{
-				// 		{
-				// 			Package: "curl",
-				// 		},
-				// 	}
-				// 	err = aptPackages.Apply(ctx, agentHost, packages)
-				// 	require.NoError(t, err)
+					aptPackages := &APTPackages{}
 
-				// 	// Query the installed version
-				// 	cmd := types.Cmd{
-				// 		Path: "/usr/bin/dpkg-query",
-				// 		Args: []string{"-W", "-f", "${Version}", "curl"},
-				// 	}
-				// 	version := runAndRequireSuccess(t, ctx, agentHost, cmd)
-				// 	require.NotEmpty(t, version, "curl version should not be empty")
+					packages := []*APTPackage{
+						{
+							Package: "curl",
+						},
+					}
+					err = aptPackages.Apply(ctx, agentHost, packages)
+					require.NoError(t, err)
 
-				// 	// Now apply with hold set
-				// 	packages = []*APTPackage{
-				// 		{
-				// 			Package: "curl",
-				// 			Version: strings.TrimSpace(version),
-				// 			Hold:    true,
-				// 		},
-				// 	}
-				// 	err = aptPackages.Apply(ctx, agentHost, packages)
-				// 	require.NoError(t, err)
+					// Query the installed version
+					cmd := types.Cmd{
+						Path: "/usr/bin/dpkg-query",
+						Args: []string{"-W", "-f", "${Version}", "curl"},
+					}
+					version := runAndRequireSuccess(t, ctx, agentHost, cmd)
+					require.NotEmpty(t, version, "curl version should not be empty")
 
-				// 	// Check that curl is on hold
-				// 	cmd = types.Cmd{
-				// 		Path: "/usr/bin/dpkg",
-				// 		Args: []string{"--get-selections", "curl"},
-				// 	}
-				// 	stdout := runAndRequireSuccess(t, ctx, agentHost, cmd)
-				// 	require.True(t, strings.Contains(stdout, "hold"), "curl package should be on hold: %s", stdout)
-				// })
+					// Now apply with hold set
+					packages = []*APTPackage{
+						{
+							Package: "curl",
+							Version: strings.TrimSpace(version),
+							Hold:    true,
+						},
+					}
+					err = aptPackages.Apply(ctx, agentHost, packages)
+					require.NoError(t, err)
+
+					// Check that curl is on hold
+					cmd = types.Cmd{
+						Path: "/usr/bin/dpkg",
+						Args: []string{"--get-selections", "curl"},
+					}
+					stdout := runAndRequireSuccess(t, ctx, agentHost, cmd)
+					require.True(t, strings.Contains(stdout, "hold"), "curl package should be on hold: %s", stdout)
+
+					// Remove version & hold
+					packages = []*APTPackage{
+						{
+							Package: "curl",
+						},
+					}
+					err = aptPackages.Apply(ctx, agentHost, packages)
+					require.NoError(t, err)
+
+					// Check that curl is not held
+					cmd = types.Cmd{
+						Path: "/usr/bin/dpkg",
+						Args: []string{"--get-selections", "curl"},
+					}
+					stdout = runAndRequireSuccess(t, ctx, agentHost, cmd)
+					require.NotContains(t, stdout, "hold", "curl package should not be held: %s", stdout)
+				})
 
 				// t.Run("package with debconf selections", func(t *testing.T) {
 				// 	t.Parallel()
