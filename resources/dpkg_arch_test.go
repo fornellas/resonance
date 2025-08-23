@@ -95,9 +95,6 @@ func TestDpkgArch(t *testing.T) {
 			})
 		}
 	})
-}
-
-func TestDpkgArch_Satisfies(t *testing.T) {
 	t.Run("Satisfies()", func(t *testing.T) {
 		a := &DpkgArch{ForeignArchitectures: []string{"i386", "arm64"}}
 		b := &DpkgArch{ForeignArchitectures: []string{"i386"}}
@@ -107,9 +104,6 @@ func TestDpkgArch_Satisfies(t *testing.T) {
 		require.True(t, (&DpkgArch{ForeignArchitectures: []string{}}).Satisfies(&DpkgArch{ForeignArchitectures: []string{}}))
 		require.False(t, (&DpkgArch{ForeignArchitectures: []string{}}).Satisfies(a))
 	})
-}
-
-func TestDpkgArch_Validate(t *testing.T) {
 	t.Run("Validate()", func(t *testing.T) {
 		require.NoError(t, (&DpkgArch{ForeignArchitectures: []string{"i386", "amd64"}}).Validate())
 		require.Error(t, (&DpkgArch{ForeignArchitectures: []string{"!"}}).Validate())
