@@ -706,7 +706,7 @@ func TestAPTPackages(t *testing.T) {
 						Path: "/usr/bin/dpkg",
 						Args: []string{"-l", "nano"},
 					}
-					waitStatus, stdout, _, err := lib.SimpleRun(ctx, agentHost, cmd)
+					waitStatus, stdout, _, err := lib.Run(ctx, agentHost, cmd)
 					require.NoError(t, err)
 					require.False(t, waitStatus.Success() && strings.Contains(stdout, "ii  nano"), "nano package should be removed but found in dpkg output: %s", stdout)
 				})
@@ -754,7 +754,7 @@ func TestAPTPackages(t *testing.T) {
 						Path: "/usr/bin/dpkg",
 						Args: []string{"-l", "wget"},
 					}
-					waitStatus, stdout, _, err := lib.SimpleRun(ctx, agentHost, cmd)
+					waitStatus, stdout, _, err := lib.Run(ctx, agentHost, cmd)
 					require.NoError(t, err)
 					require.True(t, waitStatus.Success() && strings.Contains(stdout, "ii  wget"), "wget should still be installed: %s", stdout)
 
@@ -763,7 +763,7 @@ func TestAPTPackages(t *testing.T) {
 						Path: "/usr/bin/dpkg",
 						Args: []string{"-l", "curl"},
 					}
-					waitStatus, stdout, _, err = lib.SimpleRun(ctx, agentHost, cmd)
+					waitStatus, stdout, _, err = lib.Run(ctx, agentHost, cmd)
 					require.NoError(t, err)
 					require.False(t, waitStatus.Success() && strings.Contains(stdout, "ii  curl"), "curl should be removed: %s", stdout)
 
@@ -772,7 +772,7 @@ func TestAPTPackages(t *testing.T) {
 						Path: "/usr/bin/dpkg",
 						Args: []string{"-l", "nano"},
 					}
-					waitStatus, stdout, _, err = lib.SimpleRun(ctx, agentHost, cmd)
+					waitStatus, stdout, _, err = lib.Run(ctx, agentHost, cmd)
 					require.NoError(t, err)
 					require.True(t, waitStatus.Success() && strings.Contains(stdout, "ii  nano"), "nano should be installed: %s", stdout)
 				})
