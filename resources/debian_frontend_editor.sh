@@ -14,13 +14,10 @@ while [ $# -gt 0 ]; do
 done
 
 file="$1"
-changed=0
 
 for i in $(seq 0 $((${#questions[@]} - 1))); do
     q="${questions[$i]}"
     a="${answers[$i]}"
     # Use sed to update the answer in place
-    sed -i -e "/^$q=\".*\"/s|^$q=\".*\"|$q=\"$a\"|" "$file" && changed=1
+    sed -i -e "/^$q=\".*\"/s|^$q=\".*\"|$q=\"$a\"|" "$file"
 done
-
-[ "$changed" -eq 1 ] && rm -- "$0"
