@@ -643,16 +643,9 @@ func runAndRequireSuccess(t *testing.T, ctx context.Context, host types.BaseHost
 	return stdout
 }
 
-var aptDpkgTestDockerImages = []string{
-	"debian:bookworm",
-	"debian:trixie",
-	"ubuntu:22.04",
-	"ubuntu:24.04",
-}
-
 func TestAPTPackages(t *testing.T) {
 	t.Run("Apply()", func(t *testing.T) {
-		for _, image := range aptDpkgTestDockerImages {
+		for _, image := range testDockerImages {
 			t.Run(image, func(t *testing.T) {
 				t.Run("basic package installation", func(t *testing.T) {
 					t.Parallel()
@@ -922,34 +915,46 @@ func TestAPTPackages(t *testing.T) {
 					require.NotContains(t, stdout, "hold", "curl package should not be held: %s", stdout)
 				})
 
-				// t.Run("package with debconf selections", func(t *testing.T) {
-				// 	t.Parallel()
+				t.Run("package with debconf selections", func(t *testing.T) {
+					t.Parallel()
 
-				// 	dockerHost, _ := host.GetTestDockerHost(t, image)
-				// 	ctx := log.WithTestLogger(t.Context())
-				// 	agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
-				// 	require.NoError(t, err)
+					dockerHost, _ := host.GetTestDockerHost(t, image)
+					ctx := log.WithTestLogger(t.Context())
+					agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
+					require.NoError(t, err)
 
-				// 	aptPackages := &APTPackages{}
-				// 	packages := []*APTPackage{
-				// 		{
-				// 			Package: "tzdata",
-				// 			DebconfSelections: map[DebconfQuestion]DebconfAnswer{
-				// 				"tzdata/Areas":        "Europe",
-				// 				"tzdata/Zones/Europe": "Dublin",
-				// 			},
-				// 		},
-				// 	}
-				// 	err = aptPackages.Apply(ctx, agentHost, packages)
-				// 	require.NoError(t, err)
+					aptPackages := &APTPackages{}
+					packages := []*APTPackage{
+						{
+							Package: "tzdata",
+							DebconfSelections: map[DebconfQuestion]DebconfAnswer{
+								"tzdata/Areas":        "Europe",
+								"tzdata/Zones/Europe": "Dublin",
+							},
+						},
+					}
+					err = aptPackages.Apply(ctx, agentHost, packages)
+					require.NoError(t, err)
 
-				// 	// Verify debconf selections
-				// 	stdout := runAndRequireSuccess(t, ctx, dockerHost, types.Cmd{
-				// 		Path: "debconf-show", Args: []string{"tzdata"},
-				// 	})
-				// 	require.Contains(t, stdout, "* tzdata/Areas: Europe\n")
-				// 	require.Contains(t, stdout, "* tzdata/Zones/Europe: Dublin\n")
-				// })
+					// Verify debconf selections
+					stdout := runAndRequireSuccess(t, ctx, dockerHost, types.Cmd{
+						Path: "debconf-show", Args: []string{"tzdata"},
+					})
+					require.Contains(t, stdout, "* tzdata/Areas: Europe\n")
+					require.Contains(t, stdout, "* tzdata/Zones/Europe: Dublin\n")
+
+					// Reconfigure package
+					runAndRequireSuccess(t, ctx, dockerHost, types.Cmd{
+						Path: "dpkg-reconfigure", Args: []string{"tzdata"},
+					})
+
+					// Verify debconf selections (reconfiguring must not alter it)
+					stdout = runAndRequireSuccess(t, ctx, dockerHost, types.Cmd{
+						Path: "debconf-show", Args: []string{"tzdata"},
+					})
+					require.Contains(t, stdout, "* tzdata/Areas: Europe\n")
+					require.Contains(t, stdout, "* tzdata/Zones/Europe: Dublin\n")
+				})
 			})
 		}
 	})

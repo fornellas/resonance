@@ -15,7 +15,7 @@ import (
 
 func TestDpkgArch(t *testing.T) {
 	t.Run("Apply()", func(t *testing.T) {
-		for _, image := range aptDpkgTestDockerImages {
+		for _, image := range testDockerImages {
 			t.Run(image, func(t *testing.T) {
 				t.Parallel()
 

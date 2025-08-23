@@ -46,8 +46,6 @@ type APTPackage struct {
 
 var validDpkgPackageRegexp = regexp.MustCompile(`^[a-z0-9][a-z0-9+\-.]{1,}$`)
 
-var validDpkgArchitectureRegexp = regexp.MustCompile(`^[a-z0-9][a-z0-9-]+$`)
-
 var validDpkgVersionRegexp = regexp.MustCompile(`^(?:([0-9]+):)?(([0-9][A-Za-z0-9.+~]*)|([0-9][A-Za-z0-9.+~-]*-[A-Za-z0-9+.~]+))$`)
 
 // Satisfies returns true only when a satisfies b.
