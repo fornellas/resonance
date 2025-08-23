@@ -41,7 +41,16 @@ func TestDpkgArch(t *testing.T) {
 					foreignArch = "amd64"
 				}
 
-				// Add a foreign architecture
+				// Add extra foreign architecture
+				extraArch := "arm64"
+				if systemArch == extraArch {
+					extraArch = "armhf"
+				}
+				runAndRequireSuccess(t, ctx, host, types.Cmd{
+					Path: "/usr/bin/dpkg", Args: []string{"--add-architecture", extraArch},
+				})
+
+				// Apply only one foreign architecture
 				dpkgArch := &DpkgArch{ForeignArchitectures: []string{foreignArch}}
 				require.NoError(t, dpkgArch.Apply(ctx, host))
 
