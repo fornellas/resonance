@@ -7,7 +7,6 @@ import (
 	"errors"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 
 	"fmt"
@@ -23,10 +22,7 @@ type DebconfQuestion string
 
 // Debconf selections for a DebconfQuestion.
 // See https://wiki.debian.org/debconf
-type DebconfSelection struct {
-	Answer string
-	Seen   bool
-}
+type DebconfAnswer string
 
 // APTPackage manages APT packages.
 type APTPackage struct {
@@ -45,7 +41,7 @@ type APTPackage struct {
 	Hold bool
 	// Package debconf selections.
 	// See https://wiki.debian.org/debconf
-	DebconfSelections map[DebconfQuestion]DebconfSelection
+	DebconfSelections map[DebconfQuestion]DebconfAnswer
 }
 
 var validDpkgPackageRegexp = regexp.MustCompile(`^[a-z0-9][a-z0-9+\-.]{1,}$`)
@@ -121,12 +117,9 @@ func (a *APTPackage) Satisfies(b *APTPackage) bool {
 		}
 	}
 
-	for debconfQuestion, debconfSelection := range b.DebconfSelections {
-		if bDebconfSelection, ok := a.DebconfSelections[debconfQuestion]; ok {
-			if debconfSelection.Answer != bDebconfSelection.Answer {
-				return false
-			}
-			if debconfSelection.Seen != bDebconfSelection.Seen {
+	for debconfQuestion, debconfAnswer := range b.DebconfSelections {
+		if bDebconfAnswer, ok := a.DebconfSelections[debconfQuestion]; ok {
+			if debconfAnswer != bDebconfAnswer {
 				return false
 			}
 		} else {
@@ -298,7 +291,6 @@ func (a *APTPackages) loadDebconfSelections(ctx context.Context, hst types.Host,
 					return fmt.Errorf("%s failed: can not parse debconf-show output line: %s", cmd, line)
 				}
 
-				seen := matches[1] == "*"
 				question := DebconfQuestion(matches[2])
 				answer := matches[4]
 				if answer == "(password omitted)" {
@@ -309,12 +301,9 @@ func (a *APTPackages) loadDebconfSelections(ctx context.Context, hst types.Host,
 					}
 				}
 				if aptPackage.DebconfSelections == nil {
-					aptPackage.DebconfSelections = map[DebconfQuestion]DebconfSelection{}
+					aptPackage.DebconfSelections = map[DebconfQuestion]DebconfAnswer{}
 				}
-				aptPackage.DebconfSelections[question] = DebconfSelection{
-					Answer: answer,
-					Seen:   seen,
-				}
+				aptPackage.DebconfSelections[question] = DebconfAnswer(answer)
 			}
 			if err := scanner.Err(); err != nil {
 				return fmt.Errorf("%s failed: can not scan stderr: %w\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, err, stdout, stderr)
@@ -526,8 +515,8 @@ func (a *APTPackages) configureDebconfSelections(ctx context.Context, hst types.
 
 		for debconfQuestion, debconfSelection := range aptPackage.DebconfSelections {
 			commands := []string{
-				fmt.Sprintf("set %s %s", debconfQuestion, debconfSelection.Answer),
-				fmt.Sprintf("fset %s seen %s", debconfQuestion, strconv.FormatBool(debconfSelection.Seen)),
+				fmt.Sprintf("set %s %s", debconfQuestion, debconfSelection),
+				fmt.Sprintf("fset %s seen true", debconfQuestion),
 			}
 			for _, command := range commands {
 				_, err := a.debconfCommunicate(ctx, hst, aptPackage.Package, command)
