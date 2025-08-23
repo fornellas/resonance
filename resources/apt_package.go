@@ -50,46 +50,6 @@ var validDpkgArchitectureRegexp = regexp.MustCompile(`^[a-z0-9][a-z0-9-]+$`)
 
 var validDpkgVersionRegexp = regexp.MustCompile(`^(?:([0-9]+):)?(([0-9][A-Za-z0-9.+~]*)|([0-9][A-Za-z0-9.+~-]*-[A-Za-z0-9+.~]+))$`)
 
-func (a *APTPackage) Validate() error {
-	// Package
-	if !validDpkgPackageRegexp.MatchString(string(a.Package)) {
-		return fmt.Errorf("invalid package: %#v", a.Package)
-	}
-
-	// Architectures
-	for _, architecture := range a.Architectures {
-		if !validDpkgArchitectureRegexp.MatchString(architecture) {
-			return fmt.Errorf("invalid package: %#v", architecture)
-		}
-	}
-
-	// Version
-	if strings.HasSuffix(a.Version, "+") {
-		return fmt.Errorf("`version` can't end in +: %s", a.Version)
-	}
-	if strings.HasSuffix(a.Version, "-") {
-		return fmt.Errorf("`version` can't end in -: %s", a.Version)
-	}
-	if a.Version != "" && !validDpkgVersionRegexp.MatchString(a.Version) {
-		return fmt.Errorf("invalid version: %#v", a.Version)
-	}
-
-	// Hold logic validation
-	if a.Absent && a.Hold {
-		return fmt.Errorf("hold can't be set when package is absent")
-	}
-	if !a.Absent {
-		if a.Version == "" && a.Hold {
-			return fmt.Errorf("hold can't be set when version is unset")
-		}
-		if a.Version != "" && !a.Hold {
-			return fmt.Errorf("hold must be set when version is set")
-		}
-	}
-
-	return nil
-}
-
 // Satisfies returns true only when a satisfies b.
 // Eg: if a defines a package with a name and a specific version, and
 // b specifies a package with the same name, but without a version, then
@@ -128,6 +88,46 @@ func (a *APTPackage) Satisfies(b *APTPackage) bool {
 	}
 
 	return true
+}
+
+func (a *APTPackage) Validate() error {
+	// Package
+	if !validDpkgPackageRegexp.MatchString(string(a.Package)) {
+		return fmt.Errorf("invalid package: %#v", a.Package)
+	}
+
+	// Architectures
+	for _, architecture := range a.Architectures {
+		if !validDpkgArchitectureRegexp.MatchString(architecture) {
+			return fmt.Errorf("invalid architecture: %#v", architecture)
+		}
+	}
+
+	// Version
+	if strings.HasSuffix(a.Version, "+") {
+		return fmt.Errorf("`version` can't end in +: %s", a.Version)
+	}
+	if strings.HasSuffix(a.Version, "-") {
+		return fmt.Errorf("`version` can't end in -: %s", a.Version)
+	}
+	if a.Version != "" && !validDpkgVersionRegexp.MatchString(a.Version) {
+		return fmt.Errorf("invalid version: %#v", a.Version)
+	}
+
+	// Hold logic validation
+	if a.Absent && a.Hold {
+		return fmt.Errorf("hold can't be set when package is absent")
+	}
+	if !a.Absent {
+		if a.Version == "" && a.Hold {
+			return fmt.Errorf("hold can't be set when version is unset")
+		}
+		if a.Version != "" && !a.Hold {
+			return fmt.Errorf("hold must be set when version is set")
+		}
+	}
+
+	return nil
 }
 
 type APTPackages struct{}
