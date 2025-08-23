@@ -93,20 +93,23 @@ func (a *APTPackage) Satisfies(b *APTPackage) bool {
 	return true
 }
 
-func (a *APTPackage) Validate() error {
-	// Package
+func (a *APTPackage) validatePackage() error {
 	if !validDpkgPackageRegexp.MatchString(string(a.Package)) {
 		return fmt.Errorf("invalid package: %#v", a.Package)
 	}
+	return nil
+}
 
-	// Architectures
+func (a *APTPackage) validateArchitectures() error {
 	for _, architecture := range a.Architectures {
 		if !validDpkgArchitectureRegexp.MatchString(architecture) {
 			return fmt.Errorf("invalid architecture: %#v", architecture)
 		}
 	}
+	return nil
+}
 
-	// Version
+func (a *APTPackage) validateVersion() error {
 	if strings.HasSuffix(a.Version, "+") {
 		return fmt.Errorf("`version` can't end in +: %s", a.Version)
 	}
@@ -116,8 +119,19 @@ func (a *APTPackage) Validate() error {
 	if a.Version != "" && !validDpkgVersionRegexp.MatchString(a.Version) {
 		return fmt.Errorf("invalid version: %#v", a.Version)
 	}
+	return nil
+}
 
-	// Hold logic validation
+func (a *APTPackage) validateDebconfSelections() error {
+	for q := range a.DebconfSelections {
+		if !strings.HasPrefix(string(q), a.Package+"/") {
+			return fmt.Errorf("debconf question %q must start with %q", q, a.Package+"/")
+		}
+	}
+	return nil
+}
+
+func (a *APTPackage) validateHoldLogic() error {
 	if a.Absent && a.Hold {
 		return fmt.Errorf("hold can't be set when package is absent")
 	}
@@ -129,7 +143,25 @@ func (a *APTPackage) Validate() error {
 			return fmt.Errorf("hold must be set when version is set")
 		}
 	}
+	return nil
+}
 
+func (a *APTPackage) Validate() error {
+	if err := a.validatePackage(); err != nil {
+		return err
+	}
+	if err := a.validateArchitectures(); err != nil {
+		return err
+	}
+	if err := a.validateVersion(); err != nil {
+		return err
+	}
+	if err := a.validateDebconfSelections(); err != nil {
+		return err
+	}
+	if err := a.validateHoldLogic(); err != nil {
+		return err
+	}
 	return nil
 }
 

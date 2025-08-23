@@ -619,6 +619,16 @@ func TestAPTPackage(t *testing.T) {
 				},
 				expectError: false,
 			},
+			{
+				name: "invalid debconf selection key prefix",
+				aptPackage: &APTPackage{
+					Package: "wget",
+					DebconfSelections: map[DebconfQuestion]DebconfAnswer{
+						"notwget/question": "yes",
+					},
+				},
+				expectError: true,
+			},
 		}
 
 		for _, tt := range tests {
