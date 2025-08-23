@@ -644,9 +644,9 @@ func runAndRequireSuccess(t *testing.T, ctx context.Context, host types.BaseHost
 }
 
 var aptDpkgTestDockerImages = []string{
-	// "debian:bookworm",
-	// "debian:trixie",
-	// "ubuntu:22.04",
+	"debian:bookworm",
+	"debian:trixie",
+	"ubuntu:22.04",
 	"ubuntu:24.04",
 }
 
@@ -716,6 +716,72 @@ func TestAPTPackages(t *testing.T) {
 					waitStatus, stdout, _, err := lib.SimpleRun(ctx, agentHost, cmd)
 					require.NoError(t, err)
 					require.False(t, waitStatus.Success() && strings.Contains(stdout, "ii  nano"), "nano package should be removed but found in dpkg output: %s", stdout)
+				})
+
+				t.Run("mixed install and remove operations", func(t *testing.T) {
+					t.Parallel()
+
+					dockerHost, _ := host.GetTestDockerHost(t, image)
+					ctx := log.WithTestLogger(t.Context())
+					agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
+					require.NoError(t, err)
+
+					aptPackages := &APTPackages{}
+
+					// First install both packages
+					packages := []*APTPackage{
+						{
+							Package: "wget",
+						},
+						{
+							Package: "curl",
+						},
+					}
+					err = aptPackages.Apply(ctx, agentHost, packages)
+					require.NoError(t, err)
+
+					// Then mix operations: keep wget, remove curl, install nano
+					packages = []*APTPackage{
+						{
+							Package: "wget", // keep installed
+						},
+						{
+							Package: "curl",
+							Absent:  true, // remove
+						},
+						{
+							Package: "nano", // install new
+						},
+					}
+					err = aptPackages.Apply(ctx, agentHost, packages)
+					require.NoError(t, err)
+
+					// Verify wget is still installed
+					cmd := types.Cmd{
+						Path: "/usr/bin/dpkg",
+						Args: []string{"-l", "wget"},
+					}
+					waitStatus, stdout, _, err := lib.SimpleRun(ctx, agentHost, cmd)
+					require.NoError(t, err)
+					require.True(t, waitStatus.Success() && strings.Contains(stdout, "ii  wget"), "wget should still be installed: %s", stdout)
+
+					// Verify curl is removed
+					cmd = types.Cmd{
+						Path: "/usr/bin/dpkg",
+						Args: []string{"-l", "curl"},
+					}
+					waitStatus, stdout, _, err = lib.SimpleRun(ctx, agentHost, cmd)
+					require.NoError(t, err)
+					require.False(t, waitStatus.Success() && strings.Contains(stdout, "ii  curl"), "curl should be removed: %s", stdout)
+
+					// Verify nano is installed
+					cmd = types.Cmd{
+						Path: "/usr/bin/dpkg",
+						Args: []string{"-l", "nano"},
+					}
+					waitStatus, stdout, _, err = lib.SimpleRun(ctx, agentHost, cmd)
+					require.NoError(t, err)
+					require.True(t, waitStatus.Success() && strings.Contains(stdout, "ii  nano"), "nano should be installed: %s", stdout)
 				})
 
 				t.Run("package with system architecture", func(t *testing.T) {
@@ -877,90 +943,13 @@ func TestAPTPackages(t *testing.T) {
 				// 	err = aptPackages.Apply(ctx, agentHost, packages)
 				// 	require.NoError(t, err)
 
-				// 	// Verify package is installed
-				// 	cmd := types.Cmd{
-				// 		Path: "/usr/bin/dpkg",
-				// 		Args: []string{"-l", "tzdata"},
-				// 	}
-				// 	stdout := runAndRequireSuccess(t, ctx, agentHost, cmd)
-				// 	require.True(t, strings.Contains(stdout, "tzdata"), "tzdata package not found in dpkg output: %s", stdout)
-
-				// 	// Verify debconf selections (if debconf-show is available)
-				// 	cmd = types.Cmd{
-				// 		Path: "debconf-show",
-				// 		Args: []string{"tzdata"},
-				// 	}
-				// 	waitStatus, stdout, _, err := lib.SimpleRun(ctx, agentHost, cmd)
-				// 	if err == nil && waitStatus.Success() {
-				// 		require.True(t, strings.Contains(stdout, "tzdata/Areas"), "debconf selection tzdata/Areas not found: %s", stdout)
-				// 	}
+				// 	// Verify debconf selections
+				// 	stdout := runAndRequireSuccess(t, ctx, dockerHost, types.Cmd{
+				// 		Path: "debconf-show", Args: []string{"tzdata"},
+				// 	})
+				// 	require.Contains(t, stdout, "* tzdata/Areas: Europe\n")
+				// 	require.Contains(t, stdout, "* tzdata/Zones/Europe: Dublin\n")
 				// })
-
-				t.Run("mixed install and remove operations", func(t *testing.T) {
-					t.Parallel()
-
-					dockerHost, _ := host.GetTestDockerHost(t, image)
-					ctx := log.WithTestLogger(t.Context())
-					agentHost, err := host.NewAgentClientWrapper(ctx, dockerHost)
-					require.NoError(t, err)
-
-					aptPackages := &APTPackages{}
-
-					// First install both packages
-					packages := []*APTPackage{
-						{
-							Package: "wget",
-						},
-						{
-							Package: "curl",
-						},
-					}
-					err = aptPackages.Apply(ctx, agentHost, packages)
-					require.NoError(t, err)
-
-					// Then mix operations: keep wget, remove curl, install nano
-					packages = []*APTPackage{
-						{
-							Package: "wget", // keep installed
-						},
-						{
-							Package: "curl",
-							Absent:  true, // remove
-						},
-						{
-							Package: "nano", // install new
-						},
-					}
-					err = aptPackages.Apply(ctx, agentHost, packages)
-					require.NoError(t, err)
-
-					// Verify wget is still installed
-					cmd := types.Cmd{
-						Path: "/usr/bin/dpkg",
-						Args: []string{"-l", "wget"},
-					}
-					waitStatus, stdout, _, err := lib.SimpleRun(ctx, agentHost, cmd)
-					require.NoError(t, err)
-					require.True(t, waitStatus.Success() && strings.Contains(stdout, "ii  wget"), "wget should still be installed: %s", stdout)
-
-					// Verify curl is removed
-					cmd = types.Cmd{
-						Path: "/usr/bin/dpkg",
-						Args: []string{"-l", "curl"},
-					}
-					waitStatus, stdout, _, err = lib.SimpleRun(ctx, agentHost, cmd)
-					require.NoError(t, err)
-					require.False(t, waitStatus.Success() && strings.Contains(stdout, "ii  curl"), "curl should be removed: %s", stdout)
-
-					// Verify nano is installed
-					cmd = types.Cmd{
-						Path: "/usr/bin/dpkg",
-						Args: []string{"-l", "nano"},
-					}
-					waitStatus, stdout, _, err = lib.SimpleRun(ctx, agentHost, cmd)
-					require.NoError(t, err)
-					require.True(t, waitStatus.Success() && strings.Contains(stdout, "ii  nano"), "nano should be installed: %s", stdout)
-				})
 			})
 		}
 	})
