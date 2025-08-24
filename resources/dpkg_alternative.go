@@ -13,8 +13,8 @@ import (
 	"github.com/fornellas/resonance/host/types"
 )
 
-// AlternativeChoice describe available alternatives for a link group.
-type AlternativeChoice struct {
+// DpkgAlternativeChoice describe available alternatives for a link group.
+type DpkgAlternativeChoice struct {
 	// Path to this alternative.
 	Alternative string
 	// Value of the priority of this alternative.
@@ -41,11 +41,11 @@ type DpkgAlternative struct {
 	// used if the link doesn't exist.
 	Value string
 	// Available alternatives in the link group.
-	Choices []AlternativeChoice
+	Choices []DpkgAlternativeChoice
 }
 
 // Validate whether AlternativeChoice is valid.
-func (c *AlternativeChoice) Validate() error {
+func (c *DpkgAlternativeChoice) Validate() error {
 	var errs []error
 	if c.Alternative == "" {
 		errs = append(errs, fmt.Errorf("alternative path is empty"))
@@ -154,8 +154,8 @@ func (a *DpkgAlternative) Validate() error {
 }
 
 // parseAlternativeStanza parses an alternative stanza starting at index i.
-func (a *DpkgAlternative) parseAlternativeStanza(lines []string, i int) (AlternativeChoice, int) {
-	choice := AlternativeChoice{
+func (a *DpkgAlternative) parseAlternativeStanza(lines []string, i int) (DpkgAlternativeChoice, int) {
+	choice := DpkgAlternativeChoice{
 		Alternative: strings.TrimSpace(strings.SplitN(lines[i], ":", 2)[1]),
 		Slaves:      map[string]string{},
 	}
@@ -208,7 +208,7 @@ func (a *DpkgAlternative) Load(ctx context.Context, host types.Host) error {
 		return fmt.Errorf("%s failed: %s\n\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, waitStatus.String(), stdout, stderr)
 	}
 
-	var choices []AlternativeChoice
+	var choices []DpkgAlternativeChoice
 	a.Slaves = nil
 	scanner := bufio.NewScanner(strings.NewReader(stdout))
 	lines := []string{}

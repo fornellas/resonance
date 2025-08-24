@@ -13,7 +13,7 @@ func TestDpkgAlternative(t *testing.T) {
 			Link:   "/usr/bin/editor",
 			Slaves: map[string]string{"editor.1.gz": "/usr/share/man/man1/editor.1.gz"},
 			Status: "auto",
-			Choices: []AlternativeChoice{
+			Choices: []DpkgAlternativeChoice{
 				{
 					Alternative: "/usr/bin/vim.basic",
 					Priority:    50,
@@ -111,7 +111,7 @@ func TestDpkgAlternative(t *testing.T) {
 			"editor.1.gz":    "/usr/share/man/man1/editor.1.gz",
 			"fooeditor.1.gz": "/usr/share/man/man1/fooeditor.1.gz",
 		}
-		validWithSlave.Choices = []AlternativeChoice{
+		validWithSlave.Choices = []DpkgAlternativeChoice{
 			{
 				Alternative: "/usr/bin/vim.basic",
 				Priority:    50,
@@ -124,7 +124,7 @@ func TestDpkgAlternative(t *testing.T) {
 		require.NoError(validWithSlave.Validate())
 
 		t.Run("AlternativeChoice", func(t *testing.T) {
-			valid := AlternativeChoice{
+			valid := DpkgAlternativeChoice{
 				Alternative: "/usr/bin/vim.basic",
 				Priority:    50,
 				Slaves:      map[string]string{"editor.1.gz": "/usr/share/man/man1/vim.1.gz"},

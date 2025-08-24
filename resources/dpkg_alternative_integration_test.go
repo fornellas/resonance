@@ -46,7 +46,7 @@ func TestDpkgAlternativeIntegration(t *testing.T) {
 					Slaves: map[string]string{
 						"editor.1.gz": "/usr/share/man/man1/editor.1.gz",
 					},
-					Choices: []AlternativeChoice{
+					Choices: []DpkgAlternativeChoice{
 						{
 							Alternative: "/bin/ed",
 							Priority:    -100,
@@ -106,7 +106,7 @@ func TestDpkgAlternativeIntegration(t *testing.T) {
 					Slaves: map[string]string{
 						"editor.1.gz": "/usr/share/man/man1/editor.1.gz",
 					},
-					Choices: []AlternativeChoice{
+					Choices: []DpkgAlternativeChoice{
 						{
 							Alternative: "/bin/nano",
 							Priority:    40,
@@ -205,7 +205,7 @@ Slaves:
 				require.Equal(t, expected, out)
 
 				// Choices
-				alt.Choices = append(alt.Choices, AlternativeChoice{
+				alt.Choices = append(alt.Choices, DpkgAlternativeChoice{
 					Alternative: "/bin/ed",
 					Priority:    -100,
 					Slaves: map[string]string{
@@ -239,7 +239,7 @@ Slaves:
 				require.Equal(t, expected, out)
 
 				// Choice
-				alt.Choices = []AlternativeChoice{
+				alt.Choices = []DpkgAlternativeChoice{
 					{
 						Alternative: "/bin/ed",
 						Priority:    -200,
