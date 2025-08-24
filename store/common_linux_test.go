@@ -1,14 +1,13 @@
 package store
 
 import (
-	"context"
 	"testing"
 
 	"github.com/fornellas/slogxt/log"
 )
 
 func testStore(t *testing.T, store Store) {
-	ctx := context.Background()
+	ctx := t.Context()
 	_ = log.WithTestLogger(ctx)
 
 	t.SkipNow()

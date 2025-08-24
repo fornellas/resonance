@@ -1,7 +1,6 @@
 package host
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -10,7 +9,7 @@ import (
 )
 
 func TestAgentClientWrapper(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	ctx = log.WithTestLogger(ctx)
 
 	baseHost := Local{}
