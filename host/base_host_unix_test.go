@@ -160,9 +160,4 @@ func testBaseHost(
 	t.Run("Type()", func(t *testing.T) {
 		require.Equal(t, baseHostType, baseHost.Type())
 	})
-
-	t.Run("Close()", func(t *testing.T) {
-		t.SkipNow()
-		require.NoError(t, baseHost.Close(t.Context()))
-	})
 }

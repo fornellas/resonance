@@ -14,8 +14,8 @@ func TestAgentClientWrapper(t *testing.T) {
 
 	baseHost := Local{}
 	host, err := NewAgentClientWrapper(ctx, baseHost)
-	defer func() { require.NoError(t, host.Close(ctx)) }()
 	require.NoError(t, err)
+	defer func() { require.NoError(t, host.Close(ctx)) }()
 
 	testHost(t, ctx, host, baseHost.String(), baseHost.Type())
 }
