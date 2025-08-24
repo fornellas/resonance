@@ -61,7 +61,7 @@ func NewHostLocalRunSudoOnlyTest(t *testing.T) HostLocalRunSudoOnlyTest {
 }
 
 func TestSudo(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	ctx = log.WithTestLogger(ctx)
 
 	wrappedBaseHost := NewHostLocalRunSudoOnlyTest(t)

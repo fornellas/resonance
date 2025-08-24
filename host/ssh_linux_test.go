@@ -1,7 +1,6 @@
 package host
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -66,7 +65,7 @@ func getSshHandler(t *testing.T, username string) func(session ssh.Session) {
 }
 
 func TestSsh(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	ctx = log.WithTestLogger(ctx)
 
 	listener, err := net.Listen("tcp4", "localhost:")

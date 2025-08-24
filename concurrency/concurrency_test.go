@@ -1,7 +1,6 @@
 package concurrency
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -15,7 +14,7 @@ import (
 
 func TestConcurrency(t *testing.T) {
 	t.Run("unlimited", func(t *testing.T) {
-		ctx := context.Background()
+		ctx := t.Context()
 		cg := NewConcurrencyGroup(ctx)
 
 		var counter int64
@@ -52,7 +51,7 @@ func TestConcurrency(t *testing.T) {
 		const limit = 3
 		const numGoroutines = 4
 
-		ctx := WithConcurrencyLimit(context.Background(), limit)
+		ctx := WithConcurrencyLimit(t.Context(), limit)
 
 		cg1 := NewConcurrencyGroup(ctx)
 		cg2 := NewConcurrencyGroup(ctx)
@@ -108,7 +107,7 @@ func TestConcurrency(t *testing.T) {
 
 	t.Run("wait", func(t *testing.T) {
 		t.Run("empty", func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			cg := NewConcurrencyGroup(ctx)
 
 			errs := cg.Wait()
@@ -116,7 +115,7 @@ func TestConcurrency(t *testing.T) {
 			require.Empty(t, errs)
 		})
 		t.Run("multiple", func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			cg := NewConcurrencyGroup(ctx)
 
 			cg.Run(func() error {
@@ -192,7 +191,7 @@ func TestBatchRun(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 			if tc.limit > 0 {
 				ctx = WithConcurrencyLimit(ctx, tc.limit)
 			}
