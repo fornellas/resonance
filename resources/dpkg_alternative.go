@@ -199,12 +199,10 @@ func (a *DpkgAlternative) Load(ctx context.Context, host types.Host) error {
 	if !waitStatus.Success() {
 		// Handle missing alternative case
 		if waitStatus.ExitCode == 2 && stderr == "update-alternatives: error: no alternatives for "+a.Name+"\n" {
-			a.Absent = true
-			a.Link = ""
-			a.Slaves = nil
-			a.Status = ""
-			a.Value = ""
-			a.Choices = nil
+			*a = DpkgAlternative{
+				Name:   a.Name,
+				Absent: true,
+			}
 			return nil
 		}
 		return fmt.Errorf("%s failed: %s\n\nSTDOUT:\n%s\nSTDERR:\n%s", cmd, waitStatus.String(), stdout, stderr)
