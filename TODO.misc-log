@@ -1,0 +1,19 @@
+improve resources logging, so it does not spam info logs with _all_ resource details
+    Resources
+        add LogValuer
+    improve logging
+        decrease verbose logging
+            Change all cases below to debug
+                Have Resource implement https://pkg.go.dev/log/slog#LogValuer
+            Cases
+                📚 All loaded resources
+                logger.Info(action.String(), args...)
+                    should not show actions that have empty diff
+                        maybe action should not be created in the first place
+                    groupresource / step with groupresource
+                        Type:foo,bar... can be VERY long (eg: APTPAckage)
+                        multi-line
+                🧩 Crafted target Blueprint
+                🌱 Storing original resource states
+                🧩 Loaded Blueprint
+                📝 Loading resources from file
