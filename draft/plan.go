@@ -2,7 +2,6 @@ package draft
 
 import "context"
 
-// planResources merges managed and restore resources using their ID() string.
 func planResources[R interface{ ID() string }](targetResources []R, originalResources []R) []R {
 	planResources := []R{}
 	targetResourceIdMap := make(map[string]struct{}, len(targetResources))
@@ -32,18 +31,18 @@ func planResources[R interface{ ID() string }](targetResources []R, originalReso
 // to the original state. States here may be partial (eg: File with user name, missing UID), and
 // final values will be calculated during apply.
 // It returns a State that can be applied to a Host, to move it form currentState to targetState.
-func Plan(ctx context.Context, originalState State, currentState State, targetState State) State {
-	plannedState := State{}
+func NewPlan(ctx context.Context, originalHostState HostState, currentHostState HostState, targetHostState HostState) HostState {
+	plannedState := HostState{}
 
-	plannedState.APTPackages = planResources(targetState.APTPackages, originalState.APTPackages)
+	plannedState.APTPackages = planResources(targetHostState.APTPackages, originalHostState.APTPackages)
 
-	if targetState.DpkgArch != nil {
-		plannedState.DpkgArch = targetState.DpkgArch
-	} else if originalState.DpkgArch != nil {
-		plannedState.DpkgArch = originalState.DpkgArch
+	if targetHostState.DpkgArch != nil {
+		plannedState.DpkgArch = targetHostState.DpkgArch
+	} else if originalHostState.DpkgArch != nil {
+		plannedState.DpkgArch = originalHostState.DpkgArch
 	}
 
-	plannedState.Files = planResources(targetState.Files, originalState.Files)
+	plannedState.Files = planResources(targetHostState.Files, originalHostState.Files)
 
 	return plannedState
 }
