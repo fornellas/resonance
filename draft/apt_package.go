@@ -39,4 +39,8 @@ type APTPackage struct {
 	DebconfSelections map[DebconfQuestion]DebconfAnswer
 }
 
+func (a APTPackage) ID() string {
+	return a.Package
+}
+
 type APTPackages []APTPackage

@@ -7,12 +7,10 @@ import (
 )
 
 type Resource interface {
-	// Load the full resource state from Host
+	// Load the full resource state from Host.
 	Load(ctx context.Context, host types.Host) error
 	// Satisfies return true when other state is satisfied by self.
 	Satisfies(ctx context.Context, host types.Host, other Resource) (bool, error)
-	// PreRequireFiles(ctx context.Context, host types.Host)
-	// ConflictFiles(ctx context.Context, host types.Host)
 	// Applies the resource state to Host.
 	Apply(ctx context.Context, host types.Host) error
 	// Merge attempts to merge the state of other into self. If this is not possible (eg: states
