@@ -39,4 +39,8 @@ type File struct {
 	Gid *uint32
 }
 
+func (f File) ID() string {
+	return f.Path
+}
+
 type Files []File

@@ -10,3 +10,7 @@ type DpkgArch struct {
 	//  installed for. Required.
 	ForeignArchitectures []string
 }
+
+func (d DpkgArch) ID() string {
+	return "DpkgArch"
+}
