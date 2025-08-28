@@ -38,3 +38,5 @@ type File struct {
 	// Group ID owner of the file.
 	Gid *uint32
 }
+
+type Files []File

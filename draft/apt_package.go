@@ -38,3 +38,5 @@ type APTPackage struct {
 	// See https://wiki.debian.org/debconf
 	DebconfSelections map[DebconfQuestion]DebconfAnswer
 }
+
+type APTPackages []APTPackage
