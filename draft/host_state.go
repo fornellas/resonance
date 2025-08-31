@@ -8,6 +8,11 @@ import (
 )
 
 // HostState holds the state of all managed resources for a host.
+// TODO Consider making HostState generic:
+//
+//	type HostState struct {
+//	    Resources map[string]Resource // Key is Resource type + Resource.ID()
+//	}
 type HostState struct {
 	APTPackages APTPackages
 	DpkgArch    *DpkgArch
@@ -40,7 +45,7 @@ func (hs *HostState) GetResource(resource Resource) (Resource, bool) {
 		}
 	case *DpkgArch:
 		if hs.DpkgArch != nil {
-			return hs.DpkgArch, false
+			return hs.DpkgArch, true
 		}
 	case *File:
 		for _, file := range hs.Files {

@@ -96,6 +96,7 @@ func planResources[R Resource](targetResources []R, originalResources []R) []R {
 	return planResources
 }
 
+// FIXME shouldn't depend on HostState fields
 func preparePlannedHostState(ctx context.Context, store Store, originalHostState *HostState, targetHostState *HostState) (*HostState, error) {
 	plannedHostState := &HostState{}
 
@@ -143,7 +144,7 @@ func Apply(ctx context.Context, host types.Host, store Store, targetHostState *H
 		return err
 	}
 
-	// TODO update original to only have committed state
+	// TODO decide whether there's some cleanup to do with saved original host state
 
 	return nil
 }
