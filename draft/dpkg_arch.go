@@ -13,7 +13,7 @@ import (
 // The ForeignArchitectures field lists all extra architectures to be enabled.
 type DpkgArch struct {
 	// ForeignArchitectures specifies extra architectures dpkg is configured to allow packages to be
-	//  installed for. Required.
+	// installed for. Required.
 	ForeignArchitectures []string
 }
 
