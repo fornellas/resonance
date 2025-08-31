@@ -3,7 +3,6 @@ package draft
 import (
 	"context"
 	"fmt"
-	"reflect"
 
 	"github.com/fornellas/resonance/host/types"
 )
@@ -85,10 +84,8 @@ func prepareOriginalHostState(ctx context.Context, host types.Host, store Store,
 func preparePlannedHostState(ctx context.Context, store Store, originalHostState *HostState, targetHostState *HostState) (*HostState, error) {
 	plannedHostState := &HostState{}
 	targetResources := targetHostState.GetResources()
-	targetResourceMap := make(map[reflect.Type]map[string]bool, len(targetResources))
 	for _, targetResource := range targetResources {
 		plannedHostState.AddResource(targetResource)
-		targetResourceMap[reflect.TypeOf(targetResource)][targetResource.ID()] = true
 	}
 	for _, originalResource := range originalHostState.GetResources() {
 		if _, ok := targetHostState.GetResourceByID(originalResource); !ok {
@@ -101,6 +98,21 @@ func preparePlannedHostState(ctx context.Context, store Store, originalHostState
 	}
 
 	return plannedHostState, nil
+}
+
+func cleanupOriginalHostState(ctx context.Context, store Store, originalHostState *HostState, targetHostState *HostState) error {
+	cleanedOriginalHostState := &HostState{}
+	updated := false
+	for _, originalResource := range originalHostState.GetResources() {
+		if _, ok := targetHostState.GetResourceByID(originalResource); ok {
+			cleanedOriginalHostState.AddResource(originalResource)
+			updated = true
+		}
+	}
+	if updated {
+		return store.SaveOriginalHostState(ctx, cleanedOriginalHostState)
+	}
+	return nil
 }
 
 func Apply(ctx context.Context, host types.Host, store Store, targetHostState *HostState) error {
@@ -130,7 +142,9 @@ func Apply(ctx context.Context, host types.Host, store Store, targetHostState *H
 		return err
 	}
 
-	// TODO decide whether there's some cleanup to do with saved original host state
+	if err := cleanupOriginalHostState(ctx, store, originalHostState, targetHostState); err != nil {
+		return err
+	}
 
 	return nil
 }
