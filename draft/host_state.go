@@ -8,11 +8,6 @@ import (
 )
 
 // HostState holds the state of all managed resources for a host.
-// TODO Consider making HostState generic:
-//
-//	type HostState struct {
-//	    Resources map[string]Resource // Key is Resource type + Resource.ID()
-//	}
 type HostState struct {
 	APTPackages APTPackages
 	DpkgArch    *DpkgArch
