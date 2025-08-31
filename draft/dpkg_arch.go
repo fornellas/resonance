@@ -1,5 +1,11 @@
 package draft
 
+import (
+	"context"
+
+	"github.com/fornellas/resonance/host/types"
+)
+
 // DpkgArch manages the set of foreign architectures that dpkg is configured to support.
 // This allows installing packages built for architectures other than the system's native one,
 // enabling multiarch support as described in https://wiki.debian.org/Multiarch/HOWTO.
@@ -11,6 +17,10 @@ type DpkgArch struct {
 	ForeignArchitectures []string
 }
 
-func (d DpkgArch) ID() string {
+func (d *DpkgArch) ID() string {
 	return "DpkgArch"
+}
+
+func (a *DpkgArch) Satisfies(ctx context.Context, host types.Host, otherResource Resource) (bool, error) {
+	panic("TODO")
 }

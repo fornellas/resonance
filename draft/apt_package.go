@@ -1,7 +1,10 @@
 package draft
 
 import (
+	"context"
 	_ "embed"
+
+	"github.com/fornellas/resonance/host/types"
 )
 
 //go:embed debconf_editor.sh
@@ -39,8 +42,20 @@ type APTPackage struct {
 	DebconfSelections map[DebconfQuestion]DebconfAnswer
 }
 
-func (a APTPackage) ID() string {
+func (a *APTPackage) ID() string {
 	return a.Package
 }
 
-type APTPackages []APTPackage
+func (a *APTPackage) Satisfies(ctx context.Context, host types.Host, otherResource Resource) (bool, error) {
+	panic("TODO")
+}
+
+type APTPackages []*APTPackage
+
+func (ap *APTPackages) Load(ctx context.Context, host types.Host) (APTPackages, error) {
+	panic("TODO")
+}
+
+func (ap *APTPackages) Apply(ctx context.Context, host types.Host) error {
+	panic("TODO")
+}
