@@ -8,8 +8,7 @@ import (
 
 // Resource holds the definition for an individual resource.
 type Resource interface {
-	// ID uniquely identifies the resource at a host, for resources of the same type (resources of
-	// different types may have the same ID).
+	// ID uniquely identifies the resource at a host.
 	ID() string
 	// Satisfies return true when self satisfies the state required by other.
 	Satisfies(ctx context.Context, host types.Host, otherResource Resource) (bool, error)
