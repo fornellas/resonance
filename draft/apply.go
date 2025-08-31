@@ -3,6 +3,7 @@ package draft
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/fornellas/resonance/host/types"
 )
@@ -56,7 +57,7 @@ func prepareOriginalHostState(ctx context.Context, host types.Host, store Store,
 	updatedOriginalHostState := false
 
 	for _, targetResource := range targetHostState.GetResources() {
-		if _, ok := originalHostState.GetResource(targetResource); ok {
+		if _, ok := originalHostState.GetResourceByID(targetResource); ok {
 			continue
 		}
 		updatedOriginalHostState = true
@@ -81,34 +82,19 @@ func prepareOriginalHostState(ctx context.Context, host types.Host, store Store,
 	return originalHostState, nil
 }
 
-func planResources[R Resource](targetResources []R, originalResources []R) []R {
-	planResources := []R{}
-	targetResourceIdMap := make(map[string]struct{}, len(targetResources))
-	for _, targetResource := range targetResources {
-		planResources = append(planResources, targetResource)
-		targetResourceIdMap[targetResource.ID()] = struct{}{}
-	}
-	for _, r := range originalResources {
-		if _, ok := targetResourceIdMap[r.ID()]; !ok {
-			planResources = append(planResources, r)
-		}
-	}
-	return planResources
-}
-
-// FIXME shouldn't depend on HostState fields
 func preparePlannedHostState(ctx context.Context, store Store, originalHostState *HostState, targetHostState *HostState) (*HostState, error) {
 	plannedHostState := &HostState{}
-
-	plannedHostState.APTPackages = planResources(targetHostState.APTPackages, originalHostState.APTPackages)
-
-	if targetHostState.DpkgArch != nil {
-		plannedHostState.DpkgArch = targetHostState.DpkgArch
-	} else if originalHostState.DpkgArch != nil {
-		plannedHostState.DpkgArch = originalHostState.DpkgArch
+	targetResources := targetHostState.GetResources()
+	targetResourceMap := make(map[reflect.Type]map[string]bool, len(targetResources))
+	for _, targetResource := range targetResources {
+		plannedHostState.AddResource(targetResource)
+		targetResourceMap[reflect.TypeOf(targetResource)][targetResource.ID()] = true
 	}
-
-	plannedHostState.Files = planResources(targetHostState.Files, originalHostState.Files)
+	for _, originalResource := range originalHostState.GetResources() {
+		if _, ok := targetHostState.GetResourceByID(originalResource); !ok {
+			plannedHostState.AddResource(originalResource)
+		}
+	}
 
 	if err := store.SavePlannedHostState(ctx, plannedHostState); err != nil {
 		return nil, err
