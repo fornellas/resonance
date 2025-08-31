@@ -1,6 +1,10 @@
 package draft
 
-import "github.com/fornellas/resonance/host/types"
+import (
+	"context"
+
+	"github.com/fornellas/resonance/host/types"
+)
 
 // File manages files. Either Absent or exactly one of Socket, SymbolicLink, RegularFile,
 // BlockDevice, Directory, CharacterDevice or FIFO must be set. If User and Uid aren't set, then
@@ -39,8 +43,12 @@ type File struct {
 	Gid *uint32
 }
 
-func (f File) ID() string {
+func (f *File) ID() string {
 	return f.Path
 }
 
-type Files []File
+func (a *File) Satisfies(ctx context.Context, host types.Host, otherResource Resource) (bool, error) {
+	panic("TODO")
+}
+
+type Files []*File
