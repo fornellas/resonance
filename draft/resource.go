@@ -10,8 +10,10 @@ import (
 type Resource interface {
 	// ID uniquely identifies the resource at a host.
 	ID() string
-	// Satisfies return true when self satisfies the state required by other.
+	// Satisfies returns true when self satisfies the state required by other.
 	Satisfies(ctx context.Context, host types.Host, otherResource Resource) (bool, error)
+	// Validates whether the resource state is valid (eg: a file has a non absolute path as an error).
+	Validate() error
 }
 
 // Resource enables managing (load, apply...) a single resource of group of related resources.
