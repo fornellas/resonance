@@ -48,7 +48,7 @@ func prepareOriginalHostState(ctx context.Context, host types.Host, store Store,
 	originalHostState := &HostState{}
 
 	for _, storedOriginalResource := range storedOriginalHostState.GetResources() {
-		originalHostState.AddResource(storedOriginalResource)
+		originalHostState.MustAppendResource(storedOriginalResource)
 	}
 
 	toLoadHostState := &HostState{}
@@ -60,7 +60,7 @@ func prepareOriginalHostState(ctx context.Context, host types.Host, store Store,
 			continue
 		}
 		updatedOriginalHostState = true
-		toLoadHostState.AddResource(targetResource)
+		toLoadHostState.MustAppendResource(targetResource)
 	}
 
 	if updatedOriginalHostState {
@@ -70,7 +70,7 @@ func prepareOriginalHostState(ctx context.Context, host types.Host, store Store,
 		}
 
 		for _, extraOriginalResource := range extraOriginalHostState.GetResources() {
-			originalHostState.AddResource(extraOriginalResource)
+			originalHostState.MustAppendResource(extraOriginalResource)
 		}
 
 		if err := store.SaveOriginalHostState(ctx, originalHostState); err != nil {
@@ -85,11 +85,11 @@ func preparePlannedHostState(ctx context.Context, store Store, originalHostState
 	plannedHostState := &HostState{}
 	targetResources := targetHostState.GetResources()
 	for _, targetResource := range targetResources {
-		plannedHostState.AddResource(targetResource)
+		plannedHostState.MustAppendResource(targetResource)
 	}
 	for _, originalResource := range originalHostState.GetResources() {
 		if _, ok := targetHostState.GetResourceByID(originalResource); !ok {
-			plannedHostState.AddResource(originalResource)
+			plannedHostState.MustAppendResource(originalResource)
 		}
 	}
 
@@ -105,7 +105,7 @@ func cleanupOriginalHostState(ctx context.Context, store Store, originalHostStat
 	updated := false
 	for _, originalResource := range originalHostState.GetResources() {
 		if _, ok := targetHostState.GetResourceByID(originalResource); ok {
-			cleanedOriginalHostState.AddResource(originalResource)
+			cleanedOriginalHostState.MustAppendResource(originalResource)
 			updated = true
 		}
 	}

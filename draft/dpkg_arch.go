@@ -17,6 +17,11 @@ type DpkgArch struct {
 	ForeignArchitectures []string
 }
 
+// Loads the full state of DpkgArch from given host.
+func LoadDpkgArch(ctx context.Context, host types.Host) (*DpkgArch, error) {
+	panic("TODO")
+}
+
 func (d *DpkgArch) ID() string {
 	return "DpkgArch"
 }
@@ -26,5 +31,13 @@ func (a *DpkgArch) Satisfies(ctx context.Context, host types.Host, otherResource
 }
 
 func (a *DpkgArch) Validate() error {
+	panic("TODO")
+}
+
+func (a *DpkgArch) Merge(otherResource Resource) error {
+	panic("TODO")
+}
+
+func (a *DpkgArch) Apply(ctx context.Context, host types.Host) error {
 	panic("TODO")
 }
