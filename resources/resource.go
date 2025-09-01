@@ -1,4 +1,4 @@
-package draft
+package resources
 
 import (
 	"context"

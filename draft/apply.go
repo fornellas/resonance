@@ -5,9 +5,11 @@ import (
 	"fmt"
 
 	"github.com/fornellas/resonance/host/types"
+	statePkg "github.com/fornellas/resonance/state"
+	storePkg "github.com/fornellas/resonance/store"
 )
 
-func checkStoredPlannedState(ctx context.Context, store Store) error {
+func checkStoredPlannedState(ctx context.Context, store storePkg.Store) error {
 	plannedState, err := store.GetPlannedState(ctx)
 	if err != nil {
 		return err
@@ -18,7 +20,7 @@ func checkStoredPlannedState(ctx context.Context, store Store) error {
 	return nil
 }
 
-func checkCommittedState(ctx context.Context, host types.Host, store Store) error {
+func checkCommittedState(ctx context.Context, host types.Host, store storePkg.Store) error {
 	committedState, err := store.GetCommittedState(ctx)
 	if err != nil {
 		return err
@@ -39,19 +41,19 @@ func checkCommittedState(ctx context.Context, host types.Host, store Store) erro
 	return nil
 }
 
-func prepareOriginalState(ctx context.Context, host types.Host, store Store, targetState *State) (*State, error) {
+func prepareOriginalState(ctx context.Context, host types.Host, store storePkg.Store, targetState *statePkg.State) (*statePkg.State, error) {
 	storedOriginalState, err := store.GetOriginalState(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	originalState := &State{}
+	originalState := &statePkg.State{}
 
 	for _, storedOriginalResource := range storedOriginalState.GetResources() {
 		originalState.MustAppendResource(storedOriginalResource)
 	}
 
-	toLoadState := &State{}
+	toLoadState := &statePkg.State{}
 
 	updatedOriginalState := false
 
@@ -81,8 +83,8 @@ func prepareOriginalState(ctx context.Context, host types.Host, store Store, tar
 	return originalState, nil
 }
 
-func preparePlannedState(ctx context.Context, store Store, originalState *State, targetState *State) (*State, error) {
-	plannedState := &State{}
+func preparePlannedState(ctx context.Context, store storePkg.Store, originalState *statePkg.State, targetState *statePkg.State) (*statePkg.State, error) {
+	plannedState := &statePkg.State{}
 	targetResources := targetState.GetResources()
 	for _, targetResource := range targetResources {
 		plannedState.MustAppendResource(targetResource)
@@ -100,8 +102,8 @@ func preparePlannedState(ctx context.Context, store Store, originalState *State,
 	return plannedState, nil
 }
 
-func cleanupOriginalState(ctx context.Context, store Store, originalState *State, targetState *State) error {
-	cleanedOriginalState := &State{}
+func cleanupOriginalState(ctx context.Context, store storePkg.Store, originalState *statePkg.State, targetState *statePkg.State) error {
+	cleanedOriginalState := &statePkg.State{}
 	updated := false
 	for _, originalResource := range originalState.GetResources() {
 		if _, ok := targetState.GetResourceByID(originalResource); ok {
@@ -115,7 +117,7 @@ func cleanupOriginalState(ctx context.Context, store Store, originalState *State
 	return nil
 }
 
-func Apply(ctx context.Context, host types.Host, store Store, targetState *State) error {
+func Apply(ctx context.Context, host types.Host, store storePkg.Store, targetState *statePkg.State) error {
 	if err := checkStoredPlannedState(ctx, store); err != nil {
 		return err
 	}

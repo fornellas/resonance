@@ -5,6 +5,7 @@ import (
 	_ "embed"
 
 	"github.com/fornellas/resonance/host/types"
+	"github.com/fornellas/resonance/resources"
 )
 
 //go:embed debconf_editor.sh
@@ -26,7 +27,7 @@ type APTPackage struct {
 	// Whether to remove the package. When true, other fields can't be set (and vice versa).
 	Absent bool
 	// Architectures. Optional. If empty, it defaults to dpkg --print-architecture value. If set,
-	// install packages for all these Architectures.
+	// install packages for these Architectures.
 	// See https://www.debian.org/doc/debian-policy/ch-controlfields.html#architecture
 	Architectures []string
 	// Package version. Optional. If set, then Hold must be set to true (so the version is kept on
@@ -46,7 +47,7 @@ func (a *APTPackage) ID() string {
 	return a.Package
 }
 
-func (a *APTPackage) Satisfies(ctx context.Context, host types.Host, otherResource Resource) (bool, error) {
+func (a *APTPackage) Satisfies(ctx context.Context, host types.Host, otherResource resources.Resource) (bool, error) {
 	panic("TODO")
 }
 
@@ -54,7 +55,7 @@ func (a *APTPackage) Validate() error {
 	panic("TODO")
 }
 
-func (a *APTPackage) Merge(otherResource Resource) error {
+func (a *APTPackage) Merge(otherResource resources.Resource) error {
 	panic("TODO")
 }
 
