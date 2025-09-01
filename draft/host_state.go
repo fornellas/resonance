@@ -8,32 +8,32 @@ import (
 	"github.com/fornellas/resonance/host/types"
 )
 
-// HostState holds the state of all managed resources for a host.
-type HostState struct {
+// State holds and manages the state of resources for a host.
+type State struct {
 	resourceTypeIdMap map[reflect.Type]map[string]Resource
 	resources         []Resource
 }
 
-// Add given resource to HostState. Panics if a resource with same type and ID already exists.
-func (hs *HostState) MustAppendResource(resource Resource) {
+// Add given resource to State. Panics if a resource with same type and ID already exists.
+func (s *State) MustAppendResource(resource Resource) {
 	resourceType := reflect.TypeOf(resource)
-	idMap, ok := hs.resourceTypeIdMap[resourceType]
+	idMap, ok := s.resourceTypeIdMap[resourceType]
 	if !ok {
 		idMap = map[string]Resource{}
-		hs.resourceTypeIdMap[resourceType] = idMap
+		s.resourceTypeIdMap[resourceType] = idMap
 	}
-	if _, ok := hs.resourceTypeIdMap[resourceType][resource.ID()]; ok {
+	if _, ok := s.resourceTypeIdMap[resourceType][resource.ID()]; ok {
 		panic(fmt.Sprintf("bug: duplicated resource: %T %v", resource, resource.ID()))
 	}
-	hs.resourceTypeIdMap[resourceType][resource.ID()] = resource
+	s.resourceTypeIdMap[resourceType][resource.ID()] = resource
 
-	hs.resources = append(hs.resources, resource)
+	s.resources = append(s.resources, resource)
 }
 
 // Gets a Resource with same type and ID().
-func (hs *HostState) GetResourceByID(resource Resource) (Resource, bool) {
+func (s *State) GetResourceByID(resource Resource) (Resource, bool) {
 	resourceType := reflect.TypeOf(resource)
-	idMap, ok := hs.resourceTypeIdMap[resourceType]
+	idMap, ok := s.resourceTypeIdMap[resourceType]
 	if ok {
 		r, ok := idMap[resource.ID()]
 		return r, ok
@@ -42,17 +42,17 @@ func (hs *HostState) GetResourceByID(resource Resource) (Resource, bool) {
 }
 
 // Get a list of all resources.
-func (hs *HostState) GetResources() []Resource {
-	return hs.resources
+func (s *State) GetResources() []Resource {
+	return s.resources
 }
 
 // Applies the state of all resources to host.
-func (hs *HostState) Apply(ctx context.Context, host types.Host) error {
+func (s *State) Apply(ctx context.Context, host types.Host) error {
 	var aptPackages APTPackages
 	var dpkgArch *DpkgArch
 	var files []*File
 
-	for resourceType, resourceIdMap := range hs.resourceTypeIdMap {
+	for resourceType, resourceIdMap := range s.resourceTypeIdMap {
 		switch resourceType {
 		case reflect.TypeFor[*APTPackage]():
 			for _, resource := range resourceIdMap {
@@ -122,10 +122,10 @@ func (hs *HostState) Apply(ctx context.Context, host types.Host) error {
 }
 
 // Load the full host state, for all resources.
-func (hs *HostState) Load(ctx context.Context, host types.Host) (*HostState, error) {
-	loadedHostState := &HostState{}
+func (s *State) Load(ctx context.Context, host types.Host) (*State, error) {
+	loadedState := &State{}
 
-	for resourceType, resourceIdMap := range hs.resourceTypeIdMap {
+	for resourceType, resourceIdMap := range s.resourceTypeIdMap {
 		switch resourceType {
 		case reflect.TypeFor[*APTPackage]():
 			ids := []string{}
@@ -137,34 +137,34 @@ func (hs *HostState) Load(ctx context.Context, host types.Host) (*HostState, err
 				return nil, err
 			}
 			for _, aptPackage := range aptPackages {
-				loadedHostState.MustAppendResource(aptPackage)
+				loadedState.MustAppendResource(aptPackage)
 			}
 		case reflect.TypeFor[*DpkgArch]():
 			loadedDpkgArch, err := LoadDpkgArch(ctx, host)
 			if err != nil {
 				return nil, err
 			}
-			loadedHostState.MustAppendResource(loadedDpkgArch)
+			loadedState.MustAppendResource(loadedDpkgArch)
 		case reflect.TypeFor[*File]():
 			for id := range resourceIdMap {
 				loadedFile, err := LoadFile(ctx, host, id)
 				if err != nil {
 					return nil, err
 				}
-				loadedHostState.MustAppendResource(loadedFile)
+				loadedState.MustAppendResource(loadedFile)
 			}
 		default:
 			panic(fmt.Sprintf("bug: unknown resource type: %T", resourceType))
 		}
 	}
 
-	return loadedHostState, nil
+	return loadedState, nil
 }
 
 // Satisfies return true when self satisfies the state required by other.
-func (hs *HostState) Satisfies(ctx context.Context, host types.Host, otherHostState *HostState) (bool, error) {
-	for _, otherResource := range otherHostState.GetResources() {
-		resource, ok := hs.GetResourceByID(otherResource)
+func (s *State) Satisfies(ctx context.Context, host types.Host, otherState *State) (bool, error) {
+	for _, otherResource := range otherState.GetResources() {
+		resource, ok := s.GetResourceByID(otherResource)
 		if !ok {
 			return false, nil
 		}
