@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/fornellas/resonance/host/types"
+	"github.com/fornellas/resonance/resources"
 )
 
 // DpkgArch manages the set of foreign architectures that dpkg is configured to support.
@@ -27,7 +28,7 @@ func (d *DpkgArch) ID() string {
 	return "DpkgArch"
 }
 
-func (a *DpkgArch) Satisfies(ctx context.Context, host types.Host, otherResource Resource) (bool, error) {
+func (a *DpkgArch) Satisfies(ctx context.Context, host types.Host, otherResource resources.Resource) (bool, error) {
 	panic("TODO")
 }
 
@@ -35,7 +36,7 @@ func (a *DpkgArch) Validate() error {
 	panic("TODO")
 }
 
-func (a *DpkgArch) Merge(otherResource Resource) error {
+func (a *DpkgArch) Merge(otherResource resources.Resource) error {
 	currentArchs := map[string]bool{}
 	for _, currenTarch := range a.ForeignArchitectures {
 		currentArchs[currenTarch] = true

@@ -13,6 +13,7 @@ import (
 
 	"github.com/fornellas/resonance/host/lib"
 	"github.com/fornellas/resonance/host/types"
+	"github.com/fornellas/resonance/state"
 )
 
 // Implementation of Store that persists Blueprints at a Host at Path.
@@ -30,6 +31,30 @@ func NewHostStore(host types.Host, path string) *HostStore {
 		logPath:   filepath.Join(path, "logs"),
 		statePath: basePath,
 	}
+}
+
+func (s *HostStore) GetOriginalState(ctx context.Context) (*state.State, error) {
+	panic("TODO")
+}
+
+func (s *HostStore) SaveOriginalState(ctx context.Context, state *state.State) error {
+	panic("TODO")
+}
+
+func (s *HostStore) GetCommittedState(ctx context.Context) (*state.State, error) {
+	panic("TODO")
+}
+
+func (s *HostStore) CommitPlannedState(ctx context.Context) error {
+	panic("TODO")
+}
+
+func (s *HostStore) GetPlannedState(ctx context.Context) (*state.State, error) {
+	panic("TODO")
+}
+
+func (s *HostStore) SavePlannedState(ctx context.Context, state *state.State) error {
+	panic("TODO")
 }
 
 func (s *HostStore) deleteOldLogs(ctx context.Context) error {

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fornellas/resonance/host/types"
+	"github.com/fornellas/resonance/resources"
 )
 
 // File manages files. Either Absent or exactly one of Socket, SymbolicLink, RegularFile,
@@ -52,7 +53,7 @@ func (f *File) ID() string {
 	return f.Path
 }
 
-func (a *File) Satisfies(ctx context.Context, host types.Host, otherResource Resource) (bool, error) {
+func (a *File) Satisfies(ctx context.Context, host types.Host, otherResource resources.Resource) (bool, error) {
 	panic("TODO")
 }
 
@@ -60,7 +61,7 @@ func (a *File) Validate() error {
 	panic("TODO")
 }
 
-func (a *File) Merge(otherResource Resource) error {
+func (a *File) Merge(otherResource resources.Resource) error {
 	panic("TODO")
 }
 

@@ -1,4 +1,4 @@
-package draft
+package state
 
 import (
 	"context"
@@ -6,20 +6,21 @@ import (
 	"reflect"
 
 	"github.com/fornellas/resonance/host/types"
+	"github.com/fornellas/resonance/resources"
 )
 
 // State holds and manages the state of resources for a host.
 type State struct {
-	resourceTypeIdMap map[reflect.Type]map[string]Resource
-	resources         []Resource
+	resourceTypeIdMap map[reflect.Type]map[string]resources.Resource
+	resources         []resources.Resource
 }
 
 // Add given resource to State. Panics if a resource with same type and ID already exists.
-func (s *State) MustAppendResource(resource Resource) {
+func (s *State) MustAppendResource(resource resources.Resource) {
 	resourceType := reflect.TypeOf(resource)
 	idMap, ok := s.resourceTypeIdMap[resourceType]
 	if !ok {
-		idMap = map[string]Resource{}
+		idMap = map[string]resources.Resource{}
 		s.resourceTypeIdMap[resourceType] = idMap
 	}
 	if _, ok := s.resourceTypeIdMap[resourceType][resource.ID()]; ok {
@@ -31,7 +32,7 @@ func (s *State) MustAppendResource(resource Resource) {
 }
 
 // Gets a Resource with same type and ID().
-func (s *State) GetResourceByID(resource Resource) (Resource, bool) {
+func (s *State) GetResourceByID(resource resources.Resource) (resources.Resource, bool) {
 	resourceType := reflect.TypeOf(resource)
 	idMap, ok := s.resourceTypeIdMap[resourceType]
 	if ok {
@@ -42,29 +43,29 @@ func (s *State) GetResourceByID(resource Resource) (Resource, bool) {
 }
 
 // Get a list of all resources.
-func (s *State) GetResources() []Resource {
+func (s *State) GetResources() []resources.Resource {
 	return s.resources
 }
 
 // Applies the state of all resources to host.
 func (s *State) Apply(ctx context.Context, host types.Host) error {
-	var aptPackages APTPackages
-	var dpkgArch *DpkgArch
-	var files []*File
+	var aptPackages resources.APTPackages
+	var dpkgArch *resources.DpkgArch
+	var files []*resources.File
 
 	for resourceType, resourceIdMap := range s.resourceTypeIdMap {
 		switch resourceType {
-		case reflect.TypeFor[*APTPackage]():
+		case reflect.TypeFor[*resources.APTPackage]():
 			for _, resource := range resourceIdMap {
-				aptPackages = append(aptPackages, resource.(*APTPackage))
+				aptPackages = append(aptPackages, resource.(*resources.APTPackage))
 			}
-		case reflect.TypeFor[*DpkgArch]():
+		case reflect.TypeFor[*resources.DpkgArch]():
 			for _, resource := range resourceIdMap {
-				dpkgArch = resource.(*DpkgArch)
+				dpkgArch = resource.(*resources.DpkgArch)
 			}
-		case reflect.TypeFor[*File]():
+		case reflect.TypeFor[*resources.File]():
 			for _, resource := range resourceIdMap {
-				files = append(files, resource.(*File))
+				files = append(files, resource.(*resources.File))
 			}
 		default:
 			panic(fmt.Sprintf("bug: unknown resource type: %T", resourceType))
@@ -72,10 +73,10 @@ func (s *State) Apply(ctx context.Context, host types.Host) error {
 	}
 
 	// We must first add extra dpkg archs, to enable APTPackages to work
-	var preDpkgArch *DpkgArch
+	var preDpkgArch *resources.DpkgArch
 	if dpkgArch != nil {
 		var err error
-		preDpkgArch, err = LoadDpkgArch(ctx, host)
+		preDpkgArch, err = resources.LoadDpkgArch(ctx, host)
 		if err != nil {
 			return err
 		}
@@ -127,27 +128,27 @@ func (s *State) Load(ctx context.Context, host types.Host) (*State, error) {
 
 	for resourceType, resourceIdMap := range s.resourceTypeIdMap {
 		switch resourceType {
-		case reflect.TypeFor[*APTPackage]():
+		case reflect.TypeFor[*resources.APTPackage]():
 			ids := []string{}
 			for id := range resourceIdMap {
 				ids = append(ids, id)
 			}
-			aptPackages, err := LoadAPTPackages(ctx, host, ids...)
+			aptPackages, err := resources.LoadAPTPackages(ctx, host, ids...)
 			if err != nil {
 				return nil, err
 			}
 			for _, aptPackage := range aptPackages {
 				loadedState.MustAppendResource(aptPackage)
 			}
-		case reflect.TypeFor[*DpkgArch]():
-			loadedDpkgArch, err := LoadDpkgArch(ctx, host)
+		case reflect.TypeFor[*resources.DpkgArch]():
+			loadedDpkgArch, err := resources.LoadDpkgArch(ctx, host)
 			if err != nil {
 				return nil, err
 			}
 			loadedState.MustAppendResource(loadedDpkgArch)
-		case reflect.TypeFor[*File]():
+		case reflect.TypeFor[*resources.File]():
 			for id := range resourceIdMap {
-				loadedFile, err := LoadFile(ctx, host, id)
+				loadedFile, err := resources.LoadFile(ctx, host, id)
 				if err != nil {
 					return nil, err
 				}
