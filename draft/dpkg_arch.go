@@ -2,6 +2,7 @@ package draft
 
 import (
 	"context"
+	"sort"
 
 	"github.com/fornellas/resonance/host/types"
 )
@@ -35,7 +36,17 @@ func (a *DpkgArch) Validate() error {
 }
 
 func (a *DpkgArch) Merge(otherResource Resource) error {
-	panic("TODO")
+	currentArchs := map[string]bool{}
+	for _, currenTarch := range a.ForeignArchitectures {
+		currentArchs[currenTarch] = true
+	}
+	for _, newArch := range otherResource.(*DpkgArch).ForeignArchitectures {
+		if _, ok := currentArchs[newArch]; !ok {
+			a.ForeignArchitectures = append(a.ForeignArchitectures, newArch)
+		}
+	}
+	sort.Strings(a.ForeignArchitectures)
+	return nil
 }
 
 func (a *DpkgArch) Apply(ctx context.Context, host types.Host) error {
