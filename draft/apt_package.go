@@ -50,6 +50,10 @@ func (a *APTPackage) Satisfies(ctx context.Context, host types.Host, otherResour
 	panic("TODO")
 }
 
+func (a *APTPackage) Validate() error {
+	panic("TODO")
+}
+
 type APTPackages []*APTPackage
 
 func (ap *APTPackages) Load(ctx context.Context, host types.Host) (APTPackages, error) {

@@ -24,3 +24,7 @@ func (d *DpkgArch) ID() string {
 func (a *DpkgArch) Satisfies(ctx context.Context, host types.Host, otherResource Resource) (bool, error) {
 	panic("TODO")
 }
+
+func (a *DpkgArch) Validate() error {
+	panic("TODO")
+}

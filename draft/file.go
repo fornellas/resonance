@@ -51,4 +51,6 @@ func (a *File) Satisfies(ctx context.Context, host types.Host, otherResource Res
 	panic("TODO")
 }
 
-type Files []*File
+func (a *File) Validate() error {
+	panic("TODO")
+}
