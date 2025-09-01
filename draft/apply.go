@@ -7,28 +7,28 @@ import (
 	"github.com/fornellas/resonance/host/types"
 )
 
-func checkStoredPlannedHostState(ctx context.Context, store Store) error {
-	plannedHostState, err := store.GetPlannedHostState(ctx)
+func checkStoredPlannedState(ctx context.Context, store Store) error {
+	plannedState, err := store.GetPlannedState(ctx)
 	if err != nil {
 		return err
 	}
-	if plannedHostState != nil {
+	if plannedState != nil {
 		return fmt.Errorf("previous apply interrupted")
 	}
 	return nil
 }
 
-func checkCommittedHostState(ctx context.Context, host types.Host, store Store) error {
-	committedHostState, err := store.GetCommittedHostState(ctx)
+func checkCommittedState(ctx context.Context, host types.Host, store Store) error {
+	committedState, err := store.GetCommittedState(ctx)
 	if err != nil {
 		return err
 	}
-	if committedHostState != nil {
-		currentHostState, err := committedHostState.Load(ctx, host)
+	if committedState != nil {
+		currentState, err := committedState.Load(ctx, host)
 		if err != nil {
 			return err
 		}
-		ok, err := currentHostState.Satisfies(ctx, host, committedHostState)
+		ok, err := currentState.Satisfies(ctx, host, committedState)
 		if err != nil {
 			return err
 		}
@@ -39,110 +39,110 @@ func checkCommittedHostState(ctx context.Context, host types.Host, store Store) 
 	return nil
 }
 
-func prepareOriginalHostState(ctx context.Context, host types.Host, store Store, targetHostState *HostState) (*HostState, error) {
-	storedOriginalHostState, err := store.GetOriginalHostState(ctx)
+func prepareOriginalState(ctx context.Context, host types.Host, store Store, targetState *State) (*State, error) {
+	storedOriginalState, err := store.GetOriginalState(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	originalHostState := &HostState{}
+	originalState := &State{}
 
-	for _, storedOriginalResource := range storedOriginalHostState.GetResources() {
-		originalHostState.MustAppendResource(storedOriginalResource)
+	for _, storedOriginalResource := range storedOriginalState.GetResources() {
+		originalState.MustAppendResource(storedOriginalResource)
 	}
 
-	toLoadHostState := &HostState{}
+	toLoadState := &State{}
 
-	updatedOriginalHostState := false
+	updatedOriginalState := false
 
-	for _, targetResource := range targetHostState.GetResources() {
-		if _, ok := originalHostState.GetResourceByID(targetResource); ok {
+	for _, targetResource := range targetState.GetResources() {
+		if _, ok := originalState.GetResourceByID(targetResource); ok {
 			continue
 		}
-		updatedOriginalHostState = true
-		toLoadHostState.MustAppendResource(targetResource)
+		updatedOriginalState = true
+		toLoadState.MustAppendResource(targetResource)
 	}
 
-	if updatedOriginalHostState {
-		extraOriginalHostState, err := toLoadHostState.Load(ctx, host)
+	if updatedOriginalState {
+		extraOriginalState, err := toLoadState.Load(ctx, host)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, extraOriginalResource := range extraOriginalHostState.GetResources() {
-			originalHostState.MustAppendResource(extraOriginalResource)
+		for _, extraOriginalResource := range extraOriginalState.GetResources() {
+			originalState.MustAppendResource(extraOriginalResource)
 		}
 
-		if err := store.SaveOriginalHostState(ctx, originalHostState); err != nil {
+		if err := store.SaveOriginalState(ctx, originalState); err != nil {
 			return nil, err
 		}
 	}
 
-	return originalHostState, nil
+	return originalState, nil
 }
 
-func preparePlannedHostState(ctx context.Context, store Store, originalHostState *HostState, targetHostState *HostState) (*HostState, error) {
-	plannedHostState := &HostState{}
-	targetResources := targetHostState.GetResources()
+func preparePlannedState(ctx context.Context, store Store, originalState *State, targetState *State) (*State, error) {
+	plannedState := &State{}
+	targetResources := targetState.GetResources()
 	for _, targetResource := range targetResources {
-		plannedHostState.MustAppendResource(targetResource)
+		plannedState.MustAppendResource(targetResource)
 	}
-	for _, originalResource := range originalHostState.GetResources() {
-		if _, ok := targetHostState.GetResourceByID(originalResource); !ok {
-			plannedHostState.MustAppendResource(originalResource)
+	for _, originalResource := range originalState.GetResources() {
+		if _, ok := targetState.GetResourceByID(originalResource); !ok {
+			plannedState.MustAppendResource(originalResource)
 		}
 	}
 
-	if err := store.SavePlannedHostState(ctx, plannedHostState); err != nil {
+	if err := store.SavePlannedState(ctx, plannedState); err != nil {
 		return nil, err
 	}
 
-	return plannedHostState, nil
+	return plannedState, nil
 }
 
-func cleanupOriginalHostState(ctx context.Context, store Store, originalHostState *HostState, targetHostState *HostState) error {
-	cleanedOriginalHostState := &HostState{}
+func cleanupOriginalState(ctx context.Context, store Store, originalState *State, targetState *State) error {
+	cleanedOriginalState := &State{}
 	updated := false
-	for _, originalResource := range originalHostState.GetResources() {
-		if _, ok := targetHostState.GetResourceByID(originalResource); ok {
-			cleanedOriginalHostState.MustAppendResource(originalResource)
+	for _, originalResource := range originalState.GetResources() {
+		if _, ok := targetState.GetResourceByID(originalResource); ok {
+			cleanedOriginalState.MustAppendResource(originalResource)
 			updated = true
 		}
 	}
 	if updated {
-		return store.SaveOriginalHostState(ctx, cleanedOriginalHostState)
+		return store.SaveOriginalState(ctx, cleanedOriginalState)
 	}
 	return nil
 }
 
-func Apply(ctx context.Context, host types.Host, store Store, targetHostState *HostState) error {
-	if err := checkStoredPlannedHostState(ctx, store); err != nil {
+func Apply(ctx context.Context, host types.Host, store Store, targetState *State) error {
+	if err := checkStoredPlannedState(ctx, store); err != nil {
 		return err
 	}
 
-	if err := checkCommittedHostState(ctx, host, store); err != nil {
+	if err := checkCommittedState(ctx, host, store); err != nil {
 		return err
 	}
 
-	originalHostState, err := prepareOriginalHostState(ctx, host, store, targetHostState)
+	originalState, err := prepareOriginalState(ctx, host, store, targetState)
 	if err != nil {
 		return err
 	}
 
-	plannedHostState, err := preparePlannedHostState(ctx, store, originalHostState, targetHostState)
+	plannedState, err := preparePlannedState(ctx, store, originalState, targetState)
 	if err != nil {
 		return err
 	}
 
-	if err := plannedHostState.Apply(ctx, host); err != nil {
+	if err := plannedState.Apply(ctx, host); err != nil {
 		return err
 	}
 
-	if err := store.CommitPlannedHostState(ctx); err != nil {
+	if err := store.CommitPlannedState(ctx); err != nil {
 		return err
 	}
 
-	if err := cleanupOriginalHostState(ctx, store, originalHostState, targetHostState); err != nil {
+	if err := cleanupOriginalState(ctx, store, originalState, targetState); err != nil {
 		return err
 	}
 
