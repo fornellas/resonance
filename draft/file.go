@@ -43,6 +43,11 @@ type File struct {
 	Gid *uint32
 }
 
+// Loads the full state of given File path from host.
+func LoadFile(ctx context.Context, host types.Host, path string) (*File, error) {
+	panic("TODO")
+}
+
 func (f *File) ID() string {
 	return f.Path
 }
@@ -52,5 +57,13 @@ func (a *File) Satisfies(ctx context.Context, host types.Host, otherResource Res
 }
 
 func (a *File) Validate() error {
+	panic("TODO")
+}
+
+func (a *File) Merge(otherResource Resource) error {
+	panic("TODO")
+}
+
+func (a *File) Apply(ctx context.Context, host types.Host) error {
 	panic("TODO")
 }

@@ -54,9 +54,14 @@ func (a *APTPackage) Validate() error {
 	panic("TODO")
 }
 
+func (a *APTPackage) Merge(otherResource Resource) error {
+	panic("TODO")
+}
+
 type APTPackages []*APTPackage
 
-func (ap *APTPackages) Load(ctx context.Context, host types.Host) (APTPackages, error) {
+// Loads the full state of APTPackages from host for all given package names (IDs).
+func LoadAPTPackages(ctx context.Context, host types.Host, names ...string) (APTPackages, error) {
 	panic("TODO")
 }
 
