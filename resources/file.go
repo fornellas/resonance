@@ -458,56 +458,6 @@ func (f *File) Apply(ctx context.Context, host types.Host) error {
 	panic("TODO")
 }
 
-// func (f *File) Resolve(ctx context.Context, host types.Host) error {
-// 	if f.Directory != nil {
-// 		sort.SliceStable(*f.Directory, func(i int, j int) bool {
-// 			return (*f.Directory)[i].Path < (*f.Directory)[j].Path
-// 		})
-// 		for i, subFile := range *f.Directory {
-// 			if err := subFile.Resolve(ctx, host); err != nil {
-// 				return err
-// 			}
-// 			(*f.Directory)[i] = subFile
-// 		}
-// 	}
-
-// 	if f.User != nil {
-// 		usr, err := host.Lookup(ctx, *f.User)
-// 		if err != nil {
-// 			return err
-// 		}
-// 		uid, err := strconv.ParseUint(usr.Uid, 10, 32)
-// 		if err != nil {
-// 			return fmt.Errorf("failed to parse UID: %s", usr.Uid)
-// 		}
-// 		uid32 := uint32(uid)
-// 		f.Uid = &uid32
-// 		f.User = nil
-// 	}
-// 	if f.Uid == nil && !f.Absent {
-// 		f.Uid = new(uint32)
-// 	}
-
-// 	if f.Group != nil {
-// 		group, err := host.LookupGroup(ctx, *f.Group)
-// 		if err != nil {
-// 			return err
-// 		}
-// 		gid, err := strconv.ParseUint(group.Gid, 10, 32)
-// 		if err != nil {
-// 			return fmt.Errorf("failed to parse GID: %s", group.Gid)
-// 		}
-// 		gid32 := uint32(gid)
-// 		f.Gid = &gid32
-// 		f.Group = nil
-// 	}
-// 	if f.Gid == nil && !f.Absent {
-// 		f.Gid = new(uint32)
-// 	}
-
-// 	return nil
-// }
-
 // func (f *File) removeRecursively(ctx context.Context, host types.Host) error {
 // 	err := host.Remove(ctx, f.Path)
 // 	if err != nil {
