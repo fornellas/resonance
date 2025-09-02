@@ -197,33 +197,7 @@ func (f *File) getGid(ctx context.Context, host types.Host) (uint32, error) {
 	return uint32(gidUint64), nil
 }
 
-func (f *File) Satisfies(ctx context.Context, host types.Host, otherResource Resource) (bool, error) {
-	otherFile := otherResource.(*File)
-	// Path
-	if otherFile.Path != f.Path {
-		return false, nil
-	}
-	// Absent
-	if otherFile.Absent && !f.Absent {
-		return false, nil
-	}
-	// Socket
-	if otherFile.Socket && !f.Socket {
-		return false, nil
-	}
-	// SymbolicLink
-	if len(otherFile.SymbolicLink) > 0 && otherFile.SymbolicLink != f.SymbolicLink {
-		return false, nil
-	}
-	// RegularFile
-	if otherFile.RegularFile != nil && (f.RegularFile == nil || (*otherFile.RegularFile != *f.RegularFile)) {
-		return false, nil
-	}
-	// BlockDevice
-	if otherFile.BlockDevice != nil && (f.BlockDevice == nil || (*otherFile.BlockDevice != *f.BlockDevice)) {
-		return false, nil
-	}
-	// Directory
+func (f *File) satisfiesDirectory(ctx context.Context, host types.Host, otherFile *File) (bool, error) {
 	if otherFile.Directory != nil {
 		if f.Directory == nil {
 			return false, nil
@@ -248,12 +222,64 @@ func (f *File) Satisfies(ctx context.Context, host types.Host, otherResource Res
 			}
 		}
 	}
-	// CharacterDevice
-	if otherFile.CharacterDevice != nil && (f.CharacterDevice == nil || (*otherFile.CharacterDevice != *f.CharacterDevice)) {
+	return true, nil
+}
+
+func (f *File) satisfiesTypes(ctx context.Context, host types.Host, otherFile *File) (bool, error) {
+	typeCheckFns := []func() (bool, error){
+		// Socket
+		func() (bool, error) { return otherFile.Socket && !f.Socket, nil },
+		// SymbolicLink
+		func() (bool, error) {
+			return len(otherFile.SymbolicLink) > 0 && otherFile.SymbolicLink != f.SymbolicLink, nil
+		},
+		// RegularFile
+		func() (bool, error) {
+			return otherFile.RegularFile != nil && (f.RegularFile == nil || (*otherFile.RegularFile != *f.RegularFile)), nil
+		},
+		// BlockDevice
+		func() (bool, error) {
+			return otherFile.BlockDevice != nil && (f.BlockDevice == nil || (*otherFile.BlockDevice != *f.BlockDevice)), nil
+		},
+		// Directory
+		func() (bool, error) { return f.satisfiesDirectory(ctx, host, otherFile) },
+		// CharacterDevice
+		func() (bool, error) {
+			return otherFile.CharacterDevice != nil && (f.CharacterDevice == nil || (*otherFile.CharacterDevice != *f.CharacterDevice)), nil
+		},
+		// FIFO
+		func() (bool, error) { return otherFile.FIFO && !f.FIFO, nil },
+	}
+
+	for _, typeCheckFn := range typeCheckFns {
+		satisfies, err := typeCheckFn()
+		if err != nil {
+			return false, err
+		}
+		if !satisfies {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+func (f *File) Satisfies(ctx context.Context, host types.Host, otherResource Resource) (bool, error) {
+	otherFile := otherResource.(*File)
+	// Path
+	if otherFile.Path != f.Path {
 		return false, nil
 	}
-	// FIFO
-	if otherFile.FIFO && !f.FIFO {
+	// Absent
+	if otherFile.Absent && !f.Absent {
+		return false, nil
+	}
+	// Types
+	satisfies, err := f.satisfiesTypes(ctx, host, otherFile)
+	if err != nil {
+		return false, err
+	}
+	if !satisfies {
 		return false, nil
 	}
 	// Mode
