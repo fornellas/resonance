@@ -8,9 +8,6 @@ import (
 	"github.com/fornellas/resonance/resources"
 )
 
-//go:embed debconf_editor.sh
-var debconfEditor string
-
 // A debconf question.
 // See https://wiki.debian.org/debconf
 type DebconfQuestion string

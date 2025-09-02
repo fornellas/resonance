@@ -18,15 +18,15 @@ type State struct {
 // Add given resource to State. Panics if a resource with same type and ID already exists.
 func (s *State) MustAppendResource(resource resources.Resource) {
 	resourceType := reflect.TypeOf(resource)
-	idMap, ok := s.resourceTypeIdMap[resourceType]
+	resourceIdMap, ok := s.resourceTypeIdMap[resourceType]
 	if !ok {
-		idMap = map[string]resources.Resource{}
-		s.resourceTypeIdMap[resourceType] = idMap
+		resourceIdMap = map[string]resources.Resource{}
+		s.resourceTypeIdMap[resourceType] = resourceIdMap
 	}
-	if _, ok := s.resourceTypeIdMap[resourceType][resource.ID()]; ok {
+	if _, ok := resourceIdMap[resource.ID()]; ok {
 		panic(fmt.Sprintf("bug: duplicated resource: %T %v", resource, resource.ID()))
 	}
-	s.resourceTypeIdMap[resourceType][resource.ID()] = resource
+	resourceIdMap[resource.ID()] = resource
 
 	s.resources = append(s.resources, resource)
 }
