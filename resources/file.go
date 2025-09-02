@@ -13,10 +13,9 @@ import (
 	"github.com/fornellas/resonance/host/types"
 )
 
-// File manages files. Either Absent or exactly one of Socket, SymbolicLink, RegularFile,
-// BlockDevice, Directory, CharacterDevice or FIFO must be set. If User and Uid aren't set, then
-// Uid = 0 is assumed; either User or Uid can be set (but not both); similar mechanic for Group and
-// Gid.
+// File manages files. One of Absent, Socket, SymbolicLink, RegularFile, BlockDevice, Directory,
+// CharacterDevice or FIFO must be set. If User and Uid aren't set, then Uid = 0 is assumed; either
+// User or Uid can be set (but not both); similar mechanic for Group and Gid.
 type File struct {
 	// Path is the absolute path to the file.
 	Path string
@@ -155,147 +154,179 @@ func (f *File) ID() string {
 	return f.Path
 }
 
-func (a *File) Satisfies(ctx context.Context, host types.Host, otherResource Resource) (bool, error) {
+func (f *File) Satisfies(ctx context.Context, host types.Host, otherResource Resource) (bool, error) {
 	panic("TODO")
 }
 
-func (a *File) Validate() error {
+func (f *File) validatePath() error {
+	if !isCleanUnixPath(f.Path) {
+		return fmt.Errorf("'path' must be a clean unix path")
+	}
+	if !isAbsUnixPath(f.Path) {
+		return fmt.Errorf("'path' must be an absolute unix path")
+	}
+	return nil
+}
+
+func (f *File) validateAbsent() (bool, error) {
+	if f.Absent {
+		if f.Socket {
+			return false, fmt.Errorf("'socket' can not be set with 'absent'")
+		}
+		if len(f.SymbolicLink) > 0 {
+			return false, fmt.Errorf("'symbolic_link' can not be set with 'absent'")
+		}
+		if f.RegularFile != nil {
+			return false, fmt.Errorf("'regular_file' can not be set with 'absent'")
+		}
+		if f.BlockDevice != nil {
+			return false, fmt.Errorf("'block_device' can not be set with 'absent'")
+		}
+		if f.Directory != nil {
+			return false, fmt.Errorf("'directory' can not be set with 'absent'")
+		}
+		if f.CharacterDevice != nil {
+			return false, fmt.Errorf("'character_device' can not be set with 'absent'")
+		}
+		if f.FIFO {
+			return false, fmt.Errorf("'fifo' can not be set with 'absent'")
+		}
+		if f.Mode != nil {
+			return false, fmt.Errorf("'mode' can not be set with 'absent'")
+		}
+		if f.User != nil {
+			return false, fmt.Errorf("'user' can not be set with 'absent'")
+		}
+		if f.Uid != nil {
+			return false, fmt.Errorf("'uid' can not be set with 'absent'")
+		}
+		if f.Group != nil {
+			return false, fmt.Errorf("'group' can not be set with 'absent'")
+		}
+		if f.Gid != nil {
+			return false, fmt.Errorf("'gid' can not be set with 'absent'")
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+func (f *File) validateDirectory() error {
+	for _, subFile := range *f.Directory {
+		if dirUnix(subFile.Path) != f.Path {
+			return fmt.Errorf("directory entry '%s' is not a subpath of '%s'", subFile.Path, f.Path)
+		}
+		if err := subFile.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (f *File) validateType() (string, error) {
+	fileTypeCount := 0
+	failModeWith := ""
+
+	// Socket
+	if f.Socket {
+		fileTypeCount += 1
+	}
+
+	// SymbolicLink
+	if len(f.SymbolicLink) > 0 {
+		fileTypeCount += 1
+		failModeWith = "symbolic_link"
+		if !isCleanUnixPath(f.SymbolicLink) {
+			return "", fmt.Errorf("'symbolic_link' must be a clean unix path")
+		}
+	}
+
+	// RegularFile
+	if f.RegularFile != nil {
+		fileTypeCount += 1
+	}
+
+	// BlockDevice
+	if f.BlockDevice != nil {
+		fileTypeCount += 1
+	}
+
+	// Directory
+	if f.Directory != nil {
+		fileTypeCount += 1
+		if err := f.validateDirectory(); err != nil {
+			return "", err
+		}
+	}
+
+	// CharacterDevice
+	if f.CharacterDevice != nil {
+		fileTypeCount += 1
+	}
+
+	// FIFO
+	if f.FIFO {
+		fileTypeCount += 1
+	}
+
+	if fileTypeCount != 1 {
+		return "", fmt.Errorf("exactly one file type can be set: 'socket', 'symbolic_link', 'regular_file', 'block_device', 'directory', 'character_device' or 'fifo'")
+	}
+
+	return failModeWith, nil
+}
+
+func (f *File) Validate() error {
+	// Path
+	if err := f.validatePath(); err != nil {
+		return err
+	}
+
+	// Absent
+	finished, err := f.validateAbsent()
+	if err != nil {
+		return err
+	}
+	if finished {
+		return nil
+	}
+
+	// Types
+	failModeWith, err := f.validateType()
+	if err != nil {
+		return err
+	}
+
+	// Mode
+	if f.Mode != nil {
+		if len(failModeWith) > 0 {
+			return fmt.Errorf("'mode' can not be set with '%s'", failModeWith)
+		}
+		if *f.Mode&(^types.FileModeBitsMask) > 0 {
+			return fmt.Errorf("'mode' does not match mask %#o: %#o", types.FileModeBitsMask, *f.Mode)
+		}
+	}
+
+	// User / Uid
+	if f.User != nil && f.Uid != nil {
+		return fmt.Errorf("either 'user' or 'uid' can be set")
+	}
+
+	// Group / Gid
+	if f.Group != nil && f.Gid != nil {
+		return fmt.Errorf("either 'group' or 'gid' can be set")
+	}
+
+	return nil
+}
+
+func (f *File) Merge(otherResource Resource) error {
 	panic("TODO")
 }
 
-func (a *File) Merge(otherResource Resource) error {
+func (f *File) Apply(ctx context.Context, host types.Host) error {
 	panic("TODO")
 }
-
-func (a *File) Apply(ctx context.Context, host types.Host) error {
-	panic("TODO")
-}
-
-// func (f *File) validatePath() error {
-// 	if f.Path == "" {
-// 		return fmt.Errorf("'path' must be set")
-// 	}
-
-// 	if !filepath.IsAbs(f.Path) {
-// 		return fmt.Errorf("'path' must be absolute: %#v", f.Path)
-// 	}
-
-// 	cleanPath := filepath.Clean(f.Path)
-// 	if cleanPath != f.Path {
-// 		return fmt.Errorf("'path' must be clean: %#v should be %#v", f.Path, cleanPath)
-// 	}
-
-// 	return nil
-// }
-
-// func (f *File) validateAbsentAndType() error {
-// 	fileTypes := []bool{
-// 		f.Socket,
-// 		f.SymbolicLink != "",
-// 		f.RegularFile != nil,
-// 		f.BlockDevice != nil,
-// 		f.Directory != nil,
-// 		f.CharacterDevice != nil,
-// 		f.FIFO,
-// 	}
-
-// 	typeCount := 0
-// 	for _, isSet := range fileTypes {
-// 		if isSet {
-// 			typeCount++
-// 		}
-// 	}
-
-// 	if typeCount == 0 {
-// 		if f.Absent {
-// 			if f.Mode != nil {
-// 				return fmt.Errorf("can not set 'mode' with absent")
-// 			}
-// 			if f.Uid != nil {
-// 				return fmt.Errorf("can not set 'uid' with absent")
-// 			}
-// 			if f.User != nil {
-// 				return fmt.Errorf("can not set 'user' with absent")
-// 			}
-// 			if f.Gid != nil {
-// 				return fmt.Errorf("can not set 'gid' with absent")
-// 			}
-// 			if f.Group != nil {
-// 				return fmt.Errorf("can not set 'group' with absent")
-// 			}
-// 		} else {
-// 			return fmt.Errorf("one file type must be defined without 'absent'")
-// 		}
-// 	} else if typeCount == 1 {
-// 		if f.Absent {
-// 			return fmt.Errorf("can not set 'absent' and a file type at the same time")
-// 		}
-// 	} else {
-// 		return fmt.Errorf("only one file type can be defined")
-// 	}
-
-// 	return nil
-// }
-
-// func (f *File) validateDirectory() error {
-// 	if f.Directory != nil {
-// 		for _, subFile := range *f.Directory {
-// 			if filepath.Dir(subFile.Path) != f.Path {
-// 				return fmt.Errorf("directory entry '%s' is not a subpath of '%s'", subFile.Path, f.Path)
-// 			}
-// 			if err := subFile.Validate(); err != nil {
-// 				return err
-// 			}
-// 		}
-// 	}
-// 	return nil
-// }
-
-// func (f *File) validateMode() error {
-// 	if f.Mode != nil {
-// 		if *f.Mode&(^types.FileModeBitsMask) > 0 {
-// 			return fmt.Errorf("file mode does not match mask %#o: %#o", types.FileModeBitsMask, *f.Mode)
-// 		}
-// 	}
-// 	return nil
-// }
-
-// func (f *File) Validate() error {
-// 	// Path
-// 	if err := f.validatePath(); err != nil {
-// 		return err
-// 	}
-
-// 	// Absent / Type
-// 	if err := f.validateAbsentAndType(); err != nil {
-// 		return err
-// 	}
-
-// 	// SymbolicLink
-// 	if len(f.SymbolicLink) != 0 && f.Mode != nil {
-// 		return fmt.Errorf("can not set 'mode' with symlink")
-// 	}
-
-// 	// Directory
-// 	if err := f.validateDirectory(); err != nil {
-// 		return err
-// 	}
-
-// 	// Mode
-// 	if err := f.validateMode(); err != nil {
-// 		return err
-// 	}
-
-// 	if f.Uid != nil && f.User != nil {
-// 		return fmt.Errorf("can't set both 'uid' and 'user': %d, %#v", *f.Uid, *f.User)
-// 	}
-
-// 	if f.Gid != nil && f.Group != nil {
-// 		return fmt.Errorf("can't set both 'gid' and 'group': %d, %#v", *f.Gid, *f.Group)
-// 	}
-
-// 	return nil
-// }
 
 // func (f *File) Resolve(ctx context.Context, host types.Host) error {
 // 	if f.Directory != nil {
