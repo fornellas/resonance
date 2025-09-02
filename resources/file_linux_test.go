@@ -197,7 +197,7 @@ func TestFile(t *testing.T) {
 				Title: "directory",
 				File: File{
 					Path: "/foo",
-					Directory: &[]File{
+					Directory: &[]*File{
 						{
 							Path:        "/foo/bar",
 							RegularFile: new(string),
@@ -209,7 +209,7 @@ func TestFile(t *testing.T) {
 				Title: "directory entry not subpath",
 				File: File{
 					Path: "/foo",
-					Directory: &[]File{
+					Directory: &[]*File{
 						{
 							Path:        "/fooz/bar",
 							RegularFile: new(string),
@@ -334,12 +334,12 @@ func TestFile(t *testing.T) {
 			require.NoError(t, syscall.Mknod(fifoPath, syscall.S_IFIFO|uint32(mode), 0))
 			require.NoError(t, syscall.Chmod(fifoPath, uint32(mode)))
 
-			file := File{Path: prefix}
-			require.NoError(t, file.Load(ctx, hst))
+			file, err := LoadFile(ctx, hst, prefix)
+			require.NoError(t, err)
 
 			expectedFile := File{
 				Path: prefix,
-				Directory: &[]File{
+				Directory: &[]*File{
 					{
 						Path: fifoPath,
 						FIFO: true,
@@ -375,7 +375,7 @@ func TestFile(t *testing.T) {
 
 			if isRoot(t) {
 				*expectedFile.Directory = append(
-					[]File{
+					[]*File{
 						{
 							Path:        blockPath,
 							BlockDevice: &device,
@@ -400,107 +400,13 @@ func TestFile(t *testing.T) {
 		t.Run("absent", func(t *testing.T) {
 			prefix := t.TempDir()
 			path := filepath.Join(prefix, "absent")
-			file := File{Path: path}
-			err := file.Load(ctx, hst)
+			file, err := LoadFile(ctx, hst, path)
+			require.NoError(t, err)
 			require.NoError(t, err)
 			require.True(t, reflect.DeepEqual(file, File{
 				Path:   path,
 				Absent: true,
 			}))
-		})
-	})
-
-	t.Run("Resolve()", func(t *testing.T) {
-		path := "/foo"
-		var uid uint32 = 0
-		var defaultUid uint32 = 0
-		var gid uint32 = 0
-		var defaultGid uint32 = 0
-		t.Run("User", func(t *testing.T) {
-			user := "root"
-			t.Run("valid", func(t *testing.T) {
-				file := File{
-					Path: path,
-					User: &user,
-				}
-				require.NoError(t, file.Resolve(ctx, hst))
-				expectedFile := File{
-					Path: path,
-					Uid:  &uid,
-					Gid:  &defaultGid,
-				}
-				require.True(t, reflect.DeepEqual(expectedFile, file))
-			})
-			t.Run("invalid", func(t *testing.T) {
-				badUser := "foobar"
-				file := File{
-					Path: path,
-					User: &badUser,
-				}
-				require.ErrorContains(t, file.Resolve(ctx, hst), "unknown user")
-			})
-		})
-		t.Run("Group", func(t *testing.T) {
-			group := "root"
-			t.Run("valid", func(t *testing.T) {
-				file := File{
-					Path:  path,
-					Group: &group,
-				}
-				require.NoError(t, file.Resolve(ctx, hst))
-				expectedFile := File{
-					Path: path,
-					Uid:  &defaultUid,
-					Gid:  &gid,
-				}
-				require.True(t, reflect.DeepEqual(expectedFile, file))
-			})
-			t.Run("invalid", func(t *testing.T) {
-				badGroup := "foobar"
-				file := File{
-					Path:  path,
-					Group: &badGroup,
-				}
-				require.ErrorContains(t, file.Resolve(ctx, hst), "unknown group")
-			})
-		})
-		t.Run("Directory", func(t *testing.T) {
-			t.Run("sort & recursion", func(t *testing.T) {
-				file := File{
-					Path: path,
-					Directory: &[]File{
-						{
-							Path:        filepath.Join(path, "last"),
-							RegularFile: new(string),
-						},
-						{
-							Path:        filepath.Join(path, "first"),
-							RegularFile: new(string),
-						},
-					},
-				}
-				require.NoError(t, file.Resolve(ctx, hst))
-				expectedFile := File{
-					Path: path,
-					Directory: &[]File{
-						{
-							Path:        filepath.Join(path, "first"),
-							RegularFile: new(string),
-							Uid:         &defaultUid,
-							Gid:         &defaultGid,
-						},
-						{
-							Path:        filepath.Join(path, "last"),
-							RegularFile: new(string),
-							Uid:         &defaultUid,
-							Gid:         &defaultGid,
-						},
-					},
-					Uid: &defaultUid,
-					Gid: &defaultGid,
-				}
-				require.True(t, reflect.DeepEqual(expectedFile, file))
-			})
 		})
 	})
 
@@ -516,7 +422,7 @@ func TestFile(t *testing.T) {
 
 			file := File{
 				Path: prefix,
-				Directory: &[]File{
+				Directory: &[]*File{
 					{
 						Path: fifoPath,
 						FIFO: true,
@@ -552,7 +458,7 @@ func TestFile(t *testing.T) {
 
 			if isRoot(t) {
 				*file.Directory = append(
-					[]File{
+					[]*File{
 						{
 							Path:        blockPath,
 							BlockDevice: &device,
@@ -576,8 +482,8 @@ func TestFile(t *testing.T) {
 			if expectedErr == nil {
 				require.NoError(t, err)
 
-				loadedFile := File{Path: prefix}
-				require.NoError(t, loadedFile.Load(ctx, hst))
+				loadedFile, err := LoadFile(ctx, hst, prefix)
+				require.NoError(t, err)
 
 				require.True(t, reflect.DeepEqual(file, loadedFile))
 			} else {

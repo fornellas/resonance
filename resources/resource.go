@@ -14,7 +14,7 @@ type Resource interface {
 	// Satisfies returns true when self satisfies the state required by other. Useful to tell
 	// when a full state (eg: fetched from host) satisfies a partial state (provided as input).
 	Satisfies(ctx context.Context, host types.Host, otherResource Resource) (bool, error)
-	// Validates whether the resource state is valid (eg: a file has a non absolute path as an
+	// Validates whether the resource state is valid (eg: a file has a non absolute path is an
 	// error).
 	Validate() error
 	// Merge attempts to merge the state of other into self. If this is not possible (eg: states
