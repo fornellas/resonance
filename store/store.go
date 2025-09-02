@@ -10,12 +10,12 @@ import (
 
 // Store defines an interface for storage of host state.
 type Store interface {
-	// Retuns State of managed resources before the first appply happened (used for reverting
+	// Returns the State of managed resources before the first appply happened (used for reverting
 	// the resource state when it is not managed anymore).
 	GetOriginalState(ctx context.Context) (*state.State, error)
 	// Saves the original State for resources before first apply.
 	SaveOriginalState(ctx context.Context, state *state.State) error
-	// Get State of resources that were previously applied successfully.
+	// Get the State of resources that were previously applied successfully.
 	GetCommittedState(ctx context.Context) (*state.State, error)
 	// Commit planned State (set committed to planned, remove planned).
 	CommitPlannedState(ctx context.Context) error
