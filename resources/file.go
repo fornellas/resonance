@@ -36,7 +36,6 @@ type File struct {
 	CharacterDevice *types.FileDevice
 	// Create a FIFO file.
 	FIFO bool
-	// TODO Link []string> hard link to some other !directory file(s). Check whether inodes match.
 	// Mode bits 07777, see inode(7). Can not be set when SymbolicLink is set.
 	Mode *types.FileMode
 	// User name owner of the file. If set, then the Uid will attempt to be read from the host.
