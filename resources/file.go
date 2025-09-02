@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"syscall"
 
 	"github.com/fornellas/resonance/host/types"
@@ -154,8 +155,137 @@ func (f *File) ID() string {
 	return f.Path
 }
 
+func (f *File) getUid(ctx context.Context, host types.Host) (uint32, error) {
+	if f.Uid != nil {
+		return *f.Uid, nil
+	}
+
+	if f.User == nil {
+		return 0, nil
+	}
+
+	user, err := host.Lookup(ctx, *f.User)
+	if err != nil {
+		return 0, err
+	}
+
+	uidUint64, err := strconv.ParseUint(user.Uid, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse UID: %s: %w", user.Uid, err)
+	}
+	return uint32(uidUint64), nil
+}
+
+func (f *File) getGid(ctx context.Context, host types.Host) (uint32, error) {
+	if f.Gid != nil {
+		return *f.Gid, nil
+	}
+
+	if f.Group == nil {
+		return 0, nil
+	}
+
+	group, err := host.LookupGroup(ctx, *f.Group)
+	if err != nil {
+		return 0, err
+	}
+
+	gidUint64, err := strconv.ParseUint(group.Gid, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse GID: %s: %w", group.Gid, err)
+	}
+	return uint32(gidUint64), nil
+}
+
 func (f *File) Satisfies(ctx context.Context, host types.Host, otherResource Resource) (bool, error) {
-	panic("TODO")
+	otherFile := otherResource.(*File)
+	// Path
+	if otherFile.Path != f.Path {
+		return false, nil
+	}
+	// Absent
+	if otherFile.Absent && !f.Absent {
+		return false, nil
+	}
+	// Socket
+	if otherFile.Socket && !f.Socket {
+		return false, nil
+	}
+	// SymbolicLink
+	if len(otherFile.SymbolicLink) > 0 && otherFile.SymbolicLink != f.SymbolicLink {
+		return false, nil
+	}
+	// RegularFile
+	if otherFile.RegularFile != nil && (f.RegularFile == nil || (*otherFile.RegularFile != *f.RegularFile)) {
+		return false, nil
+	}
+	// BlockDevice
+	if otherFile.BlockDevice != nil && (f.BlockDevice == nil || (*otherFile.BlockDevice != *f.BlockDevice)) {
+		return false, nil
+	}
+	// Directory
+	if otherFile.Directory != nil {
+		if f.Directory == nil {
+			return false, nil
+		}
+		for _, otherDirFile := range *otherFile.Directory {
+			found := false
+			for _, dirFile := range *f.Directory {
+				if dirFile.ID() == otherDirFile.ID() {
+					satisfied, err := dirFile.Satisfies(ctx, host, otherDirFile)
+					if err != nil {
+						return false, err
+					}
+					if !satisfied {
+						return false, nil
+					}
+					found = true
+					break
+				}
+			}
+			if !found {
+				return false, nil
+			}
+		}
+	}
+	// CharacterDevice
+	if otherFile.CharacterDevice != nil && (f.CharacterDevice == nil || (*otherFile.CharacterDevice != *f.CharacterDevice)) {
+		return false, nil
+	}
+	// FIFO
+	if otherFile.FIFO && !f.FIFO {
+		return false, nil
+	}
+	// Mode
+	if otherFile.Mode != nil && (f.Mode == nil || (*otherFile.Mode != *f.Mode)) {
+		return false, nil
+	}
+	// User / Uid
+	otherUid, err := otherFile.getUid(ctx, host)
+	if err != nil {
+		return false, err
+	}
+	uid, err := f.getUid(ctx, host)
+	if err != nil {
+		return false, err
+	}
+	if otherUid != uid {
+		return false, nil
+	}
+	// Group / Gid
+	otherGid, err := otherFile.getGid(ctx, host)
+	if err != nil {
+		return false, err
+	}
+	gid, err := f.getGid(ctx, host)
+	if err != nil {
+		return false, err
+	}
+	if otherGid != gid {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func (f *File) validatePath() error {

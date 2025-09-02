@@ -312,7 +312,7 @@ func TestFile(t *testing.T) {
 		}
 	})
 
-	t.Run("Load()", func(t *testing.T) {
+	t.Run("LoadFile()", func(t *testing.T) {
 		t.Run("existing", func(t *testing.T) {
 			prefix := t.TempDir()
 			require.NoError(t, syscall.Chmod(prefix, uint32(mode)))
