@@ -225,42 +225,40 @@ func (f *File) satisfiesDirectory(ctx context.Context, host types.Host, otherFil
 	return true, nil
 }
 
+//gocyclo:ignore
 func (f *File) satisfiesTypes(ctx context.Context, host types.Host, otherFile *File) (bool, error) {
-	typeCheckFns := []func() (bool, error){
-		// Socket
-		func() (bool, error) { return otherFile.Socket && !f.Socket, nil },
-		// SymbolicLink
-		func() (bool, error) {
-			return len(otherFile.SymbolicLink) > 0 && otherFile.SymbolicLink != f.SymbolicLink, nil
-		},
-		// RegularFile
-		func() (bool, error) {
-			return otherFile.RegularFile != nil && (f.RegularFile == nil || (*otherFile.RegularFile != *f.RegularFile)), nil
-		},
-		// BlockDevice
-		func() (bool, error) {
-			return otherFile.BlockDevice != nil && (f.BlockDevice == nil || (*otherFile.BlockDevice != *f.BlockDevice)), nil
-		},
-		// Directory
-		func() (bool, error) { return f.satisfiesDirectory(ctx, host, otherFile) },
-		// CharacterDevice
-		func() (bool, error) {
-			return otherFile.CharacterDevice != nil && (f.CharacterDevice == nil || (*otherFile.CharacterDevice != *f.CharacterDevice)), nil
-		},
-		// FIFO
-		func() (bool, error) { return otherFile.FIFO && !f.FIFO, nil },
+	// Socket
+	if otherFile.Socket && !f.Socket {
+		return false, nil
 	}
-
-	for _, typeCheckFn := range typeCheckFns {
-		satisfies, err := typeCheckFn()
-		if err != nil {
-			return false, err
-		}
-		if !satisfies {
-			return false, nil
-		}
+	// SymbolicLink
+	if len(otherFile.SymbolicLink) > 0 && otherFile.SymbolicLink != f.SymbolicLink {
+		return false, nil
 	}
-
+	// RegularFile
+	if otherFile.RegularFile != nil && (f.RegularFile == nil || (*otherFile.RegularFile != *f.RegularFile)) {
+		return false, nil
+	}
+	// BlockDevice
+	if otherFile.BlockDevice != nil && (f.BlockDevice == nil || (*otherFile.BlockDevice != *f.BlockDevice)) {
+		return false, nil
+	}
+	// Directory
+	satisfies, err := f.satisfiesDirectory(ctx, host, otherFile)
+	if err != nil {
+		return false, err
+	}
+	if !satisfies {
+		return false, nil
+	}
+	// CharacterDevice
+	if otherFile.CharacterDevice != nil && (f.CharacterDevice == nil || (*otherFile.CharacterDevice != *f.CharacterDevice)) {
+		return false, nil
+	}
+	// FIFO
+	if otherFile.FIFO && !f.FIFO {
+		return false, nil
+	}
 	return true, nil
 }
 
@@ -268,10 +266,12 @@ func (f *File) Satisfies(ctx context.Context, host types.Host, otherResource Res
 	otherFile := otherResource.(*File)
 	// Path
 	if otherFile.Path != f.Path {
+		fmt.Fprintf(os.Stderr, "different path\n")
 		return false, nil
 	}
 	// Absent
 	if otherFile.Absent && !f.Absent {
+		fmt.Fprintf(os.Stderr, "different absent\n")
 		return false, nil
 	}
 	// Types
@@ -280,10 +280,12 @@ func (f *File) Satisfies(ctx context.Context, host types.Host, otherResource Res
 		return false, err
 	}
 	if !satisfies {
+		fmt.Fprintf(os.Stderr, "different type\n")
 		return false, nil
 	}
 	// Mode
 	if otherFile.Mode != nil && (f.Mode == nil || (*otherFile.Mode != *f.Mode)) {
+		fmt.Fprintf(os.Stderr, "different mode\n")
 		return false, nil
 	}
 	// User / Uid
@@ -296,6 +298,7 @@ func (f *File) Satisfies(ctx context.Context, host types.Host, otherResource Res
 		return false, err
 	}
 	if otherUid != uid {
+		fmt.Fprintf(os.Stderr, "different uid\n")
 		return false, nil
 	}
 	// Group / Gid
@@ -308,6 +311,7 @@ func (f *File) Satisfies(ctx context.Context, host types.Host, otherResource Res
 		return false, err
 	}
 	if otherGid != gid {
+		fmt.Fprintf(os.Stderr, "different gid\n")
 		return false, nil
 	}
 

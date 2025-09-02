@@ -139,7 +139,592 @@ func TestLoadFile(t *testing.T) {
 }
 
 func TestFile_Satisfies(t *testing.T) {
-	// TODO
+	ctx := log.WithTestLogger(t.Context())
+	hst := host.Local{}
+
+	user := "root"
+	var uid uint32 = uint32(os.Getuid())
+	group := "root"
+	var gid uint32 = uint32(os.Getgid())
+	var mode1 types.FileMode = 0644
+	var mode2 types.FileMode = 0755
+	var device1 types.FileDevice = 12345
+	var device2 types.FileDevice = 67890
+	contents1 := "content1"
+	contents2 := "content2"
+
+	type TestCase struct {
+		Title             string
+		File              File
+		OtherFile         File
+		ExpectedSatisfies bool
+		ErrorContains     string
+	}
+
+	for _, tc := range []TestCase{
+		// Path
+		{
+			Title: "different paths",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			OtherFile: File{
+				Path:        "/bar",
+				RegularFile: &contents1,
+			},
+			ExpectedSatisfies: false,
+		},
+		{
+			Title: "same path",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			ExpectedSatisfies: true,
+		},
+		// Absent
+		{
+			Title: "other wants absent but file is not",
+			File: File{
+				Path:   "/foo",
+				Absent: false,
+			},
+			OtherFile: File{
+				Path:   "/foo",
+				Absent: true,
+			},
+			ExpectedSatisfies: false,
+		},
+		{
+			Title: "both absent",
+			File: File{
+				Path:   "/foo",
+				Absent: true,
+			},
+			OtherFile: File{
+				Path:   "/foo",
+				Absent: true,
+			},
+			ExpectedSatisfies: true,
+		},
+		{
+			Title: "file is absent but other is not",
+			File: File{
+				Path:   "/foo",
+				Absent: true,
+			},
+			OtherFile: File{
+				Path:   "/foo",
+				Absent: false,
+			},
+			ExpectedSatisfies: true,
+		},
+		// Socket
+		{
+			Title: "same socket",
+			File: File{
+				Path:   "/foo",
+				Socket: true,
+			},
+			OtherFile: File{
+				Path:   "/foo",
+				Socket: true,
+			},
+			ExpectedSatisfies: true,
+		},
+		{
+			Title: "different types - socket vs regular",
+			File: File{
+				Path:   "/foo",
+				Socket: true,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			ExpectedSatisfies: false,
+		},
+		// SymbolicLink
+		{
+			Title: "same symbolic links",
+			File: File{
+				Path:         "/foo",
+				SymbolicLink: "/target1",
+			},
+			OtherFile: File{
+				Path:         "/foo",
+				SymbolicLink: "/target1",
+			},
+			ExpectedSatisfies: true,
+		},
+		{
+			Title: "symbolic links to different targets",
+			File: File{
+				Path:         "/foo",
+				SymbolicLink: "/target1",
+			},
+			OtherFile: File{
+				Path:         "/foo",
+				SymbolicLink: "/target2",
+			},
+			ExpectedSatisfies: false,
+		},
+		// RegularFile
+		{
+			Title: "regular files with same contents",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			ExpectedSatisfies: true,
+		},
+		{
+			Title: "regular files with different contents",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents2,
+			},
+			ExpectedSatisfies: false,
+		},
+		// BlockDevice
+		{
+			Title: "same block devices",
+			File: File{
+				Path:        "/foo",
+				BlockDevice: &device1,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				BlockDevice: &device1,
+			},
+			ExpectedSatisfies: true,
+		},
+		{
+			Title: "block devices with different major/minor",
+			File: File{
+				Path:        "/foo",
+				BlockDevice: &device1,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				BlockDevice: &device2,
+			},
+			ExpectedSatisfies: false,
+		},
+		// Directory
+		{
+			Title: "directory with contents",
+			File: File{
+				Path: "/foo",
+				Directory: &[]*File{
+					{
+						Path:        "/foo/bar",
+						RegularFile: &contents1,
+					},
+				},
+			},
+			OtherFile: File{
+				Path: "/foo",
+				Directory: &[]*File{
+					{
+						Path:        "/foo/bar",
+						RegularFile: &contents1,
+					},
+				},
+			},
+			ExpectedSatisfies: true,
+		},
+		{
+			Title: "directory with different contents",
+			File: File{
+				Path: "/foo",
+				Directory: &[]*File{
+					{
+						Path:        "/foo/bar",
+						RegularFile: &contents1,
+					},
+				},
+			},
+			OtherFile: File{
+				Path: "/foo",
+				Directory: &[]*File{
+					{
+						Path:        "/foo/bar",
+						RegularFile: &contents2,
+					},
+				},
+			},
+			ExpectedSatisfies: false,
+		},
+		// CharacterDevice
+		{
+			Title: "same character devices",
+			File: File{
+				Path:            "/foo",
+				CharacterDevice: &device1,
+			},
+			OtherFile: File{
+				Path:            "/foo",
+				CharacterDevice: &device1,
+			},
+			ExpectedSatisfies: true,
+		},
+		{
+			Title: "character devices with different major/minor",
+			File: File{
+				Path:            "/foo",
+				CharacterDevice: &device1,
+			},
+			OtherFile: File{
+				Path:            "/foo",
+				CharacterDevice: &device2,
+			},
+			ExpectedSatisfies: false,
+		},
+		// FIFO
+		{
+			Title: "same FIFO",
+			File: File{
+				Path: "/foo",
+				FIFO: true,
+			},
+			OtherFile: File{
+				Path: "/foo",
+				FIFO: true,
+			},
+			ExpectedSatisfies: true,
+		},
+		{
+			Title: "different types - FIFO vs socket",
+			File: File{
+				Path: "/foo",
+				FIFO: true,
+			},
+			OtherFile: File{
+				Path:   "/foo",
+				Socket: true,
+			},
+			ExpectedSatisfies: false,
+		},
+		// Mode
+		{
+			Title: "other has mode but file doesn't",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				Mode:        &mode1,
+			},
+			ExpectedSatisfies: false,
+		},
+		{
+			Title: "different modes",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				Mode:        &mode1,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				Mode:        &mode2,
+			},
+			ExpectedSatisfies: false,
+		},
+		{
+			Title: "same modes",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				Mode:        &mode1,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				Mode:        &mode1,
+			},
+			ExpectedSatisfies: true,
+		},
+		{
+			Title: "file has mode but other doesn't",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				Mode:        &mode1,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			ExpectedSatisfies: true,
+		},
+		// User
+		{
+			Title: "other has user but file doesn't",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				User:        &user,
+			},
+			ExpectedSatisfies: true,
+		},
+		{
+			Title: "file has user but other doesn't",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				User:        &user,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			ExpectedSatisfies: true,
+		},
+		{
+			Title: "file and other doesn't have user",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			ExpectedSatisfies: true,
+		},
+		{
+			Title: "file has user and other has same user",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				User:        &user,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				User:        &user,
+			},
+			ExpectedSatisfies: true,
+		},
+		{
+			Title: "file and other have no user",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			ExpectedSatisfies: true,
+		},
+		// Uid
+		{
+			Title: "other has uid but file doesn't",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				Uid:         &uid,
+			},
+			ExpectedSatisfies: false,
+		},
+		{
+			Title: "different uids",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				Uid:         &uid,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				Uid:         func() *uint32 { v := uid + 1; return &v }(),
+			},
+			ExpectedSatisfies: false,
+		},
+		{
+			Title: "same uids",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				Uid:         &uid,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				Uid:         &uid,
+			},
+			ExpectedSatisfies: true,
+		},
+		{
+			Title: "file has uid but other doesn't",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				Uid:         &uid,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			ExpectedSatisfies: false,
+		},
+		// Group
+		{
+			Title: "other has group but file doesn't",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				Group:       &group,
+			},
+			ExpectedSatisfies: true,
+		},
+		{
+			Title: "file has group but other doesn't",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				Group:       &group,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			ExpectedSatisfies: true,
+		},
+		{
+			Title: "file and other doesn't have group",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			ExpectedSatisfies: true,
+		},
+		{
+			Title: "file has group and other has same group",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				Group:       &group,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				Group:       &group,
+			},
+			ExpectedSatisfies: true,
+		},
+		{
+			Title: "file and other have no group",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			ExpectedSatisfies: true,
+		},
+		// Gid
+		{
+			Title: "other has gid but file doesn't",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				Gid:         &gid,
+			},
+			ExpectedSatisfies: false,
+		},
+		{
+			Title: "different gids",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				Gid:         &gid,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				Gid:         func() *uint32 { v := gid + 1; return &v }(),
+			},
+			ExpectedSatisfies: false,
+		},
+		{
+			Title: "same gids",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				Gid:         &gid,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				Gid:         &gid,
+			},
+			ExpectedSatisfies: true,
+		},
+		{
+			Title: "file has gid but other doesn't",
+			File: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+				Gid:         &gid,
+			},
+			OtherFile: File{
+				Path:        "/foo",
+				RegularFile: &contents1,
+			},
+			ExpectedSatisfies: false,
+		},
+	} {
+		t.Run(tc.Title, func(t *testing.T) {
+			satisfies, err := tc.File.Satisfies(ctx, hst, &tc.OtherFile)
+			if tc.ErrorContains != "" {
+				require.ErrorContains(t, err, tc.ErrorContains)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.ExpectedSatisfies, satisfies)
+			}
+		})
+	}
 }
 
 func TestFile_Validate(t *testing.T) {
