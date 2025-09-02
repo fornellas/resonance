@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -70,7 +71,7 @@ func TestFile(t *testing.T) {
 					Path:   "foo",
 					Absent: true,
 				},
-				ErrorContains: "'path' must be absolute",
+				ErrorContains: "'path' must be an absolute unix path",
 			},
 			{
 				Title: "not clean path",
@@ -78,7 +79,15 @@ func TestFile(t *testing.T) {
 					Path:   "//foo",
 					Absent: true,
 				},
-				ErrorContains: "'path' must be clean",
+				ErrorContains: "'path' must be a clean unix path",
+			},
+			{
+				Title: "windows path",
+				File: File{
+					Path:   "C:\\foo",
+					Absent: true,
+				},
+				ErrorContains: "'path' must be an absolute unix path",
 			},
 			// Absent / Type
 			{
@@ -95,7 +104,7 @@ func TestFile(t *testing.T) {
 					Absent: true,
 					Mode:   &mode,
 				},
-				ErrorContains: "can not set 'mode' with absent",
+				ErrorContains: "'mode' can not be set with 'absent'",
 			},
 			{
 				Title: "absent with uid",
@@ -104,7 +113,7 @@ func TestFile(t *testing.T) {
 					Absent: true,
 					Uid:    &uid,
 				},
-				ErrorContains: "can not set 'uid' with absent",
+				ErrorContains: "'uid' can not be set with 'absent'",
 			},
 			{
 				Title: "absent with user",
@@ -113,7 +122,7 @@ func TestFile(t *testing.T) {
 					Absent: true,
 					User:   &user,
 				},
-				ErrorContains: "can not set 'user' with absent",
+				ErrorContains: "'user' can not be set with 'absent'",
 			},
 			{
 				Title: "absent with gid",
@@ -122,7 +131,7 @@ func TestFile(t *testing.T) {
 					Absent: true,
 					Gid:    &gid,
 				},
-				ErrorContains: "can not set 'gid' with absent",
+				ErrorContains: "'gid' can not be set with 'absent'",
 			},
 			{
 				Title: "absent with group",
@@ -131,7 +140,7 @@ func TestFile(t *testing.T) {
 					Absent: true,
 					Group:  &group,
 				},
-				ErrorContains: "can not set 'group' with absent",
+				ErrorContains: "'group' can not be set with 'absent'",
 			},
 			{
 				Title: "absent with type definition",
@@ -140,7 +149,7 @@ func TestFile(t *testing.T) {
 					Absent:       true,
 					SymbolicLink: "/bar",
 				},
-				ErrorContains: "can not set 'absent' and a file type at the same time",
+				ErrorContains: "'symbolic_link' can not be set with 'absent'",
 			},
 			{
 				Title: "multiple types",
@@ -149,7 +158,7 @@ func TestFile(t *testing.T) {
 					FIFO:   true,
 					Socket: true,
 				},
-				ErrorContains: "only one file type can be defined",
+				ErrorContains: "exactly one file type can be set: 'socket', 'symbolic_link', 'regular_file', 'block_device', 'directory', 'character_device' or 'fifo'",
 			},
 			// Socket
 			{
@@ -174,7 +183,7 @@ func TestFile(t *testing.T) {
 					SymbolicLink: "/bar",
 					Mode:         &mode,
 				},
-				ErrorContains: "can not set 'mode' with symlink",
+				ErrorContains: "'mode' can not be set with 'symbolic_link'",
 			},
 			// RegularFile
 			{
@@ -242,7 +251,7 @@ func TestFile(t *testing.T) {
 					RegularFile: new(string),
 					Mode:        &badMode,
 				},
-				ErrorContains: "file mode does not match mask",
+				ErrorContains: fmt.Sprintf("'mode' does not match mask 07777: %#o", badMode),
 			},
 			// Uid / User
 			{
@@ -269,7 +278,7 @@ func TestFile(t *testing.T) {
 					Uid:         new(uint32),
 					User:        &user,
 				},
-				ErrorContains: "can't set both 'uid' and 'user'",
+				ErrorContains: "either 'user' or 'uid' can be set",
 			},
 			// Gid / Group
 			{
@@ -296,7 +305,7 @@ func TestFile(t *testing.T) {
 					Gid:         new(uint32),
 					Group:       &group,
 				},
-				ErrorContains: "can't set both 'gid' and 'group'",
+				ErrorContains: "either 'group' or 'gid' can be set",
 			},
 		} {
 			tc.Run(t)
