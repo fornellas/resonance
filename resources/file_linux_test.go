@@ -65,7 +65,7 @@ func TestLoadFile(t *testing.T) {
 		file, err := LoadFile(ctx, hst, prefix)
 		require.NoError(t, err)
 
-		expectedFile := File{
+		expectedFile := &File{
 			Path: prefix,
 			Directory: &[]*File{
 				{
@@ -131,7 +131,7 @@ func TestLoadFile(t *testing.T) {
 		file, err := LoadFile(ctx, hst, path)
 		require.NoError(t, err)
 		require.NoError(t, err)
-		require.True(t, reflect.DeepEqual(file, File{
+		require.True(t, reflect.DeepEqual(file, &File{
 			Path:   path,
 			Absent: true,
 		}))
