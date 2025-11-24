@@ -21,17 +21,17 @@ tool (
 require (
 	al.essio.dev/pkg/shellescape v1.6.0
 	github.com/fatih/color v1.18.0
-	github.com/fornellas/slogxt v1.1.1
+	github.com/fornellas/slogxt v1.2.0
 	github.com/gliderlabs/ssh v0.3.8
 	github.com/kylelemons/godebug v1.1.0
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/crypto v0.44.0
+	golang.org/x/crypto v0.45.0
 	golang.org/x/sys v0.38.0
 	golang.org/x/term v0.37.0
-	google.golang.org/grpc v1.76.0
+	google.golang.org/grpc v1.77.0
 	google.golang.org/protobuf v1.36.10
 )
 
