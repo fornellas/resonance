@@ -20,6 +20,7 @@ tool (
 
 require (
 	al.essio.dev/pkg/shellescape v1.6.0
+	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/fatih/color v1.18.0
 	github.com/fornellas/slogxt v1.2.0
 	github.com/gliderlabs/ssh v0.3.8
@@ -38,7 +39,6 @@ require (
 require (
 	github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c // indirect
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
-	github.com/bmatcuk/doublestar/v4 v4.8.1 // indirect
 	github.com/chavacava/garif v0.1.0 // indirect
 	github.com/client9/misspell v0.3.4 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
