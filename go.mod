@@ -54,7 +54,7 @@ require (
 	github.com/hashicorp/yamux v0.1.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jandelgado/gcov2lcov v1.1.1 // indirect
-	github.com/mattn/go-colorable v0.1.14 // indirect
+	github.com/mattn/go-colorable v0.1.15 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/mitchellh/go-testing-interface v0.0.0-20171004221916-a61a99592b77 // indirect
 	github.com/oklog/run v1.0.0 // indirect
@@ -84,7 +84,7 @@ require (
 	golang.org/x/tools/go/packages/packagestest v0.1.1-deprecated // indirect
 	golang.org/x/tools/godoc v0.1.0-deprecated // indirect
 	golang.org/x/vuln v1.1.4 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260523011958-0a33c5d7ca68 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
