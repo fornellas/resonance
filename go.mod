@@ -1,6 +1,6 @@
 module github.com/fornellas/resonance
 
-go 1.26.3
+go 1.26.4
 
 tool (
 	github.com/client9/misspell/cmd/misspell
