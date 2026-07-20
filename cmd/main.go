@@ -2,8 +2,6 @@ package main
 
 import (
 	"log"
-
-	_ "github.com/fornellas/resonance/resources"
 )
 
 func main() {
