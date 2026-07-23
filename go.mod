@@ -23,6 +23,8 @@ require (
 	github.com/fatih/color v1.19.0
 	github.com/fornellas/slogxt v1.2.0
 	github.com/gliderlabs/ssh v0.3.8
+	github.com/goccy/go-yaml v1.19.2
+	github.com/invopop/jsonschema v0.14.0
 	github.com/kylelemons/godebug v1.1.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
@@ -38,7 +40,9 @@ require (
 require (
 	github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c // indirect
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
+	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.8.1 // indirect
+	github.com/buger/jsonparser v1.1.2 // indirect
 	github.com/chavacava/garif v0.1.0 // indirect
 	github.com/client9/misspell v0.3.4 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -58,6 +62,7 @@ require (
 	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/mitchellh/go-testing-interface v0.0.0-20171004221916-a61a99592b77 // indirect
 	github.com/oklog/run v1.0.0 // indirect
+	github.com/pb33f/ordered-map/v2 v2.3.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.3.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
@@ -72,6 +77,7 @@ require (
 	github.com/yoheimuta/protolint v0.53.0 // indirect
 	github.com/yuin/goldmark v1.7.13 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	go.yaml.in/yaml/v4 v4.0.0-rc.2 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20250207012021-f9890c6ad9f3 // indirect
 	golang.org/x/mod v0.35.0 // indirect
 	golang.org/x/net v0.55.0 // indirect

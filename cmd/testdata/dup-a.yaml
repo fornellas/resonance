@@ -1,0 +1,3 @@
+files:
+  - path: /etc/dup
+    mode: "0644"

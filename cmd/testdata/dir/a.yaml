@@ -1,0 +1,3 @@
+files:
+  - path: /etc/dir-a
+    mode: "0644"

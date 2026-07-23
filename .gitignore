@@ -7,4 +7,5 @@
 /host/agent_server/agent_server_linux_*
 /host/agent_server/agent_server_linux_*.gz
 /host/agent_server/proto/*.pb.go
+/recipe/recipe.schema.json
 /resonance.*.*

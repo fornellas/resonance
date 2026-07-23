@@ -1,0 +1,3 @@
+apt_packages:
+  - package: nginx
+  - package: nginx

@@ -1,0 +1,5 @@
+files:
+  - path: /etc/mixed-example
+    mode: "0644"
+apt_packages:
+  - package: nginx

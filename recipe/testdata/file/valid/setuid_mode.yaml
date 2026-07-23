@@ -1,0 +1,3 @@
+files:
+  - path: /usr/local/bin/some-setuid-tool
+    mode: "04755"

@@ -1,0 +1,5 @@
+apt_packages:
+  - package: nginx
+    architectures:
+      - amd64
+      - arm64

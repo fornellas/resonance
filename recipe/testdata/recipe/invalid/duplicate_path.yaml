@@ -1,0 +1,5 @@
+files:
+  - path: /etc/motd
+    mode: "0644"
+  - path: /etc/motd
+    mode: "0600"

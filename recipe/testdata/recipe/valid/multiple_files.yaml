@@ -1,0 +1,9 @@
+files:
+  - path: /etc/motd
+    content: |
+      Welcome!
+    mode: "0644"
+  - path: /usr/local/bin/some-setuid-tool
+    mode: "04755"
+  - path: /etc/empty-file
+    mode: "0600"

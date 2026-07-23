@@ -1,0 +1,1 @@
+Not a recipe — FindFiles must ignore this, it doesn't end in .yaml.

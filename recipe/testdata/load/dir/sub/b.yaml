@@ -1,0 +1,3 @@
+files:
+  - path: /etc/b
+    mode: "0644"

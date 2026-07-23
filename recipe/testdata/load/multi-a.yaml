@@ -1,0 +1,3 @@
+files:
+  - path: /etc/multi-a
+    mode: "0644"

@@ -1,0 +1,3 @@
+files:
+  - path: /etc/motd
+    mode: "0894"
