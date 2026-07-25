@@ -436,6 +436,21 @@ func (s *HostService) Remove(ctx context.Context, req *proto.RemoveRequest) (*pr
 	return nil, nil
 }
 
+func (s *HostService) Rename(ctx context.Context, req *proto.RenameRequest) (*proto.Empty, error) {
+	if !filepath.IsAbs(req.Oldpath) {
+		return nil, status.Errorf(codes.InvalidArgument, "path must be absolute")
+	}
+	if !filepath.IsAbs(req.Newpath) {
+		return nil, status.Errorf(codes.InvalidArgument, "path must be absolute")
+	}
+
+	if err := os.Rename(req.Oldpath, req.Newpath); err != nil {
+		return nil, s.getGrpcStatusErrnoErr(err)
+	}
+
+	return nil, nil
+}
+
 func (s *HostService) Mknod(ctx context.Context, req *proto.MknodRequest) (*proto.Empty, error) {
 	if !filepath.IsAbs(req.Path) {
 		return nil, status.Errorf(codes.InvalidArgument, "path must be absolute")

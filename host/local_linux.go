@@ -158,6 +158,17 @@ func (h Local) Remove(ctx context.Context, name string) error {
 	return h.getPathError("Remove", name, os.Remove(name))
 }
 
+func (h Local) Rename(ctx context.Context, oldpath, newpath string) error {
+	if !filepath.IsAbs(oldpath) {
+		return h.getPathError("Rename", oldpath, errors.New("path must be absolute"))
+	}
+	if !filepath.IsAbs(newpath) {
+		return h.getPathError("Rename", newpath, errors.New("path must be absolute"))
+	}
+
+	return h.getPathError("Rename", oldpath, syscall.Rename(oldpath, newpath))
+}
+
 func (h Local) Mknod(ctx context.Context, pathName string, mode types.FileMode, dev types.FileDevice) error {
 	if !path.IsAbs(pathName) {
 		return h.getPathError("Mknod", pathName, fmt.Errorf("path must be absolute"))

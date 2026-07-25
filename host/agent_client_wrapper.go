@@ -648,6 +648,22 @@ func (h *AgentClientWrapper) Remove(ctx context.Context, name string) error {
 	return nil
 }
 
+func (h *AgentClientWrapper) Rename(ctx context.Context, oldpath, newpath string) error {
+	_, err := h.hostServiceClient.Rename(ctx, &proto.RenameRequest{
+		Oldpath: oldpath,
+		Newpath: newpath,
+	})
+	if err != nil {
+		return &fs.PathError{
+			Op:   "Rename",
+			Path: oldpath,
+			Err:  unwrapGrpcStatusErrno(err),
+		}
+	}
+
+	return nil
+}
+
 func (h *AgentClientWrapper) Mknod(ctx context.Context, pathName string, mode types.FileMode, dev types.FileDevice) error {
 	_, err := h.hostServiceClient.Mknod(ctx, &proto.MknodRequest{
 		Path: pathName,

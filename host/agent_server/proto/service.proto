@@ -19,6 +19,7 @@ service HostService {
   rpc Symlink(SymlinkRequest) returns (Empty) {}
   rpc ReadLink(ReadLinkRequest) returns (ReadLinkResponse) {}
   rpc Remove(RemoveRequest) returns (Empty) {}
+  rpc Rename(RenameRequest) returns (Empty) {}
   rpc Run(stream RunRequest) returns (stream RunResponse) {}
   rpc Mknod(MknodRequest) returns (Empty) {}
   rpc WriteFile(stream WriteFileRequest) returns (Empty) {}
@@ -150,6 +151,11 @@ message ReadLinkResponse {
 
 message RemoveRequest {
   string name = 1;
+}
+
+message RenameRequest {
+  string oldpath = 1;
+  string newpath = 2;
 }
 
 message MknodRequest {

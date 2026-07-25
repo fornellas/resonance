@@ -674,6 +674,61 @@ func testHost(
 		})
 	})
 
+	t.Run("Rename", func(t *testing.T) {
+		t.Run("Success", func(t *testing.T) {
+			dir := tempDirWithPrefix(t, t.TempDir())
+			oldpath := filepath.Join(dir, "old")
+			newpath := filepath.Join(dir, "new")
+			require.NoError(t, os.WriteFile(oldpath, []byte("content"), 0600))
+
+			err := host.Rename(ctx, oldpath, newpath)
+			require.NoError(t, err)
+
+			_, err = os.Lstat(oldpath)
+			require.ErrorIs(t, err, syscall.ENOENT)
+			content, err := os.ReadFile(newpath)
+			require.NoError(t, err)
+			require.Equal(t, "content", string(content))
+		})
+		t.Run("Success overwrites existing destination", func(t *testing.T) {
+			dir := tempDirWithPrefix(t, t.TempDir())
+			oldpath := filepath.Join(dir, "old")
+			newpath := filepath.Join(dir, "new")
+			require.NoError(t, os.WriteFile(oldpath, []byte("new content"), 0600))
+			require.NoError(t, os.WriteFile(newpath, []byte("stale content"), 0600))
+
+			err := host.Rename(ctx, oldpath, newpath)
+			require.NoError(t, err)
+
+			content, err := os.ReadFile(newpath)
+			require.NoError(t, err)
+			require.Equal(t, "new content", string(content))
+		})
+		t.Run("oldpath must be absolute", func(t *testing.T) {
+			dir := tempDirWithPrefix(t, t.TempDir())
+			err := host.Rename(ctx, "relative/path", filepath.Join(dir, "new"))
+			require.ErrorContains(t, err, "path must be absolute")
+			var pathError *fs.PathError
+			require.ErrorAs(t, err, &pathError)
+		})
+		t.Run("newpath must be absolute", func(t *testing.T) {
+			dir := tempDirWithPrefix(t, t.TempDir())
+			oldpath := filepath.Join(dir, "old")
+			require.NoError(t, os.WriteFile(oldpath, []byte("content"), 0600))
+			err := host.Rename(ctx, oldpath, "relative/path")
+			require.ErrorContains(t, err, "path must be absolute")
+			var pathError *fs.PathError
+			require.ErrorAs(t, err, &pathError)
+		})
+		t.Run("syscall.ENOENT", func(t *testing.T) {
+			dir := tempDirWithPrefix(t, t.TempDir())
+			err := host.Rename(ctx, filepath.Join(dir, "non-existent"), filepath.Join(dir, "new"))
+			require.ErrorIs(t, err, syscall.ENOENT)
+			var pathError *fs.PathError
+			require.ErrorAs(t, err, &pathError)
+		})
+	})
+
 	t.Run("Mknod", func(t *testing.T) {
 		testMknod := func(t *testing.T, name string, fileType, modeBits uint32, dev types.FileDevice) {
 			t.Run(name, func(t *testing.T) {

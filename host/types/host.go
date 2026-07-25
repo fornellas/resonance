@@ -69,6 +69,9 @@ type Host interface {
 	// Remove works similar to os.Remove.
 	Remove(ctx context.Context, name string) error
 
+	// Rename works similar to os.Rename / syscall.Rename.
+	Rename(ctx context.Context, oldpath, newpath string) error
+
 	// Mknod works similar to syscall.Mknod, but ignoring umask.
 	Mknod(ctx context.Context, path string, mode FileMode, dev FileDevice) error
 

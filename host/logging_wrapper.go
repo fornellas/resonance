@@ -117,6 +117,12 @@ func (h *LoggingWrapper) Remove(ctx context.Context, name string) error {
 	return h.host.Remove(ctx, name)
 }
 
+func (h *LoggingWrapper) Rename(ctx context.Context, oldpath, newpath string) error {
+	ctx, logger := log.MustWithGroupAttrs(ctx, "🖥️ Host", "type", h.host.Type(), "name", h.host.String())
+	logger.Debug("Rename", "oldpath", oldpath, "newpath", newpath)
+	return h.host.Rename(ctx, oldpath, newpath)
+}
+
 func (h *LoggingWrapper) Mknod(ctx context.Context, path string, mode types.FileMode, dev types.FileDevice) error {
 	ctx, logger := log.MustWithGroupAttrs(ctx, "🖥️ Host", "type", h.host.Type(), "name", h.host.String())
 	logger.Debug("Mknod", "path", path, "mode", mode, "dev", dev)
