@@ -38,14 +38,14 @@ jobs:
     with:
       upload-artifact: ${{ startsWith(github.ref, 'refs/tags/') }}
       GOARCH: amd64
-      runs-on: macos-13
+      runs-on: macos-26-intel
     secrets: inherit
   darwin_arm64:
     uses: ./.github/workflows/build-darwin.yaml
     with:
       upload-artifact: ${{ startsWith(github.ref, 'refs/tags/') }}
       GOARCH: arm64
-      runs-on: macos-14
+      runs-on: macos-26
     secrets: inherit
   ci:
     needs:
@@ -121,6 +121,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Coveralls Finished
-        uses: coverallsapp/github-action@v2.3.4
+        uses: coverallsapp/github-action@v2.3.8
         with:
           parallel-finished: true

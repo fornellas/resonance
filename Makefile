@@ -237,7 +237,7 @@ else
 GO_BUILD_AGENT_GOARCHS := $(GOARCH)
 endif
 
-GO_BUILD_MAX_AGENT_SIZE := 4400000
+GO_BUILD_MAX_AGENT_SIZE := 4500000
 
 # rrb
 
@@ -482,10 +482,11 @@ update-deps: go-update
 
 # go get -u
 
-.PHONY: go-get-u-t
-go-get-u-t: install-go go-mod-tidy
+.PHONY: go-get-u
+go-get-u: install-go go-mod-tidy
 	$(GO) get -u ./...
-update-deps: go-get-u-t
+	$(GO) get -u tool
+update-deps: go-get-u
 
 ##
 ## Test
@@ -621,7 +622,7 @@ build: clean-agent
 go-generate: clean-agent
 goimports: clean-agent
 go-mod-tidy: clean-agent
-go-get-u-t: clean-agent
+go-get-u: clean-agent
 staticcheck: clean-agent
 misspell: clean-agent
 gocyclo: clean-agent
