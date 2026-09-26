@@ -93,7 +93,7 @@ jobs:
       # Coveralls
       - name: Coveralls
         if: ${{ inputs.coveralls == true }}
-        uses: coverallsapp/github-action@v2.3.4
+        uses: coverallsapp/github-action@v2.3.8
         with:
           file: cover.lcov
           flag-name: linux.${{ inputs.GOARCH }}
