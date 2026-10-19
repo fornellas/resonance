@@ -69,19 +69,19 @@ require (
 	github.com/yoheimuta/protolint v0.58.0 // indirect
 	github.com/yuin/goldmark v1.8.6 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
-	golang.org/x/exp/typeparams v0.0.0-20261011100332-faecfb24eb49 // indirect
+	golang.org/x/exp/typeparams v0.0.0-20261014143641-f0251eb4aa3e // indirect
 	golang.org/x/mod v0.42.0 // indirect
 	golang.org/x/net v0.61.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
-	golang.org/x/telemetry v0.0.0-20261010193011-f71dc92da45e // indirect
+	golang.org/x/telemetry v0.0.0-20261016163328-824aa3d1d8dd // indirect
 	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/tools v0.52.0 // indirect
 	golang.org/x/tools/cmd/godoc v0.1.0-deprecated // indirect
 	golang.org/x/tools/godoc v0.1.0-deprecated // indirect
 	golang.org/x/vuln v1.9.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20261005182115-fad411399dd8 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20261012220534-4341edf3f941 // indirect
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.6.2 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	honnef.co/go/tools v0.8.1 // indirect
+	honnef.co/go/tools v0.8.2 // indirect
 )
