@@ -26,14 +26,14 @@ jobs:
     steps:
       # Checkout
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       # Make
       - name: Setup Make
         run: brew install make
         shell: bash
       # Cache restore
       - name: Cache restore
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ${{ env.XDG_CACHE_HOME }}
           key: darwin-${{ inputs.GOARCH }}-${{ hashFiles('**/go.sum', '**/*.go') }}
@@ -58,7 +58,7 @@ jobs:
         shell: bash
       # Cache save
       - name: Cache save
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: ${{ env.XDG_CACHE_HOME }}
           key: darwin-${{ inputs.GOARCH }}-${{ hashFiles('**/go.sum', '**/*.go') }}
@@ -67,7 +67,7 @@ jobs:
         run: gzip resonance.darwin.${{ inputs.GOARCH }}
         shell: bash
       # Upload
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: ${{ inputs.upload-artifact == true }}
         with:
           name: resonance.darwin.${{ inputs.GOARCH }}.gz
@@ -75,7 +75,7 @@ jobs:
           if-no-files-found: error
       # Coveralls
       - name: Coveralls
-        uses: coverallsapp/github-action@v2.3.8
+        uses: coverallsapp/github-action@v2
         with:
           file: cover.lcov
           flag-name: darwin.${{ inputs.GOARCH }}
