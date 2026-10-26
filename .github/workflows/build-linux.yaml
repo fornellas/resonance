@@ -35,10 +35,10 @@ jobs:
     steps:
       # Checkout
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       # Cache restore
       - name: Cache restore
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ${{ env.XDG_CACHE_HOME }}
           key: linux-${{ inputs.GOARCH }}-${{ hashFiles('**/go.sum', '**/*.go') }}
@@ -75,7 +75,7 @@ jobs:
         shell: bash
       # Cache save
       - name: Cache save
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: ${{ env.XDG_CACHE_HOME }}
           key: linux-${{ inputs.GOARCH }}-${{ hashFiles('**/go.sum', '**/*.go') }}
@@ -84,7 +84,7 @@ jobs:
         run: gzip resonance.linux.${{ inputs.GOARCH }}
         shell: bash
       # Upload
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: ${{ inputs.upload-artifact == true }}
         with:
           name: resonance.linux.${{ inputs.GOARCH }}.gz
@@ -93,7 +93,7 @@ jobs:
       # Coveralls
       - name: Coveralls
         if: ${{ inputs.coveralls == true }}
-        uses: coverallsapp/github-action@v2.3.8
+        uses: coverallsapp/github-action@v2
         with:
           file: cover.lcov
           flag-name: linux.${{ inputs.GOARCH }}
@@ -129,7 +129,7 @@ jobs:
       # Create Pull Request
       - name: Create Pull Request
         if: ${{ inputs.update-deps == true }}
-        uses: peter-evans/create-pull-request@v6.1.0
+        uses: peter-evans/create-pull-request@v8
         with:
           commit-message: Update dependencies
           title: Update dependencies
